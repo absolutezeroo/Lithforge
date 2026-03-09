@@ -70,7 +70,9 @@ namespace Lithforge.Runtime
 
             for (int i = 0; i < _unloadedCoords.Count; i++)
             {
-                _chunkRenderManager.DestroyRenderer(_unloadedCoords[i]);
+                int3 coord = _unloadedCoords[i];
+                _chunkRenderManager.DestroyRenderer(coord);
+                CleanupPendingJobsForCoord(coord);
             }
 
             ScheduleGenerationJobs();
@@ -187,6 +189,27 @@ namespace Lithforge.Runtime
                     Handle = meshHandle,
                     Data = meshData,
                 });
+            }
+        }
+
+        private void CleanupPendingJobsForCoord(int3 coord)
+        {
+            for (int i = _pendingGenerations.Count - 1; i >= 0; i--)
+            {
+                if (_pendingGenerations[i].Coord.Equals(coord))
+                {
+                    _pendingGenerations[i].Handle.Dispose();
+                    _pendingGenerations.RemoveAt(i);
+                }
+            }
+
+            for (int i = _pendingMeshes.Count - 1; i >= 0; i--)
+            {
+                if (_pendingMeshes[i].Coord.Equals(coord))
+                {
+                    _pendingMeshes[i].Data.Dispose();
+                    _pendingMeshes.RemoveAt(i);
+                }
             }
         }
 

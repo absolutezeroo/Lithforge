@@ -16,7 +16,7 @@ namespace Lithforge.Voxel.Chunk
     public sealed class ChunkPool : IDisposable
     {
         private readonly Stack<NativeArray<StateId>> _available;
-        private readonly HashSet<NativeArray<StateId>> _checkedOut;
+        private readonly List<NativeArray<StateId>> _checkedOut;
         private int _totalAllocated;
         private bool _disposed;
 
@@ -38,7 +38,7 @@ namespace Lithforge.Voxel.Chunk
         public ChunkPool(int initialCapacity)
         {
             _available = new Stack<NativeArray<StateId>>(initialCapacity);
-            _checkedOut = new HashSet<NativeArray<StateId>>();
+            _checkedOut = new List<NativeArray<StateId>>();
 
             for (int i = 0; i < initialCapacity; i++)
             {
