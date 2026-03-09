@@ -8,6 +8,7 @@ using Lithforge.Physics;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
+using Lithforge.Runtime.UI;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
@@ -348,6 +349,30 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ItemRegistry,
                     lootResolver);
                 _services.Register(blockInteraction);
+
+                // Load shared PanelSettings asset for UI Toolkit
+                UnityEngine.UIElements.PanelSettings panelSettings =
+                    Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
+
+                // Add CrosshairHUD
+                GameObject crosshairObject = new GameObject("CrosshairHUD");
+                CrosshairHUD crosshairHUD = crosshairObject.AddComponent<CrosshairHUD>();
+                crosshairHUD.Initialize(panelSettings);
+
+                // Add HotbarHUD
+                GameObject hotbarObject = new GameObject("HotbarHUD");
+                HotbarHUD hotbarHUD = hotbarObject.AddComponent<HotbarHUD>();
+                hotbarHUD.Initialize(playerInventory, panelSettings);
+
+                // Add InventoryScreen
+                GameObject inventoryObject = new GameObject("InventoryScreen");
+                InventoryScreen inventoryScreen = inventoryObject.AddComponent<InventoryScreen>();
+                inventoryScreen.Initialize(
+                    playerInventory,
+                    _contentResult.ItemRegistry,
+                    _contentResult.CraftingEngine,
+                    panelSettings);
+                _services.Register(inventoryScreen);
             }
 
             // Add debug HUD

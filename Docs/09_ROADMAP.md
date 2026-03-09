@@ -138,15 +138,15 @@
 
 ### Deliverables
 
-- [ ] `Lithforge.Physics`: VoxelRaycast (DDA, Burst-compatible), VoxelCollider (AABB vs grid)
-- [ ] `Lithforge.Runtime.Input`: BlockInteraction (place/break), PlayerController with gravity + voxel collision
-- [ ] `Lithforge.Crafting`: RecipeDefinition loading, CraftingEngine, Inventory
-- [ ] `Lithforge.Voxel`: Loot table loading + drop resolution
-- [ ] `Lithforge.Voxel`: Tag loading + tool requirement checking
-- [ ] `Lithforge.Runtime.UI`: CrosshairHUD (uGUI), HotbarHUD (uGUI), InventoryScreen (UI Toolkit)
-- [ ] Block highlight wireframe (LineRenderer on targeted block)
-- [ ] Dirty chunk propagation on block change + remesh
-- [ ] Content: planks, sticks, wooden pickaxe recipes
+- [x] `Lithforge.Physics`: VoxelRaycast (DDA, Burst-compatible), VoxelCollider (AABB vs grid)
+- [x] `Lithforge.Runtime.Input`: BlockInteraction (place/break), PlayerController with gravity + voxel collision
+- [x] `Lithforge.Crafting`: RecipeDefinition loading, CraftingEngine, Inventory
+- [x] `Lithforge.Voxel`: Loot table loading + drop resolution
+- [x] `Lithforge.Voxel`: Tag loading + tool requirement checking
+- [x] `Lithforge.Runtime.UI`: CrosshairHUD, HotbarHUD, InventoryScreen (UI Toolkit)
+- [x] Block highlight wireframe (LineRenderer on targeted block)
+- [x] Dirty chunk propagation on block change + remesh
+- [x] Content: planks, sticks, wooden pickaxe recipes
 
 ### Acceptance Criteria
 

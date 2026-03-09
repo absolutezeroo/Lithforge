@@ -152,7 +152,7 @@ MonoBehaviour:
   poolSize: 512
   renderDistance: 8
   seaLevel: 62
-  seed: 123456
+  seed: 129056109832901
 --- !u!4 &1507543890
 Transform:
   m_ObjectHideFlags: 0
