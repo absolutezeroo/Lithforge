@@ -1,0 +1,10 @@
+{
+  "hardness": 100.0,
+  "blast_resistance": 100.0,
+  "collision_shape": "none",
+  "render_layer": "translucent",
+  "light_emission": 0,
+  "light_filter": 2,
+  "sound_group": "none",
+  "map_color": "#3F76E4"
+}

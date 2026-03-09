@@ -1,0 +1,16 @@
+{
+  "properties": {
+    "axis": { "type": "enum", "values": ["x", "y", "z"], "default": "y" }
+  },
+  "hardness": 2.0,
+  "blast_resistance": 2.0,
+  "collision_shape": "full_cube",
+  "render_layer": "opaque",
+  "light_emission": 0,
+  "light_filter": 15,
+  "sound_group": "wood",
+  "map_color": "#6B5839",
+  "loot_table": "lithforge:blocks/oak_log",
+  "tags": ["lithforge:logs", "lithforge:mineable_axe"],
+  "flammable": { "burn_odds": 5, "ignite_odds": 5 }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Lithforge.Voxel.Tests",
+  "rootNamespace": "Lithforge.Voxel.Tests",
+  "references": [
+    "Lithforge.Core",
+    "Lithforge.Voxel",
+    "Unity.Collections",
+    "Unity.Burst",
+    "Unity.Mathematics",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "Newtonsoft.Json.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

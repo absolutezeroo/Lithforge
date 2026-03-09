@@ -1,0 +1,12 @@
+{
+  "hardness": 0.6,
+  "blast_resistance": 0.6,
+  "collision_shape": "full_cube",
+  "render_layer": "opaque",
+  "light_emission": 0,
+  "light_filter": 15,
+  "sound_group": "grass",
+  "map_color": "#7FB238",
+  "loot_table": "lithforge:blocks/grass_block",
+  "tags": ["lithforge:mineable_shovel"]
+}

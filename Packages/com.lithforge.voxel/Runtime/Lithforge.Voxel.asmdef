@@ -1,0 +1,21 @@
+{
+  "name": "Lithforge.Voxel",
+  "rootNamespace": "Lithforge.Voxel",
+  "references": [
+    "Lithforge.Core",
+    "Unity.Burst",
+    "Unity.Collections",
+    "Unity.Mathematics"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
