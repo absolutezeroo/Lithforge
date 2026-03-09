@@ -140,6 +140,11 @@ namespace Lithforge.Voxel.Chunk
                         _pool.Return(kvp.Value.Data);
                     }
 
+                    if (kvp.Value.LightData.IsCreated)
+                    {
+                        kvp.Value.LightData.Dispose();
+                    }
+
                     toRemove.Add(kvp.Key);
                     unloaded.Add(kvp.Key);
                 }
@@ -167,6 +172,11 @@ namespace Lithforge.Voxel.Chunk
                 if (kvp.Value.Data.IsCreated)
                 {
                     _pool.Return(kvp.Value.Data);
+                }
+
+                if (kvp.Value.LightData.IsCreated)
+                {
+                    kvp.Value.LightData.Dispose();
                 }
             }
 

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "lithforge:block/grass_block"
+    }
+  }
+}

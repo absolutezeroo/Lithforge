@@ -1,13 +1,11 @@
-using System.Collections.Generic;
 using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
-using Lithforge.Meshing;
+using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Voxel.Content;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Pipeline;
 using Unity.Collections;
@@ -28,8 +26,7 @@ namespace Lithforge.Runtime.Bootstrap
         [SerializeField] private long seed = 42L;
 
         private ServiceContainer _services;
-        private StateRegistry _stateRegistry;
-        private NativeStateRegistry _nativeStateRegistry;
+        private ContentPipelineResult _contentResult;
         private ChunkPool _chunkPool;
         private ChunkManager _chunkManager;
         private GenerationPipeline _generationPipeline;
@@ -53,24 +50,19 @@ namespace Lithforge.Runtime.Bootstrap
         {
             UnityLogger logger = new UnityLogger();
             ContentValidator validator = new ContentValidator();
-            BlockDefinitionLoader loader = new BlockDefinitionLoader(logger, validator);
 
-            string contentRoot = System.IO.Path.Combine(Application.streamingAssetsPath, "content", "lithforge");
-            List<BlockDefinition> definitions = loader.LoadAll(contentRoot);
+            ContentPipeline pipeline = new ContentPipeline(logger, validator);
+            string contentRoot = System.IO.Path.Combine(
+                Application.streamingAssetsPath, "content", "lithforge");
 
-            _stateRegistry = new StateRegistry();
+            _contentResult = pipeline.Build(contentRoot);
 
-            for (int i = 0; i < definitions.Count; i++)
-            {
-                _stateRegistry.Register(definitions[i]);
-            }
+            _services.Register(_contentResult.StateRegistry);
+            _services.Register(_contentResult.NativeStateRegistry);
 
-            _nativeStateRegistry = _stateRegistry.BakeNative(Allocator.Persistent);
-
-            _services.Register(_stateRegistry);
-            _services.Register(_nativeStateRegistry);
-
-            UnityEngine.Debug.Log($"[Lithforge] Loaded {definitions.Count} blocks, {_stateRegistry.TotalStateCount} states.");
+            UnityEngine.Debug.Log(
+                $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
+                $"{_contentResult.NativeAtlasLookup.TextureCount} textures.");
         }
 
         private void InitializeChunkSystem()
@@ -101,7 +93,10 @@ namespace Lithforge.Runtime.Bootstrap
             StateId dirtId = FindStateId("lithforge:dirt");
 
             _generationPipeline = new GenerationPipeline(
-                terrainNoise, stoneId, airId, waterId, grassId, dirtId, seaLevel);
+                terrainNoise,
+                _contentResult.NativeStateRegistry,
+                stoneId, airId, waterId, grassId, dirtId,
+                seaLevel);
 
             _services.Register(_generationPipeline);
         }
@@ -112,7 +107,13 @@ namespace Lithforge.Runtime.Bootstrap
 
             if (material == null)
             {
-                Shader shader = Shader.Find("Lithforge/VoxelUnlit");
+                Shader shader = Shader.Find("Lithforge/VoxelOpaque");
+
+                if (shader == null)
+                {
+                    // Fallback to old shader
+                    shader = Shader.Find("Lithforge/VoxelUnlit");
+                }
 
                 if (shader != null)
                 {
@@ -120,9 +121,15 @@ namespace Lithforge.Runtime.Bootstrap
                 }
                 else
                 {
-                    UnityEngine.Debug.LogWarning("[Lithforge] VoxelUnlit shader not found, using default.");
+                    UnityEngine.Debug.LogWarning("[Lithforge] VoxelOpaque shader not found, using default.");
                     material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
                 }
+            }
+
+            // Assign atlas texture to material
+            if (_contentResult.AtlasResult != null && _contentResult.AtlasResult.TextureArray != null)
+            {
+                material.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
             }
 
             _chunkRenderManager = new ChunkRenderManager(material);
@@ -135,7 +142,8 @@ namespace Lithforge.Runtime.Bootstrap
             _gameLoop.Initialize(
                 _chunkManager,
                 _generationPipeline,
-                _nativeStateRegistry,
+                _contentResult.NativeStateRegistry,
+                _contentResult.NativeAtlasLookup,
                 _chunkRenderManager,
                 seed);
 
@@ -166,9 +174,12 @@ namespace Lithforge.Runtime.Bootstrap
             string ns = parts[0];
             string name = parts[1];
 
-            for (int i = 0; i < _stateRegistry.Entries.Count; i++)
+            System.Collections.Generic.IReadOnlyList<StateRegistryEntry> entries =
+                _contentResult.StateRegistry.Entries;
+
+            for (int i = 0; i < entries.Count; i++)
             {
-                StateRegistryEntry entry = _stateRegistry.Entries[i];
+                StateRegistryEntry entry = entries[i];
 
                 if (entry.Definition.Id.Namespace == ns && entry.Definition.Id.Name == name)
                 {
@@ -202,9 +213,14 @@ namespace Lithforge.Runtime.Bootstrap
                 _chunkPool.Dispose();
             }
 
-            if (_nativeStateRegistry.States.IsCreated)
+            if (_contentResult != null)
             {
-                _nativeStateRegistry.Dispose();
+                if (_contentResult.NativeStateRegistry.States.IsCreated)
+                {
+                    _contentResult.NativeStateRegistry.Dispose();
+                }
+
+                _contentResult.NativeAtlasLookup.Dispose();
             }
         }
     }

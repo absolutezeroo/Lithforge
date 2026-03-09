@@ -1,0 +1,538 @@
+using System.Runtime.CompilerServices;
+using Lithforge.Meshing.Atlas;
+using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+
+namespace Lithforge.Meshing
+{
+    /// <summary>
+    /// Burst-compiled binary greedy meshing job with ambient occlusion.
+    /// Processes 6 face directions, each with 32 slices. For each slice,
+    /// builds a face visibility mask, computes per-vertex AO, and performs
+    /// greedy merging of identical adjacent faces.
+    ///
+    /// Neighbor border slices enable correct cross-chunk face culling.
+    /// </summary>
+    [BurstCompile]
+    public struct GreedyMeshJob : IJob
+    {
+        [ReadOnly] public NativeArray<StateId> ChunkData;
+        [ReadOnly] public NativeArray<StateId> NeighborPosX;
+        [ReadOnly] public NativeArray<StateId> NeighborNegX;
+        [ReadOnly] public NativeArray<StateId> NeighborPosY;
+        [ReadOnly] public NativeArray<StateId> NeighborNegY;
+        [ReadOnly] public NativeArray<StateId> NeighborPosZ;
+        [ReadOnly] public NativeArray<StateId> NeighborNegZ;
+        [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+        [ReadOnly] public NativeArray<AtlasEntry> AtlasEntries;
+        [ReadOnly] public NativeArray<byte> LightData;
+
+        public NativeList<MeshVertex> OpaqueVertices;
+        public NativeList<int> OpaqueIndices;
+
+        public void Execute()
+        {
+            // Process each of the 6 face directions
+            for (int face = 0; face < 6; face++)
+            {
+                ProcessFaceDirection(face);
+            }
+        }
+
+        private void ProcessFaceDirection(int face)
+        {
+            NativeArray<uint> rowMask = new NativeArray<uint>(ChunkConstants.Size, Allocator.Temp);
+            NativeArray<ushort> faceStateId = new NativeArray<ushort>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO00 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO10 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO01 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO11 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceLight = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+
+            for (int slice = 0; slice < ChunkConstants.Size; slice++)
+            {
+                // Clear masks for this slice
+                for (int i = 0; i < ChunkConstants.Size; i++)
+                {
+                    rowMask[i] = 0;
+                }
+
+                // Build face visibility mask and compute AO
+                BuildFaceMask(face, slice, rowMask, faceStateId, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
+
+                // Greedy merge and emit quads
+                GreedyMerge(face, slice, rowMask, faceStateId, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
+            }
+
+            rowMask.Dispose();
+            faceStateId.Dispose();
+            faceAO00.Dispose();
+            faceAO10.Dispose();
+            faceAO01.Dispose();
+            faceAO11.Dispose();
+            faceLight.Dispose();
+        }
+
+        private void BuildFaceMask(
+            int face, int slice,
+            NativeArray<uint> rowMask,
+            NativeArray<ushort> faceStateId,
+            NativeArray<byte> faceAO00, NativeArray<byte> faceAO10,
+            NativeArray<byte> faceAO01, NativeArray<byte> faceAO11,
+            NativeArray<byte> faceLight)
+        {
+            for (int v = 0; v < ChunkConstants.Size; v++)
+            {
+                for (int u = 0; u < ChunkConstants.Size; u++)
+                {
+                    int3 blockPos = FaceToBlockPos(face, slice, u, v);
+                    int3 neighborPos = blockPos + GetFaceNormal(face);
+
+                    StateId blockId = SampleBlock(blockPos);
+                    StateId neighborId = SampleBlock(neighborPos);
+
+                    BlockStateCompact blockState = StateTable[blockId.Value];
+                    BlockStateCompact neighborState = StateTable[neighborId.Value];
+
+                    if (!blockState.IsAir && blockState.IsOpaque && !neighborState.IsOpaque)
+                    {
+                        int idx = v * ChunkConstants.Size + u;
+                        rowMask[v] = rowMask[v] | (1u << u);
+                        faceStateId[idx] = blockId.Value;
+
+                        // Compute AO for each vertex corner
+                        ComputeVertexAO(face, blockPos, u, v,
+                            out byte ao00, out byte ao10, out byte ao01, out byte ao11);
+                        faceAO00[idx] = ao00;
+                        faceAO10[idx] = ao10;
+                        faceAO01[idx] = ao01;
+                        faceAO11[idx] = ao11;
+
+                        // Sample light at block position
+                        faceLight[idx] = SampleLight(blockPos);
+                    }
+                }
+            }
+        }
+
+        private void GreedyMerge(
+            int face, int slice,
+            NativeArray<uint> rowMask,
+            NativeArray<ushort> faceStateId,
+            NativeArray<byte> faceAO00, NativeArray<byte> faceAO10,
+            NativeArray<byte> faceAO01, NativeArray<byte> faceAO11,
+            NativeArray<byte> faceLight)
+        {
+            for (int v = 0; v < ChunkConstants.Size; v++)
+            {
+                uint mask = rowMask[v];
+
+                while (mask != 0)
+                {
+                    int u0 = math.tzcnt(mask);
+                    int idx0 = v * ChunkConstants.Size + u0;
+                    ushort stateVal = faceStateId[idx0];
+                    byte ao00 = faceAO00[idx0];
+                    byte ao10 = faceAO10[idx0];
+                    byte ao01 = faceAO01[idx0];
+                    byte ao11 = faceAO11[idx0];
+                    byte light = faceLight[idx0];
+
+                    // Extend width
+                    int width = 1;
+                    while (u0 + width < ChunkConstants.Size)
+                    {
+                        if ((mask & (1u << (u0 + width))) == 0)
+                        {
+                            break;
+                        }
+
+                        int idxW = v * ChunkConstants.Size + u0 + width;
+                        if (faceStateId[idxW] != stateVal ||
+                            faceAO00[idxW] != ao00 || faceAO10[idxW] != ao10 ||
+                            faceAO01[idxW] != ao01 || faceAO11[idxW] != ao11 ||
+                            faceLight[idxW] != light)
+                        {
+                            break;
+                        }
+
+                        width++;
+                    }
+
+                    // Extend height
+                    int height = 1;
+                    while (v + height < ChunkConstants.Size)
+                    {
+                        bool canExtend = true;
+
+                        for (int wu = 0; wu < width; wu++)
+                        {
+                            uint nextRowMask = rowMask[v + height];
+                            if ((nextRowMask & (1u << (u0 + wu))) == 0)
+                            {
+                                canExtend = false;
+                                break;
+                            }
+
+                            int idxH = (v + height) * ChunkConstants.Size + u0 + wu;
+                            if (faceStateId[idxH] != stateVal ||
+                                faceAO00[idxH] != ao00 || faceAO10[idxH] != ao10 ||
+                                faceAO01[idxH] != ao01 || faceAO11[idxH] != ao11 ||
+                                faceLight[idxH] != light)
+                            {
+                                canExtend = false;
+                                break;
+                            }
+                        }
+
+                        if (!canExtend)
+                        {
+                            break;
+                        }
+
+                        height++;
+                    }
+
+                    // Emit the greedy quad
+                    EmitGreedyQuad(face, slice, u0, v, width, height, stateVal,
+                        ao00, ao10, ao01, ao11, light);
+
+                    // Clear consumed bits
+                    for (int hh = 0; hh < height; hh++)
+                    {
+                        uint clearMask = 0u;
+                        for (int wu = 0; wu < width; wu++)
+                        {
+                            clearMask |= (1u << (u0 + wu));
+                        }
+                        rowMask[v + hh] = rowMask[v + hh] & ~clearMask;
+                    }
+
+                    // Refresh current row mask
+                    mask = rowMask[v];
+                }
+            }
+        }
+
+        private void EmitGreedyQuad(
+            int face, int slice, int u0, int v0, int width, int height,
+            ushort stateVal, byte ao00, byte ao10, byte ao01, byte ao11, byte light)
+        {
+            int vertexStart = OpaqueVertices.Length;
+
+            float3 pos00, pos10, pos01, pos11;
+            ComputeQuadPositions(face, slice, u0, v0, width, height,
+                out pos00, out pos10, out pos01, out pos11);
+
+            float3 normal = GetFaceNormalFloat(face);
+
+            AtlasEntry atlasEntry = AtlasEntries[stateVal];
+            ushort texIndex = atlasEntry.GetTextureIndex(face);
+
+            float lightNorm = light / 15.0f;
+
+            // Vertex color: r=AO, g=blockLight(0), b=sunLight, a=texIndex
+            half4 color00 = new half4((half)(ao00 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
+            half4 color10 = new half4((half)(ao10 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
+            half4 color01 = new half4((half)(ao01 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
+            half4 color11 = new half4((half)(ao11 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
+
+            OpaqueVertices.Add(new MeshVertex
+            {
+                Position = pos00,
+                Normal = normal,
+                UV = new float2(0, 0),
+                Color = color00,
+            });
+
+            OpaqueVertices.Add(new MeshVertex
+            {
+                Position = pos10,
+                Normal = normal,
+                UV = new float2(width, 0),
+                Color = color10,
+            });
+
+            OpaqueVertices.Add(new MeshVertex
+            {
+                Position = pos11,
+                Normal = normal,
+                UV = new float2(width, height),
+                Color = color11,
+            });
+
+            OpaqueVertices.Add(new MeshVertex
+            {
+                Position = pos01,
+                Normal = normal,
+                UV = new float2(0, height),
+                Color = color01,
+            });
+
+            // AO diagonal flip: use the diagonal that minimizes anisotropy
+            if (ao00 + ao11 > ao10 + ao01)
+            {
+                // Standard winding
+                OpaqueIndices.Add(vertexStart);
+                OpaqueIndices.Add(vertexStart + 1);
+                OpaqueIndices.Add(vertexStart + 2);
+                OpaqueIndices.Add(vertexStart);
+                OpaqueIndices.Add(vertexStart + 2);
+                OpaqueIndices.Add(vertexStart + 3);
+            }
+            else
+            {
+                // Flipped winding to fix AO interpolation
+                OpaqueIndices.Add(vertexStart + 1);
+                OpaqueIndices.Add(vertexStart + 2);
+                OpaqueIndices.Add(vertexStart + 3);
+                OpaqueIndices.Add(vertexStart + 1);
+                OpaqueIndices.Add(vertexStart + 3);
+                OpaqueIndices.Add(vertexStart);
+            }
+        }
+
+        private void ComputeVertexAO(int face, int3 blockPos, int u, int v,
+            out byte ao00, out byte ao10, out byte ao01, out byte ao11)
+        {
+            // The 4 corners of the face cell each sample 3 neighbors for AO
+            // Corner (0,0) = bottom-left, (1,0) = bottom-right, (0,1) = top-left, (1,1) = top-right
+            // Relative to the face plane's u,v axes
+
+            int3 faceNormal = GetFaceNormal(face);
+            int3 uAxis = GetFaceUAxis(face);
+            int3 vAxis = GetFaceVAxis(face);
+
+            // Position one step into the face direction (where the face is rendered)
+            int3 faceBase = blockPos + faceNormal;
+
+            // Corner (0,0): check neighbors at (-u, 0), (0, -v), (-u, -v)
+            bool s1_00 = IsBlockOpaqueForAO(faceBase - uAxis);
+            bool s2_00 = IsBlockOpaqueForAO(faceBase - vAxis);
+            bool c_00 = IsBlockOpaqueForAO(faceBase - uAxis - vAxis);
+            ao00 = VoxelAO.Compute(s1_00, s2_00, c_00);
+
+            // Corner (1,0): check neighbors at (+u, 0), (0, -v), (+u, -v)
+            bool s1_10 = IsBlockOpaqueForAO(faceBase + uAxis);
+            bool s2_10 = IsBlockOpaqueForAO(faceBase - vAxis);
+            bool c_10 = IsBlockOpaqueForAO(faceBase + uAxis - vAxis);
+            ao10 = VoxelAO.Compute(s1_10, s2_10, c_10);
+
+            // Corner (0,1): check neighbors at (-u, 0), (0, +v), (-u, +v)
+            bool s1_01 = IsBlockOpaqueForAO(faceBase - uAxis);
+            bool s2_01 = IsBlockOpaqueForAO(faceBase + vAxis);
+            bool c_01 = IsBlockOpaqueForAO(faceBase - uAxis + vAxis);
+            ao01 = VoxelAO.Compute(s1_01, s2_01, c_01);
+
+            // Corner (1,1): check neighbors at (+u, 0), (0, +v), (+u, +v)
+            bool s1_11 = IsBlockOpaqueForAO(faceBase + uAxis);
+            bool s2_11 = IsBlockOpaqueForAO(faceBase + vAxis);
+            bool c_11 = IsBlockOpaqueForAO(faceBase + uAxis + vAxis);
+            ao11 = VoxelAO.Compute(s1_11, s2_11, c_11);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsBlockOpaqueForAO(int3 pos)
+        {
+            StateId id = SampleBlock(pos);
+            return StateTable[id.Value].IsOpaque;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private StateId SampleBlock(int3 pos)
+        {
+            // Inside chunk bounds
+            if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
+                pos.y >= 0 && pos.y < ChunkConstants.Size &&
+                pos.z >= 0 && pos.z < ChunkConstants.Size)
+            {
+                return ChunkData[Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
+            }
+
+            // Outside chunk — sample from neighbor border slices
+            if (pos.x >= ChunkConstants.Size)
+            {
+                int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
+                int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+                return NeighborPosX[ny * ChunkConstants.Size + nz];
+            }
+            if (pos.x < 0)
+            {
+                int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
+                int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+                return NeighborNegX[ny * ChunkConstants.Size + nz];
+            }
+            if (pos.y >= ChunkConstants.Size)
+            {
+                int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
+                int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
+                return NeighborPosY[nz * ChunkConstants.Size + nx];
+            }
+            if (pos.y < 0)
+            {
+                int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
+                int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
+                return NeighborNegY[nz * ChunkConstants.Size + nx];
+            }
+            if (pos.z >= ChunkConstants.Size)
+            {
+                int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
+                int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+                return NeighborPosZ[ny * ChunkConstants.Size + nx];
+            }
+            if (pos.z < 0)
+            {
+                int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
+                int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+                return NeighborNegZ[ny * ChunkConstants.Size + nx];
+            }
+
+            return StateId.Air;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private byte SampleLight(int3 pos)
+        {
+            if (!LightData.IsCreated || LightData.Length == 0)
+            {
+                return 15;
+            }
+
+            if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
+                pos.y >= 0 && pos.y < ChunkConstants.Size &&
+                pos.z >= 0 && pos.z < ChunkConstants.Size)
+            {
+                return LightData[Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
+            }
+
+            return 15;
+        }
+
+        /// <summary>
+        /// Converts face direction + slice + (u,v) to block-local (x,y,z).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int3 FaceToBlockPos(int face, int slice, int u, int v)
+        {
+            switch (face)
+            {
+                case 0: return new int3(slice, v, u);       // +X: slice=x, u=z, v=y
+                case 1: return new int3(slice, v, u);       // -X: slice=x, u=z, v=y
+                case 2: return new int3(u, slice, v);       // +Y: slice=y, u=x, v=z
+                case 3: return new int3(u, slice, v);       // -Y: slice=y, u=x, v=z
+                case 4: return new int3(u, v, slice);       // +Z: slice=z, u=x, v=y
+                default: return new int3(u, v, slice);      // -Z: slice=z, u=x, v=y
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int3 GetFaceNormal(int face)
+        {
+            switch (face)
+            {
+                case 0: return new int3(1, 0, 0);
+                case 1: return new int3(-1, 0, 0);
+                case 2: return new int3(0, 1, 0);
+                case 3: return new int3(0, -1, 0);
+                case 4: return new int3(0, 0, 1);
+                default: return new int3(0, 0, -1);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static float3 GetFaceNormalFloat(int face)
+        {
+            switch (face)
+            {
+                case 0: return new float3(1, 0, 0);
+                case 1: return new float3(-1, 0, 0);
+                case 2: return new float3(0, 1, 0);
+                case 3: return new float3(0, -1, 0);
+                case 4: return new float3(0, 0, 1);
+                default: return new float3(0, 0, -1);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int3 GetFaceUAxis(int face)
+        {
+            switch (face)
+            {
+                case 0: return new int3(0, 0, 1);   // +X: u=z
+                case 1: return new int3(0, 0, 1);   // -X: u=z
+                case 2: return new int3(1, 0, 0);   // +Y: u=x
+                case 3: return new int3(1, 0, 0);   // -Y: u=x
+                case 4: return new int3(1, 0, 0);   // +Z: u=x
+                default: return new int3(1, 0, 0);   // -Z: u=x
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int3 GetFaceVAxis(int face)
+        {
+            switch (face)
+            {
+                case 0: return new int3(0, 1, 0);   // +X: v=y
+                case 1: return new int3(0, 1, 0);   // -X: v=y
+                case 2: return new int3(0, 0, 1);   // +Y: v=z
+                case 3: return new int3(0, 0, 1);   // -Y: v=z
+                case 4: return new int3(0, 1, 0);   // +Z: v=y
+                default: return new int3(0, 1, 0);   // -Z: v=y
+            }
+        }
+
+        private static void ComputeQuadPositions(
+            int face, int slice, int u0, int v0, int width, int height,
+            out float3 pos00, out float3 pos10, out float3 pos01, out float3 pos11)
+        {
+            // The quad is emitted on the face of the block at the slice position.
+            // For positive faces (+X, +Y, +Z), the face is at slice+1.
+            // For negative faces (-X, -Y, -Z), the face is at slice.
+            float sliceOffset = (face == 0 || face == 2 || face == 4) ? (slice + 1.0f) : slice;
+
+            switch (face)
+            {
+                case 0: // +X: face at x=slice+1, quad spans z=[u0..u0+w], y=[v0..v0+h]
+                    pos00 = new float3(sliceOffset, v0, u0);
+                    pos10 = new float3(sliceOffset, v0, u0 + width);
+                    pos01 = new float3(sliceOffset, v0 + height, u0);
+                    pos11 = new float3(sliceOffset, v0 + height, u0 + width);
+                    return;
+                case 1: // -X: face at x=slice, quad spans z=[u0..u0+w], y=[v0..v0+h]
+                    pos00 = new float3(sliceOffset, v0, u0 + width);
+                    pos10 = new float3(sliceOffset, v0, u0);
+                    pos01 = new float3(sliceOffset, v0 + height, u0 + width);
+                    pos11 = new float3(sliceOffset, v0 + height, u0);
+                    return;
+                case 2: // +Y: face at y=slice+1, quad spans x=[u0..u0+w], z=[v0..v0+h]
+                    pos00 = new float3(u0, sliceOffset, v0);
+                    pos10 = new float3(u0 + width, sliceOffset, v0);
+                    pos01 = new float3(u0, sliceOffset, v0 + height);
+                    pos11 = new float3(u0 + width, sliceOffset, v0 + height);
+                    return;
+                case 3: // -Y: face at y=slice, quad spans x=[u0..u0+w], z=[v0..v0+h]
+                    pos00 = new float3(u0, sliceOffset, v0 + height);
+                    pos10 = new float3(u0 + width, sliceOffset, v0 + height);
+                    pos01 = new float3(u0, sliceOffset, v0);
+                    pos11 = new float3(u0 + width, sliceOffset, v0);
+                    return;
+                case 4: // +Z: face at z=slice+1, quad spans x=[u0..u0+w], y=[v0..v0+h]
+                    pos00 = new float3(u0 + width, v0, sliceOffset);
+                    pos10 = new float3(u0, v0, sliceOffset);
+                    pos01 = new float3(u0 + width, v0 + height, sliceOffset);
+                    pos11 = new float3(u0, v0 + height, sliceOffset);
+                    return;
+                default: // -Z: face at z=slice, quad spans x=[u0..u0+w], y=[v0..v0+h]
+                    pos00 = new float3(u0, v0, sliceOffset);
+                    pos10 = new float3(u0 + width, v0, sliceOffset);
+                    pos01 = new float3(u0, v0 + height, sliceOffset);
+                    pos11 = new float3(u0 + width, v0 + height, sliceOffset);
+                    return;
+            }
+        }
+    }
+}

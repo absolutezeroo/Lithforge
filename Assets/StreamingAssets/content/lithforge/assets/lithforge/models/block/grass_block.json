@@ -1,0 +1,11 @@
+{
+  "parent": "lithforge:block/cube",
+  "textures": {
+    "north": "lithforge:block/grass_block_side",
+    "south": "lithforge:block/grass_block_side",
+    "east": "lithforge:block/grass_block_side",
+    "west": "lithforge:block/grass_block_side",
+    "up": "lithforge:block/grass_block_top",
+    "down": "lithforge:block/dirt"
+  }
+}

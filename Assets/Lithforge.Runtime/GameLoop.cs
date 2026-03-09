@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Meshing;
+using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
@@ -16,6 +17,7 @@ namespace Lithforge.Runtime
         private ChunkManager _chunkManager;
         private GenerationPipeline _generationPipeline;
         private NativeStateRegistry _nativeStateRegistry;
+        private NativeAtlasLookup _nativeAtlasLookup;
         private ChunkRenderManager _chunkRenderManager;
         private long _seed;
 
@@ -42,12 +44,14 @@ namespace Lithforge.Runtime
             ChunkManager chunkManager,
             GenerationPipeline generationPipeline,
             NativeStateRegistry nativeStateRegistry,
+            NativeAtlasLookup nativeAtlasLookup,
             ChunkRenderManager chunkRenderManager,
             long seed)
         {
             _chunkManager = chunkManager;
             _generationPipeline = generationPipeline;
             _nativeStateRegistry = nativeStateRegistry;
+            _nativeAtlasLookup = nativeAtlasLookup;
             _chunkRenderManager = chunkRenderManager;
             _seed = seed;
             _initialized = true;
@@ -88,15 +92,19 @@ namespace Lithforge.Runtime
                 if (pending.Handle.FinalHandle.IsCompleted)
                 {
                     pending.Handle.FinalHandle.Complete();
-                    pending.Handle.Dispose();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 
                     if (chunk != null)
                     {
+                        // Transfer LightData ownership to chunk
+                        chunk.LightData = pending.Handle.LightData;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
                     }
+
+                    // Dispose HeightMap only — LightData is now owned by chunk
+                    pending.Handle.Dispose();
 
                     _pendingGenerations.RemoveAt(i);
                 }
@@ -113,7 +121,11 @@ namespace Lithforge.Runtime
                 {
                     pending.Handle.Complete();
 
-                    _chunkRenderManager.UpdateRenderer(pending.Coord, pending.Data.Vertices, pending.Data.Indices);
+                    _chunkRenderManager.UpdateRenderer(
+                        pending.Coord,
+                        pending.Data.OpaqueVertices,
+                        pending.Data.OpaqueIndices);
+
                     pending.Data.Dispose();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
@@ -170,14 +182,25 @@ namespace Lithforge.Runtime
                 ManagedChunk chunk = chunks[i];
                 chunk.State = ChunkState.Meshing;
 
-                MeshData meshData = new MeshData(Allocator.TempJob);
+                GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
 
-                CulledMeshJob meshJob = new CulledMeshJob
+                // Extract neighbor border slices for cross-chunk culling
+                ExtractNeighborBorders(chunk.Coord, meshData);
+
+                GreedyMeshJob meshJob = new GreedyMeshJob
                 {
                     ChunkData = chunk.Data,
+                    NeighborPosX = meshData.NeighborPosX,
+                    NeighborNegX = meshData.NeighborNegX,
+                    NeighborPosY = meshData.NeighborPosY,
+                    NeighborNegY = meshData.NeighborNegY,
+                    NeighborPosZ = meshData.NeighborPosZ,
+                    NeighborNegZ = meshData.NeighborNegZ,
                     StateTable = _nativeStateRegistry.States,
-                    Vertices = meshData.Vertices,
-                    Indices = meshData.Indices,
+                    AtlasEntries = _nativeAtlasLookup.Entries,
+                    LightData = chunk.LightData,
+                    OpaqueVertices = meshData.OpaqueVertices,
+                    OpaqueIndices = meshData.OpaqueIndices,
                 };
 
                 JobHandle meshHandle = meshJob.Schedule();
@@ -192,13 +215,41 @@ namespace Lithforge.Runtime
             }
         }
 
+        private void ExtractNeighborBorders(int3 coord, GreedyMeshData meshData)
+        {
+            // +X neighbor: chunk at (x+1), extract its -X face (face 1)
+            ExtractBorderFromNeighbor(coord + new int3(1, 0, 0), 1, meshData.NeighborPosX);
+            // -X neighbor: chunk at (x-1), extract its +X face (face 0)
+            ExtractBorderFromNeighbor(coord + new int3(-1, 0, 0), 0, meshData.NeighborNegX);
+            // +Y neighbor: chunk at (y+1), extract its -Y face (face 3)
+            ExtractBorderFromNeighbor(coord + new int3(0, 1, 0), 3, meshData.NeighborPosY);
+            // -Y neighbor: chunk at (y-1), extract its +Y face (face 2)
+            ExtractBorderFromNeighbor(coord + new int3(0, -1, 0), 2, meshData.NeighborNegY);
+            // +Z neighbor: chunk at (z+1), extract its -Z face (face 5)
+            ExtractBorderFromNeighbor(coord + new int3(0, 0, 1), 5, meshData.NeighborPosZ);
+            // -Z neighbor: chunk at (z-1), extract its +Z face (face 4)
+            ExtractBorderFromNeighbor(coord + new int3(0, 0, -1), 4, meshData.NeighborNegZ);
+        }
+
+        private void ExtractBorderFromNeighbor(int3 neighborCoord, int faceDirection, NativeArray<StateId> output)
+        {
+            ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+
+            if (neighbor != null && neighbor.State >= ChunkState.Generated && neighbor.Data.IsCreated)
+            {
+                ChunkBorderExtractor.ExtractBorder(neighbor.Data, faceDirection, output);
+            }
+            // If neighbor doesn't exist, output stays zero-initialized (air)
+        }
+
         private void CleanupPendingJobsForCoord(int3 coord)
         {
             for (int i = _pendingGenerations.Count - 1; i >= 0; i--)
             {
                 if (_pendingGenerations[i].Coord.Equals(coord))
                 {
-                    _pendingGenerations[i].Handle.Dispose();
+                    _pendingGenerations[i].Handle.FinalHandle.Complete();
+                    _pendingGenerations[i].Handle.DisposeAll();
                     _pendingGenerations.RemoveAt(i);
                 }
             }
@@ -207,6 +258,7 @@ namespace Lithforge.Runtime
             {
                 if (_pendingMeshes[i].Coord.Equals(coord))
                 {
+                    _pendingMeshes[i].Handle.Complete();
                     _pendingMeshes[i].Data.Dispose();
                     _pendingMeshes.RemoveAt(i);
                 }
@@ -228,7 +280,7 @@ namespace Lithforge.Runtime
             for (int i = 0; i < _pendingGenerations.Count; i++)
             {
                 _pendingGenerations[i].Handle.FinalHandle.Complete();
-                _pendingGenerations[i].Handle.Dispose();
+                _pendingGenerations[i].Handle.DisposeAll();
             }
 
             _pendingGenerations.Clear();
@@ -252,7 +304,7 @@ namespace Lithforge.Runtime
         {
             public int3 Coord;
             public JobHandle Handle;
-            public MeshData Data;
+            public GreedyMeshData Data;
         }
     }
 }

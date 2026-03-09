@@ -128,6 +128,32 @@ namespace Lithforge.Voxel.Block
             return _states[id.Value];
         }
 
+        /// <summary>
+        /// Patches the per-face texture indices on a state before BakeNative().
+        /// Must be called after Register() and before BakeNative().
+        /// </summary>
+        public void PatchTextures(
+            StateId id,
+            ushort texNorth, ushort texSouth,
+            ushort texEast, ushort texWest,
+            ushort texUp, ushort texDown)
+        {
+            if (_frozen)
+            {
+                throw new InvalidOperationException(
+                    "Cannot patch textures — state registry has been frozen.");
+            }
+
+            BlockStateCompact state = _states[id.Value];
+            state.TexNorth = texNorth;
+            state.TexSouth = texSouth;
+            state.TexEast = texEast;
+            state.TexWest = texWest;
+            state.TexUp = texUp;
+            state.TexDown = texDown;
+            _states[id.Value] = state;
+        }
+
         private static byte ComputeFlags(BlockDefinition definition)
         {
             byte flags = 0;

@@ -1,0 +1,7 @@
+{
+  "parent": "lithforge:block/cube_column",
+  "textures": {
+    "end": "lithforge:block/oak_log_top",
+    "side": "lithforge:block/oak_log"
+  }
+}
