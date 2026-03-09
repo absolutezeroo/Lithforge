@@ -36,6 +36,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
             foreach (KeyValuePair<StateId, ResolvedFaceTextures> kvp in resolvedFaces)
             {
                 ResolvedFaceTextures faces = kvp.Value;
+
                 uniqueTextures.Add(faces.North);
                 uniqueTextures.Add(faces.South);
                 uniqueTextures.Add(faces.East);
@@ -59,11 +60,13 @@ namespace Lithforge.Runtime.Rendering.Atlas
                 {
                     int nextIndex = orderedTextures.Count;
                     indexByTexture[texId] = nextIndex;
+
                     orderedTextures.Add(texId);
                 }
             }
 
             int sliceCount = orderedTextures.Count;
+
             _logger.LogInfo($"Atlas: {sliceCount} texture slices ({sliceCount - 1} unique + 1 missing).");
 
             // Create Texture2DArray
@@ -127,9 +130,6 @@ namespace Lithforge.Runtime.Rendering.Atlas
                     }
 
                     // Use GetPixels32 to ensure consistent RGBA32 format.
-                    // LoadImage may produce RGB24, Grayscale, or Indexed formats
-                    // depending on the PNG color type. GetPixels32 always returns
-                    // Color32[] (RGBA 8-bit) regardless of the underlying format.
                     Color32[] pixels = tempTex.GetPixels32();
                     textureArray.SetPixelData(pixels, 0, i);
                     Object.DestroyImmediate(tempTex);

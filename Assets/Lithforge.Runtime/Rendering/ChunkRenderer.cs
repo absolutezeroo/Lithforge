@@ -12,11 +12,11 @@ namespace Lithforge.Runtime.Rendering
         private MeshRenderer _meshRenderer;
         private Mesh _mesh;
 
-        public void Initialize(int3 chunkCoord, Material material)
+        public void Initialize(int3 chunkCoord, Material[] materials)
         {
             _meshFilter = gameObject.AddComponent<MeshFilter>();
             _meshRenderer = gameObject.AddComponent<MeshRenderer>();
-            _meshRenderer.sharedMaterial = material;
+            _meshRenderer.sharedMaterials = materials;
             _meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _meshRenderer.receiveShadows = false;
 
@@ -37,6 +37,13 @@ namespace Lithforge.Runtime.Rendering
         public void UpdateMesh(NativeList<MeshVertex> verts, NativeList<int> indices)
         {
             MeshUploader.Upload(_mesh, verts, indices);
+        }
+
+        public void UpdateMesh(
+            NativeList<MeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
+            NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
+        {
+            MeshUploader.Upload(_mesh, opaqueVerts, opaqueIndices, translucentVerts, translucentIndices);
         }
 
         private void OnDestroy()

@@ -150,9 +150,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Bootstrap.LithforgeBootstrap
   voxelMaterial: {fileID: 0}
   poolSize: 256
-  renderDistance: 16
+  renderDistance: 8
   seaLevel: 62
-  seed: 12345
+  seed: 123456
 --- !u!4 &1507543890
 Transform:
   m_ObjectHideFlags: 0

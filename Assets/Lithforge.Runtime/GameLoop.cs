@@ -149,7 +149,9 @@ namespace Lithforge.Runtime
                     _chunkRenderManager.UpdateRenderer(
                         pending.Coord,
                         pending.Data.OpaqueVertices,
-                        pending.Data.OpaqueIndices);
+                        pending.Data.OpaqueIndices,
+                        pending.Data.TranslucentVertices,
+                        pending.Data.TranslucentIndices);
 
                     pending.Data.Dispose();
 
@@ -246,6 +248,8 @@ namespace Lithforge.Runtime
                     LightData = chunk.LightData,
                     OpaqueVertices = meshData.OpaqueVertices,
                     OpaqueIndices = meshData.OpaqueIndices,
+                    TranslucentVertices = meshData.TranslucentVertices,
+                    TranslucentIndices = meshData.TranslucentIndices,
                 };
 
                 JobHandle meshHandle = meshJob.Schedule();

@@ -9,8 +9,11 @@ namespace Lithforge.Core.Data
     public sealed class BlockstateVariant
     {
         public ResourceId Model { get; set; }
+
         public int RotationX { get; set; }
+
         public int RotationY { get; set; }
+
         public bool Uvlock { get; set; }
 
         public BlockstateVariant(ResourceId model)

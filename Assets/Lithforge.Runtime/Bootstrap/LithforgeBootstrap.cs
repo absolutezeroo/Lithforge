@@ -213,9 +213,9 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeRendering()
         {
-            Material material = voxelMaterial;
+            Material opaqueMaterial = voxelMaterial;
 
-            if (material == null)
+            if (opaqueMaterial == null)
             {
                 Shader shader = Shader.Find("Lithforge/VoxelOpaque");
 
@@ -227,28 +227,63 @@ namespace Lithforge.Runtime.Bootstrap
 
                 if (shader != null)
                 {
-                    material = new Material(shader);
+                    opaqueMaterial = new Material(shader);
                 }
                 else
                 {
                     UnityEngine.Debug.LogWarning("[Lithforge] VoxelOpaque shader not found, using default.");
 
-                    material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                    opaqueMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
                 }
             }
 
-            // Assign atlas texture to material
+            // Assign atlas texture to opaque material
             if (_contentResult.AtlasResult != null && _contentResult.AtlasResult.TextureArray != null)
             {
-                material.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
+                opaqueMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
             }
 
-            _chunkRenderManager = new ChunkRenderManager(material);
+            // Create translucent material
+            Material translucentMaterial;
+            Shader translucentShader = Shader.Find("Lithforge/VoxelTranslucent");
+
+            if (translucentShader != null)
+            {
+                translucentMaterial = new Material(translucentShader);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarning("[Lithforge] VoxelTranslucent shader not found, using opaque fallback.");
+                translucentMaterial = new Material(opaqueMaterial);
+            }
+
+            if (_contentResult.AtlasResult != null && _contentResult.AtlasResult.TextureArray != null)
+            {
+                translucentMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
+            }
+
+            _chunkRenderManager = new ChunkRenderManager(opaqueMaterial, translucentMaterial);
             _services.Register(_chunkRenderManager);
         }
 
         private void InitializeGameLoop()
         {
+            // Position camera above terrain BEFORE initializing GameLoop,
+            // so the first frame reads the correct camera position for chunk loading.
+            Camera mainCamera = Camera.main;
+
+            if (mainCamera != null)
+            {
+                mainCamera.transform.position = new Vector3(0, seaLevel + 32, 0);
+                mainCamera.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
+                mainCamera.farClipPlane = 500f;
+            }
+
+            if (mainCamera != null && mainCamera.GetComponent<FPSCameraController>() == null)
+            {
+                mainCamera.gameObject.AddComponent<FPSCameraController>();
+            }
+
             _gameLoop = gameObject.AddComponent<GameLoop>();
             _gameLoop.Initialize(
                 _chunkManager,
@@ -264,29 +299,13 @@ namespace Lithforge.Runtime.Bootstrap
             DebugOverlayHUD hud = gameObject.AddComponent<DebugOverlayHUD>();
             hud.Initialize(_gameLoop, _chunkManager);
 
-            // Setup camera with FPS controller if main camera exists
-            Camera mainCamera = Camera.main;
-
-            if (mainCamera != null && mainCamera.GetComponent<FPSCameraController>() == null)
-            {
-                mainCamera.gameObject.AddComponent<FPSCameraController>();
-            }
-
-            // Position camera above terrain
-            if (mainCamera != null)
-            {
-                mainCamera.transform.position = new Vector3(0, seaLevel + 32, 0);
-                mainCamera.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
-                mainCamera.farClipPlane = 500f;
-            }
-
             // Initialize day/night cycle
-            Material material = _chunkRenderManager.Material;
+            Material material = _chunkRenderManager.OpaqueMaterial;
 
             if (material != null)
             {
                 _timeOfDayController = gameObject.AddComponent<TimeOfDayController>();
-                _timeOfDayController.Initialize(material);
+                _timeOfDayController.Initialize(material, _chunkRenderManager.TranslucentMaterial);
             }
         }
 

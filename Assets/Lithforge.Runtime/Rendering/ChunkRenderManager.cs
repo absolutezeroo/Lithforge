@@ -11,6 +11,8 @@ namespace Lithforge.Runtime.Rendering
     {
         private readonly Dictionary<int3, ChunkRenderer> _renderers = new Dictionary<int3, ChunkRenderer>();
         private readonly Material _opaqueMaterial;
+        private readonly Material _translucentMaterial;
+        private readonly Material[] _materials;
         private readonly Transform _parent;
 
         public int RendererCount
@@ -18,33 +20,42 @@ namespace Lithforge.Runtime.Rendering
             get { return _renderers.Count; }
         }
 
-        public Material Material
+        public Material OpaqueMaterial
         {
             get { return _opaqueMaterial; }
         }
 
-        public ChunkRenderManager(Material opaqueMaterial)
+        public Material TranslucentMaterial
+        {
+            get { return _translucentMaterial; }
+        }
+
+        public ChunkRenderManager(Material opaqueMaterial, Material translucentMaterial)
         {
             _opaqueMaterial = opaqueMaterial;
+            _translucentMaterial = translucentMaterial;
+            _materials = new Material[] { opaqueMaterial, translucentMaterial };
 
             GameObject parentGo = new GameObject("ChunkRenderers");
             _parent = parentGo.transform;
         }
 
-        public void UpdateRenderer(int3 coord, NativeList<MeshVertex> verts, NativeList<int> indices)
+        public void UpdateRenderer(
+            int3 coord,
+            NativeList<MeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
+            NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
-
             if (!_renderers.TryGetValue(coord, out ChunkRenderer renderer))
             {
                 GameObject go = new GameObject($"Chunk_{coord.x}_{coord.y}_{coord.z}");
                 go.transform.SetParent(_parent, false);
                 renderer = go.AddComponent<ChunkRenderer>();
-                renderer.Initialize(coord, _opaqueMaterial);
+                renderer.Initialize(coord, _materials);
 
                 _renderers[coord] = renderer;
             }
 
-            renderer.UpdateMesh(verts, indices);
+            renderer.UpdateMesh(opaqueVerts, opaqueIndices, translucentVerts, translucentIndices);
         }
 
         public void DestroyRenderer(int3 coord)

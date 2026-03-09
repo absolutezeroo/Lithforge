@@ -10,7 +10,9 @@ namespace Lithforge.Core.Data
     public sealed class BlockModel
     {
         public ResourceId Id { get; }
+
         public string Parent { get; set; }
+
         public Dictionary<string, string> Textures { get; }
 
         public BlockModel(ResourceId id)

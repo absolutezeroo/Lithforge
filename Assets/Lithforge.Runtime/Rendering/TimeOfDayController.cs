@@ -9,6 +9,7 @@ namespace Lithforge.Runtime.Rendering
         private float _timeOfDay;
         private Light _directionalLight;
         private Material _voxelMaterial;
+        private Material _translucentMaterial;
 
         private static readonly int _sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
 
@@ -22,9 +23,10 @@ namespace Lithforge.Runtime.Rendering
             get { return ComputeSunFactor(_timeOfDay); }
         }
 
-        public void Initialize(Material voxelMaterial)
+        public void Initialize(Material voxelMaterial, Material translucentMaterial = null)
         {
             _voxelMaterial = voxelMaterial;
+            _translucentMaterial = translucentMaterial;
             _timeOfDay = 0.25f; // Start at noon (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset)
 
             // Find or create directional light
@@ -58,8 +60,13 @@ namespace Lithforge.Runtime.Rendering
 
             float sunFactor = ComputeSunFactor(_timeOfDay);
 
-            // Update material
+            // Update materials
             _voxelMaterial.SetFloat(_sunLightFactorId, sunFactor);
+
+            if (_translucentMaterial != null)
+            {
+                _translucentMaterial.SetFloat(_sunLightFactorId, sunFactor);
+            }
 
             // Update directional light rotation
             if (_directionalLight != null)

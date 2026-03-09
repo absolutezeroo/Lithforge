@@ -33,6 +33,8 @@ namespace Lithforge.Meshing
 
         public NativeList<MeshVertex> OpaqueVertices;
         public NativeList<int> OpaqueIndices;
+        public NativeList<MeshVertex> TranslucentVertices;
+        public NativeList<int> TranslucentIndices;
 
         public void Execute()
         {
@@ -47,6 +49,7 @@ namespace Lithforge.Meshing
         {
             NativeArray<uint> rowMask = new NativeArray<uint>(ChunkConstants.Size, Allocator.Temp);
             NativeArray<ushort> faceStateId = new NativeArray<ushort>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceRenderLayer = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
             NativeArray<byte> faceAO00 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
             NativeArray<byte> faceAO10 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
             NativeArray<byte> faceAO01 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
@@ -62,14 +65,15 @@ namespace Lithforge.Meshing
                 }
 
                 // Build face visibility mask and compute AO
-                BuildFaceMask(face, slice, rowMask, faceStateId, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
+                BuildFaceMask(face, slice, rowMask, faceStateId, faceRenderLayer, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
 
                 // Greedy merge and emit quads
-                GreedyMerge(face, slice, rowMask, faceStateId, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
+                GreedyMerge(face, slice, rowMask, faceStateId, faceRenderLayer, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
             }
 
             rowMask.Dispose();
             faceStateId.Dispose();
+            faceRenderLayer.Dispose();
             faceAO00.Dispose();
             faceAO10.Dispose();
             faceAO01.Dispose();
@@ -81,6 +85,7 @@ namespace Lithforge.Meshing
             int face, int slice,
             NativeArray<uint> rowMask,
             NativeArray<ushort> faceStateId,
+            NativeArray<byte> faceRenderLayer,
             NativeArray<byte> faceAO00, NativeArray<byte> faceAO10,
             NativeArray<byte> faceAO01, NativeArray<byte> faceAO11,
             NativeArray<byte> faceLight)
@@ -98,11 +103,30 @@ namespace Lithforge.Meshing
                     BlockStateCompact blockState = StateTable[blockId.Value];
                     BlockStateCompact neighborState = StateTable[neighborId.Value];
 
-                    if (!blockState.IsAir && blockState.IsOpaque && !neighborState.IsOpaque)
+                    // Determine if this face should be rendered:
+                    // - Opaque blocks: render face when neighbor is not opaque
+                    // - Translucent blocks (water, glass): render face when neighbor is
+                    //   air or a different block type (skip same-type internal faces)
+                    bool shouldRender = false;
+
+                    if (!blockState.IsAir)
+                    {
+                        if (blockState.IsOpaque)
+                        {
+                            shouldRender = !neighborState.IsOpaque;
+                        }
+                        else
+                        {
+                            shouldRender = !neighborState.IsOpaque && neighborId.Value != blockId.Value;
+                        }
+                    }
+
+                    if (shouldRender)
                     {
                         int idx = v * ChunkConstants.Size + u;
                         rowMask[v] = rowMask[v] | (1u << u);
                         faceStateId[idx] = blockId.Value;
+                        faceRenderLayer[idx] = blockState.RenderLayer;
 
                         // Compute AO for each vertex corner
                         ComputeVertexAO(face, blockPos, u, v,
@@ -123,6 +147,7 @@ namespace Lithforge.Meshing
             int face, int slice,
             NativeArray<uint> rowMask,
             NativeArray<ushort> faceStateId,
+            NativeArray<byte> faceRenderLayer,
             NativeArray<byte> faceAO00, NativeArray<byte> faceAO10,
             NativeArray<byte> faceAO01, NativeArray<byte> faceAO11,
             NativeArray<byte> faceLight)
@@ -136,6 +161,7 @@ namespace Lithforge.Meshing
                     int u0 = math.tzcnt(mask);
                     int idx0 = v * ChunkConstants.Size + u0;
                     ushort stateVal = faceStateId[idx0];
+                    byte renderLayer = faceRenderLayer[idx0];
                     byte ao00 = faceAO00[idx0];
                     byte ao10 = faceAO10[idx0];
                     byte ao01 = faceAO01[idx0];
@@ -155,6 +181,7 @@ namespace Lithforge.Meshing
                         int idxW = v * ChunkConstants.Size + u0 + width;
 
                         if (faceStateId[idxW] != stateVal ||
+                            faceRenderLayer[idxW] != renderLayer ||
                             faceAO00[idxW] != ao00 || faceAO10[idxW] != ao10 ||
                             faceAO01[idxW] != ao01 || faceAO11[idxW] != ao11 ||
                             faceLight[idxW] != light)
@@ -186,6 +213,7 @@ namespace Lithforge.Meshing
                             int idxH = (v + height) * ChunkConstants.Size + u0 + wu;
 
                             if (faceStateId[idxH] != stateVal ||
+                                faceRenderLayer[idxH] != renderLayer ||
                                 faceAO00[idxH] != ao00 || faceAO10[idxH] != ao10 ||
                                 faceAO01[idxH] != ao01 || faceAO11[idxH] != ao11 ||
                                 faceLight[idxH] != light)
@@ -206,7 +234,7 @@ namespace Lithforge.Meshing
 
                     // Emit the greedy quad
                     EmitGreedyQuad(face, slice, u0, v, width, height, stateVal,
-                        ao00, ao10, ao01, ao11, light);
+                        ao00, ao10, ao01, ao11, light, renderLayer);
 
                     // Clear consumed bits
                     uint clearMask = 0u;
@@ -229,9 +257,15 @@ namespace Lithforge.Meshing
 
         private void EmitGreedyQuad(
             int face, int slice, int u0, int v0, int width, int height,
-            ushort stateVal, byte ao00, byte ao10, byte ao01, byte ao11, byte light)
+            ushort stateVal, byte ao00, byte ao10, byte ao01, byte ao11, byte light,
+            byte renderLayer)
         {
-            int vertexStart = OpaqueVertices.Length;
+            // Route to correct buffer: renderLayer 2 (translucent) goes to translucent buffers
+            bool isTranslucent = renderLayer == 2;
+            NativeList<MeshVertex> targetVertices = isTranslucent ? TranslucentVertices : OpaqueVertices;
+            NativeList<int> targetIndices = isTranslucent ? TranslucentIndices : OpaqueIndices;
+
+            int vertexStart = targetVertices.Length;
 
             float3 pos00, pos10, pos01, pos11;
 
@@ -255,7 +289,7 @@ namespace Lithforge.Meshing
             half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
             half4 color11 = new half4((half)(ao11 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
 
-            OpaqueVertices.Add(new MeshVertex
+            targetVertices.Add(new MeshVertex
             {
                 Position = pos00,
                 Normal = normal,
@@ -263,7 +297,7 @@ namespace Lithforge.Meshing
                 Color = color00,
             });
 
-            OpaqueVertices.Add(new MeshVertex
+            targetVertices.Add(new MeshVertex
             {
                 Position = pos10,
                 Normal = normal,
@@ -271,7 +305,7 @@ namespace Lithforge.Meshing
                 Color = color10,
             });
 
-            OpaqueVertices.Add(new MeshVertex
+            targetVertices.Add(new MeshVertex
             {
                 Position = pos11,
                 Normal = normal,
@@ -279,7 +313,7 @@ namespace Lithforge.Meshing
                 Color = color11,
             });
 
-            OpaqueVertices.Add(new MeshVertex
+            targetVertices.Add(new MeshVertex
             {
                 Position = pos01,
                 Normal = normal,
@@ -293,22 +327,22 @@ namespace Lithforge.Meshing
             if (ao00 + ao11 > ao10 + ao01)
             {
                 // Flipped winding: use 10-01 diagonal (CW for Unity front-face)
-                OpaqueIndices.Add(vertexStart + 1);
-                OpaqueIndices.Add(vertexStart + 3);
-                OpaqueIndices.Add(vertexStart + 2);
-                OpaqueIndices.Add(vertexStart + 1);
-                OpaqueIndices.Add(vertexStart);
-                OpaqueIndices.Add(vertexStart + 3);
+                targetIndices.Add(vertexStart + 1);
+                targetIndices.Add(vertexStart + 3);
+                targetIndices.Add(vertexStart + 2);
+                targetIndices.Add(vertexStart + 1);
+                targetIndices.Add(vertexStart);
+                targetIndices.Add(vertexStart + 3);
             }
             else
             {
                 // Standard winding: use 00-11 diagonal (CW for Unity front-face)
-                OpaqueIndices.Add(vertexStart);
-                OpaqueIndices.Add(vertexStart + 2);
-                OpaqueIndices.Add(vertexStart + 1);
-                OpaqueIndices.Add(vertexStart);
-                OpaqueIndices.Add(vertexStart + 3);
-                OpaqueIndices.Add(vertexStart + 2);
+                targetIndices.Add(vertexStart);
+                targetIndices.Add(vertexStart + 2);
+                targetIndices.Add(vertexStart + 1);
+                targetIndices.Add(vertexStart);
+                targetIndices.Add(vertexStart + 3);
+                targetIndices.Add(vertexStart + 2);
             }
         }
 
@@ -412,7 +446,8 @@ namespace Lithforge.Meshing
         {
             if (!LightData.IsCreated || LightData.Length == 0)
             {
-                return 15;
+                // 0xF0 = sun=15, block=0 (full sunlight, no block light)
+                return 240;
             }
 
             if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
@@ -422,7 +457,8 @@ namespace Lithforge.Meshing
                 return LightData[Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
             }
 
-            return 15;
+            // 0xF0 = sun=15, block=0 (full sunlight, no block light)
+            return 240;
         }
 
         /// <summary>

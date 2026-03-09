@@ -14,6 +14,8 @@ namespace Lithforge.Meshing
     {
         public NativeList<MeshVertex> OpaqueVertices;
         public NativeList<int> OpaqueIndices;
+        public NativeList<MeshVertex> TranslucentVertices;
+        public NativeList<int> TranslucentIndices;
         public NativeArray<StateId> NeighborPosX;
         public NativeArray<StateId> NeighborNegX;
         public NativeArray<StateId> NeighborPosY;
@@ -25,6 +27,8 @@ namespace Lithforge.Meshing
         {
             OpaqueVertices = new NativeList<MeshVertex>(4096, allocator);
             OpaqueIndices = new NativeList<int>(6144, allocator);
+            TranslucentVertices = new NativeList<MeshVertex>(1024, allocator);
+            TranslucentIndices = new NativeList<int>(1536, allocator);
             NeighborPosX = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
             NeighborNegX = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
             NeighborPosY = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
@@ -37,6 +41,8 @@ namespace Lithforge.Meshing
         {
             if (OpaqueVertices.IsCreated) { OpaqueVertices.Dispose(); }
             if (OpaqueIndices.IsCreated) { OpaqueIndices.Dispose(); }
+            if (TranslucentVertices.IsCreated) { TranslucentVertices.Dispose(); }
+            if (TranslucentIndices.IsCreated) { TranslucentIndices.Dispose(); }
             if (NeighborPosX.IsCreated) { NeighborPosX.Dispose(); }
             if (NeighborNegX.IsCreated) { NeighborNegX.Dispose(); }
             if (NeighborPosY.IsCreated) { NeighborPosY.Dispose(); }

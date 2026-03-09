@@ -10,6 +10,7 @@ namespace Lithforge.Core.Data
     public sealed class BlockstateDefinition
     {
         public ResourceId Id { get; }
+
         public IReadOnlyDictionary<string, BlockstateVariant> Variants { get; }
 
         public BlockstateDefinition(ResourceId id, Dictionary<string, BlockstateVariant> variants)

@@ -8,16 +8,20 @@ namespace Lithforge.Voxel.Content
     /// These are terminal nodes in the parent chain resolution.
     ///
     /// Built-in models:
-    ///   lithforge:block/cube     — 6 independent face textures (north/south/east/west/up/down)
-    ///   lithforge:block/cube_all — "all" maps to all 6 faces
-    ///   lithforge:block/cube_column — "end" maps to up/down, "side" maps to 4 sides
+    ///   lithforge:block/cube        — 6 independent face textures with alias fallbacks
+    ///   lithforge:block/cube_all    — "all" maps to all 6 faces; falls through to cube if missing
+    ///   lithforge:block/cube_column — "end" maps to up/down, "side" to 4 sides; falls through to cube
+    ///
+    /// Alias fallbacks in ResolveCube (Minecraft convention):
+    ///   north ← front ← side       south ← side
+    ///   east  ← side                west  ← side
+    ///   up    ← top ← end          down  ← bottom ← end
     /// </summary>
     public static class BuiltInModelLibrary
     {
         private static readonly ResourceId _cubeId = new ResourceId("lithforge", "block/cube");
         private static readonly ResourceId _cubeAllId = new ResourceId("lithforge", "block/cube_all");
         private static readonly ResourceId _cubeColumnId = new ResourceId("lithforge", "block/cube_column");
-
         private static readonly ResourceId _missingTexture = new ResourceId("lithforge", "block/missing");
 
         public static bool IsBuiltIn(string parentRef)
@@ -63,52 +67,86 @@ namespace Lithforge.Voxel.Content
 
         private static ResolvedFaceTextures ResolveCubeAll(Dictionary<string, ResourceId> textures)
         {
-            ResourceId allTex = GetTexture(textures, "all");
-
-            return new ResolvedFaceTextures
+            if (textures.TryGetValue("all", out ResourceId allTex))
             {
-                North = allTex,
-                South = allTex,
-                East = allTex,
-                West = allTex,
-                Up = allTex,
-                Down = allTex,
-            };
+                return new ResolvedFaceTextures
+                {
+                    North = allTex,
+                    South = allTex,
+                    East = allTex,
+                    West = allTex,
+                    Up = allTex,
+                    Down = allTex,
+                };
+            }
+
+            // "all" not found — fall through to cube with alias resolution
+            return ResolveCube(textures);
         }
 
         private static ResolvedFaceTextures ResolveCubeColumn(Dictionary<string, ResourceId> textures)
         {
-            ResourceId endTex = GetTexture(textures, "end");
-            ResourceId sideTex = GetTexture(textures, "side");
-
-            return new ResolvedFaceTextures
+            if (textures.TryGetValue("end", out ResourceId endTex) &&
+                textures.TryGetValue("side", out ResourceId sideTex))
             {
-                North = sideTex,
-                South = sideTex,
-                East = sideTex,
-                West = sideTex,
-                Up = endTex,
-                Down = endTex,
-            };
+                return new ResolvedFaceTextures
+                {
+                    North = sideTex,
+                    South = sideTex,
+                    East = sideTex,
+                    West = sideTex,
+                    Up = endTex,
+                    Down = endTex,
+                };
+            }
+
+            // Missing expected keys — fall through to cube with alias resolution
+            return ResolveCube(textures);
         }
 
         private static ResolvedFaceTextures ResolveCube(Dictionary<string, ResourceId> textures)
         {
             return new ResolvedFaceTextures
             {
-                North = GetTexture(textures, "north"),
-                South = GetTexture(textures, "south"),
-                East = GetTexture(textures, "east"),
-                West = GetTexture(textures, "west"),
-                Up = GetTexture(textures, "up"),
-                Down = GetTexture(textures, "down"),
+                North = GetTextureWithFallbacks(textures, "north", "front", "side"),
+                South = GetTextureWithFallbacks(textures, "south", "side"),
+                East = GetTextureWithFallbacks(textures, "east", "side"),
+                West = GetTextureWithFallbacks(textures, "west", "side"),
+                Up = GetTextureWithFallbacks(textures, "up", "top", "end"),
+                Down = GetTextureWithFallbacks(textures, "down", "bottom", "end"),
             };
         }
 
-        private static ResourceId GetTexture(Dictionary<string, ResourceId> textures, string key)
+        private static ResourceId GetTextureWithFallbacks(
+            Dictionary<string, ResourceId> textures, string primary, string fallback1)
         {
+            if (textures.TryGetValue(primary, out ResourceId result))
+            {
+                return result;
+            }
 
-            if (textures.TryGetValue(key, out ResourceId result))
+            if (textures.TryGetValue(fallback1, out result))
+            {
+                return result;
+            }
+
+            return _missingTexture;
+        }
+
+        private static ResourceId GetTextureWithFallbacks(
+            Dictionary<string, ResourceId> textures, string primary, string fallback1, string fallback2)
+        {
+            if (textures.TryGetValue(primary, out ResourceId result))
+            {
+                return result;
+            }
+
+            if (textures.TryGetValue(fallback1, out result))
+            {
+                return result;
+            }
+
+            if (textures.TryGetValue(fallback2, out result))
             {
                 return result;
             }

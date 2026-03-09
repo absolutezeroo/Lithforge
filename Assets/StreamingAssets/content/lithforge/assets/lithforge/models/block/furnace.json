@@ -1,6 +1,9 @@
 {
   "parent": "lithforge:block/cube_all",
   "textures": {
-    "all": "lithforge:block/furnace_side"
+    "front": "lithforge:block/furnace_front",
+    "side": "lithforge:block/furnace_side",
+    "top": "lithforge:block/furnace_top",
+    "bottom": "lithforge:block/furnace_top"
   }
 }
