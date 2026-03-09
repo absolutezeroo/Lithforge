@@ -36,9 +36,7 @@ namespace Lithforge.Voxel.Content
                 StateRegistryEntry entry = entries[i];
                 BlockDefinition def = entry.Definition;
 
-                BlockstateDefinition blockstate;
-
-                if (!blockstates.TryGetValue(def.Id, out blockstate))
+                if (!blockstates.TryGetValue(def.Id, out BlockstateDefinition blockstate))
                 {
                     _logger.LogWarning($"No blockstate for '{def.Id}'. Using default textures.");
                     continue;
@@ -49,18 +47,14 @@ namespace Lithforge.Voxel.Content
                     StateId stateId = new StateId((ushort)(entry.BaseStateId + offset));
                     string variantKey = BuildVariantKey(def, offset);
 
-                    BlockstateVariant variant;
-
-                    if (!blockstate.Variants.TryGetValue(variantKey, out variant))
+                    if (!blockstate.Variants.TryGetValue(variantKey, out BlockstateVariant variant))
                     {
                         _logger.LogWarning(
                             $"Blockstate '{def.Id}' has no variant for key '{variantKey}'.");
                         continue;
                     }
 
-                    ResolvedFaceTextures faces;
-
-                    if (resolvedModels.TryGetValue(variant.Model, out faces))
+                    if (resolvedModels.TryGetValue(variant.Model, out ResolvedFaceTextures faces))
                     {
                         result[stateId] = faces;
                     }

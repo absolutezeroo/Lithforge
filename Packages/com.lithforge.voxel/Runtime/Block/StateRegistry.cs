@@ -230,18 +230,16 @@ namespace Lithforge.Voxel.Block
 
             if (raw.Length == 6)
             {
-                uint rgb;
 
-                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out rgb))
+                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
                 {
                     return (rgb << 8) | 0xFF;
                 }
             }
             else if (raw.Length == 8)
             {
-                uint rgba;
 
-                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out rgba))
+                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out uint rgba))
                 {
                     return rgba;
                 }

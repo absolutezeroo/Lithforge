@@ -27,8 +27,7 @@ namespace Lithforge.Voxel.Content
                 return false;
             }
 
-            ResourceId parentId;
-            if (!ResourceId.TryParse(parentRef, out parentId))
+            if (!ResourceId.TryParse(parentRef, out ResourceId parentId))
             {
                 return false;
             }
@@ -108,9 +107,8 @@ namespace Lithforge.Voxel.Content
 
         private static ResourceId GetTexture(Dictionary<string, ResourceId> textures, string key)
         {
-            ResourceId result;
 
-            if (textures.TryGetValue(key, out result))
+            if (textures.TryGetValue(key, out ResourceId result))
             {
                 return result;
             }

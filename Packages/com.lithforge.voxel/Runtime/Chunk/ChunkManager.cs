@@ -116,8 +116,8 @@ namespace Lithforge.Voxel.Chunk
 
         public ManagedChunk GetChunk(int3 coord)
         {
-            ManagedChunk chunk;
-            _chunks.TryGetValue(coord, out chunk);
+            _chunks.TryGetValue(coord, out ManagedChunk chunk);
+
             return chunk;
         }
 

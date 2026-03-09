@@ -47,9 +47,8 @@ namespace Lithforge.Voxel.Content
             ResourceId currentId = modelId;
             for (int depth = 0; depth <= _maxParentDepth; depth++)
             {
-                BlockModel model;
 
-                if (!modelMap.TryGetValue(currentId, out model))
+                if (!modelMap.TryGetValue(currentId, out BlockModel model))
                 {
                     _logger.LogWarning($"Model '{currentId}' not found in model map.");
 
@@ -70,9 +69,7 @@ namespace Lithforge.Voxel.Content
                     break;
                 }
 
-                ResourceId parentId;
-
-                if (!ResourceId.TryParse(model.Parent, out parentId))
+                if (!ResourceId.TryParse(model.Parent, out ResourceId parentId))
                 {
                     _logger.LogError($"Model '{currentId}' has invalid parent '{model.Parent}'.");
 
@@ -113,10 +110,9 @@ namespace Lithforge.Voxel.Content
                 if (value.StartsWith("#"))
                 {
                     // Variable reference — look up in already-merged textures
-                    string varName = value.Substring(1);
-                    ResourceId resolved;
+                    string varName = value[1..];
 
-                    if (mergedTextures.TryGetValue(varName, out resolved))
+                    if (mergedTextures.TryGetValue(varName, out ResourceId resolved))
                     {
                         mergedTextures[kvp.Key] = resolved;
                     }
@@ -124,9 +120,7 @@ namespace Lithforge.Voxel.Content
                 else
                 {
                     // Direct texture ResourceId
-                    ResourceId texId;
-
-                    if (ResourceId.TryParse(value, out texId))
+                    if (ResourceId.TryParse(value, out ResourceId texId))
                     {
                         mergedTextures[kvp.Key] = texId;
                     }
