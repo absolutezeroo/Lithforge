@@ -32,6 +32,16 @@ namespace Lithforge.Runtime
         private const int _maxGenerationsPerFrame = 4;
         private const int _maxMeshesPerFrame = 4;
 
+        private static readonly int3[] _neighborOffsets = new int3[]
+        {
+            new int3(1, 0, 0),
+            new int3(-1, 0, 0),
+            new int3(0, 1, 0),
+            new int3(0, -1, 0),
+            new int3(0, 0, 1),
+            new int3(0, 0, -1),
+        };
+
         private bool _initialized;
 
         public int PendingGenerationCount
@@ -124,6 +134,8 @@ namespace Lithforge.Runtime
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
                         pending.Handle.Dispose();
+
+                        InvalidateReadyNeighbors(pending.Coord);
                     }
                     else
                     {
@@ -159,7 +171,17 @@ namespace Lithforge.Runtime
 
                     if (chunk != null)
                     {
-                        chunk.State = ChunkState.Ready;
+                        if (chunk.NeedsRemesh)
+                        {
+                            // Neighbor generated while we were meshing — redo with correct borders
+                            chunk.NeedsRemesh = false;
+                            chunk.State = ChunkState.Generated;
+                        }
+                        else
+                        {
+                            chunk.State = ChunkState.Ready;
+                        }
+
                         chunk.ActiveJobHandle = default;
                     }
 
@@ -195,6 +217,8 @@ namespace Lithforge.Runtime
                         chunk.LightData = lightData;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
+
+                        InvalidateReadyNeighbors(chunk.Coord);
 
                         continue;
                     }
@@ -289,6 +313,30 @@ namespace Lithforge.Runtime
                 ChunkBorderExtractor.ExtractBorder(neighbor.Data, faceDirection, output);
             }
             // If neighbor doesn't exist, output stays zero-initialized (air)
+        }
+
+        private void InvalidateReadyNeighbors(int3 coord)
+        {
+            for (int i = 0; i < _neighborOffsets.Length; i++)
+            {
+                int3 neighborCoord = coord + _neighborOffsets[i];
+                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+
+                if (neighbor == null)
+                {
+                    continue;
+                }
+
+                if (neighbor.State == ChunkState.Ready)
+                {
+                    neighbor.State = ChunkState.Generated;
+                }
+                else if (neighbor.State == ChunkState.Meshing)
+                {
+                    // Job is active — flag for re-mesh after it completes
+                    neighbor.NeedsRemesh = true;
+                }
+            }
         }
 
         private void CleanupPendingJobsForCoord(int3 coord)

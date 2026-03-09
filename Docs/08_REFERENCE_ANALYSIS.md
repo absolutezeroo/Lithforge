@@ -2,7 +2,7 @@
 
 ## Luanti Source Code Analysis
 
-Based on examination of the Luanti source code at `github.com/luanti-org/luanti`.
+Based on examination of the Luanti source code. Local copy available at `Sources/luanti-master/` (git-ignored).
 
 ### Source Structure
 
@@ -60,7 +60,7 @@ src/
 
 ## Minosoft Architecture Analysis
 
-Kotlin Minecraft reimplementation at `github.com/Bixilon/Minosoft`.
+Kotlin Minecraft reimplementation. Local copy available at `Sources/Minosoft-master/` (git-ignored).
 
 ### Architecture Patterns Adopted
 

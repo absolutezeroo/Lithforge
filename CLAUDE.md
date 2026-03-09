@@ -125,19 +125,28 @@ Main Thread ──schedule──► Worker Thread (Burst Job) ──produce─�
 DOTS/ECS is used **ONLY** for entity simulation (mobs, NPCs, projectiles).
 NOT for: chunks, meshing, worldgen, lighting, crafting, content loading, modding, UI.
 
+## Reference Sources
+
+Local copies of reference implementations are available in `Sources/` (git-ignored):
+- **Luanti** (`Sources/luanti-master/`): C++ voxel engine (Minetest fork) — ore types, biome selection, mapgen patterns
+- **Minosoft** (`Sources/Minosoft-master/`): Kotlin Minecraft reimplementation — data-driven architecture, performance patterns
+
 ## Documentation Index
+
+All documentation lives in `Docs/`:
 
 | File | Content |
 |------|---------|
-| `01_PROJECT_OVERVIEW.md` | Vision, three-tier architecture, why Unity, targets |
-| `02_SOLUTION_ARCHITECTURE.md` | Package structure, asmdef rules, dependency graph |
-| `03_VOXEL_CORE.md` | Chunks (NativeArray), BlockState, StateRegistry, storage, invariants |
-| `04_MESHING_AND_RENDERING.md` | Burst greedy meshing, URP shaders, Texture2DArray, MeshUploader |
-| `05_WORLD_GENERATION.md` | Burst pipeline stages, NativeNoise, biomes, ores, cross-chunk decoration |
-| `06_THREADING_AND_BURST.md` | Job scheduling, blittable types, NativeContainer ownership, memory budget |
-| `07_DATA_DRIVEN_CONTENT.md` | File formats, loading pipeline, mod integration, validation |
-| `08_REFERENCE_ANALYSIS.md` | Luanti & Minosoft comparison |
-| `09_ROADMAP.md` | 5 sprints + post-MVP milestones |
-| `10_ERROR_HANDLING.md` | Error categories, fallbacks, save recovery |
-| `11_PLATFORM_ARCHITECTURE.md` | Game/mod/content pack hierarchy, version compat |
-| `12_OBSERVABILITY.md` | Metrics, ProfilerMarker, logging, benchmarks |
+| `Docs/01_PROJECT_OVERVIEW.md` | Vision, three-tier architecture, why Unity, targets |
+| `Docs/02_SOLUTION_ARCHITECTURE.md` | Package structure, asmdef rules, dependency graph |
+| `Docs/03_VOXEL_CORE.md` | Chunks (NativeArray), BlockState, StateRegistry, storage, invariants |
+| `Docs/04_MESHING_AND_RENDERING.md` | Burst greedy meshing, URP shaders, Texture2DArray, MeshUploader |
+| `Docs/05_WORLD_GENERATION.md` | Burst pipeline stages, NativeNoise, biomes, ores, cross-chunk decoration |
+| `Docs/06_THREADING_AND_BURST.md` | Job scheduling, blittable types, NativeContainer ownership, memory budget |
+| `Docs/07_DATA_DRIVEN_CONTENT.md` | File formats, loading pipeline, mod integration, validation |
+| `Docs/08_REFERENCE_ANALYSIS.md` | Luanti & Minosoft comparison |
+| `Docs/09_ROADMAP.md` | 5 sprints + post-MVP milestones |
+| `Docs/10_ERROR_HANDLING.md` | Error categories, fallbacks, save recovery |
+| `Docs/11_PLATFORM_ARCHITECTURE.md` | Game/mod/content pack hierarchy, version compat |
+| `Docs/12_OBSERVABILITY.md` | Metrics, ProfilerMarker, logging, benchmarks |
+| `Docs/adr/` | Architecture Decision Records |

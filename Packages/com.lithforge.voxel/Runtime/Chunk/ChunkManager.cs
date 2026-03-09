@@ -97,22 +97,47 @@ namespace Lithforge.Voxel.Chunk
 
         public List<ManagedChunk> GetChunksToMesh(int maxCount)
         {
-            List<ManagedChunk> result = new List<ManagedChunk>();
+            List<ManagedChunk> candidates = new List<ManagedChunk>();
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
                 if (kvp.Value.State == ChunkState.Generated)
                 {
-                    result.Add(kvp.Value);
-
-                    if (result.Count >= maxCount)
-                    {
-                        break;
-                    }
+                    candidates.Add(kvp.Value);
                 }
             }
 
-            return result;
+            // Sort by ready neighbor count (descending) — chunks with more
+            // generated neighbors produce fewer ghost faces and less re-meshing.
+            candidates.Sort((a, b) =>
+                CountReadyNeighbors(b.Coord).CompareTo(CountReadyNeighbors(a.Coord)));
+
+            if (candidates.Count > maxCount)
+            {
+                candidates.RemoveRange(maxCount, candidates.Count - maxCount);
+            }
+
+            return candidates;
+        }
+
+        private int CountReadyNeighbors(int3 coord)
+        {
+            int count = 0;
+
+            if (HasGeneratedNeighbor(coord + new int3(1, 0, 0))) { count++; }
+            if (HasGeneratedNeighbor(coord + new int3(-1, 0, 0))) { count++; }
+            if (HasGeneratedNeighbor(coord + new int3(0, 1, 0))) { count++; }
+            if (HasGeneratedNeighbor(coord + new int3(0, -1, 0))) { count++; }
+            if (HasGeneratedNeighbor(coord + new int3(0, 0, 1))) { count++; }
+            if (HasGeneratedNeighbor(coord + new int3(0, 0, -1))) { count++; }
+
+            return count;
+        }
+
+        private bool HasGeneratedNeighbor(int3 coord)
+        {
+            return _chunks.TryGetValue(coord, out ManagedChunk neighbor)
+                && neighbor.State >= ChunkState.Generated;
         }
 
         public ManagedChunk GetChunk(int3 coord)
@@ -130,9 +155,10 @@ namespace Lithforge.Voxel.Chunk
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
                 int3 diff = kvp.Key - cameraChunkCoord;
-                int dist = math.max(math.abs(diff.x), math.abs(diff.z));
+                int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+                bool yOutOfRange = diff.y < -2 || diff.y > 4;
 
-                if (dist > _renderDistance + 1)
+                if (xzDist > _renderDistance + 1 || yOutOfRange)
                 {
                     kvp.Value.ActiveJobHandle.Complete();
 

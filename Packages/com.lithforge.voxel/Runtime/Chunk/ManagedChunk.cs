@@ -12,6 +12,7 @@ namespace Lithforge.Voxel.Chunk
         public NativeArray<StateId> Data { get; set; }
         public NativeArray<byte> LightData { get; set; }
         public JobHandle ActiveJobHandle { get; set; }
+        public bool NeedsRemesh { get; set; }
 
         public ManagedChunk(int3 coord, NativeArray<StateId> data)
         {
