@@ -3,6 +3,7 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 
 namespace Lithforge.WorldGen.Stages
@@ -10,7 +11,7 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile]
     public struct LightPropagationJob : IJob
     {
-        [ReadOnly] public NativeArray<StateId> ChunkData;
+        [ReadOnly] [NativeDisableContainerSafetyRestriction] public NativeArray<StateId> ChunkData;
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         public NativeArray<byte> LightData;

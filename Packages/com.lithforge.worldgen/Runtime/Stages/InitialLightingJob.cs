@@ -3,6 +3,7 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -13,7 +14,7 @@ namespace Lithforge.WorldGen.Stages
     {
         [ReadOnly] public NativeArray<int> HeightMap;
         [ReadOnly] public int3 ChunkCoord;
-        [ReadOnly] public NativeArray<StateId> ChunkData;
+        [ReadOnly] [NativeDisableContainerSafetyRestriction] public NativeArray<StateId> ChunkData;
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         public NativeArray<byte> LightData;

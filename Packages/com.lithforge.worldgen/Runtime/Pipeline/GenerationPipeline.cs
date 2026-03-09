@@ -53,19 +53,19 @@ namespace Lithforge.WorldGen.Pipeline
         public GenerationHandle Schedule(int3 coord, long seed, NativeArray<StateId> chunkData)
         {
             NativeArray<int> heightMap = new NativeArray<int>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             NativeArray<byte> lightData = new NativeArray<byte>(
                 ChunkConstants.Volume, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
             NativeArray<byte> biomeMap = new NativeArray<byte>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             NativeArray<float> temperatureMap = new NativeArray<float>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             NativeArray<float> humidityMap = new NativeArray<float>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             // Stage 1: Terrain shape
             TerrainShapeJob terrainJob = new TerrainShapeJob
