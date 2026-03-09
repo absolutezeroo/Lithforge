@@ -1,0 +1,235 @@
+using System.Collections.Generic;
+using Lithforge.Meshing;
+using Lithforge.Runtime.Rendering;
+using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
+using Lithforge.WorldGen.Pipeline;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+using UnityEngine;
+
+namespace Lithforge.Runtime
+{
+    public sealed class GameLoop : MonoBehaviour
+    {
+        private ChunkManager _chunkManager;
+        private GenerationPipeline _generationPipeline;
+        private NativeStateRegistry _nativeStateRegistry;
+        private ChunkRenderManager _chunkRenderManager;
+        private long _seed;
+
+        private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
+        private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+        private readonly List<int3> _unloadedCoords = new List<int3>();
+
+        private const int _maxGenerationsPerFrame = 4;
+        private const int _maxMeshesPerFrame = 4;
+
+        private bool _initialized;
+
+        public int PendingGenerationCount
+        {
+            get { return _pendingGenerations.Count; }
+        }
+
+        public int PendingMeshCount
+        {
+            get { return _pendingMeshes.Count; }
+        }
+
+        public void Initialize(
+            ChunkManager chunkManager,
+            GenerationPipeline generationPipeline,
+            NativeStateRegistry nativeStateRegistry,
+            ChunkRenderManager chunkRenderManager,
+            long seed)
+        {
+            _chunkManager = chunkManager;
+            _generationPipeline = generationPipeline;
+            _nativeStateRegistry = nativeStateRegistry;
+            _chunkRenderManager = chunkRenderManager;
+            _seed = seed;
+            _initialized = true;
+        }
+
+        private void Update()
+        {
+            if (!_initialized)
+            {
+                return;
+            }
+
+            PollGenerationJobs();
+            PollMeshJobs();
+
+            int3 cameraChunkCoord = GetCameraChunkCoord();
+
+            _chunkManager.UpdateLoadingQueue(cameraChunkCoord);
+            _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords);
+
+            for (int i = 0; i < _unloadedCoords.Count; i++)
+            {
+                _chunkRenderManager.DestroyRenderer(_unloadedCoords[i]);
+            }
+
+            ScheduleGenerationJobs();
+            ScheduleMeshJobs();
+        }
+
+        private void PollGenerationJobs()
+        {
+            for (int i = _pendingGenerations.Count - 1; i >= 0; i--)
+            {
+                PendingGeneration pending = _pendingGenerations[i];
+
+                if (pending.Handle.FinalHandle.IsCompleted)
+                {
+                    pending.Handle.FinalHandle.Complete();
+                    pending.Handle.Dispose();
+
+                    ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
+
+                    if (chunk != null)
+                    {
+                        chunk.State = ChunkState.Generated;
+                        chunk.ActiveJobHandle = default;
+                    }
+
+                    _pendingGenerations.RemoveAt(i);
+                }
+            }
+        }
+
+        private void PollMeshJobs()
+        {
+            for (int i = _pendingMeshes.Count - 1; i >= 0; i--)
+            {
+                PendingMesh pending = _pendingMeshes[i];
+
+                if (pending.Handle.IsCompleted)
+                {
+                    pending.Handle.Complete();
+
+                    _chunkRenderManager.UpdateRenderer(pending.Coord, pending.Data.Vertices, pending.Data.Indices);
+                    pending.Data.Dispose();
+
+                    ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
+
+                    if (chunk != null)
+                    {
+                        chunk.State = ChunkState.Ready;
+                        chunk.ActiveJobHandle = default;
+                    }
+
+                    _pendingMeshes.RemoveAt(i);
+                }
+            }
+        }
+
+        private void ScheduleGenerationJobs()
+        {
+            int slotsAvailable = _maxGenerationsPerFrame - _pendingGenerations.Count;
+
+            if (slotsAvailable <= 0)
+            {
+                return;
+            }
+
+            List<ManagedChunk> chunks = _chunkManager.GetChunksToGenerate(slotsAvailable);
+
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                ManagedChunk chunk = chunks[i];
+                GenerationHandle handle = _generationPipeline.Schedule(chunk.Coord, _seed, chunk.Data);
+                chunk.ActiveJobHandle = handle.FinalHandle;
+
+                _pendingGenerations.Add(new PendingGeneration
+                {
+                    Coord = chunk.Coord,
+                    Handle = handle,
+                });
+            }
+        }
+
+        private void ScheduleMeshJobs()
+        {
+            int slotsAvailable = _maxMeshesPerFrame - _pendingMeshes.Count;
+
+            if (slotsAvailable <= 0)
+            {
+                return;
+            }
+
+            List<ManagedChunk> chunks = _chunkManager.GetChunksToMesh(slotsAvailable);
+
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                ManagedChunk chunk = chunks[i];
+                chunk.State = ChunkState.Meshing;
+
+                MeshData meshData = new MeshData(Allocator.TempJob);
+
+                CulledMeshJob meshJob = new CulledMeshJob
+                {
+                    ChunkData = chunk.Data,
+                    StateTable = _nativeStateRegistry.States,
+                    Vertices = meshData.Vertices,
+                    Indices = meshData.Indices,
+                };
+
+                JobHandle meshHandle = meshJob.Schedule();
+                chunk.ActiveJobHandle = meshHandle;
+
+                _pendingMeshes.Add(new PendingMesh
+                {
+                    Coord = chunk.Coord,
+                    Handle = meshHandle,
+                    Data = meshData,
+                });
+            }
+        }
+
+        private int3 GetCameraChunkCoord()
+        {
+            Vector3 camPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+
+            return new int3(
+                (int)math.floor(camPos.x / ChunkConstants.Size),
+                (int)math.floor(camPos.y / ChunkConstants.Size),
+                (int)math.floor(camPos.z / ChunkConstants.Size));
+        }
+
+        public void Shutdown()
+        {
+            for (int i = 0; i < _pendingGenerations.Count; i++)
+            {
+                _pendingGenerations[i].Handle.FinalHandle.Complete();
+                _pendingGenerations[i].Handle.Dispose();
+            }
+
+            _pendingGenerations.Clear();
+
+            for (int i = 0; i < _pendingMeshes.Count; i++)
+            {
+                _pendingMeshes[i].Handle.Complete();
+                _pendingMeshes[i].Data.Dispose();
+            }
+
+            _pendingMeshes.Clear();
+        }
+
+        private struct PendingGeneration
+        {
+            public int3 Coord;
+            public GenerationHandle Handle;
+        }
+
+        private struct PendingMesh
+        {
+            public int3 Coord;
+            public JobHandle Handle;
+            public MeshData Data;
+        }
+    }
+}

@@ -41,6 +41,7 @@ namespace Lithforge.Voxel.Block
                 LightFilter = 0,
                 CollisionShape = 0,
                 TextureIndexBase = 0,
+                MapColor = 0x00000000,
             };
             _states.Add(airState);
         }
@@ -73,6 +74,7 @@ namespace Lithforge.Voxel.Block
             byte flags = ComputeFlags(definition);
             byte renderLayer = ParseRenderLayer(definition.RenderLayer);
             byte collisionShape = ParseCollisionShape(definition.CollisionShape);
+            uint mapColor = ParseMapColor(definition.MapColor);
 
             for (int i = 0; i < stateCount; i++)
             {
@@ -85,6 +87,7 @@ namespace Lithforge.Voxel.Block
                     LightFilter = (byte)definition.LightFilter,
                     CollisionShape = collisionShape,
                     TextureIndexBase = 0,
+                    MapColor = mapColor,
                     TexNorth = 0,
                     TexSouth = 0,
                     TexEast = 0,
@@ -179,6 +182,46 @@ namespace Lithforge.Voxel.Block
             }
 
             return 1; // default full_cube
+        }
+
+        /// <summary>
+        /// Parses a hex color string (#RRGGBB or #RRGGBBAA) to packed RGBA8 uint.
+        /// Returns default gray (0x808080FF) if the string is null or invalid.
+        /// </summary>
+        public static uint ParseMapColor(string hex)
+        {
+            if (string.IsNullOrEmpty(hex))
+            {
+                return 0x808080FF;
+            }
+
+            string raw = hex;
+
+            if (raw.Length > 0 && raw[0] == '#')
+            {
+                raw = raw.Substring(1);
+            }
+
+            if (raw.Length == 6)
+            {
+                uint rgb;
+
+                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out rgb))
+                {
+                    return (rgb << 8) | 0xFF;
+                }
+            }
+            else if (raw.Length == 8)
+            {
+                uint rgba;
+
+                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out rgba))
+                {
+                    return rgba;
+                }
+            }
+
+            return 0x808080FF;
         }
     }
 }

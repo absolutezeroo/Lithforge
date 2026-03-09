@@ -1,0 +1,25 @@
+{
+  "name": "Lithforge.Runtime",
+  "rootNamespace": "Lithforge.Runtime",
+  "references": [
+    "Lithforge.Core",
+    "Lithforge.Voxel",
+    "Lithforge.WorldGen",
+    "Lithforge.Meshing",
+    "Unity.Burst",
+    "Unity.Collections",
+    "Unity.Mathematics",
+    "Unity.Jobs",
+    "Unity.InputSystem",
+    "Unity.RenderPipelines.Universal"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

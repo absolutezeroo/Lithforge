@@ -1,0 +1,21 @@
+{
+  "name": "Lithforge.Meshing",
+  "rootNamespace": "Lithforge.Meshing",
+  "references": [
+    "Lithforge.Core",
+    "Lithforge.Voxel",
+    "Unity.Burst",
+    "Unity.Collections",
+    "Unity.Mathematics",
+    "Unity.Jobs"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

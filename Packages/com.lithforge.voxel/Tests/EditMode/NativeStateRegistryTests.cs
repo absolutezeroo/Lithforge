@@ -18,7 +18,8 @@ namespace Lithforge.Voxel.Tests
             BlockDefinition stone = new BlockDefinition(stoneId, new List<PropertyDefinition>())
             {
                 RenderLayer = "opaque",
-                CollisionShape = "full_cube"
+                CollisionShape = "full_cube",
+                MapColor = "#7F7F7F"
             };
             managed.Register(stone);
 
@@ -62,7 +63,13 @@ namespace Lithforge.Voxel.Tests
                         $"LightEmission mismatch at StateId({i})");
                     Assert.AreEqual(managedState.LightFilter, nativeState.LightFilter,
                         $"LightFilter mismatch at StateId({i})");
+                    Assert.AreEqual(managedState.MapColor, nativeState.MapColor,
+                        $"MapColor mismatch at StateId({i})");
                 }
+
+                // Verify stone's MapColor parsed correctly (#7F7F7F -> 0x7F7F7FFF)
+                BlockStateCompact stoneNative = native.GetState(new StateId(1));
+                Assert.AreEqual(0x7F7F7FFF, stoneNative.MapColor);
             }
             finally
             {

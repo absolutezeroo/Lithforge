@@ -17,6 +17,7 @@ namespace Lithforge.Voxel.Block
         public byte LightFilter;
         public byte CollisionShape;
         public byte TextureIndexBase;
+        public uint MapColor;
 
         public ushort TexNorth;
         public ushort TexSouth;

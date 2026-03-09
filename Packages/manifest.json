@@ -1,4 +1,10 @@
 {
+  "testables": [
+    "com.lithforge.core",
+    "com.lithforge.voxel",
+    "com.lithforge.worldgen",
+    "com.lithforge.meshing"
+  ],
   "dependencies": {
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#beta",
     "com.unity.ai.navigation": "2.0.10",

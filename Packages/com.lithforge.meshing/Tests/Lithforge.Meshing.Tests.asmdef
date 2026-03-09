@@ -1,0 +1,30 @@
+{
+  "name": "Lithforge.Meshing.Tests",
+  "rootNamespace": "Lithforge.Meshing.Tests",
+  "references": [
+    "Lithforge.Core",
+    "Lithforge.Voxel",
+    "Lithforge.Meshing",
+    "Unity.Collections",
+    "Unity.Burst",
+    "Unity.Mathematics",
+    "Unity.Jobs",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

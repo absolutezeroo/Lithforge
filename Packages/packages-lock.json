@@ -18,12 +18,36 @@
         "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
+    "com.lithforge.meshing": {
+      "version": "file:com.lithforge.meshing",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.lithforge.core": "0.1.0",
+        "com.lithforge.voxel": "0.1.0",
+        "com.unity.burst": "1.8.18",
+        "com.unity.collections": "2.5.1",
+        "com.unity.mathematics": "1.3.2"
+      }
+    },
     "com.lithforge.voxel": {
       "version": "file:com.lithforge.voxel",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
         "com.lithforge.core": "0.1.0",
+        "com.unity.burst": "1.8.18",
+        "com.unity.collections": "2.5.1",
+        "com.unity.mathematics": "1.3.2"
+      }
+    },
+    "com.lithforge.worldgen": {
+      "version": "file:com.lithforge.worldgen",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.lithforge.core": "0.1.0",
+        "com.lithforge.voxel": "0.1.0",
         "com.unity.burst": "1.8.18",
         "com.unity.collections": "2.5.1",
         "com.unity.mathematics": "1.3.2"
@@ -39,8 +63,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.28",
-      "depth": 1,
+      "version": "1.8.18",
+      "depth": 0,
       "source": "registry",
       "dependencies": {
         "com.unity.mathematics": "1.2.1",
@@ -56,14 +80,13 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.collections": {
-      "version": "2.6.2",
-      "depth": 1,
+      "version": "2.5.1",
+      "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.burst": "1.8.23",
-        "com.unity.mathematics": "1.3.2",
-        "com.unity.test-framework": "1.4.6",
-        "com.unity.nuget.mono-cecil": "1.11.5",
+        "com.unity.burst": "1.8.17",
+        "com.unity.test-framework": "1.4.5",
+        "com.unity.nuget.mono-cecil": "1.11.4",
         "com.unity.test-framework.performance": "3.0.3"
       },
       "url": "https://packages.unity.com"
@@ -102,8 +125,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.mathematics": {
-      "version": "1.3.3",
-      "depth": 1,
+      "version": "1.3.2",
+      "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -124,8 +147,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.nuget.newtonsoft-json": {
-      "version": "3.2.2",
-      "depth": 1,
+      "version": "3.2.1",
+      "depth": 0,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"

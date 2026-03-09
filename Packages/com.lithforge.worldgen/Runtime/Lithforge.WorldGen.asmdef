@@ -1,0 +1,21 @@
+{
+  "name": "Lithforge.WorldGen",
+  "rootNamespace": "Lithforge.WorldGen",
+  "references": [
+    "Lithforge.Core",
+    "Lithforge.Voxel",
+    "Unity.Burst",
+    "Unity.Collections",
+    "Unity.Mathematics",
+    "Unity.Jobs"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
