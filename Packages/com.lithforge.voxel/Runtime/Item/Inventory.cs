@@ -119,6 +119,26 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
+        /// Adds a single item with durability tracking (for tools).
+        /// Tools always occupy their own slot with count=1.
+        /// Returns the number of items that could not be added.
+        /// </summary>
+        public int AddItemWithDurability(ResourceId itemId, int durability)
+        {
+            for (int i = 0; i < SlotCount; i++)
+            {
+                if (_slots[i].IsEmpty)
+                {
+                    _slots[i] = new ItemStack(itemId, 1, durability);
+
+                    return 0;
+                }
+            }
+
+            return 1;
+        }
+
+        /// <summary>
         /// Removes a number of items from a specific slot.
         /// Returns the number actually removed.
         /// </summary>

@@ -144,13 +144,19 @@ namespace Lithforge.Voxel.Loot
                     if (func.Parameters.TryGetValue("min", out string minStr) &&
                         func.Parameters.TryGetValue("max", out string maxStr))
                     {
-                        int min = int.Parse(minStr);
-                        int max = int.Parse(maxStr);
-                        count = min + random.Next(max - min + 1);
+                        if (int.TryParse(minStr, out int min) &&
+                            int.TryParse(maxStr, out int max) &&
+                            max >= min)
+                        {
+                            count = min + random.Next(max - min + 1);
+                        }
                     }
                     else if (func.Parameters.TryGetValue("count", out string countStr))
                     {
-                        count = int.Parse(countStr);
+                        if (int.TryParse(countStr, out int parsed))
+                        {
+                            count = parsed;
+                        }
                     }
                 }
             }

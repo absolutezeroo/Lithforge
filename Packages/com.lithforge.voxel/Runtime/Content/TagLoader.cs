@@ -52,47 +52,18 @@ namespace Lithforge.Voxel.Content
                     continue;
                 }
 
-                LoadDirectory(tagsDir, ns, "", definitions);
+                ContentDirectoryScanner.Scan(tagsDir, ns, "", (string filePath, ResourceId id) =>
+                {
+                    TagDefinition definition = LoadSingle(filePath, id);
+
+                    if (definition != null)
+                    {
+                        definitions.Add(definition);
+                    }
+                });
             }
 
             return definitions;
-        }
-
-        private void LoadDirectory(
-            string directory,
-            string ns,
-            string pathPrefix,
-            List<TagDefinition> definitions)
-        {
-            string[] jsonFiles = Directory.GetFiles(directory, "*.json");
-
-            for (int i = 0; i < jsonFiles.Length; i++)
-            {
-                string filePath = jsonFiles[i];
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string idName = string.IsNullOrEmpty(pathPrefix)
-                    ? fileName
-                    : pathPrefix + "/" + fileName;
-                ResourceId id = new ResourceId(ns, idName);
-
-                TagDefinition definition = LoadSingle(filePath, id);
-
-                if (definition != null)
-                {
-                    definitions.Add(definition);
-                }
-            }
-
-            string[] subDirs = Directory.GetDirectories(directory);
-
-            for (int i = 0; i < subDirs.Length; i++)
-            {
-                string subDirName = Path.GetFileName(subDirs[i]);
-                string newPrefix = string.IsNullOrEmpty(pathPrefix)
-                    ? subDirName
-                    : pathPrefix + "/" + subDirName;
-                LoadDirectory(subDirs[i], ns, newPrefix, definitions);
-            }
         }
 
         private TagDefinition LoadSingle(string filePath, ResourceId id)

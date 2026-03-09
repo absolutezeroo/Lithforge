@@ -18,11 +18,6 @@ namespace Lithforge.Voxel.Content
     {
         private readonly ILogger _logger;
 
-        private static readonly string[] _validToolTypes =
-        {
-            "none", "pickaxe", "axe", "shovel", "hoe", "sword"
-        };
-
         public ItemDefinitionLoader(ILogger logger)
         {
             _logger = logger;

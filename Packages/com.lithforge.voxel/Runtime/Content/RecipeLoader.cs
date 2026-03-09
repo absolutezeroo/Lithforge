@@ -50,47 +50,18 @@ namespace Lithforge.Voxel.Content
                     continue;
                 }
 
-                LoadDirectory(recipesDir, ns, "", recipes);
+                ContentDirectoryScanner.Scan(recipesDir, ns, "", (string filePath, ResourceId id) =>
+                {
+                    RecipeDefinition recipe = LoadSingle(filePath, id);
+
+                    if (recipe != null)
+                    {
+                        recipes.Add(recipe);
+                    }
+                });
             }
 
             return recipes;
-        }
-
-        private void LoadDirectory(
-            string directory,
-            string ns,
-            string pathPrefix,
-            List<RecipeDefinition> recipes)
-        {
-            string[] jsonFiles = Directory.GetFiles(directory, "*.json");
-
-            for (int i = 0; i < jsonFiles.Length; i++)
-            {
-                string filePath = jsonFiles[i];
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string idName = string.IsNullOrEmpty(pathPrefix)
-                    ? fileName
-                    : pathPrefix + "/" + fileName;
-                ResourceId id = new ResourceId(ns, idName);
-
-                RecipeDefinition recipe = LoadSingle(filePath, id);
-
-                if (recipe != null)
-                {
-                    recipes.Add(recipe);
-                }
-            }
-
-            string[] subDirs = Directory.GetDirectories(directory);
-
-            for (int i = 0; i < subDirs.Length; i++)
-            {
-                string subDirName = Path.GetFileName(subDirs[i]);
-                string newPrefix = string.IsNullOrEmpty(pathPrefix)
-                    ? subDirName
-                    : pathPrefix + "/" + subDirName;
-                LoadDirectory(subDirs[i], ns, newPrefix, recipes);
-            }
         }
 
         private RecipeDefinition LoadSingle(string filePath, ResourceId id)

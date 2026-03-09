@@ -49,8 +49,6 @@ namespace Lithforge.Runtime.Input
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
 
-        // Reusable list for loot drops
-        private readonly List<LootDrop> _lootDrops = new List<LootDrop>();
 
         public void Initialize(
             ChunkManager chunkManager,
@@ -69,7 +67,8 @@ namespace Lithforge.Runtime.Input
             _itemRegistry = itemRegistry;
             _lootResolver = lootResolver;
             _lootRandom = new Random(Environment.TickCount);
-            _isSolidDelegate = IsSolid;
+            _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
+                coord, _chunkManager, _nativeStateRegistry);
         }
 
         private void Update()
@@ -123,17 +122,23 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        private static readonly Key[] _digitKeys =
+        {
+            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
+            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
+        };
+
         private void HandleHotbarSelection(Keyboard keyboard)
         {
-            if (keyboard.digit1Key.wasPressedThisFrame) { _inventory.SelectedSlot = 0; }
-            else if (keyboard.digit2Key.wasPressedThisFrame) { _inventory.SelectedSlot = 1; }
-            else if (keyboard.digit3Key.wasPressedThisFrame) { _inventory.SelectedSlot = 2; }
-            else if (keyboard.digit4Key.wasPressedThisFrame) { _inventory.SelectedSlot = 3; }
-            else if (keyboard.digit5Key.wasPressedThisFrame) { _inventory.SelectedSlot = 4; }
-            else if (keyboard.digit6Key.wasPressedThisFrame) { _inventory.SelectedSlot = 5; }
-            else if (keyboard.digit7Key.wasPressedThisFrame) { _inventory.SelectedSlot = 6; }
-            else if (keyboard.digit8Key.wasPressedThisFrame) { _inventory.SelectedSlot = 7; }
-            else if (keyboard.digit9Key.wasPressedThisFrame) { _inventory.SelectedSlot = 8; }
+            for (int i = 0; i < Inventory.HotbarSize && i < _digitKeys.Length; i++)
+            {
+                if (keyboard[_digitKeys[i]].wasPressedThisFrame)
+                {
+                    _inventory.SelectedSlot = i;
+
+                    return;
+                }
+            }
         }
 
         private void HandleScrollWheel(Mouse mouse)
@@ -246,7 +251,6 @@ namespace Lithforge.Runtime.Input
             {
                 if (ResourceId.TryParse(definition.LootTable, out ResourceId tableId))
                 {
-                    _lootDrops.Clear();
                     List<LootDrop> drops = _lootResolver.Resolve(tableId, _lootRandom);
 
                     for (int i = 0; i < drops.Count; i++)
@@ -266,7 +270,7 @@ namespace Lithforge.Runtime.Input
             {
                 ItemDefinition heldDef = _itemRegistry.Get(heldItem.ItemId);
 
-                if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability > 0)
+                if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability != -1)
                 {
                     ItemStack updated = heldItem;
                     updated.Durability -= 1;
@@ -361,13 +365,6 @@ namespace Lithforge.Runtime.Input
             _miningRequiredTime = 0f;
         }
 
-        private bool IsSolid(int3 worldCoord)
-        {
-            StateId stateId = _chunkManager.GetBlock(worldCoord);
-            BlockStateCompact compact = _nativeStateRegistry.States[stateId.Value];
-
-            return compact.CollisionShape != 0;
-        }
 
         /// <summary>
         /// Gets the current mining progress as a value from 0 to 1.

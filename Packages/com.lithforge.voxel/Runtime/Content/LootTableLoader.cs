@@ -52,48 +52,18 @@ namespace Lithforge.Voxel.Content
                     continue;
                 }
 
-                LoadDirectory(lootDir, ns, "", tables);
+                ContentDirectoryScanner.Scan(lootDir, ns, "", (string filePath, ResourceId id) =>
+                {
+                    LootTableDefinition definition = LoadSingle(filePath, id);
+
+                    if (definition != null)
+                    {
+                        tables[id] = definition;
+                    }
+                });
             }
 
             return tables;
-        }
-
-        private void LoadDirectory(
-            string directory,
-            string ns,
-            string pathPrefix,
-            Dictionary<ResourceId, LootTableDefinition> tables)
-        {
-            string[] jsonFiles = Directory.GetFiles(directory, "*.json");
-
-            for (int i = 0; i < jsonFiles.Length; i++)
-            {
-                string filePath = jsonFiles[i];
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string idName = string.IsNullOrEmpty(pathPrefix)
-                    ? fileName
-                    : pathPrefix + "/" + fileName;
-                ResourceId id = new ResourceId(ns, idName);
-
-                LootTableDefinition definition = LoadSingle(filePath, id);
-
-                if (definition != null)
-                {
-                    tables[id] = definition;
-                }
-            }
-
-            // Recurse into subdirectories (e.g., loot_tables/blocks/)
-            string[] subDirs = Directory.GetDirectories(directory);
-
-            for (int i = 0; i < subDirs.Length; i++)
-            {
-                string subDirName = Path.GetFileName(subDirs[i]);
-                string newPrefix = string.IsNullOrEmpty(pathPrefix)
-                    ? subDirName
-                    : pathPrefix + "/" + subDirName;
-                LoadDirectory(subDirs[i], ns, newPrefix, tables);
-            }
         }
 
         private LootTableDefinition LoadSingle(string filePath, ResourceId id)

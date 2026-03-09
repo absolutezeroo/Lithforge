@@ -44,7 +44,8 @@ namespace Lithforge.Runtime.Input
             _gameLoop = gameLoop;
 
             // Cache the delegate to avoid allocation each frame
-            _isSolidDelegate = IsSolid;
+            _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
+                coord, _chunkManager, _nativeStateRegistry);
         }
 
         private void Update()
@@ -166,13 +167,6 @@ namespace Lithforge.Runtime.Input
             return new float3(moveDir.x * speed * dt, 0f, moveDir.z * speed * dt);
         }
 
-        private bool IsSolid(int3 worldCoord)
-        {
-            StateId stateId = _chunkManager.GetBlock(worldCoord);
-            BlockStateCompact compact = _nativeStateRegistry.States[stateId.Value];
-
-            return compact.CollisionShape != 0;
-        }
 
         private void HandleCursorToggle(Keyboard keyboard)
         {

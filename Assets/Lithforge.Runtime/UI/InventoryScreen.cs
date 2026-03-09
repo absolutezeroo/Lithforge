@@ -384,7 +384,7 @@ namespace Lithforge.Runtime.UI
 
                     if (craftItem.Namespace != null)
                     {
-                        string displayName = FormatItemName(craftItem.Name);
+                        string displayName = ItemDisplayFormatter.FormatItemName(craftItem.Name);
                         _craftNameLabels[x, y].text = displayName;
                         _craftCountLabels[x, y].text = "1";
                     }
@@ -401,7 +401,7 @@ namespace Lithforge.Runtime.UI
 
             if (match != null)
             {
-                _outputNameLabel.text = FormatItemName(match.ResultItem.Name);
+                _outputNameLabel.text = ItemDisplayFormatter.FormatItemName(match.ResultItem.Name);
                 _outputCountLabel.text = match.ResultCount > 1 ? match.ResultCount.ToString() : "";
             }
             else
@@ -476,10 +476,21 @@ namespace Lithforge.Runtime.UI
                     }
                     else
                     {
-                        // Try to add to inventory
+                        // Try to add to inventory, pick up as held if full
                         ItemDefinition def = _itemRegistry.Get(oldCraft);
                         int maxStack = def != null ? def.MaxStackSize : 64;
-                        _inventory.AddItem(oldCraft, 1, maxStack);
+                        int leftOver = _inventory.AddItem(oldCraft, 1, maxStack);
+
+                        if (leftOver > 0)
+                        {
+                            // Inventory full — revert the swap
+                            _craftingGrid.SetSlot(x, y, oldCraft);
+                            ItemStack reverted = _heldItem;
+                            reverted.Count += 1;
+                            _heldItem = reverted;
+
+                            return;
+                        }
                     }
                 }
                 else
@@ -514,9 +525,14 @@ namespace Lithforge.Runtime.UI
             }
 
             // Add result to held or inventory
+            ItemDefinition resultDef = _itemRegistry.Get(match.ResultItem);
+            int durability = (resultDef != null && resultDef.Durability > 0)
+                ? resultDef.Durability
+                : -1;
+
             if (_heldItem.IsEmpty)
             {
-                _heldItem = new ItemStack(match.ResultItem, match.ResultCount);
+                _heldItem = new ItemStack(match.ResultItem, match.ResultCount, durability);
             }
             else if (_heldItem.ItemId == match.ResultItem)
             {
@@ -569,16 +585,26 @@ namespace Lithforge.Runtime.UI
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
-            // Return held item to inventory
+            // Return held item to inventory (only clear if it fit)
             if (!_heldItem.IsEmpty)
             {
                 ItemDefinition def = _itemRegistry.Get(_heldItem.ItemId);
                 int maxStack = def != null ? def.MaxStackSize : 64;
-                _inventory.AddItem(_heldItem.ItemId, _heldItem.Count, maxStack);
-                _heldItem = ItemStack.Empty;
+                int leftOver = _inventory.AddItem(_heldItem.ItemId, _heldItem.Count, maxStack);
+
+                if (leftOver == 0)
+                {
+                    _heldItem = ItemStack.Empty;
+                }
+                else
+                {
+                    ItemStack partial = _heldItem;
+                    partial.Count = leftOver;
+                    _heldItem = partial;
+                }
             }
 
-            // Return crafting grid items to inventory
+            // Return crafting grid items to inventory (only clear if they fit)
             for (int y = 0; y < 2; y++)
             {
                 for (int x = 0; x < 2; x++)
@@ -589,8 +615,12 @@ namespace Lithforge.Runtime.UI
                     {
                         ItemDefinition def = _itemRegistry.Get(gridItem);
                         int maxStack = def != null ? def.MaxStackSize : 64;
-                        _inventory.AddItem(gridItem, 1, maxStack);
-                        _craftingGrid.SetSlot(x, y, default);
+                        int leftOver = _inventory.AddItem(gridItem, 1, maxStack);
+
+                        if (leftOver == 0)
+                        {
+                            _craftingGrid.SetSlot(x, y, default);
+                        }
                     }
                 }
             }
@@ -605,36 +635,10 @@ namespace Lithforge.Runtime.UI
             }
             else
             {
-                nameLabel.text = FormatItemName(stack.ItemId.Name);
+                nameLabel.text = ItemDisplayFormatter.FormatItemName(stack.ItemId.Name);
                 countLabel.text = stack.Count > 1 ? stack.Count.ToString() : "";
             }
         }
 
-        private string FormatItemName(string name)
-        {
-            if (string.IsNullOrEmpty(name))
-            {
-                return "";
-            }
-
-            int underscoreIndex = name.LastIndexOf('_');
-
-            if (underscoreIndex >= 0 && underscoreIndex < name.Length - 1)
-            {
-                name = name.Substring(underscoreIndex + 1);
-            }
-
-            if (name.Length > 6)
-            {
-                name = name.Substring(0, 6);
-            }
-
-            if (name.Length > 0)
-            {
-                return char.ToUpper(name[0]) + name.Substring(1);
-            }
-
-            return name;
-        }
     }
 }
