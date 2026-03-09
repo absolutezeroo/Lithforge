@@ -48,10 +48,10 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeContent()
         {
-            UnityLogger logger = new UnityLogger();
-            ContentValidator validator = new ContentValidator();
+            UnityLogger logger = new();
+            ContentValidator validator = new();
 
-            ContentPipeline pipeline = new ContentPipeline(logger, validator);
+            ContentPipeline pipeline = new(logger, validator);
             string contentRoot = System.IO.Path.Combine(
                 Application.streamingAssetsPath, "content", "lithforge");
 
@@ -76,7 +76,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeWorldGen()
         {
-            NativeNoiseConfig terrainNoise = new NativeNoiseConfig
+            NativeNoiseConfig terrainNoise = new()
             {
                 Frequency = 0.008f,
                 Lacunarity = 2.0f,
@@ -121,6 +121,7 @@ namespace Lithforge.Runtime.Bootstrap
                 else
                 {
                     UnityEngine.Debug.LogWarning("[Lithforge] VoxelOpaque shader not found, using default.");
+
                     material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
                 }
             }

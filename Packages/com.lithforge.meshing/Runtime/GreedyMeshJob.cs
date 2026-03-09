@@ -283,26 +283,28 @@ namespace Lithforge.Meshing
                 Color = color01,
             });
 
-            // AO diagonal flip: use the diagonal that minimizes anisotropy
+            // AO diagonal flip: use the diagonal that minimizes anisotropy.
+            // When ao00+ao11 > ao10+ao01, the 00-11 diagonal has more contrast,
+            // so we flip to the 10-01 diagonal for smoother interpolation.
             if (ao00 + ao11 > ao10 + ao01)
             {
-                // Standard winding
-                OpaqueIndices.Add(vertexStart);
+                // Flipped winding: use 10-01 diagonal (CW for Unity front-face)
                 OpaqueIndices.Add(vertexStart + 1);
+                OpaqueIndices.Add(vertexStart + 3);
                 OpaqueIndices.Add(vertexStart + 2);
+                OpaqueIndices.Add(vertexStart + 1);
                 OpaqueIndices.Add(vertexStart);
-                OpaqueIndices.Add(vertexStart + 2);
                 OpaqueIndices.Add(vertexStart + 3);
             }
             else
             {
-                // Flipped winding to fix AO interpolation
-                OpaqueIndices.Add(vertexStart + 1);
-                OpaqueIndices.Add(vertexStart + 2);
-                OpaqueIndices.Add(vertexStart + 3);
-                OpaqueIndices.Add(vertexStart + 1);
-                OpaqueIndices.Add(vertexStart + 3);
+                // Standard winding: use 00-11 diagonal (CW for Unity front-face)
                 OpaqueIndices.Add(vertexStart);
+                OpaqueIndices.Add(vertexStart + 2);
+                OpaqueIndices.Add(vertexStart + 1);
+                OpaqueIndices.Add(vertexStart);
+                OpaqueIndices.Add(vertexStart + 3);
+                OpaqueIndices.Add(vertexStart + 2);
             }
         }
 

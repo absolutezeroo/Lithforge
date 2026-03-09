@@ -20,11 +20,13 @@ namespace Lithforge.Runtime.Rendering
             _meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _meshRenderer.receiveShadows = false;
 
-            _mesh = new Mesh();
-            _mesh.name = $"Chunk_{chunkCoord.x}_{chunkCoord.y}_{chunkCoord.z}";
+            _mesh = new Mesh
+            {
+                name = $"Chunk_{chunkCoord.x}_{chunkCoord.y}_{chunkCoord.z}",
+            };
             _meshFilter.sharedMesh = _mesh;
 
-            Vector3 worldPos = new Vector3(
+            Vector3 worldPos = new(
                 chunkCoord.x * ChunkConstants.Size,
                 chunkCoord.y * ChunkConstants.Size,
                 chunkCoord.z * ChunkConstants.Size);

@@ -5,6 +5,7 @@ Shader "Lithforge/VoxelOpaque"
         _AtlasArray ("Texture Atlas Array", 2DArray) = "" {}
         _AOStrength ("AO Strength", Range(0, 1)) = 0.4
         _SunLightFactor ("Sun Light Factor", Range(0, 1)) = 1.0
+        _AmbientLight ("Ambient Light", Range(0, 1)) = 0.15
     }
 
     SubShader
@@ -40,6 +41,7 @@ Shader "Lithforge/VoxelOpaque"
             CBUFFER_START(UnityPerMaterial)
                 float _AOStrength;
                 float _SunLightFactor;
+                float _AmbientLight;
             CBUFFER_END
 
             struct Attributes
@@ -53,11 +55,12 @@ Shader "Lithforge/VoxelOpaque"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
-                float3 uvAndIndex : TEXCOORD0;  // xy=uv (tiled), z=texArrayIndex
-                half ao : TEXCOORD1;
-                half light : TEXCOORD2;
-                float3 normalWS : TEXCOORD3;
-                float fogFactor : TEXCOORD4;
+                float2 uv : TEXCOORD0;
+                nointerpolation int texIndex : TEXCOORD1;
+                half ao : TEXCOORD2;
+                half light : TEXCOORD3;
+                float3 normalWS : TEXCOORD4;
+                float fogFactor : TEXCOORD5;
             };
 
             Varyings vert(Attributes input)
@@ -71,7 +74,8 @@ Shader "Lithforge/VoxelOpaque"
                 output.normalWS = normalInput.normalWS;
 
                 // Texture array index from color.a (stored as half, lossless up to 2048)
-                output.uvAndIndex = float3(input.uv, round(input.color.a));
+                output.uv = input.uv;
+                output.texIndex = (int)round(input.color.a);
 
                 // AO: color.r is ao/3 (0=fully occluded, 1=unoccluded)
                 half aoNorm = input.color.r;
@@ -80,7 +84,7 @@ Shader "Lithforge/VoxelOpaque"
                 // Lighting: block light (g) and sun light (b)
                 half blockLight = input.color.g;
                 half sunLight = input.color.b * (half)_SunLightFactor;
-                output.light = max(max(blockLight, sunLight), 0.05h);
+                output.light = max(max(blockLight, sunLight), (half)_AmbientLight);
 
                 output.fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
 
@@ -90,19 +94,19 @@ Shader "Lithforge/VoxelOpaque"
             half4 frag(Varyings input) : SV_Target
             {
                 // Tile UV for greedy quads (frac wraps the texture)
-                float2 tiledUV = frac(input.uvAndIndex.xy);
-                int texIndex = (int)input.uvAndIndex.z;
+                float2 tiledUV = frac(input.uv);
 
                 half4 texColor = SAMPLE_TEXTURE2D_ARRAY(
-                    _AtlasArray, sampler_AtlasArray, tiledUV, texIndex);
+                    _AtlasArray, sampler_AtlasArray, tiledUV, input.texIndex);
 
-                // Simple directional lighting
+                // Directional lighting with ambient
                 Light mainLight = GetMainLight();
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
                 half lambert = (half)(ndotl * 0.6 + 0.4);
 
-                half3 finalColor = texColor.rgb * lambert * input.ao * input.light;
-                finalColor *= mainLight.color.rgb;
+                half3 directColor = texColor.rgb * lambert * mainLight.color.rgb;
+                half3 ambientColor = texColor.rgb * (half)_AmbientLight;
+                half3 finalColor = (directColor + ambientColor) * input.ao * input.light;
                 finalColor = MixFog(finalColor, input.fogFactor);
 
                 return half4(finalColor, 1.0h);

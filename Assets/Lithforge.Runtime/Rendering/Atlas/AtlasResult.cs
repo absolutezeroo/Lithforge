@@ -12,7 +12,9 @@ namespace Lithforge.Runtime.Rendering.Atlas
     public sealed class AtlasResult
     {
         public Texture2DArray TextureArray { get; }
+
         public IReadOnlyDictionary<ResourceId, int> IndexByTexture { get; }
+
         public int MissingTextureIndex { get; }
 
         public AtlasResult(

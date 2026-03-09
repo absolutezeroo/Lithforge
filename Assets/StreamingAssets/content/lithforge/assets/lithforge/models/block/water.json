@@ -1,6 +1,6 @@
 {
   "parent": "lithforge:block/cube_all",
   "textures": {
-    "all": "lithforge:block/water"
+    "all": "lithforge:block/water_overlay"
   }
 }

@@ -8,7 +8,15 @@
       "mcp__UnityMCP__run_tests",
       "mcp__UnityMCP__manage_editor",
       "mcp__UnityMCP__manage_scene",
-      "WebFetch(domain:0fps.net)"
+      "WebFetch(domain:0fps.net)",
+      "mcp__UnityMCP__find_gameobjects",
+      "mcp__UnityMCP__manage_components",
+      "mcp__coplay-mcp__execute_script",
+      "mcp__coplay-mcp__list_unity_project_roots",
+      "mcp__UnityMCP__execute_menu_item",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ]
   }
 }

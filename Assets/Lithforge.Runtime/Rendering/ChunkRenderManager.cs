@@ -9,7 +9,7 @@ namespace Lithforge.Runtime.Rendering
 {
     public sealed class ChunkRenderManager : IDisposable
     {
-        private readonly Dictionary<int3, ChunkRenderer> _renderers = new Dictionary<int3, ChunkRenderer>();
+        private readonly Dictionary<int3, ChunkRenderer> _renderers = new();
         private readonly Material _opaqueMaterial;
         private readonly Transform _parent;
 
@@ -22,20 +22,20 @@ namespace Lithforge.Runtime.Rendering
         {
             _opaqueMaterial = opaqueMaterial;
 
-            GameObject parentGo = new GameObject("ChunkRenderers");
+            GameObject parentGo = new("ChunkRenderers");
             _parent = parentGo.transform;
         }
 
         public void UpdateRenderer(int3 coord, NativeList<MeshVertex> verts, NativeList<int> indices)
         {
-            ChunkRenderer renderer;
 
-            if (!_renderers.TryGetValue(coord, out renderer))
+            if (!_renderers.TryGetValue(coord, out ChunkRenderer renderer))
             {
-                GameObject go = new GameObject($"Chunk_{coord.x}_{coord.y}_{coord.z}");
+                GameObject go = new($"Chunk_{coord.x}_{coord.y}_{coord.z}");
                 go.transform.SetParent(_parent, false);
                 renderer = go.AddComponent<ChunkRenderer>();
                 renderer.Initialize(coord, _opaqueMaterial);
+
                 _renderers[coord] = renderer;
             }
 
@@ -44,9 +44,7 @@ namespace Lithforge.Runtime.Rendering
 
         public void DestroyRenderer(int3 coord)
         {
-            ChunkRenderer renderer;
-
-            if (_renderers.TryGetValue(coord, out renderer))
+            if (_renderers.TryGetValue(coord, out ChunkRenderer renderer))
             {
                 _renderers.Remove(coord);
 
@@ -59,7 +57,7 @@ namespace Lithforge.Runtime.Rendering
 
         public void Dispose()
         {
-            List<int3> coords = new List<int3>(_renderers.Keys);
+            List<int3> coords = new(_renderers.Keys);
 
             for (int i = 0; i < coords.Count; i++)
             {
