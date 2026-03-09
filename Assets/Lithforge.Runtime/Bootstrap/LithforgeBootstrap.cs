@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+
+using Lithforge.Core.Data;
 using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
@@ -8,6 +10,8 @@ using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Item;
+using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Decoration;
@@ -325,15 +329,24 @@ namespace Lithforge.Runtime.Bootstrap
                 GameObject highlightObject = new GameObject("BlockHighlight");
                 BlockHighlight blockHighlight = highlightObject.AddComponent<BlockHighlight>();
 
+                // Create player inventory and loot resolver
+                Inventory playerInventory = new Inventory();
+                LootResolver lootResolver = new LootResolver(_contentResult.LootTables);
+
+                // Give player some starting cobblestone
+                ResourceId cobblestoneId = new Lithforge.Core.Data.ResourceId("lithforge", "cobblestone");
+                playerInventory.AddItem(cobblestoneId, 64, 64);
+
                 // Add BlockInteraction to camera (raycasts from camera position/direction)
                 BlockInteraction blockInteraction = mainCamera.gameObject.AddComponent<BlockInteraction>();
-                StateId defaultPlaceBlock = FindStateId("lithforge:cobblestone");
                 blockInteraction.Initialize(
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
                     _contentResult.StateRegistry,
                     blockHighlight,
-                    defaultPlaceBlock);
+                    playerInventory,
+                    _contentResult.ItemRegistry,
+                    lootResolver);
                 _services.Register(blockInteraction);
             }
 

@@ -3,6 +3,7 @@ using Lithforge.Core.Data;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
@@ -24,6 +25,8 @@ namespace Lithforge.Runtime.Bootstrap
         public List<ItemDefinition> ItemDefinitions { get; }
         public Dictionary<ResourceId, LootTableDefinition> LootTables { get; }
         public TagRegistry TagRegistry { get; }
+        public ItemRegistry ItemRegistry { get; }
+        public CraftingEngine CraftingEngine { get; }
 
         public ContentPipelineResult(
             StateRegistry stateRegistry,
@@ -34,7 +37,9 @@ namespace Lithforge.Runtime.Bootstrap
             List<OreDefinition> oreDefinitions,
             List<ItemDefinition> itemDefinitions,
             Dictionary<ResourceId, LootTableDefinition> lootTables,
-            TagRegistry tagRegistry)
+            TagRegistry tagRegistry,
+            ItemRegistry itemRegistry,
+            CraftingEngine craftingEngine)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -45,6 +50,8 @@ namespace Lithforge.Runtime.Bootstrap
             ItemDefinitions = itemDefinitions;
             LootTables = lootTables;
             TagRegistry = tagRegistry;
+            ItemRegistry = itemRegistry;
+            CraftingEngine = craftingEngine;
         }
     }
 }

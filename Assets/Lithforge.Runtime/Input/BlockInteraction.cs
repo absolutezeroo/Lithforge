@@ -1,19 +1,25 @@
 using System;
 using System.Collections.Generic;
+using Lithforge.Core.Data;
 using Lithforge.Physics;
 using Lithforge.Runtime.Rendering;
 using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Item;
+using Lithforge.Voxel.Loot;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
+
+using Random = System.Random;
 
 namespace Lithforge.Runtime.Input
 {
     /// <summary>
     /// Handles block breaking (left click, progressive mining) and
     /// block placement (right click) via voxel raycasting.
+    /// Integrates with inventory for item pickup and block placement.
     /// Attached to the camera GameObject.
     /// </summary>
     public sealed class BlockInteraction : MonoBehaviour
@@ -23,6 +29,12 @@ namespace Lithforge.Runtime.Input
         private StateRegistry _stateRegistry;
         private BlockHighlight _blockHighlight;
         private Func<int3, bool> _isSolidDelegate;
+
+        // Inventory integration
+        private Inventory _inventory;
+        private ItemRegistry _itemRegistry;
+        private LootResolver _lootResolver;
+        private Random _lootRandom;
 
         // Mining state
         private bool _isMining;
@@ -37,21 +49,26 @@ namespace Lithforge.Runtime.Input
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
 
-        // Block to place (for now, hardcode stone — inventory integration comes in Milestone 4)
-        private StateId _placeBlockState;
+        // Reusable list for loot drops
+        private readonly List<LootDrop> _lootDrops = new List<LootDrop>();
 
         public void Initialize(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
             StateRegistry stateRegistry,
             BlockHighlight blockHighlight,
-            StateId defaultPlaceBlock)
+            Inventory inventory,
+            ItemRegistry itemRegistry,
+            LootResolver lootResolver)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _stateRegistry = stateRegistry;
             _blockHighlight = blockHighlight;
-            _placeBlockState = defaultPlaceBlock;
+            _inventory = inventory;
+            _itemRegistry = itemRegistry;
+            _lootResolver = lootResolver;
+            _lootRandom = new Random(Environment.TickCount);
             _isSolidDelegate = IsSolid;
         }
 
@@ -65,11 +82,20 @@ namespace Lithforge.Runtime.Input
             }
 
             Mouse mouse = Mouse.current;
+            Keyboard keyboard = Keyboard.current;
 
             if (mouse == null)
             {
                 return;
             }
+
+            // Handle hotbar selection
+            if (keyboard != null)
+            {
+                HandleHotbarSelection(keyboard);
+            }
+
+            HandleScrollWheel(mouse);
 
             // Update placement cooldown
             if (_placeCooldown > 0f)
@@ -94,6 +120,47 @@ namespace Lithforge.Runtime.Input
             {
                 _blockHighlight.Hide();
                 ResetMining();
+            }
+        }
+
+        private void HandleHotbarSelection(Keyboard keyboard)
+        {
+            if (keyboard.digit1Key.wasPressedThisFrame) { _inventory.SelectedSlot = 0; }
+            else if (keyboard.digit2Key.wasPressedThisFrame) { _inventory.SelectedSlot = 1; }
+            else if (keyboard.digit3Key.wasPressedThisFrame) { _inventory.SelectedSlot = 2; }
+            else if (keyboard.digit4Key.wasPressedThisFrame) { _inventory.SelectedSlot = 3; }
+            else if (keyboard.digit5Key.wasPressedThisFrame) { _inventory.SelectedSlot = 4; }
+            else if (keyboard.digit6Key.wasPressedThisFrame) { _inventory.SelectedSlot = 5; }
+            else if (keyboard.digit7Key.wasPressedThisFrame) { _inventory.SelectedSlot = 6; }
+            else if (keyboard.digit8Key.wasPressedThisFrame) { _inventory.SelectedSlot = 7; }
+            else if (keyboard.digit9Key.wasPressedThisFrame) { _inventory.SelectedSlot = 8; }
+        }
+
+        private void HandleScrollWheel(Mouse mouse)
+        {
+            float scroll = mouse.scroll.ReadValue().y;
+
+            if (scroll > 0.1f)
+            {
+                int slot = _inventory.SelectedSlot - 1;
+
+                if (slot < 0)
+                {
+                    slot = Inventory.HotbarSize - 1;
+                }
+
+                _inventory.SelectedSlot = slot;
+            }
+            else if (scroll < -0.1f)
+            {
+                int slot = _inventory.SelectedSlot + 1;
+
+                if (slot >= Inventory.HotbarSize)
+                {
+                    slot = 0;
+                }
+
+                _inventory.SelectedSlot = slot;
             }
         }
 
@@ -134,9 +201,28 @@ namespace Lithforge.Runtime.Input
 
             if (definition != null)
             {
-                // Break time = hardness * multiplier (no tool = 5x, correct tool = 1.5x)
-                // For now, without tool system, use the base hardness as seconds
-                _miningRequiredTime = (float)(definition.Hardness * 1.5);
+                // Check if held item is the correct tool
+                float toolMultiplier = 5.0f;
+                ItemStack heldItem = _inventory.GetSelectedItem();
+
+                if (!heldItem.IsEmpty)
+                {
+                    ItemDefinition itemDef = _itemRegistry.Get(heldItem.ItemId);
+
+                    if (itemDef != null && itemDef.ToolType != ToolType.None)
+                    {
+                        toolMultiplier = 1.5f;
+                        // Mining speed modifier from tool
+                        float miningSpeed = itemDef.MiningSpeed;
+
+                        if (miningSpeed > 1.0f)
+                        {
+                            toolMultiplier /= miningSpeed;
+                        }
+                    }
+                }
+
+                _miningRequiredTime = (float)(definition.Hardness * toolMultiplier);
 
                 // Minimum break time of 50ms (instant break for hardness 0)
                 if (_miningRequiredTime < 0.05f)
@@ -152,6 +238,50 @@ namespace Lithforge.Runtime.Input
 
         private void BreakBlock(int3 blockCoord)
         {
+            // Resolve loot table before breaking
+            StateId stateId = _chunkManager.GetBlock(blockCoord);
+            BlockDefinition definition = _stateRegistry.GetDefinitionForState(stateId);
+
+            if (definition != null && !string.IsNullOrEmpty(definition.LootTable))
+            {
+                if (ResourceId.TryParse(definition.LootTable, out ResourceId tableId))
+                {
+                    _lootDrops.Clear();
+                    List<LootDrop> drops = _lootResolver.Resolve(tableId, _lootRandom);
+
+                    for (int i = 0; i < drops.Count; i++)
+                    {
+                        LootDrop drop = drops[i];
+                        ItemDefinition itemDef = _itemRegistry.Get(drop.ItemId);
+                        int maxStack = itemDef != null ? itemDef.MaxStackSize : 64;
+                        _inventory.AddItem(drop.ItemId, drop.Count, maxStack);
+                    }
+                }
+            }
+
+            // Consume durability of held tool
+            ItemStack heldItem = _inventory.GetSelectedItem();
+
+            if (!heldItem.IsEmpty)
+            {
+                ItemDefinition heldDef = _itemRegistry.Get(heldItem.ItemId);
+
+                if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability > 0)
+                {
+                    ItemStack updated = heldItem;
+                    updated.Durability -= 1;
+
+                    if (updated.Durability <= 0)
+                    {
+                        _inventory.SetSlot(_inventory.SelectedSlot, ItemStack.Empty);
+                    }
+                    else
+                    {
+                        _inventory.SetSlot(_inventory.SelectedSlot, updated);
+                    }
+                }
+            }
+
             _dirtiedChunks.Clear();
             _chunkManager.SetBlock(blockCoord, StateId.Air, _dirtiedChunks);
         }
@@ -159,6 +289,29 @@ namespace Lithforge.Runtime.Input
         private void HandlePlacement(Mouse mouse, VoxelRaycastHit hit)
         {
             if (!mouse.rightButton.wasPressedThisFrame || _placeCooldown > 0f)
+            {
+                return;
+            }
+
+            // Get block to place from selected inventory slot
+            ItemStack selectedItem = _inventory.GetSelectedItem();
+
+            if (selectedItem.IsEmpty)
+            {
+                return;
+            }
+
+            ItemDefinition itemDef = _itemRegistry.Get(selectedItem.ItemId);
+
+            if (itemDef == null || !itemDef.IsBlockItem)
+            {
+                return;
+            }
+
+            // Find the StateId for this block
+            StateId placeState = FindStateIdForBlock(itemDef.BlockId);
+
+            if (placeState == StateId.Air)
             {
                 return;
             }
@@ -175,8 +328,30 @@ namespace Lithforge.Runtime.Input
             }
 
             _dirtiedChunks.Clear();
-            _chunkManager.SetBlock(placeCoord, _placeBlockState, _dirtiedChunks);
+            _chunkManager.SetBlock(placeCoord, placeState, _dirtiedChunks);
+
+            // Consume one item from inventory
+            _inventory.RemoveFromSlot(_inventory.SelectedSlot, 1);
+
             _placeCooldown = _placeCooldownTime;
+        }
+
+        private StateId FindStateIdForBlock(ResourceId blockId)
+        {
+            System.Collections.Generic.IReadOnlyList<StateRegistryEntry> entries =
+                _stateRegistry.Entries;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                StateRegistryEntry entry = entries[i];
+
+                if (entry.Definition.Id == blockId)
+                {
+                    return new StateId(entry.BaseStateId);
+                }
+            }
+
+            return StateId.Air;
         }
 
         private void ResetMining()
@@ -219,12 +394,11 @@ namespace Lithforge.Runtime.Input
         }
 
         /// <summary>
-        /// Sets the block state to use when placing blocks.
-        /// Will be driven by the hotbar inventory in Milestone 4.
+        /// The player inventory managed by this interaction controller.
         /// </summary>
-        public void SetPlaceBlock(StateId stateId)
+        public Inventory Inventory
         {
-            _placeBlockState = stateId;
+            get { return _inventory; }
         }
     }
 }

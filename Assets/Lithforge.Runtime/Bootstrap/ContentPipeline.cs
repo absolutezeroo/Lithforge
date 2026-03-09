@@ -6,6 +6,7 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Content;
+using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
@@ -26,7 +27,9 @@ namespace Lithforge.Runtime.Bootstrap
     ///   Phase 9:  Load item definitions
     ///   Phase 10: Load loot tables
     ///   Phase 11: Load tags and build TagRegistry
-    ///   Phase 12: BakeNative (freeze) + build NativeAtlasLookup
+    ///   Phase 12: Load crafting recipes and build CraftingEngine
+    ///   Phase 13: Build ItemRegistry (block items + standalone items)
+    ///   Phase 14: BakeNative (freeze) + build NativeAtlasLookup
     /// </summary>
     public sealed class ContentPipeline
     {
@@ -126,7 +129,19 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Loaded {tagDefinitions.Count} tags, {tagRegistry.TagCount} unique.");
 
-            // Phase 12: BakeNative + build NativeAtlasLookup
+            // Phase 12: Load crafting recipes and build CraftingEngine
+            RecipeLoader recipeLoader = new RecipeLoader(_logger);
+            List<RecipeDefinition> recipes = recipeLoader.LoadAll(contentRoot);
+            CraftingEngine craftingEngine = new CraftingEngine(recipes);
+            _logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
+
+            // Phase 13: Build ItemRegistry (block items + standalone items)
+            ItemRegistry itemRegistry = new ItemRegistry();
+            itemRegistry.RegisterBlockItems(stateRegistry.Entries);
+            itemRegistry.RegisterItems(itemDefinitions);
+            _logger.LogInfo($"ItemRegistry: {itemRegistry.Count} items total.");
+
+            // Phase 14: BakeNative + build NativeAtlasLookup
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
 
             NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
@@ -140,7 +155,9 @@ namespace Lithforge.Runtime.Bootstrap
                 oreDefinitions,
                 itemDefinitions,
                 lootTables,
-                tagRegistry);
+                tagRegistry,
+                itemRegistry,
+                craftingEngine);
         }
 
         private static ushort GetTextureIndex(AtlasResult atlas, ResourceId textureId)
