@@ -6,21 +6,27 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Content;
+using Lithforge.Voxel.Item;
+using Lithforge.Voxel.Loot;
+using Lithforge.Voxel.Tag;
 using Unity.Collections;
 
 namespace Lithforge.Runtime.Bootstrap
 {
     /// <summary>
     /// Orchestrates the full content loading pipeline:
-    ///   Phase 1: Load block definitions
-    ///   Phase 2: Register blocks in StateRegistry
-    ///   Phase 3: Load blockstate definitions
-    ///   Phase 4: Load and resolve block models
-    ///   Phase 5: Resolve blockstate variants to per-face textures
-    ///   Phase 6: Build texture atlas
-    ///   Phase 7: Patch texture indices into StateRegistry
-    ///   Phase 8: Load biome and ore definitions
-    ///   Phase 9: BakeNative (freeze) + build NativeAtlasLookup
+    ///   Phase 1:  Load block definitions
+    ///   Phase 2:  Register blocks in StateRegistry
+    ///   Phase 3:  Load blockstate definitions
+    ///   Phase 4:  Load and resolve block models
+    ///   Phase 5:  Resolve blockstate variants to per-face textures
+    ///   Phase 6:  Build texture atlas
+    ///   Phase 7:  Patch texture indices into StateRegistry
+    ///   Phase 8:  Load biome and ore definitions
+    ///   Phase 9:  Load item definitions
+    ///   Phase 10: Load loot tables
+    ///   Phase 11: Load tags and build TagRegistry
+    ///   Phase 12: BakeNative (freeze) + build NativeAtlasLookup
     /// </summary>
     public sealed class ContentPipeline
     {
@@ -97,7 +103,30 @@ namespace Lithforge.Runtime.Bootstrap
             List<OreDefinition> oreDefinitions = oreLoader.LoadAll(contentRoot);
             _logger.LogInfo($"Loaded {oreDefinitions.Count} ore definitions.");
 
-            // Phase 9: BakeNative + build NativeAtlasLookup
+            // Phase 9: Load item definitions
+            ItemDefinitionLoader itemLoader = new ItemDefinitionLoader(_logger);
+            List<ItemDefinition> itemDefinitions = itemLoader.LoadAll(contentRoot);
+            _logger.LogInfo($"Loaded {itemDefinitions.Count} item definitions.");
+
+            // Phase 10: Load loot tables
+            LootTableLoader lootTableLoader = new LootTableLoader(_logger);
+            Dictionary<ResourceId, LootTableDefinition> lootTables =
+                lootTableLoader.LoadAll(contentRoot);
+            _logger.LogInfo($"Loaded {lootTables.Count} loot tables.");
+
+            // Phase 11: Load tags and build TagRegistry
+            TagLoader tagLoader = new TagLoader(_logger);
+            List<TagDefinition> tagDefinitions = tagLoader.LoadAll(contentRoot);
+            TagRegistry tagRegistry = new TagRegistry();
+
+            for (int i = 0; i < tagDefinitions.Count; i++)
+            {
+                tagRegistry.Register(tagDefinitions[i]);
+            }
+
+            _logger.LogInfo($"Loaded {tagDefinitions.Count} tags, {tagRegistry.TagCount} unique.");
+
+            // Phase 12: BakeNative + build NativeAtlasLookup
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
 
             NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
@@ -108,7 +137,10 @@ namespace Lithforge.Runtime.Bootstrap
                 nativeAtlasLookup,
                 atlasResult,
                 biomeDefinitions,
-                oreDefinitions);
+                oreDefinitions,
+                itemDefinitions,
+                lootTables,
+                tagRegistry);
         }
 
         private static ushort GetTextureIndex(AtlasResult atlas, ResourceId textureId)

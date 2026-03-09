@@ -21,6 +21,7 @@ namespace Lithforge.Runtime.Input
 
         private ChunkManager _chunkManager;
         private NativeStateRegistry _nativeStateRegistry;
+        private GameLoop _gameLoop;
         private float _verticalSpeed;
         private bool _onGround;
         private Func<int3, bool> _isSolidDelegate;
@@ -33,10 +34,14 @@ namespace Lithforge.Runtime.Input
             get { return _onGround; }
         }
 
-        public void Initialize(ChunkManager chunkManager, NativeStateRegistry nativeStateRegistry)
+        public void Initialize(
+            ChunkManager chunkManager,
+            NativeStateRegistry nativeStateRegistry,
+            GameLoop gameLoop)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
+            _gameLoop = gameLoop;
 
             // Cache the delegate to avoid allocation each frame
             _isSolidDelegate = IsSolid;
@@ -45,6 +50,12 @@ namespace Lithforge.Runtime.Input
         private void Update()
         {
             if (_chunkManager == null)
+            {
+                return;
+            }
+
+            // Wait for spawn chunks to be generated before allowing movement
+            if (_gameLoop != null && !_gameLoop.SpawnReady)
             {
                 return;
             }

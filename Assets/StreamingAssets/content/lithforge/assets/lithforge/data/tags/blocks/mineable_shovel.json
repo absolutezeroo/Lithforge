@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "lithforge:dirt",
+    "lithforge:grass_block",
+    "lithforge:sand",
+    "lithforge:gravel"
+  ]
+}

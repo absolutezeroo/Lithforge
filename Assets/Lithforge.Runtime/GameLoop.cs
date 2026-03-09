@@ -43,6 +43,9 @@ namespace Lithforge.Runtime
         };
 
         private bool _initialized;
+        private bool _spawnReady;
+        private Transform _playerTransform;
+        private int3 _spawnChunkCoord;
 
         public int PendingGenerationCount
         {
@@ -52,6 +55,14 @@ namespace Lithforge.Runtime
         public int PendingMeshCount
         {
             get { return _pendingMeshes.Count; }
+        }
+
+        /// <summary>
+        /// True once the spawn area chunks are generated and the player has been placed.
+        /// </summary>
+        public bool SpawnReady
+        {
+            get { return _spawnReady; }
         }
 
         public void Initialize(
@@ -72,7 +83,24 @@ namespace Lithforge.Runtime
             _decorationStage = decorationStage;
             _worldStorage = worldStorage;
             _seed = seed;
+            _spawnReady = false;
             _initialized = true;
+        }
+
+        /// <summary>
+        /// Sets the player transform for safe spawn placement.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetPlayerTransform(Transform playerTransform)
+        {
+            _playerTransform = playerTransform;
+
+            // Compute spawn chunk coord from player's initial position
+            Vector3 pos = playerTransform.position;
+            _spawnChunkCoord = new int3(
+                (int)math.floor(pos.x / ChunkConstants.Size),
+                (int)math.floor(pos.y / ChunkConstants.Size),
+                (int)math.floor(pos.z / ChunkConstants.Size));
         }
 
         private void Update()
@@ -89,6 +117,12 @@ namespace Lithforge.Runtime
 
             _chunkManager.UpdateLoadingQueue(cameraChunkCoord);
             _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords);
+
+            // Check spawn readiness before player can move
+            if (!_spawnReady)
+            {
+                CheckSpawnReady();
+            }
 
             for (int i = 0; i < _unloadedCoords.Count; i++)
             {
@@ -389,6 +423,71 @@ namespace Lithforge.Runtime
             }
 
             _pendingMeshes.Clear();
+        }
+
+        /// <summary>
+        /// Checks if all chunks in a 1-chunk radius around spawn are generated.
+        /// Once ready, places the player on the highest solid block and enables movement.
+        /// </summary>
+        private void CheckSpawnReady()
+        {
+            // Check a 3x3x3 column of chunks around spawn (XZ radius 1, Y from -1 to +1)
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int z = -1; z <= 1; z++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        int3 coord = _spawnChunkCoord + new int3(x, y, z);
+                        ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+                        if (chunk == null || chunk.State < ChunkState.Generated)
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // All spawn chunks are ready — find safe spawn position
+            if (_playerTransform != null)
+            {
+                int spawnX = _spawnChunkCoord.x * ChunkConstants.Size + ChunkConstants.Size / 2;
+                int spawnZ = _spawnChunkCoord.z * ChunkConstants.Size + ChunkConstants.Size / 2;
+                int safeY = FindSafeSpawnY(spawnX, spawnZ);
+
+                _playerTransform.position = new Vector3(spawnX + 0.5f, safeY, spawnZ + 0.5f);
+                UnityEngine.Debug.Log($"[Lithforge] Spawn ready at ({spawnX}, {safeY}, {spawnZ})");
+            }
+
+            _spawnReady = true;
+        }
+
+        /// <summary>
+        /// Scans downward from the sky to find the highest air block above a solid block.
+        /// Returns the Y coordinate where the player's feet should be placed.
+        /// </summary>
+        private int FindSafeSpawnY(int worldX, int worldZ)
+        {
+            // Scan from top of loaded range down to find ground
+            int maxY = (_spawnChunkCoord.y + 2) * ChunkConstants.Size - 1;
+            int minY = (_spawnChunkCoord.y - 1) * ChunkConstants.Size;
+
+            for (int y = maxY; y >= minY; y--)
+            {
+                int3 blockCoord = new int3(worldX, y, worldZ);
+                StateId stateId = _chunkManager.GetBlock(blockCoord);
+                BlockStateCompact state = _nativeStateRegistry.States[stateId.Value];
+
+                if (state.CollisionShape != 0)
+                {
+                    // Found solid block — player stands on top of it
+                    return y + 1;
+                }
+            }
+
+            // No solid block found — use sea level as fallback
+            return 65;
         }
 
         private struct PendingGeneration

@@ -76,7 +76,10 @@ namespace Lithforge.Runtime.Bootstrap
                 $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
                 $"{_contentResult.NativeAtlasLookup.TextureCount} textures, " +
                 $"{_contentResult.BiomeDefinitions.Count} biomes, " +
-                $"{_contentResult.OreDefinitions.Count} ores.");
+                $"{_contentResult.OreDefinitions.Count} ores, " +
+                $"{_contentResult.ItemDefinitions.Count} items, " +
+                $"{_contentResult.LootTables.Count} loot tables, " +
+                $"{_contentResult.TagRegistry.TagCount} tags.");
         }
 
         private void InitializeStorage()
@@ -269,6 +272,18 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeGameLoop()
         {
+            // Create GameLoop first (needed by PlayerController for spawn readiness)
+            _gameLoop = gameObject.AddComponent<GameLoop>();
+            _gameLoop.Initialize(
+                _chunkManager,
+                _generationPipeline,
+                _contentResult.NativeStateRegistry,
+                _contentResult.NativeAtlasLookup,
+                _chunkRenderManager,
+                _decorationStage,
+                _worldStorage,
+                seed);
+
             // Create player object with camera as child
             Camera mainCamera = Camera.main;
 
@@ -295,24 +310,32 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add PlayerController to player object
                 PlayerController playerController = playerObject.AddComponent<PlayerController>();
-                playerController.Initialize(_chunkManager, _contentResult.NativeStateRegistry);
+                playerController.Initialize(
+                    _chunkManager, _contentResult.NativeStateRegistry, _gameLoop);
                 _services.Register(playerController);
+
+                // Register player transform for safe spawn placement
+                _gameLoop.SetPlayerTransform(playerObject.transform);
 
                 // Add CameraController to camera
                 CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
                 _services.Register(cameraController);
-            }
 
-            _gameLoop = gameObject.AddComponent<GameLoop>();
-            _gameLoop.Initialize(
-                _chunkManager,
-                _generationPipeline,
-                _contentResult.NativeStateRegistry,
-                _contentResult.NativeAtlasLookup,
-                _chunkRenderManager,
-                _decorationStage,
-                _worldStorage,
-                seed);
+                // Add BlockHighlight (standalone object)
+                GameObject highlightObject = new GameObject("BlockHighlight");
+                BlockHighlight blockHighlight = highlightObject.AddComponent<BlockHighlight>();
+
+                // Add BlockInteraction to camera (raycasts from camera position/direction)
+                BlockInteraction blockInteraction = mainCamera.gameObject.AddComponent<BlockInteraction>();
+                StateId defaultPlaceBlock = FindStateId("lithforge:cobblestone");
+                blockInteraction.Initialize(
+                    _chunkManager,
+                    _contentResult.NativeStateRegistry,
+                    _contentResult.StateRegistry,
+                    blockHighlight,
+                    defaultPlaceBlock);
+                _services.Register(blockInteraction);
+            }
 
             // Add debug HUD
             DebugOverlayHUD hud = gameObject.AddComponent<DebugOverlayHUD>();

@@ -1,0 +1,9 @@
+{
+  "max_stack_size": 1,
+  "tool_type": "pickaxe",
+  "tool_level": 2,
+  "durability": 250,
+  "attack_damage": 4.0,
+  "attack_speed": 1.2,
+  "mining_speed": 6.0
+}

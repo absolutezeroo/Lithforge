@@ -129,6 +129,31 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
+        /// Finds the BlockDefinition that owns the given StateId.
+        /// Returns null for StateId.Air or if no matching entry is found.
+        /// O(n) scan over entries — call infrequently (e.g., on block break), not per-frame.
+        /// </summary>
+        public BlockDefinition GetDefinitionForState(StateId id)
+        {
+            if (id.Value == 0)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                StateRegistryEntry entry = _entries[i];
+
+                if (id.Value >= entry.BaseStateId && id.Value < entry.BaseStateId + entry.StateCount)
+                {
+                    return entry.Definition;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Patches the per-face texture indices on a state before BakeNative().
         /// Must be called after Register() and before BakeNative().
         /// </summary>
