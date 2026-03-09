@@ -58,6 +58,12 @@ namespace Lithforge.WorldGen.Stages
 
                         if (caveValue < _caveThreshold)
                         {
+                            // Don't carve within 4 blocks of sea level to protect ocean floor
+                            if (worldY >= SeaLevel - 4 && worldY <= SeaLevel)
+                            {
+                                continue;
+                            }
+
                             int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                             StateId current = ChunkData[index];
 

@@ -59,10 +59,10 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeContent()
         {
-            UnityLogger logger = new();
-            ContentValidator validator = new();
+            UnityLogger logger = new UnityLogger();
+            ContentValidator validator = new ContentValidator();
 
-            ContentPipeline pipeline = new(logger, validator);
+            ContentPipeline pipeline = new ContentPipeline(logger, validator);
             string contentRoot = System.IO.Path.Combine(
                 Application.streamingAssetsPath, "content", "lithforge");
 
@@ -100,7 +100,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeWorldGen()
         {
-            NativeNoiseConfig terrainNoise = new()
+            NativeNoiseConfig terrainNoise = new NativeNoiseConfig
             {
                 Frequency = 0.008f,
                 Lacunarity = 2.0f,
@@ -110,7 +110,7 @@ namespace Lithforge.Runtime.Bootstrap
                 SeedOffset = 0,
             };
 
-            NativeNoiseConfig temperatureNoise = new()
+            NativeNoiseConfig temperatureNoise = new NativeNoiseConfig
             {
                 Frequency = 0.002f,
                 Lacunarity = 2.0f,
@@ -120,7 +120,7 @@ namespace Lithforge.Runtime.Bootstrap
                 SeedOffset = 999,
             };
 
-            NativeNoiseConfig humidityNoise = new()
+            NativeNoiseConfig humidityNoise = new NativeNoiseConfig
             {
                 Frequency = 0.002f,
                 Lacunarity = 2.0f,
@@ -130,7 +130,7 @@ namespace Lithforge.Runtime.Bootstrap
                 SeedOffset = 1999,
             };
 
-            NativeNoiseConfig caveNoise = new()
+            NativeNoiseConfig caveNoise = new NativeNoiseConfig
             {
                 Frequency = 0.03f,
                 Lacunarity = 2.0f,
@@ -292,6 +292,12 @@ namespace Lithforge.Runtime.Bootstrap
 
         private StateId FindStateId(string idString)
         {
+            if (string.IsNullOrEmpty(idString) || !idString.Contains(':'))
+            {
+                UnityEngine.Debug.LogWarning($"[Lithforge] Invalid block id '{idString}', returning AIR.");
+                return StateId.Air;
+            }
+
             string[] parts = idString.Split(':');
             string ns = parts[0];
             string name = parts[1];

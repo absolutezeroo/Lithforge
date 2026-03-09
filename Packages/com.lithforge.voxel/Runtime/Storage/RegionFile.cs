@@ -86,6 +86,8 @@ namespace Lithforge.Voxel.Storage
                 fs.Seek(dataOffset, SeekOrigin.Begin);
                 byte[] data = reader.ReadBytes(dataSize);
 
+                _cache[key] = data;
+
                 return data;
             }
         }

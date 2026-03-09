@@ -36,11 +36,11 @@ namespace Lithforge.Runtime.Bootstrap
         public ContentPipelineResult Build(string contentRoot)
         {
             // Phase 1: Load block definitions
-            BlockDefinitionLoader blockLoader = new(_logger, _validator);
+            BlockDefinitionLoader blockLoader = new BlockDefinitionLoader(_logger, _validator);
             List<BlockDefinition> definitions = blockLoader.LoadAll(contentRoot);
 
             // Phase 2: Register blocks in StateRegistry
-            StateRegistry stateRegistry = new();
+            StateRegistry stateRegistry = new StateRegistry();
 
             for (int i = 0; i < definitions.Count; i++)
             {
@@ -51,25 +51,25 @@ namespace Lithforge.Runtime.Bootstrap
                 $"Registered {definitions.Count} blocks, {stateRegistry.TotalStateCount} states.");
 
             // Phase 3: Load blockstate definitions
-            BlockstateLoader blockstateLoader = new(_logger);
+            BlockstateLoader blockstateLoader = new BlockstateLoader(_logger);
             Dictionary<ResourceId, BlockstateDefinition> blockstates =
                 blockstateLoader.LoadAll(contentRoot);
 
             // Phase 4: Load and resolve block models
-            BlockModelLoader modelLoader = new(_logger);
+            BlockModelLoader modelLoader = new BlockModelLoader(_logger);
             Dictionary<ResourceId, BlockModel> rawModels = modelLoader.LoadAll(contentRoot);
 
-            BlockModelResolver modelResolver = new(_logger);
+            BlockModelResolver modelResolver = new BlockModelResolver(_logger);
             Dictionary<ResourceId, ResolvedFaceTextures> resolvedModels =
                 modelResolver.ResolveAll(rawModels);
 
             // Phase 5: Resolve blockstate variants to per-face textures
-            BlockstateResolver blockstateResolver = new(_logger);
+            BlockstateResolver blockstateResolver = new BlockstateResolver(_logger);
             Dictionary<StateId, ResolvedFaceTextures> resolvedFaces =
                 blockstateResolver.ResolveAll(stateRegistry.Entries, blockstates, resolvedModels);
 
             // Phase 6: Build texture atlas
-            AtlasBuilder atlasBuilder = new(_logger);
+            AtlasBuilder atlasBuilder = new AtlasBuilder(_logger);
             AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces, contentRoot);
 
             // Phase 7: Patch texture indices into StateRegistry
@@ -89,11 +89,11 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Phase 8: Load biome and ore definitions
-            BiomeDefinitionLoader biomeLoader = new(_logger);
+            BiomeDefinitionLoader biomeLoader = new BiomeDefinitionLoader(_logger);
             List<BiomeDefinition> biomeDefinitions = biomeLoader.LoadAll(contentRoot);
             _logger.LogInfo($"Loaded {biomeDefinitions.Count} biome definitions.");
 
-            OreDefinitionLoader oreLoader = new(_logger);
+            OreDefinitionLoader oreLoader = new OreDefinitionLoader(_logger);
             List<OreDefinition> oreDefinitions = oreLoader.LoadAll(contentRoot);
             _logger.LogInfo($"Loaded {oreDefinitions.Count} ore definitions.");
 
@@ -126,7 +126,7 @@ namespace Lithforge.Runtime.Bootstrap
             AtlasResult atlasResult)
         {
             int totalStates = stateRegistry.TotalStateCount;
-            NativeArray<AtlasEntry> entries = new(
+            NativeArray<AtlasEntry> entries = new NativeArray<AtlasEntry>(
                 totalStates, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
             for (int i = 0; i < totalStates; i++)

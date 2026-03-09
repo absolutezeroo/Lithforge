@@ -25,9 +25,9 @@ namespace Lithforge.Runtime
         private WorldStorage _worldStorage;
         private long _seed;
 
-        private readonly List<PendingGeneration> _pendingGenerations = new();
-        private readonly List<PendingMesh> _pendingMeshes = new();
-        private readonly List<int3> _unloadedCoords = new();
+        private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
+        private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+        private readonly List<int3> _unloadedCoords = new List<int3>();
 
         private const int _maxGenerationsPerFrame = 4;
         private const int _maxMeshesPerFrame = 4;
@@ -227,12 +227,12 @@ namespace Lithforge.Runtime
                 ManagedChunk chunk = chunks[i];
                 chunk.State = ChunkState.Meshing;
 
-                GreedyMeshData meshData = new(Allocator.TempJob);
+                GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
 
                 // Extract neighbor border slices for cross-chunk culling
                 ExtractNeighborBorders(chunk.Coord, meshData);
 
-                GreedyMeshJob meshJob = new()
+                GreedyMeshJob meshJob = new GreedyMeshJob
                 {
                     ChunkData = chunk.Data,
                     NeighborPosX = meshData.NeighborPosX,

@@ -31,7 +31,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
             string contentRoot)
         {
             // Collect all unique texture ResourceIds
-            HashSet<ResourceId> uniqueTextures = new();
+            HashSet<ResourceId> uniqueTextures = new HashSet<ResourceId>();
 
             foreach (KeyValuePair<StateId, ResolvedFaceTextures> kvp in resolvedFaces)
             {
@@ -45,11 +45,11 @@ namespace Lithforge.Runtime.Rendering.Atlas
             }
 
             // Build index mapping: 0 = missing, then each unique texture
-            Dictionary<ResourceId, int> indexByTexture = new();
-            List<ResourceId> orderedTextures = new();
+            Dictionary<ResourceId, int> indexByTexture = new Dictionary<ResourceId, int>();
+            List<ResourceId> orderedTextures = new List<ResourceId>();
 
             // Reserve index 0 for missing texture
-            ResourceId missingId = new("lithforge", "block/missing");
+            ResourceId missingId = new ResourceId("lithforge", "block/missing");
             indexByTexture[missingId] = 0;
             orderedTextures.Add(missingId);
 
@@ -67,7 +67,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
             _logger.LogInfo($"Atlas: {sliceCount} texture slices ({sliceCount - 1} unique + 1 missing).");
 
             // Create Texture2DArray
-            Texture2DArray textureArray = new(
+            Texture2DArray textureArray = new Texture2DArray(
                 _tileSize, _tileSize, sliceCount,
                 TextureFormat.RGBA32, false, false)
             {
@@ -104,7 +104,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
                 if (File.Exists(texturePath))
                 {
                     byte[] pngBytes = File.ReadAllBytes(texturePath);
-                    Texture2D tempTex = new(_tileSize, _tileSize, TextureFormat.RGBA32, false);
+                    Texture2D tempTex = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
                     tempTex.LoadImage(pngBytes);
 
                     // Resize if needed
@@ -113,7 +113,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
                         _logger.LogWarning(
                             $"Texture '{texId}' is {tempTex.width}x{tempTex.height}, expected {_tileSize}x{_tileSize}.");
 
-                        Texture2D resized = new(_tileSize, _tileSize, TextureFormat.RGBA32, false);
+                        Texture2D resized = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
                         RenderTexture rt = RenderTexture.GetTemporary(_tileSize, _tileSize);
                         Graphics.Blit(tempTex, rt);
                         RenderTexture prev = RenderTexture.active;

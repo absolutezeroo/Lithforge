@@ -9,7 +9,7 @@ namespace Lithforge.Runtime.Rendering
 {
     public sealed class ChunkRenderManager : IDisposable
     {
-        private readonly Dictionary<int3, ChunkRenderer> _renderers = new();
+        private readonly Dictionary<int3, ChunkRenderer> _renderers = new Dictionary<int3, ChunkRenderer>();
         private readonly Material _opaqueMaterial;
         private readonly Transform _parent;
 
@@ -27,7 +27,7 @@ namespace Lithforge.Runtime.Rendering
         {
             _opaqueMaterial = opaqueMaterial;
 
-            GameObject parentGo = new("ChunkRenderers");
+            GameObject parentGo = new GameObject("ChunkRenderers");
             _parent = parentGo.transform;
         }
 
@@ -36,7 +36,7 @@ namespace Lithforge.Runtime.Rendering
 
             if (!_renderers.TryGetValue(coord, out ChunkRenderer renderer))
             {
-                GameObject go = new($"Chunk_{coord.x}_{coord.y}_{coord.z}");
+                GameObject go = new GameObject($"Chunk_{coord.x}_{coord.y}_{coord.z}");
                 go.transform.SetParent(_parent, false);
                 renderer = go.AddComponent<ChunkRenderer>();
                 renderer.Initialize(coord, _opaqueMaterial);
@@ -62,7 +62,7 @@ namespace Lithforge.Runtime.Rendering
 
         public void Dispose()
         {
-            List<int3> coords = new(_renderers.Keys);
+            List<int3> coords = new List<int3>(_renderers.Keys);
 
             for (int i = 0; i < coords.Count; i++)
             {

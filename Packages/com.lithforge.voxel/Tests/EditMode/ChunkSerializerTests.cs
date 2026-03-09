@@ -1,0 +1,185 @@
+using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Storage;
+using NUnit.Framework;
+using Unity.Collections;
+
+namespace Lithforge.Voxel.Tests
+{
+    [TestFixture]
+    public sealed class ChunkSerializerTests
+    {
+        [Test]
+        public void RoundTrip_UniformChunk_PreservesData()
+        {
+            NativeArray<StateId> original = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeArray<byte> originalLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> restored = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> restoredLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                // Fill with single state
+                StateId stoneId = new StateId(1);
+
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    original[i] = stoneId;
+                }
+
+                byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight);
+
+                Assert.IsTrue(success, "Deserialization should succeed");
+
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    Assert.AreEqual(original[i], restored[i],
+                        $"Voxel mismatch at index {i}");
+                }
+            }
+            finally
+            {
+                original.Dispose();
+                originalLight.Dispose();
+                restored.Dispose();
+                restoredLight.Dispose();
+            }
+        }
+
+        [Test]
+        public void RoundTrip_MixedChunk_PreservesAllStates()
+        {
+            NativeArray<StateId> original = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeArray<byte> originalLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeArray<StateId> restored = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> restoredLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                // Fill with various states
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    original[i] = new StateId((ushort)(i % 12));
+                    originalLight[i] = (byte)(i % 256);
+                }
+
+                byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight);
+
+                Assert.IsTrue(success, "Deserialization should succeed");
+
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    Assert.AreEqual(original[i], restored[i],
+                        $"Voxel mismatch at index {i}");
+                    Assert.AreEqual(originalLight[i], restoredLight[i],
+                        $"Light mismatch at index {i}");
+                }
+            }
+            finally
+            {
+                original.Dispose();
+                originalLight.Dispose();
+                restored.Dispose();
+                restoredLight.Dispose();
+            }
+        }
+
+        [Test]
+        public void RoundTrip_LightData_PreservesNibbles()
+        {
+            NativeArray<StateId> original = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> originalLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeArray<StateId> restored = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> restoredLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                // Pack various sun/block light levels
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    byte sun = (byte)(i % 16);
+                    byte block = (byte)((i / 16) % 16);
+                    originalLight[i] = (byte)((sun << 4) | block);
+                }
+
+                byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight);
+
+                Assert.IsTrue(success, "Deserialization should succeed");
+
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    Assert.AreEqual(originalLight[i], restoredLight[i],
+                        $"Light nibble mismatch at index {i}");
+                }
+            }
+            finally
+            {
+                original.Dispose();
+                originalLight.Dispose();
+                restored.Dispose();
+                restoredLight.Dispose();
+            }
+        }
+
+        [Test]
+        public void Deserialize_InvalidMagic_ReturnsFalse()
+        {
+            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> lightData = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                byte[] badData = new byte[] { 0, 0, 0, 0, 1 };
+                bool success = ChunkSerializer.Deserialize(badData, chunkData, lightData);
+
+                Assert.IsFalse(success, "Invalid magic should return false");
+            }
+            finally
+            {
+                chunkData.Dispose();
+                lightData.Dispose();
+            }
+        }
+
+        [Test]
+        public void Serialize_Compression_SmallerThanRaw()
+        {
+            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> lightData = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                // Uniform data should compress well
+                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData);
+
+                int rawSize = ChunkConstants.Volume * 2 + ChunkConstants.Volume; // StateId (ushort) + byte light
+                Assert.Less(serialized.Length, rawSize,
+                    "Serialized data should be smaller than raw data for uniform chunks");
+            }
+            finally
+            {
+                chunkData.Dispose();
+                lightData.Dispose();
+            }
+        }
+    }
+}

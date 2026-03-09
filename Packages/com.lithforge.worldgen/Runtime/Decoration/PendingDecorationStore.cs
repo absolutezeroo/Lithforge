@@ -56,7 +56,12 @@ namespace Lithforge.WorldGen.Decoration
                         pos.z >= 0 && pos.z < Lithforge.Voxel.Chunk.ChunkConstants.Size)
                     {
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
-                        chunkData[index] = pending.State;
+                        StateId current = chunkData[index];
+
+                        if (current.Value == 0)
+                        {
+                            chunkData[index] = pending.State;
+                        }
                     }
                 }
             }

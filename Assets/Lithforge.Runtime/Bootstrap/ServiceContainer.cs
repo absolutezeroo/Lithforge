@@ -5,7 +5,7 @@ namespace Lithforge.Runtime.Bootstrap
 {
     public sealed class ServiceContainer
     {
-        private readonly Dictionary<Type, object> _services = new();
+        private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
 
         public void Register<T>(T instance)
         {

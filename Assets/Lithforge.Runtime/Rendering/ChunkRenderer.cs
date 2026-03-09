@@ -26,7 +26,7 @@ namespace Lithforge.Runtime.Rendering
             };
             _meshFilter.sharedMesh = _mesh;
 
-            Vector3 worldPos = new(
+            Vector3 worldPos = new Vector3(
                 chunkCoord.x * ChunkConstants.Size,
                 chunkCoord.y * ChunkConstants.Size,
                 chunkCoord.z * ChunkConstants.Size);
