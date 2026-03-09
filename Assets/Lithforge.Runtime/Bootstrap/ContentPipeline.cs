@@ -101,9 +101,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private static ushort GetTextureIndex(AtlasResult atlas, ResourceId textureId)
         {
-            int index;
-
-            if (atlas.IndexByTexture.TryGetValue(textureId, out index))
+            if (atlas.IndexByTexture.TryGetValue(textureId, out int index))
             {
                 return (ushort)index;
             }

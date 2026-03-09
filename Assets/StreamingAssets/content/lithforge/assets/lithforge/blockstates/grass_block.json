@@ -1,6 +1,9 @@
 {
   "variants": {
-    "": {
+    "snowy=false": {
+      "model": "lithforge:block/grass_block"
+    },
+    "snowy=true": {
       "model": "lithforge:block/grass_block"
     }
   }

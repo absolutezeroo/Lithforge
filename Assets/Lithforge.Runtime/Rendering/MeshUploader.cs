@@ -30,10 +30,12 @@ namespace Lithforge.Runtime.Rendering
 
             meshData.subMeshCount = 1;
             meshData.SetSubMesh(0, new SubMeshDescriptor(0, indices.Length, MeshTopology.Triangles),
-                MeshUpdateFlags.DontValidateIndices);
+                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
 
             Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, target,
-                MeshUpdateFlags.DontValidateIndices);
+                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+
+            target.RecalculateBounds();
         }
     }
 }

@@ -7,6 +7,6 @@
     "west": "lithforge:block/grass_block_side",
     "up": "lithforge:block/grass_block_top",
     "down": "lithforge:block/dirt",
-    "overlay": "lightforge:block/grass_block_side_overlay"
+    "overlay": "lihtforge:block/grass_block_side_overlay"
   }
 }

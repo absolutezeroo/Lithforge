@@ -75,6 +75,7 @@ namespace Lithforge.Runtime
             for (int i = 0; i < _unloadedCoords.Count; i++)
             {
                 int3 coord = _unloadedCoords[i];
+
                 _chunkRenderManager.DestroyRenderer(coord);
                 CleanupPendingJobsForCoord(coord);
             }
