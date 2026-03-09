@@ -13,7 +13,7 @@ namespace Lithforge.Voxel.Content
 {
     /// <summary>
     /// Loads BlockDefinitions from JSON files in the content directory.
-    /// Discovers files at: {contentRoot}/data/{namespace}/blocks/*.json
+    /// Discovers files at: {contentRoot}/assets/{namespace}/data/block/*.json
     /// Pure C# — no Unity dependencies.
     /// </summary>
     public sealed class BlockDefinitionLoader
@@ -38,21 +38,21 @@ namespace Lithforge.Voxel.Content
         public List<BlockDefinition> LoadAll(string contentRoot)
         {
             List<BlockDefinition> definitions = new List<BlockDefinition>();
-            string dataPath = Path.Combine(contentRoot, "data");
+            string assetsDir = Path.Combine(contentRoot, "assets");
 
-            if (!Directory.Exists(dataPath))
+            if (!Directory.Exists(assetsDir))
             {
-                _logger.LogWarning($"Content data directory not found: {dataPath}");
+                _logger.LogWarning($"Assets directory not found: {assetsDir}");
+
                 return definitions;
             }
 
-            string[] namespaceDirs = Directory.GetDirectories(dataPath);
+            string[] namespaceDirs = Directory.GetDirectories(assetsDir);
 
             for (int i = 0; i < namespaceDirs.Length; i++)
             {
-                string nsDir = namespaceDirs[i];
-                string ns = Path.GetFileName(nsDir);
-                string blocksDir = Path.Combine(nsDir, "blocks");
+                string ns = Path.GetFileName(namespaceDirs[i]);
+                string blocksDir = Path.Combine(namespaceDirs[i], "data", "block");
 
                 if (!Directory.Exists(blocksDir))
                 {

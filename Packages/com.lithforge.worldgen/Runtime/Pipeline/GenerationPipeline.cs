@@ -11,7 +11,6 @@ namespace Lithforge.WorldGen.Pipeline
     public sealed class GenerationPipeline
     {
         private readonly NativeNoiseConfig _terrainNoise;
-        private readonly NativeStateRegistry _stateRegistry;
         private readonly StateId _stoneId;
         private readonly StateId _airId;
         private readonly StateId _waterId;
@@ -21,7 +20,6 @@ namespace Lithforge.WorldGen.Pipeline
 
         public GenerationPipeline(
             NativeNoiseConfig terrainNoise,
-            NativeStateRegistry stateRegistry,
             StateId stoneId,
             StateId airId,
             StateId waterId,
@@ -30,7 +28,6 @@ namespace Lithforge.WorldGen.Pipeline
             int seaLevel)
         {
             _terrainNoise = terrainNoise;
-            _stateRegistry = stateRegistry;
             _stoneId = stoneId;
             _airId = airId;
             _waterId = waterId;
@@ -45,7 +42,7 @@ namespace Lithforge.WorldGen.Pipeline
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
             NativeArray<byte> lightData = new NativeArray<byte>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
             TerrainShapeJob terrainJob = new TerrainShapeJob
             {
@@ -78,9 +75,7 @@ namespace Lithforge.WorldGen.Pipeline
 
             InitialLightingJob lightingJob = new InitialLightingJob
             {
-                ChunkData = chunkData,
                 HeightMap = heightMap,
-                StateTable = _stateRegistry.States,
                 ChunkCoord = coord,
                 LightData = lightData,
             };

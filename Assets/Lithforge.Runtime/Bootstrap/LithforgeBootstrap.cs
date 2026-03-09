@@ -94,7 +94,6 @@ namespace Lithforge.Runtime.Bootstrap
 
             _generationPipeline = new GenerationPipeline(
                 terrainNoise,
-                _contentResult.NativeStateRegistry,
                 stoneId, airId, waterId, grassId, dirtId,
                 seaLevel);
 

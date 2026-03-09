@@ -29,6 +29,7 @@ namespace Lithforge.Voxel.Content
             if (!Directory.Exists(assetsDir))
             {
                 _logger.LogWarning($"Assets directory not found: {assetsDir}");
+
                 return result;
             }
 
@@ -58,6 +59,7 @@ namespace Lithforge.Voxel.Content
             }
 
             _logger.LogInfo($"Loaded {result.Count} blockstate definitions.");
+
             return result;
         }
 
@@ -67,6 +69,7 @@ namespace Lithforge.Voxel.Content
             ResourceId id = new ResourceId(ns, fileName);
 
             string json;
+
             try
             {
                 json = File.ReadAllText(filePath);
@@ -74,10 +77,12 @@ namespace Lithforge.Voxel.Content
             catch (IOException ex)
             {
                 _logger.LogError($"Failed to read blockstate file '{filePath}': {ex.Message}");
+
                 return null;
             }
 
             JObject root;
+
             try
             {
                 root = JObject.Parse(json);
@@ -85,6 +90,7 @@ namespace Lithforge.Voxel.Content
             catch (Newtonsoft.Json.JsonException ex)
             {
                 _logger.LogError($"Failed to parse blockstate JSON '{filePath}': {ex.Message}");
+
                 return null;
             }
 
@@ -93,6 +99,7 @@ namespace Lithforge.Voxel.Content
             if (variantsObj == null)
             {
                 _logger.LogError($"Blockstate '{id}' has no 'variants' object.");
+
                 return null;
             }
 
@@ -105,6 +112,7 @@ namespace Lithforge.Voxel.Content
                 if (variantObj == null)
                 {
                     _logger.LogWarning($"Blockstate '{id}' variant '{kvp.Key}' is not an object.");
+
                     continue;
                 }
 
@@ -113,6 +121,7 @@ namespace Lithforge.Voxel.Content
                 if (string.IsNullOrEmpty(modelStr))
                 {
                     _logger.LogWarning($"Blockstate '{id}' variant '{kvp.Key}' has no 'model' field.");
+
                     continue;
                 }
 

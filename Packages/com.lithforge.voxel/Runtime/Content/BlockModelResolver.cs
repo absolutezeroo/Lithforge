@@ -27,85 +27,85 @@ namespace Lithforge.Voxel.Content
 
             foreach (KeyValuePair<ResourceId, BlockModel> kvp in rawModels)
             {
-                ResolvedFaceTextures resolved = Resolve(kvp.Key, rawModels, 0);
+                ResolvedFaceTextures resolved = Resolve(kvp.Key, rawModels);
                 result[kvp.Key] = resolved;
             }
 
             _logger.LogInfo($"Resolved {result.Count} block models.");
+
             return result;
         }
 
         private ResolvedFaceTextures Resolve(
             ResourceId modelId,
-            Dictionary<ResourceId, BlockModel> modelMap,
-            int depth)
+            Dictionary<ResourceId, BlockModel> modelMap)
         {
-            if (depth > _maxParentDepth)
+            // Collect the full parent chain (leaf to root)
+            List<BlockModel> chain = new List<BlockModel>();
+            string terminalParent = null;
+
+            ResourceId currentId = modelId;
+            for (int depth = 0; depth <= _maxParentDepth; depth++)
             {
-                _logger.LogError($"Model parent chain too deep for '{modelId}' (max {_maxParentDepth}).");
-                return new ResolvedFaceTextures();
-            }
+                BlockModel model;
 
-            BlockModel model;
+                if (!modelMap.TryGetValue(currentId, out model))
+                {
+                    _logger.LogWarning($"Model '{currentId}' not found in model map.");
 
-            if (!modelMap.TryGetValue(modelId, out model))
-            {
-                _logger.LogWarning($"Model '{modelId}' not found in model map.");
-                return new ResolvedFaceTextures();
-            }
+                    break;
+                }
 
-            // Merge textures from this model — resolve #variable references
-            Dictionary<string, ResourceId> mergedTextures = new Dictionary<string, ResourceId>();
-            ResolveTextureVariables(model, modelMap, mergedTextures, depth);
+                chain.Add(model);
 
-            // Check if the parent is a built-in terminal
-            if (BuiltInModelLibrary.IsBuiltIn(model.Parent))
-            {
-                return BuiltInModelLibrary.Resolve(model.Parent, mergedTextures);
-            }
+                if (string.IsNullOrEmpty(model.Parent))
+                {
+                    break;
+                }
 
-            // No parent — treat this model as a cube_all fallback
-            if (string.IsNullOrEmpty(model.Parent))
-            {
-                _logger.LogWarning($"Model '{modelId}' has no parent. Using cube_all fallback.");
-                return BuiltInModelLibrary.Resolve("lithforge:block/cube_all", mergedTextures);
-            }
+                if (BuiltInModelLibrary.IsBuiltIn(model.Parent))
+                {
+                    terminalParent = model.Parent;
 
-            // Walk up to file-based parent
-            ResourceId parentId;
+                    break;
+                }
 
-            if (!ResourceId.TryParse(model.Parent, out parentId))
-            {
-                _logger.LogError($"Model '{modelId}' has invalid parent '{model.Parent}'.");
-                return new ResolvedFaceTextures();
-            }
-
-            return Resolve(parentId, modelMap, depth + 1);
-        }
-
-        private void ResolveTextureVariables(
-            BlockModel model,
-            Dictionary<ResourceId, BlockModel> modelMap,
-            Dictionary<string, ResourceId> mergedTextures,
-            int depth)
-        {
-            // First, collect textures from parent chain (recursively)
-            if (!string.IsNullOrEmpty(model.Parent) && !BuiltInModelLibrary.IsBuiltIn(model.Parent))
-            {
                 ResourceId parentId;
 
-                if (ResourceId.TryParse(model.Parent, out parentId))
+                if (!ResourceId.TryParse(model.Parent, out parentId))
                 {
-                    BlockModel parentModel;
+                    _logger.LogError($"Model '{currentId}' has invalid parent '{model.Parent}'.");
 
-                    if (modelMap.TryGetValue(parentId, out parentModel) && depth < _maxParentDepth)
-                    {
-                        ResolveTextureVariables(parentModel, modelMap, mergedTextures, depth + 1);
-                    }
+                    break;
                 }
+
+                currentId = parentId;
             }
 
-            // Then, overlay this model's textures (child overrides parent)
+            // Merge textures from root to leaf (parent first, child overrides)
+            Dictionary<string, ResourceId> mergedTextures = new Dictionary<string, ResourceId>();
+
+            for (int i = chain.Count - 1; i >= 0; i--)
+            {
+                MergeModelTextures(chain[i], mergedTextures);
+            }
+
+            // Resolve with the terminal built-in parent
+            if (terminalParent != null)
+            {
+                return BuiltInModelLibrary.Resolve(terminalParent, mergedTextures);
+            }
+
+            // No built-in parent found — use cube_all fallback
+            _logger.LogWarning($"Model '{modelId}' has no built-in parent. Using cube_all fallback.");
+
+            return BuiltInModelLibrary.Resolve("lithforge:block/cube_all", mergedTextures);
+        }
+
+        private void MergeModelTextures(
+            BlockModel model,
+            Dictionary<string, ResourceId> mergedTextures)
+        {
             foreach (KeyValuePair<string, string> kvp in model.Textures)
             {
                 string value = kvp.Value;

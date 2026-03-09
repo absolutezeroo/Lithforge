@@ -1,4 +1,3 @@
-using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Unity.Burst;
 using Unity.Collections;
@@ -16,9 +15,7 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile]
     public struct InitialLightingJob : IJob
     {
-        [ReadOnly] public NativeArray<StateId> ChunkData;
         [ReadOnly] public NativeArray<int> HeightMap;
-        [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
         [ReadOnly] public int3 ChunkCoord;
 
         public NativeArray<byte> LightData;
@@ -42,7 +39,7 @@ namespace Lithforge.WorldGen.Stages
                         int worldY = chunkWorldY + y;
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
 
-                        if (worldY > surfaceY)
+                        if (worldY >= surfaceY)
                         {
                             LightData[index] = _fullSunlight;
                         }

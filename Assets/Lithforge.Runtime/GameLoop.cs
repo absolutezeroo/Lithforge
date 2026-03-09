@@ -101,10 +101,13 @@ namespace Lithforge.Runtime
                         chunk.LightData = pending.Handle.LightData;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
+                        pending.Handle.Dispose();
                     }
-
-                    // Dispose HeightMap only — LightData is now owned by chunk
-                    pending.Handle.Dispose();
+                    else
+                    {
+                        // Chunk was unloaded — dispose everything including LightData
+                        pending.Handle.DisposeAll();
+                    }
 
                     _pendingGenerations.RemoveAt(i);
                 }

@@ -144,6 +144,7 @@ namespace Lithforge.Meshing
 
                     // Extend width
                     int width = 1;
+
                     while (u0 + width < ChunkConstants.Size)
                     {
                         if ((mask & (1u << (u0 + width))) == 0)
@@ -152,6 +153,7 @@ namespace Lithforge.Meshing
                         }
 
                         int idxW = v * ChunkConstants.Size + u0 + width;
+
                         if (faceStateId[idxW] != stateVal ||
                             faceAO00[idxW] != ao00 || faceAO10[idxW] != ao10 ||
                             faceAO01[idxW] != ao01 || faceAO11[idxW] != ao11 ||
@@ -165,6 +167,7 @@ namespace Lithforge.Meshing
 
                     // Extend height
                     int height = 1;
+
                     while (v + height < ChunkConstants.Size)
                     {
                         bool canExtend = true;
@@ -172,19 +175,23 @@ namespace Lithforge.Meshing
                         for (int wu = 0; wu < width; wu++)
                         {
                             uint nextRowMask = rowMask[v + height];
+
                             if ((nextRowMask & (1u << (u0 + wu))) == 0)
                             {
                                 canExtend = false;
+
                                 break;
                             }
 
                             int idxH = (v + height) * ChunkConstants.Size + u0 + wu;
+
                             if (faceStateId[idxH] != stateVal ||
                                 faceAO00[idxH] != ao00 || faceAO10[idxH] != ao10 ||
                                 faceAO01[idxH] != ao01 || faceAO11[idxH] != ao11 ||
                                 faceLight[idxH] != light)
                             {
                                 canExtend = false;
+
                                 break;
                             }
                         }
@@ -202,13 +209,15 @@ namespace Lithforge.Meshing
                         ao00, ao10, ao01, ao11, light);
 
                     // Clear consumed bits
+                    uint clearMask = 0u;
+
+                    for (int wu = 0; wu < width; wu++)
+                    {
+                        clearMask |= (1u << (u0 + wu));
+                    }
+
                     for (int hh = 0; hh < height; hh++)
                     {
-                        uint clearMask = 0u;
-                        for (int wu = 0; wu < width; wu++)
-                        {
-                            clearMask |= (1u << (u0 + wu));
-                        }
                         rowMask[v + hh] = rowMask[v + hh] & ~clearMask;
                     }
 
@@ -225,10 +234,11 @@ namespace Lithforge.Meshing
             int vertexStart = OpaqueVertices.Length;
 
             float3 pos00, pos10, pos01, pos11;
+
             ComputeQuadPositions(face, slice, u0, v0, width, height,
                 out pos00, out pos10, out pos01, out pos11);
 
-            float3 normal = GetFaceNormalFloat(face);
+            float3 normal = (float3)GetFaceNormal(face);
 
             AtlasEntry atlasEntry = AtlasEntries[stateVal];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
@@ -310,29 +320,16 @@ namespace Lithforge.Meshing
             // Position one step into the face direction (where the face is rendered)
             int3 faceBase = blockPos + faceNormal;
 
-            // Corner (0,0): check neighbors at (-u, 0), (0, -v), (-u, -v)
-            bool s1_00 = IsBlockOpaqueForAO(faceBase - uAxis);
-            bool s2_00 = IsBlockOpaqueForAO(faceBase - vAxis);
-            bool c_00 = IsBlockOpaqueForAO(faceBase - uAxis - vAxis);
-            ao00 = VoxelAO.Compute(s1_00, s2_00, c_00);
+            // Shared axis queries (each used by 2 corners)
+            bool sNegU = IsBlockOpaqueForAO(faceBase - uAxis);
+            bool sPosU = IsBlockOpaqueForAO(faceBase + uAxis);
+            bool sNegV = IsBlockOpaqueForAO(faceBase - vAxis);
+            bool sPosV = IsBlockOpaqueForAO(faceBase + vAxis);
 
-            // Corner (1,0): check neighbors at (+u, 0), (0, -v), (+u, -v)
-            bool s1_10 = IsBlockOpaqueForAO(faceBase + uAxis);
-            bool s2_10 = IsBlockOpaqueForAO(faceBase - vAxis);
-            bool c_10 = IsBlockOpaqueForAO(faceBase + uAxis - vAxis);
-            ao10 = VoxelAO.Compute(s1_10, s2_10, c_10);
-
-            // Corner (0,1): check neighbors at (-u, 0), (0, +v), (-u, +v)
-            bool s1_01 = IsBlockOpaqueForAO(faceBase - uAxis);
-            bool s2_01 = IsBlockOpaqueForAO(faceBase + vAxis);
-            bool c_01 = IsBlockOpaqueForAO(faceBase - uAxis + vAxis);
-            ao01 = VoxelAO.Compute(s1_01, s2_01, c_01);
-
-            // Corner (1,1): check neighbors at (+u, 0), (0, +v), (+u, +v)
-            bool s1_11 = IsBlockOpaqueForAO(faceBase + uAxis);
-            bool s2_11 = IsBlockOpaqueForAO(faceBase + vAxis);
-            bool c_11 = IsBlockOpaqueForAO(faceBase + uAxis + vAxis);
-            ao11 = VoxelAO.Compute(s1_11, s2_11, c_11);
+            ao00 = VoxelAO.Compute(sNegU, sNegV, IsBlockOpaqueForAO(faceBase - uAxis - vAxis));
+            ao10 = VoxelAO.Compute(sPosU, sNegV, IsBlockOpaqueForAO(faceBase + uAxis - vAxis));
+            ao01 = VoxelAO.Compute(sNegU, sPosV, IsBlockOpaqueForAO(faceBase - uAxis + vAxis));
+            ao11 = VoxelAO.Compute(sPosU, sPosV, IsBlockOpaqueForAO(faceBase + uAxis + vAxis));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -353,7 +350,17 @@ namespace Lithforge.Meshing
                 return ChunkData[Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
             }
 
-            // Outside chunk — sample from neighbor border slices
+            // Multi-axis out-of-bounds (diagonal/corner) — treat as air
+            bool outX = pos.x < 0 || pos.x >= ChunkConstants.Size;
+            bool outY = pos.y < 0 || pos.y >= ChunkConstants.Size;
+            bool outZ = pos.z < 0 || pos.z >= ChunkConstants.Size;
+
+            if ((outX ? 1 : 0) + (outY ? 1 : 0) + (outZ ? 1 : 0) > 1)
+            {
+                return StateId.Air;
+            }
+
+            // Outside chunk on single axis — sample from neighbor border slices
             if (pos.x >= ChunkConstants.Size)
             {
                 int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
@@ -440,20 +447,6 @@ namespace Lithforge.Meshing
                 case 3: return new int3(0, -1, 0);
                 case 4: return new int3(0, 0, 1);
                 default: return new int3(0, 0, -1);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float3 GetFaceNormalFloat(int face)
-        {
-            switch (face)
-            {
-                case 0: return new float3(1, 0, 0);
-                case 1: return new float3(-1, 0, 0);
-                case 2: return new float3(0, 1, 0);
-                case 3: return new float3(0, -1, 0);
-                case 4: return new float3(0, 0, 1);
-                default: return new float3(0, 0, -1);
             }
         }
 

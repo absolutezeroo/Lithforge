@@ -1,5 +1,5 @@
 {
-    "parent": "block/cube_north_west_mirrored",
+    "parent": "lithforge:block/cube_north_west_mirrored",
     "textures": {
         "particle": "#all",
         "down": "#all",

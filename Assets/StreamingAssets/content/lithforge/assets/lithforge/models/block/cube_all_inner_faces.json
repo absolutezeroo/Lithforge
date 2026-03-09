@@ -1,5 +1,5 @@
 {
-  "parent": "block/cube_all",
+  "parent": "lithforge:block/cube_all",
   "elements": [
     {
       "from": [0, 0, 0],
