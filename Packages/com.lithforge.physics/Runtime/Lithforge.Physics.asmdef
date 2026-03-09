@@ -1,22 +1,16 @@
 {
-  "name": "Lithforge.Runtime",
-  "rootNamespace": "Lithforge.Runtime",
+  "name": "Lithforge.Physics",
+  "rootNamespace": "Lithforge.Physics",
   "references": [
     "Lithforge.Core",
     "Lithforge.Voxel",
-    "Lithforge.WorldGen",
-    "Lithforge.Meshing",
-    "Lithforge.Physics",
     "Unity.Burst",
     "Unity.Collections",
-    "Unity.Mathematics",
-    "Unity.Jobs",
-    "Unity.InputSystem",
-    "Unity.RenderPipelines.Universal"
+    "Unity.Mathematics"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
-  "allowUnsafeCode": true,
+  "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
   "autoReferenced": true,

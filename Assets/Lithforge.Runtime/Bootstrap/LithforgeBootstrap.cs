@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Physics;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
@@ -268,20 +269,38 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeGameLoop()
         {
-            // Position camera above terrain BEFORE initializing GameLoop,
-            // so the first frame reads the correct camera position for chunk loading.
+            // Create player object with camera as child
             Camera mainCamera = Camera.main;
 
             if (mainCamera != null)
             {
-                mainCamera.transform.position = new Vector3(0, seaLevel + 32, 0);
-                mainCamera.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
-                mainCamera.farClipPlane = 500f;
-            }
+                // Remove legacy FPSCameraController if present
+                FPSCameraController legacyController = mainCamera.GetComponent<FPSCameraController>();
 
-            if (mainCamera != null && mainCamera.GetComponent<FPSCameraController>() == null)
-            {
-                mainCamera.gameObject.AddComponent<FPSCameraController>();
+                if (legacyController != null)
+                {
+                    Destroy(legacyController);
+                }
+
+                // Create player parent object
+                GameObject playerObject = new GameObject("Player");
+                playerObject.transform.position = new Vector3(0, seaLevel + 32, 0);
+
+                // Reparent camera under player
+                mainCamera.transform.SetParent(playerObject.transform);
+                mainCamera.transform.localPosition = new Vector3(
+                    0f, Lithforge.Physics.PhysicsConstants.PlayerEyeHeight, 0f);
+                mainCamera.transform.localRotation = Quaternion.Euler(30f, 0f, 0f);
+                mainCamera.farClipPlane = 500f;
+
+                // Add PlayerController to player object
+                PlayerController playerController = playerObject.AddComponent<PlayerController>();
+                playerController.Initialize(_chunkManager, _contentResult.NativeStateRegistry);
+                _services.Register(playerController);
+
+                // Add CameraController to camera
+                CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
+                _services.Register(cameraController);
             }
 
             _gameLoop = gameObject.AddComponent<GameLoop>();

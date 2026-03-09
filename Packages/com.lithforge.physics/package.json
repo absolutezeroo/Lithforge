@@ -1,0 +1,15 @@
+{
+  "name": "com.lithforge.physics",
+  "version": "0.1.0",
+  "displayName": "Lithforge Physics",
+  "description": "Tier 2: Voxel raycast (DDA), AABB collision against voxel grid, physics constants.",
+  "unity": "6000.0",
+  "license": "LGPL-2.1-or-later",
+  "dependencies": {
+    "com.lithforge.core": "0.1.0",
+    "com.lithforge.voxel": "0.1.0",
+    "com.unity.burst": "1.8.18",
+    "com.unity.collections": "2.5.1",
+    "com.unity.mathematics": "1.3.2"
+  }
+}

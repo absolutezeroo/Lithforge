@@ -147,6 +147,132 @@ namespace Lithforge.Voxel.Chunk
             return chunk;
         }
 
+        /// <summary>
+        /// Gets the StateId at a world-space block coordinate.
+        /// Returns StateId.Air if the chunk is not loaded or not yet generated.
+        /// </summary>
+        public StateId GetBlock(int3 worldCoord)
+        {
+            int3 chunkCoord = WorldToChunk(worldCoord);
+            ManagedChunk chunk = GetChunk(chunkCoord);
+
+            if (chunk == null || chunk.State < ChunkState.Generated || !chunk.Data.IsCreated)
+            {
+                return StateId.Air;
+            }
+
+            int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
+            int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
+            int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
+            int index = ChunkData.GetIndex(localX, localY, localZ);
+
+            NativeArray<StateId> data = chunk.Data;
+
+            return data[index];
+        }
+
+        /// <summary>
+        /// Sets the StateId at a world-space block coordinate.
+        /// Marks the chunk (and border-adjacent neighbors) for remeshing.
+        /// Returns the list of chunk coordinates that were dirtied.
+        /// Does nothing if the chunk is not loaded or still generating.
+        /// </summary>
+        public void SetBlock(int3 worldCoord, StateId state, List<int3> dirtiedChunks)
+        {
+            int3 chunkCoord = WorldToChunk(worldCoord);
+            ManagedChunk chunk = GetChunk(chunkCoord);
+
+            if (chunk == null || chunk.State < ChunkState.Generated || !chunk.Data.IsCreated)
+            {
+                return;
+            }
+
+            int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
+            int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
+            int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
+            int index = ChunkData.GetIndex(localX, localY, localZ);
+
+            NativeArray<StateId> data = chunk.Data;
+            data[index] = state;
+
+            // Complete any running mesh job before resetting state
+            if (chunk.State == ChunkState.Meshing)
+            {
+                chunk.ActiveJobHandle.Complete();
+            }
+
+            chunk.State = ChunkState.Generated;
+            dirtiedChunks.Add(chunkCoord);
+
+            // Border propagation: if local coord is 0 or 31, dirty the neighbor
+            if (localX == 0)
+            {
+                DirtyNeighborChunk(chunkCoord + new int3(-1, 0, 0), dirtiedChunks);
+            }
+
+            if (localX == ChunkConstants.SizeMask)
+            {
+                DirtyNeighborChunk(chunkCoord + new int3(1, 0, 0), dirtiedChunks);
+            }
+
+            if (localY == 0)
+            {
+                DirtyNeighborChunk(chunkCoord + new int3(0, -1, 0), dirtiedChunks);
+            }
+
+            if (localY == ChunkConstants.SizeMask)
+            {
+                DirtyNeighborChunk(chunkCoord + new int3(0, 1, 0), dirtiedChunks);
+            }
+
+            if (localZ == 0)
+            {
+                DirtyNeighborChunk(chunkCoord + new int3(0, 0, -1), dirtiedChunks);
+            }
+
+            if (localZ == ChunkConstants.SizeMask)
+            {
+                DirtyNeighborChunk(chunkCoord + new int3(0, 0, 1), dirtiedChunks);
+            }
+        }
+
+        private void DirtyNeighborChunk(int3 neighborCoord, List<int3> dirtiedChunks)
+        {
+            ManagedChunk neighbor = GetChunk(neighborCoord);
+
+            if (neighbor == null || neighbor.State < ChunkState.Generated)
+            {
+                return;
+            }
+
+            if (neighbor.State == ChunkState.Ready)
+            {
+                neighbor.State = ChunkState.Generated;
+                dirtiedChunks.Add(neighborCoord);
+            }
+            else if (neighbor.State == ChunkState.Meshing)
+            {
+                neighbor.NeedsRemesh = true;
+            }
+        }
+
+        /// <summary>
+        /// Converts a world-space block coordinate to a chunk coordinate.
+        /// Uses floor division to handle negative coordinates correctly.
+        /// </summary>
+        public static int3 WorldToChunk(int3 worldCoord)
+        {
+            return new int3(
+                FloorDiv(worldCoord.x, ChunkConstants.Size),
+                FloorDiv(worldCoord.y, ChunkConstants.Size),
+                FloorDiv(worldCoord.z, ChunkConstants.Size));
+        }
+
+        private static int FloorDiv(int a, int b)
+        {
+            return a >= 0 ? a / b : (a - b + 1) / b;
+        }
+
         public void UnloadDistantChunks(int3 cameraChunkCoord, List<int3> unloaded)
         {
             unloaded.Clear();
