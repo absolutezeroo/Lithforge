@@ -17,6 +17,10 @@ namespace Lithforge.Runtime.Spawn
         private readonly Transform _playerTransform;
         private readonly int _spawnRadius;
 
+        // Must match ChunkManager.UpdateLoadingQueue Y range
+        private const int _yMin = -1;
+        private const int _yMax = 3;
+
         private int3 _spawnChunkCoord;
         private SpawnProgress _progress;
 
@@ -47,7 +51,8 @@ namespace Lithforge.Runtime.Spawn
                 (int)math.floor(pos.z / ChunkConstants.Size));
 
             int diameter = _spawnRadius * 2 + 1;
-            _progress.TotalChunks = diameter * diameter * diameter;
+            int yLevels = _yMax - _yMin + 1;
+            _progress.TotalChunks = diameter * diameter * yLevels;
             _progress.Phase = SpawnState.Checking;
         }
 
@@ -93,9 +98,12 @@ namespace Lithforge.Runtime.Spawn
             {
                 for (int z = -r; z <= r; z++)
                 {
-                    for (int y = -r; y <= r; y++)
+                    for (int y = _yMin; y <= _yMax; y++)
                     {
-                        int3 coord = _spawnChunkCoord + new int3(x, y, z);
+                        int3 coord = new int3(
+                            _spawnChunkCoord.x + x,
+                            _spawnChunkCoord.y + y,
+                            _spawnChunkCoord.z + z);
                         ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
                         if (chunk != null && chunk.State == ChunkState.Ready)
@@ -151,8 +159,8 @@ namespace Lithforge.Runtime.Spawn
         private int FindSafeSpawnY(int worldX, int worldZ)
         {
             // Restrict scan to chunks within the spawn radius (all confirmed Ready)
-            int maxY = (_spawnChunkCoord.y + _spawnRadius + 1) * ChunkConstants.Size - 1;
-            int minY = (_spawnChunkCoord.y - _spawnRadius) * ChunkConstants.Size;
+            int maxY = (_spawnChunkCoord.y + _yMax + 1) * ChunkConstants.Size - 1;
+            int minY = (_spawnChunkCoord.y + _yMin) * ChunkConstants.Size;
 
             for (int y = maxY; y >= minY; y--)
             {

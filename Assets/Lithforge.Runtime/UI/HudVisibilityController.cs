@@ -72,7 +72,12 @@ namespace Lithforge.Runtime.UI
                 _debugHud.SetVisible(true);
             }
 
-            // InventoryScreen stays hidden — opened via E key
+            // Restore InventoryScreen root so the E-key toggle can show _panel.
+            // The panel itself starts hidden — SetVisible only controls the UIDocument root.
+            if (_inventoryScreen != null)
+            {
+                _inventoryScreen.SetVisible(true);
+            }
         }
     }
 }
