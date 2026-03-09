@@ -12,6 +12,15 @@ namespace Lithforge.Runtime.Debug
         private int _frameCount;
         private GUIStyle _style;
         private Texture2D _bgTexture;
+        private bool _visible = true;
+
+        /// <summary>
+        /// Shows or hides the debug overlay. When hidden, OnGUI returns immediately.
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            _visible = visible;
+        }
 
         public void Initialize(GameLoop gameLoop, Voxel.Chunk.ChunkManager chunkManager)
         {
@@ -51,6 +60,11 @@ namespace Lithforge.Runtime.Debug
 
         private void OnGUI()
         {
+            if (!_visible)
+            {
+                return;
+            }
+
             EnsureStyle();
 
             int lineHeight = _style.fontSize + 6;

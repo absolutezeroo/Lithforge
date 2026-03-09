@@ -27,6 +27,18 @@ namespace Lithforge.Runtime.UI
         private static readonly Color _slotBorder = new Color(0.4f, 0.4f, 0.4f, 0.9f);
         private static readonly Color _selectedBorder = new Color(1f, 1f, 1f, 1f);
 
+        /// <summary>
+        /// Shows or hides the hotbar by toggling the root document visibility.
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display =
+                    visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         public void Initialize(Inventory inventory, PanelSettings panelSettings)
         {
             _inventory = inventory;

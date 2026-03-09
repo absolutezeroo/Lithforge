@@ -60,6 +60,19 @@ namespace Lithforge.Runtime.UI
             get { return _isOpen; }
         }
 
+        /// <summary>
+        /// Shows or hides the entire inventory system by toggling the root document visibility.
+        /// When hidden, the E key toggle in Update() still runs but has no visible effect.
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display =
+                    visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         public void Initialize(
             Inventory inventory,
             ItemRegistry itemRegistry,

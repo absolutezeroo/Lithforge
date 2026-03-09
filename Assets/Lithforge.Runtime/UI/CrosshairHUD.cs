@@ -15,6 +15,18 @@ namespace Lithforge.Runtime.UI
 
         private UIDocument _document;
 
+        /// <summary>
+        /// Shows or hides the crosshair by toggling the root document visibility.
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display =
+                    visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         public void Initialize(PanelSettings panelSettings)
         {
             _document = gameObject.AddComponent<UIDocument>();

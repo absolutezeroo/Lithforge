@@ -8,6 +8,7 @@ using Lithforge.Physics;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
+using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
@@ -35,6 +36,8 @@ namespace Lithforge.Runtime.Bootstrap
         [SerializeField] private int seaLevel = 64;
 
         [SerializeField] private long seed = 42L;
+
+        [SerializeField] private int spawnLoadRadius = 2;
 
         private ServiceContainer _services;
         private ContentPipelineResult _contentResult;
@@ -319,9 +322,6 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkManager, _contentResult.NativeStateRegistry, _gameLoop);
                 _services.Register(playerController);
 
-                // Register player transform for safe spawn placement
-                _gameLoop.SetPlayerTransform(playerObject.transform);
-
                 // Add CameraController to camera
                 CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
                 _services.Register(cameraController);
@@ -354,6 +354,12 @@ namespace Lithforge.Runtime.Bootstrap
                 UnityEngine.UIElements.PanelSettings panelSettings =
                     Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
 
+                if (panelSettings == null)
+                {
+                    UnityEngine.Debug.LogError(
+                        "[Lithforge] DefaultPanelSettings not found in Resources/. UI will not display.");
+                }
+
                 // Add CrosshairHUD
                 GameObject crosshairObject = new GameObject("CrosshairHUD");
                 CrosshairHUD crosshairHUD = crosshairObject.AddComponent<CrosshairHUD>();
@@ -373,11 +379,32 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.CraftingEngine,
                     panelSettings);
                 _services.Register(inventoryScreen);
-            }
 
-            // Add debug HUD
-            DebugOverlayHUD hud = gameObject.AddComponent<DebugOverlayHUD>();
-            hud.Initialize(_gameLoop, _chunkManager);
+                // Add debug HUD
+                DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
+                debugHud.Initialize(_gameLoop, _chunkManager);
+
+                // Hide all gameplay HUD until spawn is complete
+                HudVisibilityController hudVisibility = new HudVisibilityController(
+                    crosshairHUD, hotbarHUD, inventoryScreen, debugHud);
+                hudVisibility.HideAll();
+
+                // Create SpawnManager to coordinate chunk loading and player placement
+                SpawnManager spawnManager = new SpawnManager(
+                    _chunkManager,
+                    _contentResult.NativeStateRegistry,
+                    playerObject.transform,
+                    spawnLoadRadius);
+                _gameLoop.SetSpawnManager(spawnManager);
+
+                // Create loading screen overlay — HUD is shown after the fade completes
+                GameObject loadingObject = new GameObject("LoadingScreen");
+                LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
+                loadingScreen.Initialize(
+                    spawnManager,
+                    panelSettings,
+                    () => { hudVisibility.ShowGameplay(); });
+            }
 
             // Initialize day/night cycle
             Material material = _chunkRenderManager.OpaqueMaterial;

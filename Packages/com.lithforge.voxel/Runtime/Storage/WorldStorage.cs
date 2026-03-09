@@ -12,7 +12,7 @@ namespace Lithforge.Voxel.Storage
     {
         private readonly string _worldDir;
         private readonly string _regionDir;
-        private readonly Dictionary<int2, RegionFile> _regionFiles = new Dictionary<int2, RegionFile>();
+        private readonly Dictionary<int3, RegionFile> _regionFiles = new Dictionary<int3, RegionFile>();
         private bool _disposed;
 
         public WorldStorage(string worldDir)
@@ -28,7 +28,7 @@ namespace Lithforge.Voxel.Storage
 
         public bool HasChunk(int3 chunkCoord)
         {
-            GetRegionCoords(chunkCoord, out int2 regionCoord, out int localX, out int localZ);
+            GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
             RegionFile region = GetOrOpenRegion(regionCoord);
 
             return region.HasChunk(localX, localZ);
@@ -39,7 +39,7 @@ namespace Lithforge.Voxel.Storage
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
         {
-            GetRegionCoords(chunkCoord, out int2 regionCoord, out int localX, out int localZ);
+            GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
             RegionFile region = GetOrOpenRegion(regionCoord);
 
             byte[] serialized = region.LoadChunk(localX, localZ);
@@ -57,7 +57,7 @@ namespace Lithforge.Voxel.Storage
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
         {
-            GetRegionCoords(chunkCoord, out int2 regionCoord, out int localX, out int localZ);
+            GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
             RegionFile region = GetOrOpenRegion(regionCoord);
 
             byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData);
@@ -66,7 +66,7 @@ namespace Lithforge.Voxel.Storage
 
         public void FlushAll()
         {
-            foreach (KeyValuePair<int2, RegionFile> kvp in _regionFiles)
+            foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
             {
                 kvp.Value.Flush();
             }
@@ -85,11 +85,11 @@ namespace Lithforge.Voxel.Storage
             return WorldMetadata.Load(Path.Combine(_worldDir, "world.json"));
         }
 
-        private RegionFile GetOrOpenRegion(int2 regionCoord)
+        private RegionFile GetOrOpenRegion(int3 regionCoord)
         {
             if (!_regionFiles.TryGetValue(regionCoord, out RegionFile region))
             {
-                string fileName = $"r.{regionCoord.x}.{regionCoord.y}.lfrg";
+                string fileName = $"r.{regionCoord.x}.{regionCoord.y}.{regionCoord.z}.lfrg";
                 string filePath = Path.Combine(_regionDir, fileName);
                 region = new RegionFile(filePath);
                 _regionFiles[regionCoord] = region;
@@ -98,10 +98,11 @@ namespace Lithforge.Voxel.Storage
             return region;
         }
 
-        private static void GetRegionCoords(int3 chunkCoord, out int2 regionCoord, out int localX, out int localZ)
+        private static void GetRegionCoords(int3 chunkCoord, out int3 regionCoord, out int localX, out int localZ)
         {
-            regionCoord = new int2(
+            regionCoord = new int3(
                 FloorDiv(chunkCoord.x, RegionFile.RegionSize),
+                chunkCoord.y,
                 FloorDiv(chunkCoord.z, RegionFile.RegionSize));
 
             localX = ((chunkCoord.x % RegionFile.RegionSize) + RegionFile.RegionSize) % RegionFile.RegionSize;
@@ -119,7 +120,7 @@ namespace Lithforge.Voxel.Storage
             {
                 _disposed = true;
 
-                foreach (KeyValuePair<int2, RegionFile> kvp in _regionFiles)
+                foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
                 {
                     kvp.Value.Dispose();
                 }
