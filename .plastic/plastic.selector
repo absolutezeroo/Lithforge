@@ -1,4 +1,0 @@
-repository "Lithforge 2026-03-08_23-42-06/Lithforge@9072329401094@cloud"
-  path "/"
-    br "/main"
-    co "/main"
