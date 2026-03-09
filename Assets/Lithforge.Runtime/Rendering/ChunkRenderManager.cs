@@ -18,6 +18,11 @@ namespace Lithforge.Runtime.Rendering
             get { return _renderers.Count; }
         }
 
+        public Material Material
+        {
+            get { return _opaqueMaterial; }
+        }
+
         public ChunkRenderManager(Material opaqueMaterial)
         {
             _opaqueMaterial = opaqueMaterial;

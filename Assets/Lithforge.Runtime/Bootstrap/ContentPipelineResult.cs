@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
@@ -14,17 +15,23 @@ namespace Lithforge.Runtime.Bootstrap
         public NativeStateRegistry NativeStateRegistry { get; }
         public NativeAtlasLookup NativeAtlasLookup { get; }
         public AtlasResult AtlasResult { get; }
+        public List<BiomeDefinition> BiomeDefinitions { get; }
+        public List<OreDefinition> OreDefinitions { get; }
 
         public ContentPipelineResult(
             StateRegistry stateRegistry,
             NativeStateRegistry nativeStateRegistry,
             NativeAtlasLookup nativeAtlasLookup,
-            AtlasResult atlasResult)
+            AtlasResult atlasResult,
+            List<BiomeDefinition> biomeDefinitions,
+            List<OreDefinition> oreDefinitions)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
             NativeAtlasLookup = nativeAtlasLookup;
             AtlasResult = atlasResult;
+            BiomeDefinitions = biomeDefinitions;
+            OreDefinitions = oreDefinitions;
         }
     }
 }

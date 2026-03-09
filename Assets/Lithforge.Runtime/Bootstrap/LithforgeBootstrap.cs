@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
@@ -6,7 +7,11 @@ using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Storage;
+using Lithforge.WorldGen.Biome;
+using Lithforge.WorldGen.Decoration;
 using Lithforge.WorldGen.Noise;
+using Lithforge.WorldGen.Ore;
 using Lithforge.WorldGen.Pipeline;
 using Unity.Collections;
 using UnityEngine;
@@ -32,12 +37,18 @@ namespace Lithforge.Runtime.Bootstrap
         private GenerationPipeline _generationPipeline;
         private ChunkRenderManager _chunkRenderManager;
         private GameLoop _gameLoop;
+        private NativeArray<NativeBiomeData> _nativeBiomeData;
+        private NativeArray<NativeOreConfig> _nativeOreConfigs;
+        private DecorationStage _decorationStage;
+        private WorldStorage _worldStorage;
+        private TimeOfDayController _timeOfDayController;
 
         private void Awake()
         {
             _services = new ServiceContainer();
 
             InitializeContent();
+            InitializeStorage();
             InitializeChunkSystem();
             InitializeWorldGen();
             InitializeRendering();
@@ -62,7 +73,20 @@ namespace Lithforge.Runtime.Bootstrap
 
             UnityEngine.Debug.Log(
                 $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
-                $"{_contentResult.NativeAtlasLookup.TextureCount} textures.");
+                $"{_contentResult.NativeAtlasLookup.TextureCount} textures, " +
+                $"{_contentResult.BiomeDefinitions.Count} biomes, " +
+                $"{_contentResult.OreDefinitions.Count} ores.");
+        }
+
+        private void InitializeStorage()
+        {
+            string worldDir = System.IO.Path.Combine(
+                Application.persistentDataPath, "worlds", "default");
+            _worldStorage = new WorldStorage(worldDir);
+            _worldStorage.SaveMetadata(seed, "");
+            _services.Register(_worldStorage);
+
+            UnityEngine.Debug.Log($"[Lithforge] World storage: {worldDir}");
         }
 
         private void InitializeChunkSystem()
@@ -86,16 +110,103 @@ namespace Lithforge.Runtime.Bootstrap
                 SeedOffset = 0,
             };
 
+            NativeNoiseConfig temperatureNoise = new()
+            {
+                Frequency = 0.002f,
+                Lacunarity = 2.0f,
+                Persistence = 0.5f,
+                HeightScale = 1.0f,
+                Octaves = 3,
+                SeedOffset = 999,
+            };
+
+            NativeNoiseConfig humidityNoise = new()
+            {
+                Frequency = 0.002f,
+                Lacunarity = 2.0f,
+                Persistence = 0.5f,
+                HeightScale = 1.0f,
+                Octaves = 3,
+                SeedOffset = 1999,
+            };
+
+            NativeNoiseConfig caveNoise = new()
+            {
+                Frequency = 0.03f,
+                Lacunarity = 2.0f,
+                Persistence = 0.5f,
+                HeightScale = 1.0f,
+                Octaves = 2,
+                SeedOffset = 0,
+            };
+
             StateId stoneId = FindStateId("lithforge:stone");
             StateId airId = StateId.Air;
             StateId waterId = FindStateId("lithforge:water");
-            StateId grassId = FindStateId("lithforge:grass_block");
-            StateId dirtId = FindStateId("lithforge:dirt");
+
+            // Build native biome data
+            List<BiomeDefinition> biomeDefs = _contentResult.BiomeDefinitions;
+            _nativeBiomeData = new NativeArray<NativeBiomeData>(
+                biomeDefs.Count, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+
+            for (int i = 0; i < biomeDefs.Count; i++)
+            {
+                BiomeDefinition def = biomeDefs[i];
+                _nativeBiomeData[i] = new NativeBiomeData
+                {
+                    BiomeId = (byte)i,
+                    TemperatureMin = def.TemperatureMin,
+                    TemperatureMax = def.TemperatureMax,
+                    TemperatureCenter = def.TemperatureCenter,
+                    HumidityMin = def.HumidityMin,
+                    HumidityMax = def.HumidityMax,
+                    HumidityCenter = def.HumidityCenter,
+                    TopBlock = FindStateId(def.TopBlock.ToString()),
+                    FillerBlock = FindStateId(def.FillerBlock.ToString()),
+                    StoneBlock = FindStateId(def.StoneBlock.ToString()),
+                    UnderwaterBlock = FindStateId(def.UnderwaterBlock.ToString()),
+                    FillerDepth = (byte)def.FillerDepth,
+                    TreeDensity = def.TreeDensity,
+                    HeightModifier = def.HeightModifier,
+                };
+            }
+
+            // Build native ore configs
+            List<OreDefinition> oreDefs = _contentResult.OreDefinitions;
+            _nativeOreConfigs = new NativeArray<NativeOreConfig>(
+                oreDefs.Count, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+
+            for (int i = 0; i < oreDefs.Count; i++)
+            {
+                OreDefinition def = oreDefs[i];
+                _nativeOreConfigs[i] = new NativeOreConfig
+                {
+                    OreStateId = FindStateId(def.OreBlock.ToString()),
+                    ReplaceStateId = FindStateId(def.ReplaceBlock.ToString()),
+                    MinY = def.MinY,
+                    MaxY = def.MaxY,
+                    VeinSize = def.VeinSize,
+                    Frequency = def.Frequency,
+                    OreType = (byte)(string.Equals(def.OreType, "scatter",
+                        System.StringComparison.Ordinal) ? 0 : 1),
+                };
+            }
 
             _generationPipeline = new GenerationPipeline(
                 terrainNoise,
-                stoneId, airId, waterId, grassId, dirtId,
+                temperatureNoise,
+                humidityNoise,
+                caveNoise,
+                _nativeBiomeData,
+                _nativeOreConfigs,
+                _contentResult.NativeStateRegistry.States,
+                stoneId, airId, waterId,
                 seaLevel);
+
+            // Build decoration stage
+            StateId oakLogId = FindStateId("lithforge:oak_log");
+            StateId oakLeavesId = FindStateId("lithforge:oak_leaves");
+            _decorationStage = new DecorationStage(_nativeBiomeData, oakLogId, oakLeavesId, airId);
 
             _services.Register(_generationPipeline);
         }
@@ -145,6 +256,8 @@ namespace Lithforge.Runtime.Bootstrap
                 _contentResult.NativeStateRegistry,
                 _contentResult.NativeAtlasLookup,
                 _chunkRenderManager,
+                _decorationStage,
+                _worldStorage,
                 seed);
 
             // Add debug HUD
@@ -165,6 +278,15 @@ namespace Lithforge.Runtime.Bootstrap
                 mainCamera.transform.position = new Vector3(0, seaLevel + 32, 0);
                 mainCamera.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
                 mainCamera.farClipPlane = 500f;
+            }
+
+            // Initialize day/night cycle
+            Material material = _chunkRenderManager.Material;
+
+            if (material != null)
+            {
+                _timeOfDayController = gameObject.AddComponent<TimeOfDayController>();
+                _timeOfDayController.Initialize(material);
             }
         }
 
@@ -198,6 +320,14 @@ namespace Lithforge.Runtime.Bootstrap
                 _gameLoop.Shutdown();
             }
 
+            // Save all loaded chunks before disposing
+            if (_worldStorage != null && _chunkManager != null)
+            {
+                _chunkManager.SaveAllChunks(_worldStorage);
+                _worldStorage.FlushAll();
+                _worldStorage.SaveMetadata(seed, "");
+            }
+
             if (_chunkRenderManager != null)
             {
                 _chunkRenderManager.Dispose();
@@ -221,6 +351,21 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 _contentResult.NativeAtlasLookup.Dispose();
+            }
+
+            if (_nativeBiomeData.IsCreated)
+            {
+                _nativeBiomeData.Dispose();
+            }
+
+            if (_nativeOreConfigs.IsCreated)
+            {
+                _nativeOreConfigs.Dispose();
+            }
+
+            if (_worldStorage != null)
+            {
+                _worldStorage.Dispose();
             }
         }
     }

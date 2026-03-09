@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Storage;
 using Unity.Collections;
 using Unity.Mathematics;
 
@@ -153,6 +154,20 @@ namespace Lithforge.Voxel.Chunk
             for (int i = 0; i < toRemove.Count; i++)
             {
                 _chunks.Remove(toRemove[i]);
+            }
+        }
+
+        public void SaveAllChunks(WorldStorage storage)
+        {
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                ManagedChunk chunk = kvp.Value;
+
+                if (chunk.State >= ChunkState.Generated && chunk.Data.IsCreated)
+                {
+                    chunk.ActiveJobHandle.Complete();
+                    storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData);
+                }
             }
         }
 

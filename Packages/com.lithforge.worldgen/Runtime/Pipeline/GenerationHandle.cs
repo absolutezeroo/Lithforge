@@ -9,12 +9,30 @@ namespace Lithforge.WorldGen.Pipeline
         public JobHandle FinalHandle;
         public NativeArray<int> HeightMap;
         public NativeArray<byte> LightData;
+        public NativeArray<byte> BiomeMap;
+        public NativeArray<float> TemperatureMap;
+        public NativeArray<float> HumidityMap;
 
         public void Dispose()
         {
             if (HeightMap.IsCreated)
             {
                 HeightMap.Dispose();
+            }
+
+            if (BiomeMap.IsCreated)
+            {
+                BiomeMap.Dispose();
+            }
+
+            if (TemperatureMap.IsCreated)
+            {
+                TemperatureMap.Dispose();
+            }
+
+            if (HumidityMap.IsCreated)
+            {
+                HumidityMap.Dispose();
             }
 
             // LightData is not disposed here — it is transferred to ManagedChunk
@@ -31,6 +49,21 @@ namespace Lithforge.WorldGen.Pipeline
             if (LightData.IsCreated)
             {
                 LightData.Dispose();
+            }
+
+            if (BiomeMap.IsCreated)
+            {
+                BiomeMap.Dispose();
+            }
+
+            if (TemperatureMap.IsCreated)
+            {
+                TemperatureMap.Dispose();
+            }
+
+            if (HumidityMap.IsCreated)
+            {
+                HumidityMap.Dispose();
             }
         }
     }

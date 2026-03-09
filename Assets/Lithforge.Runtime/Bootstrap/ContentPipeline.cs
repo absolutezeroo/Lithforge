@@ -19,7 +19,8 @@ namespace Lithforge.Runtime.Bootstrap
     ///   Phase 5: Resolve blockstate variants to per-face textures
     ///   Phase 6: Build texture atlas
     ///   Phase 7: Patch texture indices into StateRegistry
-    ///   Phase 8: BakeNative (freeze) + build NativeAtlasLookup
+    ///   Phase 8: Load biome and ore definitions
+    ///   Phase 9: BakeNative (freeze) + build NativeAtlasLookup
     /// </summary>
     public sealed class ContentPipeline
     {
@@ -87,7 +88,16 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
 
-            // Phase 8: BakeNative + build NativeAtlasLookup
+            // Phase 8: Load biome and ore definitions
+            BiomeDefinitionLoader biomeLoader = new(_logger);
+            List<BiomeDefinition> biomeDefinitions = biomeLoader.LoadAll(contentRoot);
+            _logger.LogInfo($"Loaded {biomeDefinitions.Count} biome definitions.");
+
+            OreDefinitionLoader oreLoader = new(_logger);
+            List<OreDefinition> oreDefinitions = oreLoader.LoadAll(contentRoot);
+            _logger.LogInfo($"Loaded {oreDefinitions.Count} ore definitions.");
+
+            // Phase 9: BakeNative + build NativeAtlasLookup
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
 
             NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
@@ -96,7 +106,9 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry,
                 nativeStateRegistry,
                 nativeAtlasLookup,
-                atlasResult);
+                atlasResult,
+                biomeDefinitions,
+                oreDefinitions);
         }
 
         private static ushort GetTextureIndex(AtlasResult atlas, ResourceId textureId)

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "lithforge:block/diamond_ore"
+    }
+  }
+}

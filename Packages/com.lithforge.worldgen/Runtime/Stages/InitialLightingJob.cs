@@ -1,4 +1,6 @@
+using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.WorldGen.Lighting;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -6,17 +8,13 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
-    /// <summary>
-    /// Burst-compiled heightmap-based sunlight calculation.
-    /// Voxels above the surface height get full sunlight (15),
-    /// voxels at or below get no sunlight (0).
-    /// Chained after SurfaceBuilderJob in the generation pipeline.
-    /// </summary>
     [BurstCompile]
     public struct InitialLightingJob : IJob
     {
         [ReadOnly] public NativeArray<int> HeightMap;
         [ReadOnly] public int3 ChunkCoord;
+        [ReadOnly] public NativeArray<StateId> ChunkData;
+        [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         public NativeArray<byte> LightData;
 
@@ -39,14 +37,28 @@ namespace Lithforge.WorldGen.Stages
                         int worldY = chunkWorldY + y;
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
 
+                        byte sun = _noLight;
+                        byte block = _noLight;
+
                         if (worldY >= surfaceY)
                         {
-                            LightData[index] = _fullSunlight;
+                            sun = _fullSunlight;
                         }
-                        else
+
+                        // Seed block light from emitting blocks
+                        StateId stateId = ChunkData[index];
+
+                        if (stateId.Value < StateTable.Length)
                         {
-                            LightData[index] = _noLight;
+                            BlockStateCompact state = StateTable[stateId.Value];
+
+                            if (state.EmitsLight)
+                            {
+                                block = state.LightEmission;
+                            }
                         }
+
+                        LightData[index] = LightUtils.Pack(sun, block);
                     }
                 }
             }

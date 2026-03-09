@@ -1,6 +1,8 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Noise;
+using Lithforge.WorldGen.Ore;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
@@ -11,28 +13,40 @@ namespace Lithforge.WorldGen.Pipeline
     public sealed class GenerationPipeline
     {
         private readonly NativeNoiseConfig _terrainNoise;
+        private readonly NativeNoiseConfig _temperatureNoise;
+        private readonly NativeNoiseConfig _humidityNoise;
+        private readonly NativeNoiseConfig _caveNoise;
+        private readonly NativeArray<NativeBiomeData> _biomeData;
+        private readonly NativeArray<NativeOreConfig> _oreConfigs;
+        private readonly NativeArray<BlockStateCompact> _stateTable;
         private readonly StateId _stoneId;
         private readonly StateId _airId;
         private readonly StateId _waterId;
-        private readonly StateId _grassId;
-        private readonly StateId _dirtId;
         private readonly int _seaLevel;
 
         public GenerationPipeline(
             NativeNoiseConfig terrainNoise,
+            NativeNoiseConfig temperatureNoise,
+            NativeNoiseConfig humidityNoise,
+            NativeNoiseConfig caveNoise,
+            NativeArray<NativeBiomeData> biomeData,
+            NativeArray<NativeOreConfig> oreConfigs,
+            NativeArray<BlockStateCompact> stateTable,
             StateId stoneId,
             StateId airId,
             StateId waterId,
-            StateId grassId,
-            StateId dirtId,
             int seaLevel)
         {
             _terrainNoise = terrainNoise;
+            _temperatureNoise = temperatureNoise;
+            _humidityNoise = humidityNoise;
+            _caveNoise = caveNoise;
+            _biomeData = biomeData;
+            _oreConfigs = oreConfigs;
+            _stateTable = stateTable;
             _stoneId = stoneId;
             _airId = airId;
             _waterId = waterId;
-            _grassId = grassId;
-            _dirtId = dirtId;
             _seaLevel = seaLevel;
         }
 
@@ -44,6 +58,16 @@ namespace Lithforge.WorldGen.Pipeline
             NativeArray<byte> lightData = new NativeArray<byte>(
                 ChunkConstants.Volume, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
+            NativeArray<byte> biomeMap = new NativeArray<byte>(
+                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+            NativeArray<float> temperatureMap = new NativeArray<float>(
+                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+            NativeArray<float> humidityMap = new NativeArray<float>(
+                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+            // Stage 1: Terrain shape
             TerrainShapeJob terrainJob = new TerrainShapeJob
             {
                 ChunkData = chunkData,
@@ -59,34 +83,93 @@ namespace Lithforge.WorldGen.Pipeline
 
             JobHandle terrainHandle = terrainJob.Schedule();
 
+            // Stage 2: Cave carving
+            CaveCarverJob caveJob = new CaveCarverJob
+            {
+                ChunkData = chunkData,
+                Seed = seed,
+                ChunkCoord = coord,
+                CaveNoise = _caveNoise,
+                AirId = _airId,
+                WaterId = _waterId,
+                SeaLevel = _seaLevel,
+            };
+
+            JobHandle caveHandle = caveJob.Schedule(terrainHandle);
+
+            // Stage 3: Biome assignment
+            BiomeAssignmentJob biomeJob = new BiomeAssignmentJob
+            {
+                HeightMap = heightMap,
+                BiomeData = _biomeData,
+                Seed = seed,
+                ChunkCoord = coord,
+                TemperatureNoise = _temperatureNoise,
+                HumidityNoise = _humidityNoise,
+                BiomeMap = biomeMap,
+                TemperatureMap = temperatureMap,
+                HumidityMap = humidityMap,
+            };
+
+            JobHandle biomeHandle = biomeJob.Schedule(caveHandle);
+
+            // Stage 4: Surface builder (biome-driven)
             SurfaceBuilderJob surfaceJob = new SurfaceBuilderJob
             {
                 ChunkData = chunkData,
                 HeightMap = heightMap,
+                BiomeMap = biomeMap,
+                BiomeData = _biomeData,
                 ChunkCoord = coord,
                 SeaLevel = _seaLevel,
-                GrassId = _grassId,
-                DirtId = _dirtId,
                 StoneId = _stoneId,
                 AirId = _airId,
             };
 
-            JobHandle surfaceHandle = surfaceJob.Schedule(terrainHandle);
+            JobHandle surfaceHandle = surfaceJob.Schedule(biomeHandle);
 
+            // Stage 5: Ore generation
+            OreGenerationJob oreJob = new OreGenerationJob
+            {
+                ChunkData = chunkData,
+                OreConfigs = _oreConfigs,
+                Seed = seed,
+                ChunkCoord = coord,
+                StoneId = _stoneId,
+            };
+
+            JobHandle oreHandle = oreJob.Schedule(surfaceHandle);
+
+            // Stage 6: Initial lighting
             InitialLightingJob lightingJob = new InitialLightingJob
             {
                 HeightMap = heightMap,
                 ChunkCoord = coord,
+                ChunkData = chunkData,
+                StateTable = _stateTable,
                 LightData = lightData,
             };
 
-            JobHandle lightingHandle = lightingJob.Schedule(surfaceHandle);
+            JobHandle lightingHandle = lightingJob.Schedule(oreHandle);
+
+            // Stage 7: Light propagation (BFS flood fill)
+            LightPropagationJob lightPropJob = new LightPropagationJob
+            {
+                ChunkData = chunkData,
+                StateTable = _stateTable,
+                LightData = lightData,
+            };
+
+            JobHandle lightPropHandle = lightPropJob.Schedule(lightingHandle);
 
             return new GenerationHandle
             {
-                FinalHandle = lightingHandle,
+                FinalHandle = lightPropHandle,
                 HeightMap = heightMap,
                 LightData = lightData,
+                BiomeMap = biomeMap,
+                TemperatureMap = temperatureMap,
+                HumidityMap = humidityMap,
             };
         }
     }

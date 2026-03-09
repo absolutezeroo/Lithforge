@@ -4,6 +4,8 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Storage;
+using Lithforge.WorldGen.Decoration;
 using Lithforge.WorldGen.Pipeline;
 using Unity.Collections;
 using Unity.Jobs;
@@ -19,6 +21,8 @@ namespace Lithforge.Runtime
         private NativeStateRegistry _nativeStateRegistry;
         private NativeAtlasLookup _nativeAtlasLookup;
         private ChunkRenderManager _chunkRenderManager;
+        private DecorationStage _decorationStage;
+        private WorldStorage _worldStorage;
         private long _seed;
 
         private readonly List<PendingGeneration> _pendingGenerations = new();
@@ -46,6 +50,8 @@ namespace Lithforge.Runtime
             NativeStateRegistry nativeStateRegistry,
             NativeAtlasLookup nativeAtlasLookup,
             ChunkRenderManager chunkRenderManager,
+            DecorationStage decorationStage,
+            WorldStorage worldStorage,
             long seed)
         {
             _chunkManager = chunkManager;
@@ -53,6 +59,8 @@ namespace Lithforge.Runtime
             _nativeStateRegistry = nativeStateRegistry;
             _nativeAtlasLookup = nativeAtlasLookup;
             _chunkRenderManager = chunkRenderManager;
+            _decorationStage = decorationStage;
+            _worldStorage = worldStorage;
             _seed = seed;
             _initialized = true;
         }
@@ -98,6 +106,19 @@ namespace Lithforge.Runtime
 
                     if (chunk != null)
                     {
+                        // Run decoration on main thread (managed code, not Burst)
+                        if (_decorationStage != null &&
+                            pending.Handle.BiomeMap.IsCreated &&
+                            pending.Handle.HeightMap.IsCreated)
+                        {
+                            _decorationStage.Decorate(
+                                pending.Coord,
+                                chunk.Data,
+                                pending.Handle.HeightMap,
+                                pending.Handle.BiomeMap,
+                                _seed);
+                        }
+
                         // Transfer LightData ownership to chunk
                         chunk.LightData = pending.Handle.LightData;
                         chunk.State = ChunkState.Generated;
@@ -159,6 +180,26 @@ namespace Lithforge.Runtime
             for (int i = 0; i < chunks.Count; i++)
             {
                 ManagedChunk chunk = chunks[i];
+
+                // Try loading from storage first
+                if (_worldStorage != null && _worldStorage.HasChunk(chunk.Coord))
+                {
+                    NativeArray<byte> lightData = new NativeArray<byte>(
+                        Lithforge.Voxel.Chunk.ChunkConstants.Volume,
+                        Allocator.Persistent, NativeArrayOptions.ClearMemory);
+
+                    if (_worldStorage.LoadChunk(chunk.Coord, chunk.Data, lightData))
+                    {
+                        chunk.LightData = lightData;
+                        chunk.State = ChunkState.Generated;
+                        chunk.ActiveJobHandle = default;
+
+                        continue;
+                    }
+
+                    lightData.Dispose();
+                }
+
                 GenerationHandle handle = _generationPipeline.Schedule(chunk.Coord, _seed, chunk.Data);
                 chunk.ActiveJobHandle = handle.FinalHandle;
 

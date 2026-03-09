@@ -1,5 +1,6 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.WorldGen.Biome;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -13,14 +14,12 @@ namespace Lithforge.WorldGen.Stages
         public NativeArray<StateId> ChunkData;
 
         [ReadOnly] public NativeArray<int> HeightMap;
+        [ReadOnly] public NativeArray<byte> BiomeMap;
+        [ReadOnly] public NativeArray<NativeBiomeData> BiomeData;
         [ReadOnly] public int3 ChunkCoord;
         [ReadOnly] public int SeaLevel;
-        [ReadOnly] public StateId GrassId;
-        [ReadOnly] public StateId DirtId;
         [ReadOnly] public StateId StoneId;
         [ReadOnly] public StateId AirId;
-
-        private const int _dirtDepth = 3;
 
         public void Execute()
         {
@@ -32,6 +31,13 @@ namespace Lithforge.WorldGen.Stages
                 {
                     int columnIndex = z * ChunkConstants.Size + x;
                     int surfaceY = HeightMap[columnIndex];
+                    byte biomeId = BiomeMap[columnIndex];
+
+                    NativeBiomeData biome = GetBiome(biomeId);
+                    StateId topBlock = biome.TopBlock;
+                    StateId fillerBlock = biome.FillerBlock;
+                    StateId underwaterBlock = biome.UnderwaterBlock;
+                    int fillerDepth = biome.FillerDepth;
 
                     for (int y = ChunkConstants.Size - 1; y >= 0; y--)
                     {
@@ -50,20 +56,33 @@ namespace Lithforge.WorldGen.Stages
                         {
                             if (surfaceY >= SeaLevel)
                             {
-                                ChunkData[index] = GrassId;
+                                ChunkData[index] = topBlock;
                             }
                             else
                             {
-                                ChunkData[index] = DirtId;
+                                ChunkData[index] = underwaterBlock;
                             }
                         }
-                        else if (depth > 1 && depth <= _dirtDepth + 1)
+                        else if (depth > 1 && depth <= fillerDepth + 1)
                         {
-                            ChunkData[index] = DirtId;
+                            ChunkData[index] = fillerBlock;
                         }
                     }
                 }
             }
+        }
+
+        private NativeBiomeData GetBiome(byte biomeId)
+        {
+            for (int i = 0; i < BiomeData.Length; i++)
+            {
+                if (BiomeData[i].BiomeId == biomeId)
+                {
+                    return BiomeData[i];
+                }
+            }
+
+            return BiomeData[0];
         }
     }
 }

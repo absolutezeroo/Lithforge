@@ -243,13 +243,17 @@ namespace Lithforge.Meshing
             AtlasEntry atlasEntry = AtlasEntries[stateVal];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
-            float lightNorm = light / 15.0f;
+            // Unpack nibbles: high 4 bits = sunLight, low 4 bits = blockLight
+            byte sunLight = (byte)(light >> 4);
+            byte blockLight = (byte)(light & 0x0F);
+            float sunNorm = sunLight / 15.0f;
+            float blockNorm = blockLight / 15.0f;
 
-            // Vertex color: r=AO, g=blockLight(0), b=sunLight, a=texIndex
-            half4 color00 = new half4((half)(ao00 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
-            half4 color10 = new half4((half)(ao10 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
-            half4 color01 = new half4((half)(ao01 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
-            half4 color11 = new half4((half)(ao11 / 3.0f), (half)0.0f, (half)lightNorm, (half)texIndex);
+            // Vertex color: r=AO, g=blockLight, b=sunLight, a=texIndex
+            half4 color00 = new half4((half)(ao00 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+            half4 color10 = new half4((half)(ao10 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+            half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+            half4 color11 = new half4((half)(ao11 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
 
             OpaqueVertices.Add(new MeshVertex
             {
