@@ -1,0 +1,6 @@
+{
+  "parent": "lithforge:item/handheld",
+  "textures": {
+    "layer0": "lithforge:item/diamond_sword"
+  }
+}

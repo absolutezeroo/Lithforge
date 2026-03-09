@@ -136,8 +136,8 @@ namespace Lithforge.Meshing
                         faceAO01[idx] = ao01;
                         faceAO11[idx] = ao11;
 
-                        // Sample light at block position
-                        faceLight[idx] = SampleLight(blockPos);
+                        // Sample light at the exposed side (air/transparent neighbor)
+                        faceLight[idx] = SampleLight(neighborPos);
                     }
                 }
             }

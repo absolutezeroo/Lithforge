@@ -1,23 +1,23 @@
 # Lithforge — Implementation Roadmap (Unity)
 
-## Sprint 0 — Foundation (Weeks 1-2)
+## Sprint 0 — Foundation (Weeks 1-2) ✅ COMPLETED
 
 **Goal**: Unity project scaffold, package structure, core types, Burst proof-of-concept.
 
 ### Deliverables
 
-- [ ] Unity project with URP configured
-- [ ] All local packages created (`com.lithforge.*`) with correct `.asmdef` and `package.json`
-- [ ] `.editorconfig` with enforced rules
-- [ ] `Lithforge.Core`: ResourceId, RegistryBuilder/Registry, EventBus, ILogger, ContentValidator, ValidationResult
-- [ ] `Lithforge.Voxel`: ChunkConstants, StateId, BlockStateCompact, BlockDefinition, BlockRegistry, StateRegistry, NativeStateRegistry, ChunkData (NativeArray), ChunkPool
-- [ ] JSON loader for `data/*/blocks/*.json` → BlockDefinition + StateRegistry computation
-- [ ] Native bake: `StateRegistry.BakeNative()` → `NativeStateRegistry`
-- [ ] Sample content: stone, dirt, grass_block, oak_log, water, air (JSON files in StreamingAssets)
-- [ ] **Burst PoC**: one `[BurstCompile] IJob` that fills a `NativeArray<StateId>` with stone/air based on height → proves Burst pipeline works
-- [ ] `Lithforge.Core.Tests`: Registry, ResourceId, ContentValidator
-- [ ] `Lithforge.Voxel.Tests`: BlockDefinition loading, StateRegistry cartesian product, NativeStateRegistry bake, StateId round-trip
-- [ ] `docs/CLAUDE.md`, ADR-001 through ADR-003
+- [x] Unity project with URP configured
+- [x] All local packages created (`com.lithforge.*`) with correct `.asmdef` and `package.json`
+- [x] `.editorconfig` with enforced rules
+- [x] `Lithforge.Core`: ResourceId, RegistryBuilder/Registry, EventBus, ILogger, ContentValidator, ValidationResult
+- [x] `Lithforge.Voxel`: ChunkConstants, StateId, BlockStateCompact, BlockDefinition, BlockRegistry, StateRegistry, NativeStateRegistry, ChunkData (NativeArray), ChunkPool
+- [x] JSON loader for `data/*/blocks/*.json` → BlockDefinition + StateRegistry computation
+- [x] Native bake: `StateRegistry.BakeNative()` → `NativeStateRegistry`
+- [x] Sample content: stone, dirt, grass_block, oak_log, water, air (JSON files in StreamingAssets)
+- [x] **Burst PoC**: one `[BurstCompile] IJob` that fills a `NativeArray<StateId>` with stone/air based on height → proves Burst pipeline works
+- [x] `Lithforge.Core.Tests`: Registry, ResourceId, ContentValidator
+- [x] `Lithforge.Voxel.Tests`: BlockDefinition loading, StateRegistry cartesian product, NativeStateRegistry bake, StateId round-trip
+- [x] `docs/CLAUDE.md`, ADR-001 through ADR-003
 
 ### Acceptance Criteria
 
@@ -35,25 +35,25 @@
 
 ---
 
-## Sprint 1 — See The World (Weeks 3-4)
+## Sprint 1 — See The World (Weeks 3-4) ✅ COMPLETED
 
 **Goal**: Infinite terrain rendered in Unity with basic face-culled meshing.
 
 ### Deliverables
 
-- [ ] `Lithforge.WorldGen`: GenerationPipeline (managed orchestrator), TerrainShapeJob (Burst), NativeNoise, NativeNoiseConfig
-- [ ] `Lithforge.WorldGen`: SurfaceBuilderJob (Burst) — grass/dirt/stone layering
-- [ ] `Lithforge.Meshing`: MeshVertex (blittable, matching VertexAttributeDescriptor), MeshData (NativeList-based)
-- [ ] `Lithforge.Meshing`: Simple CulledMeshJob (Burst) — face culling only, no greedy yet
-- [ ] `Lithforge.Runtime.Bootstrap`: LithforgeBootstrap, InitializationSequence, ServiceContainer
-- [ ] `Lithforge.Runtime.Rendering`: ChunkRenderer (MeshFilter+MeshRenderer), MeshUploader (Mesh.MeshDataArray), VoxelMaterialManager
-- [ ] `Lithforge.Runtime.Rendering`: LithforgeVoxelOpaque.shader (basic URP, atlas UV, unlit initially)
-- [ ] `Lithforge.Runtime.Input`: Basic FPS camera (CharacterController + mouse look via InputSystem)
-- [ ] `Lithforge.Voxel`: ChunkManager (load/unload ring, spiral-out loading)
-- [ ] TextureAtlasManager: build Texture2DArray from content PNGs
-- [ ] GameLoop MonoBehaviour orchestrating Update() frame flow
-- [ ] Job dependency chain: generate → mesh → upload
-- [ ] DebugOverlayHUD: FPS, loaded chunks, pending jobs
+- [x] `Lithforge.WorldGen`: GenerationPipeline (managed orchestrator), TerrainShapeJob (Burst), NativeNoise, NativeNoiseConfig
+- [x] `Lithforge.WorldGen`: SurfaceBuilderJob (Burst) — grass/dirt/stone layering
+- [x] `Lithforge.Meshing`: MeshVertex (blittable, matching VertexAttributeDescriptor), MeshData (NativeList-based)
+- [x] `Lithforge.Meshing`: Simple CulledMeshJob (Burst) — face culling only, no greedy yet
+- [x] `Lithforge.Runtime.Bootstrap`: LithforgeBootstrap, InitializationSequence, ServiceContainer
+- [x] `Lithforge.Runtime.Rendering`: ChunkRenderer (MeshFilter+MeshRenderer), MeshUploader (Mesh.MeshDataArray), VoxelMaterialManager
+- [x] `Lithforge.Runtime.Rendering`: LithforgeVoxelOpaque.shader (basic URP, atlas UV, unlit initially)
+- [x] `Lithforge.Runtime.Input`: Basic FPS camera (CharacterController + mouse look via InputSystem)
+- [x] `Lithforge.Voxel`: ChunkManager (load/unload ring, spiral-out loading)
+- [x] TextureAtlasManager: build Texture2DArray from content PNGs
+- [x] GameLoop MonoBehaviour orchestrating Update() frame flow
+- [x] Job dependency chain: generate → mesh → upload
+- [x] DebugOverlayHUD: FPS, loaded chunks, pending jobs
 
 ### Acceptance Criteria
 
@@ -70,20 +70,20 @@
 
 ---
 
-## Sprint 2 — Greedy & Beautiful (Weeks 5-6)
+## Sprint 2 — Greedy & Beautiful (Weeks 5-6) ✅ COMPLETED
 
 **Goal**: Greedy meshing, AO, lighting, proper texture atlas, benchmark comparison.
 
 ### Deliverables
 
-- [ ] `Lithforge.Meshing`: GreedyMeshJob (Burst binary greedy), AmbientOcclusion (Burst-compatible)
-- [ ] `Lithforge.Meshing`: AtlasBuilder, NativeAtlasLookup bake
-- [ ] `Lithforge.Lighting`: InitialLightingJob (Burst sunlight), LightData (NativeArray<byte>)
-- [ ] Content asset loading: blockstate JSON → model JSON → parent resolution → per-face texture index
-- [ ] LithforgeVoxelOpaque.shader: AO, block light, sun light, Texture2DArray sampling
-- [ ] Benchmark: GreedyMeshJob vs CulledMeshJob (triangle count, job time)
-- [ ] `Lithforge.Voxel`: ChunkNeighborData extraction for cross-border meshing
-- [ ] Content: add oak_planks, cobblestone, sand, glass, torch models
+- [x] `Lithforge.Meshing`: GreedyMeshJob (Burst binary greedy), AmbientOcclusion (Burst-compatible)
+- [x] `Lithforge.Meshing`: AtlasBuilder, NativeAtlasLookup bake
+- [x] `Lithforge.Lighting`: InitialLightingJob (Burst sunlight), LightData (NativeArray<byte>)
+- [x] Content asset loading: blockstate JSON → model JSON → parent resolution → per-face texture index
+- [x] LithforgeVoxelOpaque.shader: AO, block light, sun light, Texture2DArray sampling
+- [x] Benchmark: GreedyMeshJob vs CulledMeshJob (triangle count, job time)
+- [x] `Lithforge.Voxel`: ChunkNeighborData extraction for cross-border meshing
+- [x] Content: add oak_planks, cobblestone, sand, glass, torch models
 
 ### Acceptance Criteria
 
@@ -100,22 +100,22 @@
 
 ---
 
-## Sprint 3 — Living World (Weeks 7-8)
+## Sprint 3 — Living World (Weeks 7-8) ✅ COMPLETED
 
 **Goal**: Biomes, caves, ores, trees, world save/load.
 
 ### Deliverables
 
-- [ ] `Lithforge.WorldGen`: BiomeAssignmentJob (Burst), SurfaceBuilderJob extended for biomes
-- [ ] `Lithforge.WorldGen`: CaveCarverJob (Burst — worm caves)
-- [ ] `Lithforge.WorldGen`: OreGenerationJob (Burst — scatter + blob)
-- [ ] `Lithforge.WorldGen`: DecorationStage (managed — oak tree templates)
-- [ ] Biome content: plains, forest, desert, mountains (JSON)
-- [ ] Ore content: coal, iron, gold, diamond (JSON)
-- [ ] `Lithforge.Voxel.Storage`: RegionFile, ChunkSerializer (zstd), WorldMetadata
-- [ ] Save on quit, load on launch
-- [ ] `Lithforge.Lighting`: LightPropagationJob (Burst BFS), LightRemovalJob
-- [ ] Day/night cycle: sun angle uniform driving shader sun_light_factor
+- [x] `Lithforge.WorldGen`: BiomeAssignmentJob (Burst), SurfaceBuilderJob extended for biomes
+- [x] `Lithforge.WorldGen`: CaveCarverJob (Burst — worm caves)
+- [x] `Lithforge.WorldGen`: OreGenerationJob (Burst — scatter + blob)
+- [x] `Lithforge.WorldGen`: DecorationStage (managed — oak tree templates)
+- [x] Biome content: plains, forest, desert, mountains (JSON)
+- [x] Ore content: coal, iron, gold, diamond (JSON)
+- [x] `Lithforge.Voxel.Storage`: RegionFile, ChunkSerializer (zstd), WorldMetadata
+- [x] Save on quit, load on launch
+- [x] `Lithforge.Lighting`: LightPropagationJob (Burst BFS), LightRemovalJob
+- [x] Day/night cycle: sun angle uniform driving shader sun_light_factor
 
 ### Acceptance Criteria
 
