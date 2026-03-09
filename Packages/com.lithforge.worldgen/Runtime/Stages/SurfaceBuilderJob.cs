@@ -20,7 +20,7 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public StateId StoneId;
         [ReadOnly] public StateId AirId;
 
-        private const int DIRT_DEPTH = 3;
+        private const int _dirtDepth = 3;
 
         public void Execute()
         {
@@ -57,7 +57,7 @@ namespace Lithforge.WorldGen.Stages
                                 ChunkData[index] = DirtId;
                             }
                         }
-                        else if (depth > 1 && depth <= DIRT_DEPTH + 1)
+                        else if (depth > 1 && depth <= _dirtDepth + 1)
                         {
                             ChunkData[index] = DirtId;
                         }

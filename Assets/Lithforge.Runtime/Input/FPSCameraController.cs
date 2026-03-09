@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Lithforge.Runtime.Input
 {
@@ -6,7 +7,7 @@ namespace Lithforge.Runtime.Input
     {
         [SerializeField] private float moveSpeed = 10f;
         [SerializeField] private float fastMoveSpeed = 50f;
-        [SerializeField] private float lookSensitivity = 2f;
+        [SerializeField] private float lookSensitivity = 0.1f;
 
         private float _pitch;
         private float _yaw;
@@ -19,64 +20,76 @@ namespace Lithforge.Runtime.Input
             Vector3 angles = transform.eulerAngles;
             _yaw = angles.y;
             _pitch = angles.x;
+
+            if (_pitch > 180f)
+            {
+                _pitch -= 360f;
+            }
         }
 
         private void Update()
         {
-            HandleMouseLook();
-            HandleMovement();
-            HandleCursorToggle();
+            Keyboard keyboard = Keyboard.current;
+            Mouse mouse = Mouse.current;
+
+            if (keyboard == null || mouse == null)
+            {
+                return;
+            }
+
+            HandleCursorToggle(keyboard);
+            HandleMouseLook(mouse);
+            HandleMovement(keyboard);
         }
 
-        private void HandleMouseLook()
+        private void HandleMouseLook(Mouse mouse)
         {
             if (Cursor.lockState != CursorLockMode.Locked)
             {
                 return;
             }
 
-            float mouseX = UnityEngine.Input.GetAxis("Mouse X") * lookSensitivity;
-            float mouseY = UnityEngine.Input.GetAxis("Mouse Y") * lookSensitivity;
+            Vector2 delta = mouse.delta.ReadValue();
 
-            _yaw += mouseX;
-            _pitch -= mouseY;
+            _yaw += delta.x * lookSensitivity;
+            _pitch -= delta.y * lookSensitivity;
             _pitch = Mathf.Clamp(_pitch, -89f, 89f);
 
             transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
         }
 
-        private void HandleMovement()
+        private void HandleMovement(Keyboard keyboard)
         {
-            float speed = UnityEngine.Input.GetKey(KeyCode.LeftShift) ? fastMoveSpeed : moveSpeed;
+            float speed = keyboard.leftShiftKey.isPressed ? fastMoveSpeed : moveSpeed;
 
             Vector3 direction = Vector3.zero;
 
-            if (UnityEngine.Input.GetKey(KeyCode.W))
+            if (keyboard.wKey.isPressed)
             {
                 direction += transform.forward;
             }
 
-            if (UnityEngine.Input.GetKey(KeyCode.S))
+            if (keyboard.sKey.isPressed)
             {
                 direction -= transform.forward;
             }
 
-            if (UnityEngine.Input.GetKey(KeyCode.A))
+            if (keyboard.aKey.isPressed)
             {
                 direction -= transform.right;
             }
 
-            if (UnityEngine.Input.GetKey(KeyCode.D))
+            if (keyboard.dKey.isPressed)
             {
                 direction += transform.right;
             }
 
-            if (UnityEngine.Input.GetKey(KeyCode.Space))
+            if (keyboard.spaceKey.isPressed)
             {
                 direction += Vector3.up;
             }
 
-            if (UnityEngine.Input.GetKey(KeyCode.LeftControl))
+            if (keyboard.leftCtrlKey.isPressed)
             {
                 direction -= Vector3.up;
             }
@@ -89,9 +102,9 @@ namespace Lithforge.Runtime.Input
             transform.position += direction * speed * Time.deltaTime;
         }
 
-        private void HandleCursorToggle()
+        private void HandleCursorToggle(Keyboard keyboard)
         {
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape))
+            if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 if (Cursor.lockState == CursorLockMode.Locked)
                 {
