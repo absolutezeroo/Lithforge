@@ -16,6 +16,7 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class GenerationScheduler
     {
         private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
+        private readonly List<ManagedChunk> _generateCache = new List<ManagedChunk>();
         private readonly ChunkManager _chunkManager;
         private readonly GenerationPipeline _generationPipeline;
         private readonly DecorationStage _decorationStage;
@@ -102,11 +103,11 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            List<ManagedChunk> chunks = _chunkManager.GetChunksToGenerate(slotsAvailable);
+            _chunkManager.FillChunksToGenerate(_generateCache, slotsAvailable);
 
-            for (int i = 0; i < chunks.Count; i++)
+            for (int i = 0; i < _generateCache.Count; i++)
             {
-                ManagedChunk chunk = chunks[i];
+                ManagedChunk chunk = _generateCache[i];
 
                 // Try loading from storage first
                 if (_worldStorage != null && _worldStorage.HasChunk(chunk.Coord))

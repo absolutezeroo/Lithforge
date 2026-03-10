@@ -18,8 +18,6 @@ namespace Lithforge.Voxel.Chunk
         private readonly int _yUnloadMax;
         private readonly List<int3> _loadQueue = new List<int3>();
         private bool _disposed;
-        private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
-        private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
 
         public int LoadedCount
@@ -117,49 +115,21 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
-        public List<ManagedChunk> GetChunksToMesh(int maxCount)
+        /// <summary>
+        /// Fills the provided list with all chunks in the Generated state.
+        /// The caller is responsible for filtering (frustum, LOD) and limiting count.
+        /// </summary>
+        public void FillChunksToMesh(List<ManagedChunk> result)
         {
-            List<ManagedChunk> candidates = new List<ManagedChunk>();
+            result.Clear();
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
                 if (kvp.Value.State == ChunkState.Generated)
                 {
-                    candidates.Add(kvp.Value);
+                    result.Add(kvp.Value);
                 }
             }
-
-            // Sort by ready neighbor count (descending) — chunks with more
-            // generated neighbors produce fewer ghost faces and less re-meshing.
-            candidates.Sort((a, b) =>
-                CountReadyNeighbors(b.Coord).CompareTo(CountReadyNeighbors(a.Coord)));
-
-            if (candidates.Count > maxCount)
-            {
-                candidates.RemoveRange(maxCount, candidates.Count - maxCount);
-            }
-
-            return candidates;
-        }
-
-        private int CountReadyNeighbors(int3 coord)
-        {
-            int count = 0;
-
-            if (HasGeneratedNeighbor(coord + new int3(1, 0, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(-1, 0, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, 1, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, -1, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, 0, 1))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, 0, -1))) { count++; }
-
-            return count;
-        }
-
-        private bool HasGeneratedNeighbor(int3 coord)
-        {
-            return _chunks.TryGetValue(coord, out ManagedChunk neighbor)
-                && neighbor.State >= ChunkState.Generated;
         }
 
         /// <summary>
@@ -315,7 +285,7 @@ namespace Lithforge.Voxel.Chunk
         public void UnloadDistantChunks(int3 cameraChunkCoord, List<int3> unloaded)
         {
             unloaded.Clear();
-            List<int3> toRemove = new List<int3>();
+            _toRemoveCache.Clear();
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
@@ -337,14 +307,14 @@ namespace Lithforge.Voxel.Chunk
                         kvp.Value.LightData.Dispose();
                     }
 
-                    toRemove.Add(kvp.Key);
+                    _toRemoveCache.Add(kvp.Key);
                     unloaded.Add(kvp.Key);
                 }
             }
 
-            for (int i = 0; i < toRemove.Count; i++)
+            for (int i = 0; i < _toRemoveCache.Count; i++)
             {
-                _chunks.Remove(toRemove[i]);
+                _chunks.Remove(_toRemoveCache[i]);
             }
         }
 

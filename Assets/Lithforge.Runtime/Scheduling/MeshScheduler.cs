@@ -17,6 +17,7 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class MeshScheduler
     {
         private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+        private readonly List<ManagedChunk> _meshCache = new List<ManagedChunk>();
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
@@ -104,11 +105,12 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            List<ManagedChunk> chunks = _chunkManager.GetChunksToMesh(slotsAvailable);
+            _chunkManager.FillChunksToMesh(_meshCache);
+            int scheduled = 0;
 
-            for (int i = 0; i < chunks.Count; i++)
+            for (int i = 0; i < _meshCache.Count && scheduled < slotsAvailable; i++)
             {
-                ManagedChunk chunk = chunks[i];
+                ManagedChunk chunk = _meshCache[i];
 
                 if (applyFilters)
                 {
@@ -125,6 +127,7 @@ namespace Lithforge.Runtime.Scheduling
                     }
                 }
 
+                scheduled++;
                 chunk.State = ChunkState.Meshing;
 
                 GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
