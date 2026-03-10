@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewBlockBehavior", menuName = "Lithforge/Content/Block Behavior", order = 9)]
-    public sealed class BlockBehaviorSO : ScriptableObject
+    public sealed class BlockBehavior : ScriptableObject
     {
         [Header("Trigger")]
         [Tooltip("When this behavior is triggered")]
@@ -13,14 +13,14 @@ namespace Lithforge.Runtime.Content
 
         [Header("Actions")]
         [Tooltip("Actions to execute when triggered")]
-        [SerializeField] private List<BehaviorActionSO> _actions = new List<BehaviorActionSO>();
+        [SerializeField] private List<BehaviorAction> _actions = new List<BehaviorAction>();
 
         public BlockBehaviorTrigger Trigger
         {
             get { return _trigger; }
         }
 
-        public IReadOnlyList<BehaviorActionSO> Actions
+        public IReadOnlyList<BehaviorAction> Actions
         {
             get { return _actions; }
         }

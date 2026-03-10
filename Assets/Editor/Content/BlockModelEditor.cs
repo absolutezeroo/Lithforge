@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace Lithforge.Editor.Content
 {
-    [CustomEditor(typeof(BlockModelSO))]
-    public sealed class BlockModelSOEditor : UnityEditor.Editor
+    [CustomEditor(typeof(BlockModel))]
+    public sealed class BlockModelEditor : UnityEditor.Editor
     {
         private SerializedProperty _parent;
         private SerializedProperty _builtInParent;
@@ -26,16 +26,16 @@ namespace Lithforge.Editor.Content
         {
             serializedObject.Update();
 
-            BlockModelSO modelSO = (BlockModelSO)target;
+            BlockModel model = (BlockModel)target;
 
             EditorGUILayout.LabelField("Block Model", EditorStyles.boldLabel);
             EditorGUILayout.Space(4);
 
-            EditorGUILayout.PropertyField(_parent, new GUIContent("Parent Model (SO)"));
+            EditorGUILayout.PropertyField(_parent, new GUIContent("Parent Model"));
             EditorGUILayout.PropertyField(_builtInParent, new GUIContent("Built-In Parent Type"));
 
             // Show warning if both parent types are set
-            if (modelSO.Parent != null && modelSO.BuiltInParent != BuiltInParentType.None)
+            if (model.Parent != null && model.BuiltInParent != BuiltInParentType.None)
             {
                 EditorGUILayout.HelpBox(
                     "Both Parent and Built-In Parent are set. " +
@@ -65,18 +65,18 @@ namespace Lithforge.Editor.Content
 
             // Parent chain info
             EditorGUILayout.Space(8);
-            string parentChain = BuildParentChainDescription(modelSO);
+            string parentChain = BuildParentChainDescription(model);
             EditorGUILayout.HelpBox("Parent Chain: " + parentChain, MessageType.Info);
 
             serializedObject.ApplyModifiedProperties();
         }
 
-        private static string BuildParentChainDescription(BlockModelSO model)
+        private static string BuildParentChainDescription(BlockModel model)
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             sb.Append(model.name);
 
-            BlockModelSO current = model.Parent;
+            BlockModel current = model.Parent;
             int depth = 0;
 
             while (current != null && depth < 10)

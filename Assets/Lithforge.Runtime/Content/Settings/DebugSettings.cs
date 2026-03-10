@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Settings
 {
     [CreateAssetMenu(fileName = "DebugSettings", menuName = "Lithforge/Settings/Debug", order = 4)]
-    public sealed class DebugSettingsSO : ScriptableObject
+    public sealed class DebugSettings : ScriptableObject
     {
         [Header("Overlay")]
         [Tooltip("Show debug overlay on startup")]

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewBlockStateMapping", menuName = "Lithforge/Content/Block State Mapping", order = 1)]
-    public sealed class BlockStateMappingSO : ScriptableObject
+    public sealed class BlockStateMapping : ScriptableObject
     {
         [Header("Variants")]
         [Tooltip("Property string → model reference mappings")]
@@ -23,7 +23,7 @@ namespace Lithforge.Runtime.Content
         [SerializeField] private string _variantKey = "";
 
         [Tooltip("Block model for this variant")]
-        [SerializeField] private BlockModelSO _model;
+        [SerializeField] private BlockModel _model;
 
         [Tooltip("X rotation in degrees (0, 90, 180, 270)")]
         [SerializeField] private int _rotationX;
@@ -43,7 +43,7 @@ namespace Lithforge.Runtime.Content
             get { return _variantKey; }
         }
 
-        public BlockModelSO Model
+        public BlockModel Model
         {
             get { return _model; }
         }

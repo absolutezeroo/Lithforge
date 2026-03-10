@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Behaviors
 {
     [CreateAssetMenu(fileName = "NewSpawnParticleAction", menuName = "Lithforge/Behaviors/Spawn Particle")]
-    public sealed class SpawnParticleActionSO : BehaviorActionSO
+    public sealed class SpawnParticleAction : BehaviorAction
     {
         [Tooltip("Particle system prefab")]
         [SerializeField] private ParticleSystem _particlePrefab;

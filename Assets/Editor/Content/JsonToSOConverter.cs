@@ -21,20 +21,20 @@ namespace Lithforge.Editor.Content
         private const string ContentRoot = "Assets/StreamingAssets/content/lithforge/assets/lithforge";
         private const string OutputRoot = "Assets/Resources/Content";
 
-        private static readonly Dictionary<string, BlockModelSO> _modelCache =
-            new Dictionary<string, BlockModelSO>();
+        private static readonly Dictionary<string, BlockModel> _modelCache =
+            new Dictionary<string, BlockModel>();
 
-        private static readonly Dictionary<string, BlockDefinitionSO> _blockCache =
-            new Dictionary<string, BlockDefinitionSO>();
+        private static readonly Dictionary<string, BlockDefinition> _blockCache =
+            new Dictionary<string, BlockDefinition>();
 
-        private static readonly Dictionary<string, BlockStateMappingSO> _mappingCache =
-            new Dictionary<string, BlockStateMappingSO>();
+        private static readonly Dictionary<string, BlockStateMapping> _mappingCache =
+            new Dictionary<string, BlockStateMapping>();
 
-        private static readonly Dictionary<string, LootTableSO> _lootCache =
-            new Dictionary<string, LootTableSO>();
+        private static readonly Dictionary<string, LootTable> _lootCache =
+            new Dictionary<string, LootTable>();
 
-        private static readonly Dictionary<string, ItemDefinitionSO> _itemCache =
-            new Dictionary<string, ItemDefinitionSO>();
+        private static readonly Dictionary<string, ItemDefinition> _itemCache =
+            new Dictionary<string, ItemDefinition>();
 
         [MenuItem("Lithforge/Convert JSON to ScriptableObjects")]
         public static void ConvertAll()
@@ -97,7 +97,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                BlockModelSO model = ScriptableObject.CreateInstance<BlockModelSO>();
+                BlockModel model = ScriptableObject.CreateInstance<BlockModel>();
 
                 // Set built-in parent type
                 string parentStr = root["parent"]?.Value<string>();
@@ -152,8 +152,8 @@ namespace Lithforge.Editor.Content
                 {
                     string parentName = ExtractModelName(parentStr);
 
-                    if (_modelCache.TryGetValue(parentName, out BlockModelSO parentModel) &&
-                        _modelCache.TryGetValue(blockName, out BlockModelSO childModel))
+                    if (_modelCache.TryGetValue(parentName, out BlockModel parentModel) &&
+                        _modelCache.TryGetValue(blockName, out BlockModel childModel))
                     {
                         SerializedObject so = new SerializedObject(childModel);
                         so.FindProperty("_parent").objectReferenceValue = parentModel;
@@ -181,7 +181,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                BlockStateMappingSO mapping = ScriptableObject.CreateInstance<BlockStateMappingSO>();
+                BlockStateMapping mapping = ScriptableObject.CreateInstance<BlockStateMapping>();
                 SerializedObject so = new SerializedObject(mapping);
                 SerializedProperty variantsProp = so.FindProperty("_variants");
 
@@ -218,7 +218,7 @@ namespace Lithforge.Editor.Content
                         {
                             string modelName = ExtractModelName(modelStr);
 
-                            if (_modelCache.TryGetValue(modelName, out BlockModelSO model))
+                            if (_modelCache.TryGetValue(modelName, out BlockModel model))
                             {
                                 entry.FindPropertyRelative("_model").objectReferenceValue = model;
                             }
@@ -252,7 +252,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                LootTableSO lootTable = ScriptableObject.CreateInstance<LootTableSO>();
+                LootTable lootTable = ScriptableObject.CreateInstance<LootTable>();
                 SerializedObject so = new SerializedObject(lootTable);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -350,7 +350,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                BlockDefinitionSO block = ScriptableObject.CreateInstance<BlockDefinitionSO>();
+                BlockDefinition block = ScriptableObject.CreateInstance<BlockDefinition>();
                 SerializedObject so = new SerializedObject(block);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -386,14 +386,14 @@ namespace Lithforge.Editor.Content
                 {
                     string lootName = ExtractSimpleName(lootStr);
 
-                    if (_lootCache.TryGetValue(lootName, out LootTableSO loot))
+                    if (_lootCache.TryGetValue(lootName, out LootTable loot))
                     {
                         so.FindProperty("_lootTable").objectReferenceValue = loot;
                     }
                 }
 
                 // Block state mapping reference
-                if (_mappingCache.TryGetValue(blockName, out BlockStateMappingSO mapping))
+                if (_mappingCache.TryGetValue(blockName, out BlockStateMapping mapping))
                 {
                     so.FindProperty("_blockStateMapping").objectReferenceValue = mapping;
                 }
@@ -504,7 +504,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                ItemDefinitionSO item = ScriptableObject.CreateInstance<ItemDefinitionSO>();
+                ItemDefinition item = ScriptableObject.CreateInstance<ItemDefinition>();
                 SerializedObject so = new SerializedObject(item);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -538,7 +538,7 @@ namespace Lithforge.Editor.Content
                 {
                     string blockName = ExtractSimpleName(blockIdStr);
 
-                    if (_blockCache.TryGetValue(blockName, out BlockDefinitionSO blockDef))
+                    if (_blockCache.TryGetValue(blockName, out BlockDefinition blockDef))
                     {
                         so.FindProperty("_placesBlock").objectReferenceValue = blockDef;
                     }
@@ -578,7 +578,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                TagSO tag = ScriptableObject.CreateInstance<TagSO>();
+                Tag tag = ScriptableObject.CreateInstance<Tag>();
                 SerializedObject so = new SerializedObject(tag);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -609,7 +609,7 @@ namespace Lithforge.Editor.Content
                         // Try to wire SO ref
                         string simpleName = ExtractSimpleName(value);
 
-                        if (_blockCache.TryGetValue(simpleName, out BlockDefinitionSO blockDef))
+                        if (_blockCache.TryGetValue(simpleName, out BlockDefinition blockDef))
                         {
                             entriesProp.InsertArrayElementAtIndex(entriesProp.arraySize);
                             entriesProp.GetArrayElementAtIndex(
@@ -655,7 +655,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                RecipeDefinitionSO recipe = ScriptableObject.CreateInstance<RecipeDefinitionSO>();
+                RecipeDefinition recipe = ScriptableObject.CreateInstance<RecipeDefinition>();
                 SerializedObject so = new SerializedObject(recipe);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -780,7 +780,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                BiomeDefinitionSO biome = ScriptableObject.CreateInstance<BiomeDefinitionSO>();
+                BiomeDefinition biome = ScriptableObject.CreateInstance<BiomeDefinition>();
                 SerializedObject so = new SerializedObject(biome);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -835,7 +835,7 @@ namespace Lithforge.Editor.Content
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                OreDefinitionSO ore = ScriptableObject.CreateInstance<OreDefinitionSO>();
+                OreDefinition ore = ScriptableObject.CreateInstance<OreDefinition>();
                 SerializedObject so = new SerializedObject(ore);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
@@ -875,7 +875,7 @@ namespace Lithforge.Editor.Content
 
             string blockName = ExtractSimpleName(blockIdStr);
 
-            if (_blockCache.TryGetValue(blockName, out BlockDefinitionSO blockDef))
+            if (_blockCache.TryGetValue(blockName, out BlockDefinition blockDef))
             {
                 so.FindProperty(propertyName).objectReferenceValue = blockDef;
             }

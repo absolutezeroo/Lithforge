@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewItem", menuName = "Lithforge/Content/Item Definition", order = 3)]
-    public sealed class ItemDefinitionSO : ScriptableObject
+    public sealed class ItemDefinition : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]
@@ -45,11 +45,11 @@ namespace Lithforge.Runtime.Content
 
         [Header("Block Placement")]
         [Tooltip("Block this item places when used")]
-        [SerializeField] private BlockDefinitionSO _placesBlock;
+        [SerializeField] private BlockDefinition _placesBlock;
 
         [Header("Model")]
         [Tooltip("Item model reference")]
-        [SerializeField] private BlockModelSO _itemModel;
+        [SerializeField] private BlockModel _itemModel;
 
         [Header("Tags")]
         [Tooltip("Tags this item belongs to")]
@@ -100,12 +100,12 @@ namespace Lithforge.Runtime.Content
             get { return _miningSpeed; }
         }
 
-        public BlockDefinitionSO PlacesBlock
+        public BlockDefinition PlacesBlock
         {
             get { return _placesBlock; }
         }
 
-        public BlockModelSO ItemModel
+        public BlockModel ItemModel
         {
             get { return _itemModel; }
         }

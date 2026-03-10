@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Settings
 {
     [CreateAssetMenu(fileName = "RenderingSettings", menuName = "Lithforge/Settings/Rendering", order = 2)]
-    public sealed class RenderingSettingsSO : ScriptableObject
+    public sealed class RenderingSettings : ScriptableObject
     {
         [Header("Materials")]
         [Tooltip("Opaque voxel material")]

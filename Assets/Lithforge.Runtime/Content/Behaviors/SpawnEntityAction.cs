@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Behaviors
 {
     [CreateAssetMenu(fileName = "NewSpawnEntityAction", menuName = "Lithforge/Behaviors/Spawn Entity")]
-    public sealed class SpawnEntityActionSO : BehaviorActionSO
+    public sealed class SpawnEntityAction : BehaviorAction
     {
         [Tooltip("Entity prefab or id to spawn")]
         [SerializeField] private string _entityId;

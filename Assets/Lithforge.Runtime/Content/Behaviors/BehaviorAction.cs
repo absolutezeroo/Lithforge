@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Behaviors
 {
-    public abstract class BehaviorActionSO : ScriptableObject
+    public abstract class BehaviorAction : ScriptableObject
     {
     }
 }

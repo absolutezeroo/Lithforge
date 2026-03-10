@@ -8,15 +8,15 @@ namespace Lithforge.Editor.Content
     {
         private Vector2 _scrollPos;
 
-        private BlockDefinitionSO[] _blocks;
-        private BlockStateMappingSO[] _blockStates;
-        private BlockModelSO[] _models;
-        private ItemDefinitionSO[] _items;
-        private BiomeDefinitionSO[] _biomes;
-        private OreDefinitionSO[] _ores;
-        private LootTableSO[] _lootTables;
-        private TagSO[] _tags;
-        private RecipeDefinitionSO[] _recipes;
+        private BlockDefinition[] _blocks;
+        private BlockStateMapping[] _blockStates;
+        private BlockModel[] _models;
+        private ItemDefinition[] _items;
+        private BiomeDefinition[] _biomes;
+        private OreDefinition[] _ores;
+        private LootTable[] _lootTables;
+        private Tag[] _tags;
+        private RecipeDefinition[] _recipes;
 
         private bool _blocksFoldout = true;
         private bool _modelsFoldout;
@@ -46,15 +46,15 @@ namespace Lithforge.Editor.Content
 
         private void Refresh()
         {
-            _blocks = LoadAll<BlockDefinitionSO>();
-            _blockStates = LoadAll<BlockStateMappingSO>();
-            _models = LoadAll<BlockModelSO>();
-            _items = LoadAll<ItemDefinitionSO>();
-            _biomes = LoadAll<BiomeDefinitionSO>();
-            _ores = LoadAll<OreDefinitionSO>();
-            _lootTables = LoadAll<LootTableSO>();
-            _tags = LoadAll<TagSO>();
-            _recipes = LoadAll<RecipeDefinitionSO>();
+            _blocks = LoadAll<BlockDefinition>();
+            _blockStates = LoadAll<BlockStateMapping>();
+            _models = LoadAll<BlockModel>();
+            _items = LoadAll<ItemDefinition>();
+            _biomes = LoadAll<BiomeDefinition>();
+            _ores = LoadAll<OreDefinition>();
+            _lootTables = LoadAll<LootTable>();
+            _tags = LoadAll<Tag>();
+            _recipes = LoadAll<RecipeDefinition>();
         }
 
         private static T[] LoadAll<T>() where T : ScriptableObject

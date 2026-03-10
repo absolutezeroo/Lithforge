@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Behaviors
 {
     [CreateAssetMenu(fileName = "NewPlaySoundAction", menuName = "Lithforge/Behaviors/Play Sound")]
-    public sealed class PlaySoundActionSO : BehaviorActionSO
+    public sealed class PlaySoundAction : BehaviorAction
     {
         [Tooltip("Sound clip to play")]
         [SerializeField] private AudioClip _clip;

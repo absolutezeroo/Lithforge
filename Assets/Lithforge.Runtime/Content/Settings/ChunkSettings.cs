@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Settings
 {
     [CreateAssetMenu(fileName = "ChunkSettings", menuName = "Lithforge/Settings/Chunk", order = 1)]
-    public sealed class ChunkSettingsSO : ScriptableObject
+    public sealed class ChunkSettings : ScriptableObject
     {
         [Header("Pool")]
         [Tooltip("Number of chunk buffers in the pool")]

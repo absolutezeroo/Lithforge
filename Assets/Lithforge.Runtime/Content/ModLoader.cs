@@ -12,29 +12,29 @@ namespace Lithforge.Runtime.Content
     {
         private readonly List<AssetBundle> _loadedBundles = new List<AssetBundle>();
 
-        public List<BlockDefinitionSO> LoadedBlocks { get; private set; }
-        public List<BlockStateMappingSO> LoadedMappings { get; private set; }
-        public List<BlockModelSO> LoadedModels { get; private set; }
-        public List<ItemDefinitionSO> LoadedItems { get; private set; }
-        public List<RecipeDefinitionSO> LoadedRecipes { get; private set; }
-        public List<TagSO> LoadedTags { get; private set; }
-        public List<LootTableSO> LoadedLootTables { get; private set; }
-        public List<BiomeDefinitionSO> LoadedBiomes { get; private set; }
-        public List<OreDefinitionSO> LoadedOres { get; private set; }
-        public List<ModManifestSO> LoadedManifests { get; private set; }
+        public List<BlockDefinition> LoadedBlocks { get; private set; }
+        public List<BlockStateMapping> LoadedMappings { get; private set; }
+        public List<BlockModel> LoadedModels { get; private set; }
+        public List<ItemDefinition> LoadedItems { get; private set; }
+        public List<RecipeDefinition> LoadedRecipes { get; private set; }
+        public List<Tag> LoadedTags { get; private set; }
+        public List<LootTable> LoadedLootTables { get; private set; }
+        public List<BiomeDefinition> LoadedBiomes { get; private set; }
+        public List<OreDefinition> LoadedOres { get; private set; }
+        public List<ModManifest> LoadedManifests { get; private set; }
 
         public ModLoader()
         {
-            LoadedBlocks = new List<BlockDefinitionSO>();
-            LoadedMappings = new List<BlockStateMappingSO>();
-            LoadedModels = new List<BlockModelSO>();
-            LoadedItems = new List<ItemDefinitionSO>();
-            LoadedRecipes = new List<RecipeDefinitionSO>();
-            LoadedTags = new List<TagSO>();
-            LoadedLootTables = new List<LootTableSO>();
-            LoadedBiomes = new List<BiomeDefinitionSO>();
-            LoadedOres = new List<OreDefinitionSO>();
-            LoadedManifests = new List<ModManifestSO>();
+            LoadedBlocks = new List<BlockDefinition>();
+            LoadedMappings = new List<BlockStateMapping>();
+            LoadedModels = new List<BlockModel>();
+            LoadedItems = new List<ItemDefinition>();
+            LoadedRecipes = new List<RecipeDefinition>();
+            LoadedTags = new List<Tag>();
+            LoadedLootTables = new List<LootTable>();
+            LoadedBiomes = new List<BiomeDefinition>();
+            LoadedOres = new List<OreDefinition>();
+            LoadedManifests = new List<ModManifest>();
         }
 
         public void LoadAllMods()

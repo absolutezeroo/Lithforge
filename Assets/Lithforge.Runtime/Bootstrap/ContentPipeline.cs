@@ -7,8 +7,10 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
+using VoxelItemDefinition = Lithforge.Voxel.Item.ItemDefinition;
+using VoxelRecipeDefinition = Lithforge.Voxel.Crafting.RecipeDefinition;
+using ItemRegistry = Lithforge.Voxel.Item.ItemRegistry;
+using CraftingEngine = Lithforge.Voxel.Crafting.CraftingEngine;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
 using Unity.Collections;
@@ -18,17 +20,17 @@ namespace Lithforge.Runtime.Bootstrap
 {
     /// <summary>
     /// Orchestrates the full content loading pipeline using ScriptableObjects:
-    ///   Phase 1:  Load block SOs via Resources.LoadAll
+    ///   Phase 1:  Load block definitions via Resources.LoadAll
     ///   Phase 2:  Register blocks in StateRegistry
-    ///   Phase 3:  Resolve block models via SOModelResolver
+    ///   Phase 3:  Resolve block models via ContentModelResolver
     ///   Phase 4:  Resolve blockstate variants to per-face textures
     ///   Phase 5:  Build texture atlas
     ///   Phase 6:  Patch texture indices into StateRegistry
-    ///   Phase 7:  Load biome and ore SOs
-    ///   Phase 8:  Load item SOs
-    ///   Phase 9:  Load loot table SOs
-    ///   Phase 10: Load tag SOs and build TagRegistry
-    ///   Phase 11: Load recipe SOs and build CraftingEngine
+    ///   Phase 7:  Load biome and ore definitions
+    ///   Phase 8:  Load item definitions
+    ///   Phase 9:  Load loot tables
+    ///   Phase 10: Load tags and build TagRegistry
+    ///   Phase 11: Load recipes and build CraftingEngine
     ///   Phase 12: Build ItemRegistry
     ///   Phase 13: Load mods
     ///   Phase 14: BakeNative (freeze) + build NativeAtlasLookup
@@ -46,50 +48,50 @@ namespace Lithforge.Runtime.Bootstrap
 
         public ContentPipelineResult Build(string contentRoot)
         {
-            // Phase 1: Load block SOs
-            BlockDefinitionSO[] blockSOs = Resources.LoadAll<BlockDefinitionSO>("Content/Blocks");
-            _logger.LogInfo($"Loaded {blockSOs.Length} block ScriptableObjects.");
+            // Phase 1: Load block definitions
+            BlockDefinition[] blocks = Resources.LoadAll<BlockDefinition>("Content/Blocks");
+            _logger.LogInfo($"Loaded {blocks.Length} block definitions.");
 
             // Phase 2: Register blocks in StateRegistry
             StateRegistry stateRegistry = new StateRegistry();
-            Dictionary<string, BlockDefinitionSO> blockSOLookup =
-                new Dictionary<string, BlockDefinitionSO>();
+            Dictionary<string, BlockDefinition> blockLookup =
+                new Dictionary<string, BlockDefinition>();
 
-            for (int i = 0; i < blockSOs.Length; i++)
+            for (int i = 0; i < blocks.Length; i++)
             {
-                BlockDefinitionSO blockSO = blockSOs[i];
-                ResourceId id = new ResourceId(blockSO.Namespace, blockSO.BlockName);
+                BlockDefinition block = blocks[i];
+                ResourceId id = new ResourceId(block.Namespace, block.BlockName);
 
                 string lootTableStr = null;
 
-                if (blockSO.LootTable != null)
+                if (block.LootTable != null)
                 {
-                    lootTableStr = blockSO.LootTable.Namespace + ":" + blockSO.LootTable.TableName;
+                    lootTableStr = block.LootTable.Namespace + ":" + block.LootTable.TableName;
                 }
 
                 BlockRegistrationData regData = new BlockRegistrationData(
                     id,
-                    blockSO.ComputeStateCount(),
-                    blockSO.RenderLayerString,
-                    blockSO.CollisionShapeString,
-                    blockSO.LightEmission,
-                    blockSO.LightFilter,
-                    blockSO.MapColor,
+                    block.ComputeStateCount(),
+                    block.RenderLayerString,
+                    block.CollisionShapeString,
+                    block.LightEmission,
+                    block.LightFilter,
+                    block.MapColor,
                     lootTableStr,
-                    (float)blockSO.Hardness,
-                    (float)blockSO.BlastResistance);
+                    (float)block.Hardness,
+                    (float)block.BlastResistance);
 
                 stateRegistry.Register(regData);
-                blockSOLookup[id.ToString()] = blockSO;
+                blockLookup[id.ToString()] = block;
             }
 
             _logger.LogInfo(
-                $"Registered {blockSOs.Length} blocks, {stateRegistry.TotalStateCount} states.");
+                $"Registered {blocks.Length} blocks, {stateRegistry.TotalStateCount} states.");
 
-            // Phase 3: Resolve block models via SOModelResolver
-            SOModelResolver modelResolver = new SOModelResolver();
-            Dictionary<BlockModelSO, ResolvedFaceTextures> resolvedModelCache =
-                new Dictionary<BlockModelSO, ResolvedFaceTextures>();
+            // Phase 3: Resolve block models via ContentModelResolver
+            ContentModelResolver modelResolver = new ContentModelResolver();
+            Dictionary<BlockModel, ResolvedFaceTextures> resolvedModelCache =
+                new Dictionary<BlockModel, ResolvedFaceTextures>();
 
             // Phase 4: Resolve blockstate variants to per-face textures
             Dictionary<StateId, ResolvedFaceTextures> resolvedFaces =
@@ -101,12 +103,12 @@ namespace Lithforge.Runtime.Bootstrap
             {
                 StateRegistryEntry entry = entries[i];
 
-                if (!blockSOLookup.TryGetValue(entry.Id.ToString(), out BlockDefinitionSO blockSO))
+                if (!blockLookup.TryGetValue(entry.Id.ToString(), out BlockDefinition block))
                 {
                     continue;
                 }
 
-                BlockStateMappingSO mapping = blockSO.BlockStateMapping;
+                BlockStateMapping mapping = block.BlockStateMapping;
 
                 if (mapping == null)
                 {
@@ -117,7 +119,7 @@ namespace Lithforge.Runtime.Bootstrap
                 for (int offset = 0; offset < entry.StateCount; offset++)
                 {
                     StateId stateId = new StateId((ushort)(entry.BaseStateId + offset));
-                    string variantKey = BuildVariantKey(blockSO, offset);
+                    string variantKey = BuildVariantKey(block, offset);
 
                     BlockStateVariantEntry variant = FindVariant(mapping, variantKey);
 
@@ -167,44 +169,44 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
 
-            // Phase 7: Load biome and ore SOs
-            BiomeDefinitionSO[] biomeSOs = Resources.LoadAll<BiomeDefinitionSO>("Content/Biomes");
-            _logger.LogInfo($"Loaded {biomeSOs.Length} biome definitions.");
+            // Phase 7: Load biome and ore definitions
+            BiomeDefinition[] biomes = Resources.LoadAll<BiomeDefinition>("Content/Biomes");
+            _logger.LogInfo($"Loaded {biomes.Length} biome definitions.");
 
-            OreDefinitionSO[] oreSOs = Resources.LoadAll<OreDefinitionSO>("Content/Ores");
-            _logger.LogInfo($"Loaded {oreSOs.Length} ore definitions.");
+            OreDefinition[] ores = Resources.LoadAll<OreDefinition>("Content/Ores");
+            _logger.LogInfo($"Loaded {ores.Length} ore definitions.");
 
-            // Phase 8: Load item SOs
-            ItemDefinitionSO[] itemSOs = Resources.LoadAll<ItemDefinitionSO>("Content/Items");
-            _logger.LogInfo($"Loaded {itemSOs.Length} item definitions.");
+            // Phase 8: Load item definitions
+            ItemDefinition[] items = Resources.LoadAll<ItemDefinition>("Content/Items");
+            _logger.LogInfo($"Loaded {items.Length} item definitions.");
 
-            // Phase 9: Load loot table SOs and build lookup
-            LootTableSO[] lootTableSOs = Resources.LoadAll<LootTableSO>("Content/LootTables");
+            // Phase 9: Load loot tables and build lookup
+            LootTable[] lootTableAssets = Resources.LoadAll<LootTable>("Content/LootTables");
             Dictionary<ResourceId, LootTableDefinition> lootTables =
                 new Dictionary<ResourceId, LootTableDefinition>();
 
-            for (int i = 0; i < lootTableSOs.Length; i++)
+            for (int i = 0; i < lootTableAssets.Length; i++)
             {
-                LootTableSO ltSO = lootTableSOs[i];
-                ResourceId ltId = new ResourceId(ltSO.Namespace, ltSO.TableName);
-                LootTableDefinition ltDef = ConvertLootTable(ltSO, ltId);
+                LootTable lt = lootTableAssets[i];
+                ResourceId ltId = new ResourceId(lt.Namespace, lt.TableName);
+                LootTableDefinition ltDef = ConvertLootTable(lt, ltId);
                 lootTables[ltId] = ltDef;
             }
 
             _logger.LogInfo($"Loaded {lootTables.Count} loot tables.");
 
-            // Phase 10: Load tag SOs and build TagRegistry
-            TagSO[] tagSOs = Resources.LoadAll<TagSO>("Content/Tags");
+            // Phase 10: Load tags and build TagRegistry
+            Tag[] tagAssets = Resources.LoadAll<Tag>("Content/Tags");
             TagRegistry tagRegistry = new TagRegistry();
 
-            for (int i = 0; i < tagSOs.Length; i++)
+            for (int i = 0; i < tagAssets.Length; i++)
             {
-                TagSO tagSO = tagSOs[i];
-                ResourceId tagId = new ResourceId(tagSO.Namespace, tagSO.TagName);
+                Tag tag = tagAssets[i];
+                ResourceId tagId = new ResourceId(tag.Namespace, tag.TagName);
                 TagDefinition tagDef = new TagDefinition(tagId);
-                tagDef.Replace = tagSO.Replace;
+                tagDef.Replace = tag.Replace;
 
-                IReadOnlyList<string> entryIds = tagSO.EntryIds;
+                IReadOnlyList<string> entryIds = tag.EntryIds;
 
                 for (int e = 0; e < entryIds.Count; e++)
                 {
@@ -214,16 +216,16 @@ namespace Lithforge.Runtime.Bootstrap
                 tagRegistry.Register(tagDef);
             }
 
-            _logger.LogInfo($"Loaded {tagSOs.Length} tags, {tagRegistry.TagCount} unique.");
+            _logger.LogInfo($"Loaded {tagAssets.Length} tags, {tagRegistry.TagCount} unique.");
 
-            // Phase 11: Load recipe SOs and build CraftingEngine
-            RecipeDefinitionSO[] recipeSOs =
-                Resources.LoadAll<RecipeDefinitionSO>("Content/Recipes");
-            List<RecipeDefinition> recipes = new List<RecipeDefinition>();
+            // Phase 11: Load recipes and build CraftingEngine
+            RecipeDefinition[] recipeAssets =
+                Resources.LoadAll<RecipeDefinition>("Content/Recipes");
+            List<VoxelRecipeDefinition> recipes = new List<VoxelRecipeDefinition>();
 
-            for (int i = 0; i < recipeSOs.Length; i++)
+            for (int i = 0; i < recipeAssets.Length; i++)
             {
-                RecipeDefinition recipeDef = ConvertRecipe(recipeSOs[i]);
+                VoxelRecipeDefinition recipeDef = ConvertRecipe(recipeAssets[i]);
                 recipes.Add(recipeDef);
             }
 
@@ -231,11 +233,11 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
 
             // Phase 12: Build ItemRegistry
-            List<ItemDefinition> itemDefinitions = new List<ItemDefinition>();
+            List<VoxelItemDefinition> itemDefinitions = new List<VoxelItemDefinition>();
 
-            for (int i = 0; i < itemSOs.Length; i++)
+            for (int i = 0; i < items.Length; i++)
             {
-                ItemDefinition itemDef = ConvertItem(itemSOs[i]);
+                VoxelItemDefinition itemDef = ConvertItem(items[i]);
                 itemDefinitions.Add(itemDef);
             }
 
@@ -250,7 +252,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             for (int i = 0; i < modLoader.LoadedBlocks.Count; i++)
             {
-                BlockDefinitionSO modBlock = modLoader.LoadedBlocks[i];
+                BlockDefinition modBlock = modLoader.LoadedBlocks[i];
                 ResourceId modId = new ResourceId(modBlock.Namespace, modBlock.BlockName);
 
                 string modLootStr = null;
@@ -284,8 +286,8 @@ namespace Lithforge.Runtime.Bootstrap
                 nativeStateRegistry,
                 nativeAtlasLookup,
                 atlasResult,
-                biomeSOs,
-                oreSOs,
+                biomes,
+                ores,
                 itemDefinitions,
                 lootTables,
                 tagRegistry,
@@ -293,9 +295,9 @@ namespace Lithforge.Runtime.Bootstrap
                 craftingEngine);
         }
 
-        private static string BuildVariantKey(BlockDefinitionSO blockSO, int stateOffset)
+        private static string BuildVariantKey(BlockDefinition block, int stateOffset)
         {
-            IReadOnlyList<BlockPropertyEntry> properties = blockSO.Properties;
+            IReadOnlyList<BlockPropertyEntry> properties = block.Properties;
 
             if (properties == null || properties.Count == 0)
             {
@@ -326,7 +328,7 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         private static BlockStateVariantEntry FindVariant(
-            BlockStateMappingSO mapping,
+            BlockStateMapping mapping,
             string variantKey)
         {
             IReadOnlyList<BlockStateVariantEntry> variants = mapping.Variants;
@@ -342,12 +344,12 @@ namespace Lithforge.Runtime.Bootstrap
             return null;
         }
 
-        private static LootTableDefinition ConvertLootTable(LootTableSO ltSO, ResourceId id)
+        private static LootTableDefinition ConvertLootTable(LootTable lt, ResourceId id)
         {
             LootTableDefinition def = new LootTableDefinition(id);
-            def.Type = ltSO.Type;
+            def.Type = lt.Type;
 
-            IReadOnlyList<LootPoolEntry> pools = ltSO.Pools;
+            IReadOnlyList<LootPoolEntry> pools = lt.Pools;
 
             for (int p = 0; p < pools.Count; p++)
             {
@@ -374,26 +376,26 @@ namespace Lithforge.Runtime.Bootstrap
             return def;
         }
 
-        private static RecipeDefinition ConvertRecipe(RecipeDefinitionSO recipeSO)
+        private static VoxelRecipeDefinition ConvertRecipe(RecipeDefinition source)
         {
-            ResourceId id = new ResourceId(recipeSO.Namespace, recipeSO.RecipeName);
-            RecipeDefinition recipe = new RecipeDefinition(id);
-            recipe.Type = recipeSO.Type;
-            recipe.ResultCount = recipeSO.ResultCount;
+            ResourceId id = new ResourceId(source.Namespace, source.RecipeName);
+            VoxelRecipeDefinition recipe = new VoxelRecipeDefinition(id);
+            recipe.Type = source.Type;
+            recipe.ResultCount = source.ResultCount;
 
-            if (!string.IsNullOrEmpty(recipeSO.ResultItemId))
+            if (!string.IsNullOrEmpty(source.ResultItemId))
             {
-                recipe.ResultItem = ResourceId.Parse(recipeSO.ResultItemId);
+                recipe.ResultItem = ResourceId.Parse(source.ResultItemId);
             }
 
-            IReadOnlyList<string> pattern = recipeSO.Pattern;
+            IReadOnlyList<string> pattern = source.Pattern;
 
             for (int i = 0; i < pattern.Count; i++)
             {
                 recipe.Pattern.Add(pattern[i]);
             }
 
-            IReadOnlyList<RecipeKeyEntry> keys = recipeSO.Keys;
+            IReadOnlyList<RecipeKeyEntry> keys = source.Keys;
 
             for (int i = 0; i < keys.Count; i++)
             {
@@ -405,7 +407,7 @@ namespace Lithforge.Runtime.Bootstrap
                 }
             }
 
-            IReadOnlyList<RecipeIngredient> ingredients = recipeSO.Ingredients;
+            IReadOnlyList<RecipeIngredient> ingredients = source.Ingredients;
 
             for (int i = 0; i < ingredients.Count; i++)
             {
@@ -418,26 +420,26 @@ namespace Lithforge.Runtime.Bootstrap
             return recipe;
         }
 
-        private static ItemDefinition ConvertItem(ItemDefinitionSO itemSO)
+        private static VoxelItemDefinition ConvertItem(ItemDefinition item)
         {
-            ResourceId id = new ResourceId(itemSO.Namespace, itemSO.ItemName);
-            ItemDefinition def = new ItemDefinition(id);
-            def.MaxStackSize = itemSO.MaxStackSize;
-            def.ToolType = itemSO.ToolType;
-            def.ToolLevel = itemSO.ToolLevel;
-            def.Durability = itemSO.Durability;
-            def.AttackDamage = itemSO.AttackDamage;
-            def.AttackSpeed = itemSO.AttackSpeed;
-            def.MiningSpeed = itemSO.MiningSpeed;
+            ResourceId id = new ResourceId(item.Namespace, item.ItemName);
+            VoxelItemDefinition def = new VoxelItemDefinition(id);
+            def.MaxStackSize = item.MaxStackSize;
+            def.ToolType = item.ToolType;
+            def.ToolLevel = item.ToolLevel;
+            def.Durability = item.Durability;
+            def.AttackDamage = item.AttackDamage;
+            def.AttackSpeed = item.AttackSpeed;
+            def.MiningSpeed = item.MiningSpeed;
 
-            if (itemSO.PlacesBlock != null)
+            if (item.PlacesBlock != null)
             {
                 def.IsBlockItem = true;
                 def.BlockId = new ResourceId(
-                    itemSO.PlacesBlock.Namespace, itemSO.PlacesBlock.BlockName);
+                    item.PlacesBlock.Namespace, item.PlacesBlock.BlockName);
             }
 
-            IReadOnlyList<string> tags = itemSO.Tags;
+            IReadOnlyList<string> tags = item.Tags;
 
             for (int i = 0; i < tags.Count; i++)
             {

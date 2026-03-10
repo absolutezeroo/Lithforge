@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace Lithforge.Editor.Content
 {
-    [CustomEditor(typeof(BlockDefinitionSO))]
-    public sealed class BlockDefinitionSOEditor : UnityEditor.Editor
+    [CustomEditor(typeof(BlockDefinition))]
+    public sealed class BlockDefinitionEditor : UnityEditor.Editor
     {
         private SerializedProperty _namespace;
         private SerializedProperty _blockName;
@@ -49,7 +49,7 @@ namespace Lithforge.Editor.Content
         {
             serializedObject.Update();
 
-            BlockDefinitionSO blockDef = (BlockDefinitionSO)target;
+            BlockDefinition blockDef = (BlockDefinition)target;
 
             // Identity header with computed ResourceId
             EditorGUILayout.LabelField("Resource ID", blockDef.Namespace + ":" + blockDef.BlockName, EditorStyles.boldLabel);

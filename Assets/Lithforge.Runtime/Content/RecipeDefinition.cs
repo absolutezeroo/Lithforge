@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewRecipe", menuName = "Lithforge/Content/Recipe Definition", order = 4)]
-    public sealed class RecipeDefinitionSO : ScriptableObject
+    public sealed class RecipeDefinition : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]
@@ -19,9 +19,9 @@ namespace Lithforge.Runtime.Content
 
         [Header("Result")]
         [Tooltip("Result item")]
-        [SerializeField] private ItemDefinitionSO _resultItem;
+        [SerializeField] private ItemDefinition _resultItem;
 
-        [Tooltip("Result item id (fallback when SO ref not available)")]
+        [Tooltip("Result item id (fallback when direct reference not set)")]
         [SerializeField] private string _resultItemId;
 
         [Tooltip("Number of items produced")]
@@ -54,7 +54,7 @@ namespace Lithforge.Runtime.Content
             get { return _type; }
         }
 
-        public ItemDefinitionSO ResultItem
+        public ItemDefinition ResultItem
         {
             get { return _resultItem; }
         }
@@ -92,9 +92,9 @@ namespace Lithforge.Runtime.Content
         [SerializeField] private char _key;
 
         [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinitionSO _item;
+        [SerializeField] private ItemDefinition _item;
 
-        [Tooltip("Item id (fallback when SO ref not available)")]
+        [Tooltip("Item id (fallback when direct reference not set)")]
         [SerializeField] private string _itemId;
 
         [Tooltip("Tag reference (alternative to item)")]
@@ -105,7 +105,7 @@ namespace Lithforge.Runtime.Content
             get { return _key; }
         }
 
-        public ItemDefinitionSO Item
+        public ItemDefinition Item
         {
             get { return _item; }
         }
@@ -125,7 +125,7 @@ namespace Lithforge.Runtime.Content
     public sealed class RecipeIngredient
     {
         [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinitionSO _item;
+        [SerializeField] private ItemDefinition _item;
 
         [Tooltip("Item id (fallback)")]
         [SerializeField] private string _itemId;
@@ -133,7 +133,7 @@ namespace Lithforge.Runtime.Content
         [Tooltip("Tag reference (alternative to item)")]
         [SerializeField] private string _tagId;
 
-        public ItemDefinitionSO Item
+        public ItemDefinition Item
         {
             get { return _item; }
         }

@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewOre", menuName = "Lithforge/Content/Ore Definition", order = 8)]
-    public sealed class OreDefinitionSO : ScriptableObject
+    public sealed class OreDefinition : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]
@@ -14,10 +14,10 @@ namespace Lithforge.Runtime.Content
 
         [Header("Blocks")]
         [Tooltip("The ore block to place")]
-        [SerializeField] private BlockDefinitionSO _oreBlock;
+        [SerializeField] private BlockDefinition _oreBlock;
 
         [Tooltip("The block this ore replaces (usually stone)")]
-        [SerializeField] private BlockDefinitionSO _replaceBlock;
+        [SerializeField] private BlockDefinition _replaceBlock;
 
         [Header("Generation")]
         [Tooltip("Minimum Y level")]
@@ -47,12 +47,12 @@ namespace Lithforge.Runtime.Content
             get { return _oreName; }
         }
 
-        public BlockDefinitionSO OreBlock
+        public BlockDefinition OreBlock
         {
             get { return _oreBlock; }
         }
 
-        public BlockDefinitionSO ReplaceBlock
+        public BlockDefinition ReplaceBlock
         {
             get { return _replaceBlock; }
         }

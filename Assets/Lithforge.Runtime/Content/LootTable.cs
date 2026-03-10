@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewLootTable", menuName = "Lithforge/Content/Loot Table", order = 6)]
-    public sealed class LootTableSO : ScriptableObject
+    public sealed class LootTable : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]
@@ -87,9 +87,9 @@ namespace Lithforge.Runtime.Content
         [SerializeField] private string _type = "item";
 
         [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinitionSO _item;
+        [SerializeField] private ItemDefinition _item;
 
-        [Tooltip("Item name (fallback when SO ref not available)")]
+        [Tooltip("Item name (fallback when direct reference not set)")]
         [SerializeField] private string _itemName = "";
 
         [Tooltip("Selection weight")]
@@ -107,7 +107,7 @@ namespace Lithforge.Runtime.Content
             get { return _type; }
         }
 
-        public ItemDefinitionSO Item
+        public ItemDefinition Item
         {
             get { return _item; }
         }

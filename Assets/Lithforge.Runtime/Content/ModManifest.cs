@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewModManifest", menuName = "Lithforge/Content/Mod Manifest", order = 10)]
-    public sealed class ModManifestSO : ScriptableObject
+    public sealed class ModManifest : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Unique mod identifier")]

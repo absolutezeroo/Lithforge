@@ -14,45 +14,45 @@ namespace Lithforge.Editor.Content
             // Prompt for block name
             string blockName = "new_block";
 
-            // Create BlockModelSO
-            BlockModelSO modelSO = ScriptableObject.CreateInstance<BlockModelSO>();
+            // Create BlockModel
+            BlockModel model = ScriptableObject.CreateInstance<BlockModel>();
             string modelPath = AssetDatabase.GenerateUniqueAssetPath(
                 path + "/" + blockName + "_model.asset");
-            AssetDatabase.CreateAsset(modelSO, modelPath);
+            AssetDatabase.CreateAsset(model, modelPath);
 
-            // Create BlockStateMappingSO
-            BlockStateMappingSO mappingSO = ScriptableObject.CreateInstance<BlockStateMappingSO>();
+            // Create BlockStateMapping
+            BlockStateMapping mapping = ScriptableObject.CreateInstance<BlockStateMapping>();
             string mappingPath = AssetDatabase.GenerateUniqueAssetPath(
                 path + "/" + blockName + "_blockstate.asset");
-            AssetDatabase.CreateAsset(mappingSO, mappingPath);
+            AssetDatabase.CreateAsset(mapping, mappingPath);
 
             // Wire model into mapping's default variant
-            SerializedObject mappingObj = new SerializedObject(mappingSO);
+            SerializedObject mappingObj = new SerializedObject(mapping);
             SerializedProperty variants = mappingObj.FindProperty("_variants");
             variants.arraySize = 1;
             SerializedProperty variant0 = variants.GetArrayElementAtIndex(0);
             variant0.FindPropertyRelative("_variantKey").stringValue = "";
-            variant0.FindPropertyRelative("_model").objectReferenceValue = modelSO;
+            variant0.FindPropertyRelative("_model").objectReferenceValue = model;
             variant0.FindPropertyRelative("_weight").intValue = 1;
             mappingObj.ApplyModifiedPropertiesWithoutUndo();
 
-            // Create BlockDefinitionSO
-            BlockDefinitionSO blockSO = ScriptableObject.CreateInstance<BlockDefinitionSO>();
+            // Create BlockDefinition
+            BlockDefinition block = ScriptableObject.CreateInstance<BlockDefinition>();
             string blockPath = AssetDatabase.GenerateUniqueAssetPath(
                 path + "/" + blockName + ".asset");
-            AssetDatabase.CreateAsset(blockSO, blockPath);
+            AssetDatabase.CreateAsset(block, blockPath);
 
             // Wire mapping into block definition
-            SerializedObject blockObj = new SerializedObject(blockSO);
+            SerializedObject blockObj = new SerializedObject(block);
             blockObj.FindProperty("_blockName").stringValue = blockName;
-            blockObj.FindProperty("_blockStateMapping").objectReferenceValue = mappingSO;
+            blockObj.FindProperty("_blockStateMapping").objectReferenceValue = mapping;
             blockObj.ApplyModifiedPropertiesWithoutUndo();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Selection.activeObject = blockSO;
-            EditorGUIUtility.PingObject(blockSO);
+            Selection.activeObject = block;
+            EditorGUIUtility.PingObject(block);
 
             Debug.Log(
                 $"[Lithforge] Created full block setup: {blockPath}, {mappingPath}, {modelPath}");

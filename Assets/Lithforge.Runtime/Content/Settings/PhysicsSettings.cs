@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Settings
 {
     [CreateAssetMenu(fileName = "PhysicsSettings", menuName = "Lithforge/Settings/Physics", order = 3)]
-    public sealed class PhysicsSettingsSO : ScriptableObject
+    public sealed class PhysicsSettings : ScriptableObject
     {
         [Header("Player")]
         [Tooltip("Player eye height")]

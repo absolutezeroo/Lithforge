@@ -4,11 +4,11 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewBlockModel", menuName = "Lithforge/Content/Block Model", order = 2)]
-    public sealed class BlockModelSO : ScriptableObject
+    public sealed class BlockModel : ScriptableObject
     {
         [Header("Parent")]
-        [Tooltip("Parent model (direct SO reference). Drag-drop for parent chain resolution.")]
-        [SerializeField] private BlockModelSO _parent;
+        [Tooltip("Parent model (direct reference). Drag-drop for parent chain resolution.")]
+        [SerializeField] private BlockModel _parent;
 
         [Tooltip("Built-in parent type (used when parent is a terminal built-in model)")]
         [SerializeField] private BuiltInParentType _builtInParent = BuiltInParentType.None;
@@ -21,7 +21,7 @@ namespace Lithforge.Runtime.Content
         [Tooltip("Model geometry elements (optional, for custom shapes)")]
         [SerializeField] private List<ModelElement> _elements = new List<ModelElement>();
 
-        public BlockModelSO Parent
+        public BlockModel Parent
         {
             get { return _parent; }
         }

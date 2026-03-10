@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Settings
 {
     [CreateAssetMenu(fileName = "WorldGenSettings", menuName = "Lithforge/Settings/World Gen", order = 0)]
-    public sealed class WorldGenSettingsSO : ScriptableObject
+    public sealed class WorldGenSettings : ScriptableObject
     {
         [Header("Terrain Noise")]
         [Min(0.0001f)]

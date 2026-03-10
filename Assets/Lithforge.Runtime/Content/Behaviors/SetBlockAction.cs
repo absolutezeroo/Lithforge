@@ -3,15 +3,15 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content.Behaviors
 {
     [CreateAssetMenu(fileName = "NewSetBlockAction", menuName = "Lithforge/Behaviors/Set Block")]
-    public sealed class SetBlockActionSO : BehaviorActionSO
+    public sealed class SetBlockAction : BehaviorAction
     {
         [Tooltip("Block to set")]
-        [SerializeField] private BlockDefinitionSO _block;
+        [SerializeField] private BlockDefinition _block;
 
         [Tooltip("Offset from trigger block position")]
         [SerializeField] private Vector3Int _offset;
 
-        public BlockDefinitionSO Block
+        public BlockDefinition Block
         {
             get { return _block; }
         }

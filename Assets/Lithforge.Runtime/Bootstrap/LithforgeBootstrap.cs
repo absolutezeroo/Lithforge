@@ -11,7 +11,7 @@ using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Voxel.Item;
+using ItemRegistry = Lithforge.Voxel.Item.ItemRegistry;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
@@ -156,13 +156,13 @@ namespace Lithforge.Runtime.Bootstrap
             StateId waterId = FindStateId("lithforge:water");
 
             // Build native biome data
-            BiomeDefinitionSO[] biomeDefs = _contentResult.BiomeDefinitions;
+            BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;
             _nativeBiomeData = new NativeArray<NativeBiomeData>(
-                biomeDefs.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                biomes.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-            for (int i = 0; i < biomeDefs.Length; i++)
+            for (int i = 0; i < biomes.Length; i++)
             {
-                BiomeDefinitionSO def = biomeDefs[i];
+                BiomeDefinition def = biomes[i];
                 _nativeBiomeData[i] = new NativeBiomeData
                 {
                     BiomeId = (byte)i,
@@ -183,13 +183,13 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Build native ore configs
-            OreDefinitionSO[] oreDefs = _contentResult.OreDefinitions;
+            OreDefinition[] ores = _contentResult.OreDefinitions;
             _nativeOreConfigs = new NativeArray<NativeOreConfig>(
-                oreDefs.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                ores.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-            for (int i = 0; i < oreDefs.Length; i++)
+            for (int i = 0; i < ores.Length; i++)
             {
-                OreDefinitionSO def = oreDefs[i];
+                OreDefinition def = ores[i];
                 _nativeOreConfigs[i] = new NativeOreConfig
                 {
                     OreStateId = FindStateIdForBlock(def.OreBlock),
@@ -414,14 +414,14 @@ namespace Lithforge.Runtime.Bootstrap
             }
         }
 
-        private StateId FindStateIdForBlock(BlockDefinitionSO blockSO)
+        private StateId FindStateIdForBlock(BlockDefinition blockDef)
         {
-            if (blockSO == null)
+            if (blockDef == null)
             {
                 return StateId.Air;
             }
 
-            return FindStateId(blockSO.Namespace + ":" + blockSO.BlockName);
+            return FindStateId(blockDef.Namespace + ":" + blockDef.BlockName);
         }
 
         private StateId FindStateId(string idString)

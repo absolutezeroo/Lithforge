@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewTag", menuName = "Lithforge/Content/Tag", order = 5)]
-    public sealed class TagSO : ScriptableObject
+    public sealed class Tag : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]

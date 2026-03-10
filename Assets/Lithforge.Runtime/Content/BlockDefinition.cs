@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewBlock", menuName = "Lithforge/Content/Block Definition", order = 0)]
-    public sealed class BlockDefinitionSO : ScriptableObject
+    public sealed class BlockDefinition : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id (e.g. 'lithforge')")]
@@ -49,10 +49,10 @@ namespace Lithforge.Runtime.Content
 
         [Header("References")]
         [Tooltip("Loot table for this block")]
-        [SerializeField] private LootTableSO _lootTable;
+        [SerializeField] private LootTable _lootTable;
 
         [Tooltip("Block state mapping (variants)")]
-        [SerializeField] private BlockStateMappingSO _blockStateMapping;
+        [SerializeField] private BlockStateMapping _blockStateMapping;
 
         [Header("Properties")]
         [Tooltip("Block state properties (axis, facing, lit, etc.)")]
@@ -117,12 +117,12 @@ namespace Lithforge.Runtime.Content
             get { return _mapColor; }
         }
 
-        public LootTableSO LootTable
+        public LootTable LootTable
         {
             get { return _lootTable; }
         }
 
-        public BlockStateMappingSO BlockStateMapping
+        public BlockStateMapping BlockStateMapping
         {
             get { return _blockStateMapping; }
         }

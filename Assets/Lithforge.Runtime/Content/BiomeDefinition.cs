@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     [CreateAssetMenu(fileName = "NewBiome", menuName = "Lithforge/Content/Biome Definition", order = 7)]
-    public sealed class BiomeDefinitionSO : ScriptableObject
+    public sealed class BiomeDefinition : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]
@@ -39,16 +39,16 @@ namespace Lithforge.Runtime.Content
 
         [Header("Surface Blocks")]
         [Tooltip("Top surface block (e.g. grass_block)")]
-        [SerializeField] private BlockDefinitionSO _topBlock;
+        [SerializeField] private BlockDefinition _topBlock;
 
         [Tooltip("Filler block below surface (e.g. dirt)")]
-        [SerializeField] private BlockDefinitionSO _fillerBlock;
+        [SerializeField] private BlockDefinition _fillerBlock;
 
         [Tooltip("Stone block")]
-        [SerializeField] private BlockDefinitionSO _stoneBlock;
+        [SerializeField] private BlockDefinition _stoneBlock;
 
         [Tooltip("Block used underwater")]
-        [SerializeField] private BlockDefinitionSO _underwaterBlock;
+        [SerializeField] private BlockDefinition _underwaterBlock;
 
         [Header("Terrain")]
         [Tooltip("Depth of filler blocks")]
@@ -106,22 +106,22 @@ namespace Lithforge.Runtime.Content
             get { return _humidityCenter; }
         }
 
-        public BlockDefinitionSO TopBlock
+        public BlockDefinition TopBlock
         {
             get { return _topBlock; }
         }
 
-        public BlockDefinitionSO FillerBlock
+        public BlockDefinition FillerBlock
         {
             get { return _fillerBlock; }
         }
 
-        public BlockDefinitionSO StoneBlock
+        public BlockDefinition StoneBlock
         {
             get { return _stoneBlock; }
         }
 
-        public BlockDefinitionSO UnderwaterBlock
+        public BlockDefinition UnderwaterBlock
         {
             get { return _underwaterBlock; }
         }

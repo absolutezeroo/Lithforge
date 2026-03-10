@@ -5,26 +5,26 @@ using UnityEngine;
 namespace Lithforge.Runtime.Content
 {
     /// <summary>
-    /// Walks BlockModelSO.Parent chains via direct SO references,
+    /// Walks BlockModel.Parent chains via direct references,
     /// merges textures/elements, resolves #variable chains, and
     /// detects circular parents via HashSet.
     /// </summary>
-    public sealed class SOModelResolver
+    public sealed class ContentModelResolver
     {
         private const int _maxParentDepth = 16;
 
-        public ResolvedFaceTextures Resolve(BlockModelSO model)
+        public ResolvedFaceTextures Resolve(BlockModel model)
         {
             if (model == null)
             {
                 return CreateMissing();
             }
 
-            List<BlockModelSO> chain = new List<BlockModelSO>();
-            HashSet<BlockModelSO> visited = new HashSet<BlockModelSO>();
+            List<BlockModel> chain = new List<BlockModel>();
+            HashSet<BlockModel> visited = new HashSet<BlockModel>();
             BuiltInParentType terminalType = BuiltInParentType.None;
 
-            BlockModelSO current = model;
+            BlockModel current = model;
 
             for (int depth = 0; depth <= _maxParentDepth; depth++)
             {
@@ -35,7 +35,7 @@ namespace Lithforge.Runtime.Content
 
                 if (!visited.Add(current))
                 {
-                    Debug.LogWarning($"[SOModelResolver] Circular parent chain detected at '{current.name}'.");
+                    Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
                     break;
                 }
 
@@ -88,7 +88,7 @@ namespace Lithforge.Runtime.Content
 
                 if (!visitedVars.Add(varName))
                 {
-                    Debug.LogWarning($"[SOModelResolver] Circular texture variable reference: #{varName}");
+                    Debug.LogWarning($"[ContentModelResolver] Circular texture variable reference: #{varName}");
                     break;
                 }
 
