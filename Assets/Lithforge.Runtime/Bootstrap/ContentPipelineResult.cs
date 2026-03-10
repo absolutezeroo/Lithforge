@@ -36,7 +36,7 @@ namespace Lithforge.Runtime.Bootstrap
             AtlasResult atlasResult,
             BiomeDefinition[] biomeDefinitions,
             OreDefinition[] oreDefinitions,
-            List<ItemEntry> itemDefinitions,
+            List<ItemEntry> itemEntries,
             Dictionary<ResourceId, LootTableDefinition> lootTables,
             TagRegistry tagRegistry,
             ItemRegistry itemRegistry,
@@ -48,7 +48,7 @@ namespace Lithforge.Runtime.Bootstrap
             AtlasResult = atlasResult;
             BiomeDefinitions = biomeDefinitions;
             OreDefinitions = oreDefinitions;
-            ItemEntries = itemDefinitions;
+            ItemEntries = itemEntries;
             LootTables = lootTables;
             TagRegistry = tagRegistry;
             ItemRegistry = itemRegistry;

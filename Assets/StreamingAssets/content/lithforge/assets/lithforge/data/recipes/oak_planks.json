@@ -1,0 +1,10 @@
+{
+  "type": "shapeless",
+  "ingredients": [
+    { "item": "lithforge:oak_log" }
+  ],
+  "result": {
+    "item": "lithforge:oak_planks",
+    "count": 4
+  }
+}

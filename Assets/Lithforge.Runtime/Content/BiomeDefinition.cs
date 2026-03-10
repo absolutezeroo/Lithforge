@@ -145,5 +145,13 @@ namespace Lithforge.Runtime.Content
         {
             get { return _mapColor; }
         }
+
+        private void OnValidate()
+        {
+            if (string.IsNullOrEmpty(_biomeName))
+            {
+                _biomeName = name;
+            }
+        }
     }
 }

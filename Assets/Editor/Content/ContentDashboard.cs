@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Lithforge.Runtime.Content;
 using UnityEditor;
 using UnityEngine;
@@ -26,6 +27,9 @@ namespace Lithforge.Editor.Content
         private bool _lootFoldout;
         private bool _tagsFoldout;
         private bool _recipesFoldout;
+        private bool _validationFoldout = true;
+
+        private List<string> _validationWarnings = new List<string>();
 
         [MenuItem("Lithforge/Content Dashboard")]
         public static void ShowWindow()
@@ -55,6 +59,72 @@ namespace Lithforge.Editor.Content
             _lootTables = LoadAll<LootTable>();
             _tags = LoadAll<Tag>();
             _recipes = LoadAll<RecipeDefinition>();
+            RunValidation();
+        }
+
+        private void RunValidation()
+        {
+            _validationWarnings.Clear();
+
+            // Check blocks without blockstate mappings
+            for (int i = 0; i < _blocks.Length; i++)
+            {
+                BlockDefinition block = _blocks[i];
+
+                if (block == null)
+                {
+                    continue;
+                }
+
+                if (block.BlockStateMapping == null)
+                {
+                    _validationWarnings.Add($"Block '{block.name}' has no BlockStateMapping assigned.");
+                }
+
+                if (block.LootTable == null && !block.BlockName.Equals("air"))
+                {
+                    _validationWarnings.Add($"Block '{block.name}' has no LootTable assigned.");
+                }
+            }
+
+            // Check blockstate mappings with null model references
+            for (int i = 0; i < _blockStates.Length; i++)
+            {
+                BlockStateMapping mapping = _blockStates[i];
+
+                if (mapping == null)
+                {
+                    continue;
+                }
+
+                IReadOnlyList<BlockStateVariantEntry> variants = mapping.Variants;
+
+                for (int v = 0; v < variants.Count; v++)
+                {
+                    if (variants[v].Model == null)
+                    {
+                        _validationWarnings.Add(
+                            $"BlockStateMapping '{mapping.name}' variant '{variants[v].VariantKey}' has no model assigned.");
+                    }
+                }
+            }
+
+            // Check models with broken parent chains
+            for (int i = 0; i < _models.Length; i++)
+            {
+                BlockModel model = _models[i];
+
+                if (model == null)
+                {
+                    continue;
+                }
+
+                if (model.Parent == null && model.BuiltInParent == BuiltInParentType.None &&
+                    model.Textures.Count == 0 && model.Elements.Count == 0)
+                {
+                    _validationWarnings.Add($"Model '{model.name}' has no parent, no textures, and no elements.");
+                }
+            }
         }
 
         private static T[] LoadAll<T>() where T : ScriptableObject
@@ -96,6 +166,23 @@ namespace Lithforge.Editor.Content
                 MessageType.None);
 
             EditorGUILayout.Space(8);
+
+            // Validation warnings
+            if (_validationWarnings.Count > 0)
+            {
+                _validationFoldout = EditorGUILayout.Foldout(
+                    _validationFoldout, $"Warnings ({_validationWarnings.Count})", true);
+
+                if (_validationFoldout)
+                {
+                    for (int i = 0; i < _validationWarnings.Count; i++)
+                    {
+                        EditorGUILayout.HelpBox(_validationWarnings[i], MessageType.Warning);
+                    }
+                }
+
+                EditorGUILayout.Space(8);
+            }
 
             _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 

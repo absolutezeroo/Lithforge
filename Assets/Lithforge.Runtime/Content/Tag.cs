@@ -48,5 +48,13 @@ namespace Lithforge.Runtime.Content
         {
             get { return _entryIds; }
         }
+
+        private void OnValidate()
+        {
+            if (string.IsNullOrEmpty(_tagName))
+            {
+                _tagName = name;
+            }
+        }
     }
 }

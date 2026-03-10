@@ -1,0 +1,16 @@
+{
+  "type": "shaped",
+  "pattern": [
+    "###",
+    " | ",
+    " | "
+  ],
+  "key": {
+    "#": { "item": "lithforge:iron_ore" },
+    "|": { "item": "lithforge:stick" }
+  },
+  "result": {
+    "item": "lithforge:iron_pickaxe",
+    "count": 1
+  }
+}

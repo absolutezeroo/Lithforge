@@ -1,0 +1,9 @@
+{
+  "max_stack_size": 1,
+  "tool_type": "shovel",
+  "tool_level": 3,
+  "durability": 1561,
+  "attack_damage": 4.5,
+  "attack_speed": 1.0,
+  "mining_speed": 8.0
+}

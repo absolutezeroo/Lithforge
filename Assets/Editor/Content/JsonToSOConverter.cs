@@ -56,8 +56,11 @@ namespace Lithforge.Editor.Content
             EnsureDirectory(OutputRoot + "/Biomes");
             EnsureDirectory(OutputRoot + "/Ores");
 
+            EnsureDirectory(OutputRoot + "/ItemModels");
+
             // Order matters: models first, then blockstates, then blocks (which ref both)
             ConvertBlockModels();
+            ConvertItemModels();
             ConvertBlockStates();
             ConvertLootTables();
             ConvertBlocks();
@@ -163,6 +166,100 @@ namespace Lithforge.Editor.Content
             }
         }
 
+        private static void ConvertItemModels()
+        {
+            string modelsDir = Path.Combine(ContentRoot, "models", "item");
+
+            if (!Directory.Exists(modelsDir))
+            {
+                return;
+            }
+
+            string[] files = Directory.GetFiles(modelsDir, "*.json");
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                string filePath = files[i];
+                string itemName = Path.GetFileNameWithoutExtension(filePath);
+                string json = File.ReadAllText(filePath);
+                JObject root = JObject.Parse(json);
+
+                BlockModel model = ScriptableObject.CreateInstance<BlockModel>();
+                SerializedObject so = new SerializedObject(model);
+
+                // Parent reference
+                string parentStr = root["parent"]?.Value<string>();
+
+                if (IsBuiltInModel(parentStr))
+                {
+                    so.FindProperty("_builtInParent").enumValueIndex =
+                        (int)ParseBuiltInParent(parentStr);
+                }
+
+                // Textures
+                SerializedProperty texturesProp = so.FindProperty("_textures");
+                JObject texturesObj = root["textures"] as JObject;
+
+                if (texturesObj != null)
+                {
+                    foreach (KeyValuePair<string, JToken> kvp in texturesObj)
+                    {
+                        texturesProp.InsertArrayElementAtIndex(texturesProp.arraySize);
+                        SerializedProperty entry = texturesProp.GetArrayElementAtIndex(
+                            texturesProp.arraySize - 1);
+                        entry.FindPropertyRelative("_variable").stringValue = kvp.Key;
+                        entry.FindPropertyRelative("_value").stringValue = kvp.Value.ToString();
+                    }
+                }
+
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                string assetPath = $"{OutputRoot}/ItemModels/{itemName}.asset";
+                AssetDatabase.CreateAsset(model, assetPath);
+            }
+
+            // Wire parent references between item models and block models
+            string[] allFiles = Directory.GetFiles(modelsDir, "*.json");
+
+            for (int i = 0; i < allFiles.Length; i++)
+            {
+                string filePath = allFiles[i];
+                string itemName = Path.GetFileNameWithoutExtension(filePath);
+                string json = File.ReadAllText(filePath);
+                JObject root = JObject.Parse(json);
+
+                string parentStr = root["parent"]?.Value<string>();
+
+                if (!string.IsNullOrEmpty(parentStr) && !IsBuiltInModel(parentStr))
+                {
+                    string parentName = ExtractModelName(parentStr);
+                    string assetPath = $"{OutputRoot}/ItemModels/{itemName}.asset";
+                    BlockModel childModel = AssetDatabase.LoadAssetAtPath<BlockModel>(assetPath);
+
+                    if (childModel == null)
+                    {
+                        continue;
+                    }
+
+                    // Check item models first, then block models
+                    string parentItemPath = $"{OutputRoot}/ItemModels/{parentName}.asset";
+                    BlockModel parentModel = AssetDatabase.LoadAssetAtPath<BlockModel>(parentItemPath);
+
+                    if (parentModel == null && _modelCache.TryGetValue(parentName, out BlockModel blockParent))
+                    {
+                        parentModel = blockParent;
+                    }
+
+                    if (parentModel != null)
+                    {
+                        SerializedObject so = new SerializedObject(childModel);
+                        so.FindProperty("_parent").objectReferenceValue = parentModel;
+                        so.ApplyModifiedPropertiesWithoutUndo();
+                    }
+                }
+            }
+        }
+
         private static void ConvertBlockStates()
         {
             string blockstatesDir = Path.Combine(ContentRoot, "blockstates");
@@ -236,14 +333,47 @@ namespace Lithforge.Editor.Content
 
         private static void ConvertLootTables()
         {
-            string lootDir = Path.Combine(ContentRoot, "data", "loot_tables", "blocks");
+            string primaryDir = Path.Combine(ContentRoot, "data", "loot_tables", "blocks");
+            string altDir = Path.Combine(ContentRoot, "loot_tables", "blocks");
 
-            if (!Directory.Exists(lootDir))
+            List<string> allFiles = new List<string>();
+            HashSet<string> seenNames = new HashSet<string>();
+
+            // Primary path first
+            if (Directory.Exists(primaryDir))
+            {
+                string[] primaryFiles = Directory.GetFiles(primaryDir, "*.json");
+
+                for (int i = 0; i < primaryFiles.Length; i++)
+                {
+                    allFiles.Add(primaryFiles[i]);
+                    seenNames.Add(Path.GetFileNameWithoutExtension(primaryFiles[i]));
+                }
+            }
+
+            // Alt path: only add files not already found in primary
+            if (Directory.Exists(altDir))
+            {
+                string[] altFiles = Directory.GetFiles(altDir, "*.json");
+
+                for (int i = 0; i < altFiles.Length; i++)
+                {
+                    string name = Path.GetFileNameWithoutExtension(altFiles[i]);
+
+                    if (!seenNames.Contains(name))
+                    {
+                        allFiles.Add(altFiles[i]);
+                        seenNames.Add(name);
+                    }
+                }
+            }
+
+            if (allFiles.Count == 0)
             {
                 return;
             }
 
-            string[] files = Directory.GetFiles(lootDir, "*.json");
+            string[] files = allFiles.ToArray();
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -890,7 +1020,12 @@ namespace Lithforge.Editor.Content
 
             return parentRef.Equals("lithforge:block/cube") ||
                    parentRef.Equals("lithforge:block/cube_all") ||
-                   parentRef.Equals("lithforge:block/cube_column");
+                   parentRef.Equals("lithforge:block/cube_column") ||
+                   parentRef.Equals("lithforge:block/cube_bottom_top") ||
+                   parentRef.Equals("lithforge:block/orientable") ||
+                   parentRef.Equals("lithforge:block/cross") ||
+                   parentRef.Equals("lithforge:item/generated") ||
+                   parentRef.Equals("lithforge:item/handheld");
         }
 
         private static BuiltInParentType ParseBuiltInParent(string parentRef)
@@ -908,6 +1043,23 @@ namespace Lithforge.Editor.Content
             if (parentRef.Equals("lithforge:block/cube"))
             {
                 return BuiltInParentType.Cube;
+            }
+
+            if (parentRef.Equals("lithforge:block/cube_bottom_top"))
+            {
+                return BuiltInParentType.CubeBottomTop;
+            }
+
+            if (parentRef.Equals("lithforge:block/orientable"))
+            {
+                return BuiltInParentType.Orientable;
+            }
+
+            if (parentRef.Equals("lithforge:block/cross") ||
+                parentRef.Equals("lithforge:item/generated") ||
+                parentRef.Equals("lithforge:item/handheld"))
+            {
+                return BuiltInParentType.Cross;
             }
 
             return BuiltInParentType.None;

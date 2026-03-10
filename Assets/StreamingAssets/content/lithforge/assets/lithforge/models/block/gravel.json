@@ -1,0 +1,6 @@
+{
+  "parent": "lithforge:block/cube_all",
+  "textures": {
+    "all": "lithforge:block/gravel"
+  }
+}

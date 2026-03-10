@@ -1,0 +1,15 @@
+{
+  "temperature_min": 0.0,
+  "temperature_max": 0.3,
+  "temperature_center": 0.15,
+  "humidity_min": 0.0,
+  "humidity_max": 0.7,
+  "humidity_center": 0.35,
+  "top_block": "lithforge:stone",
+  "filler_block": "lithforge:gravel",
+  "stone_block": "lithforge:stone",
+  "underwater_block": "lithforge:gravel",
+  "filler_depth": 2,
+  "tree_density": 0.01,
+  "height_modifier": 0.0
+}

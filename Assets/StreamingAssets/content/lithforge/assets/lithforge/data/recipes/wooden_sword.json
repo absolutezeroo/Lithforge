@@ -1,0 +1,16 @@
+{
+  "type": "shaped",
+  "pattern": [
+    "#",
+    "#",
+    "|"
+  ],
+  "key": {
+    "#": { "item": "lithforge:oak_planks" },
+    "|": { "item": "lithforge:stick" }
+  },
+  "result": {
+    "item": "lithforge:wooden_sword",
+    "count": 1
+  }
+}

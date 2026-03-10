@@ -1,0 +1,15 @@
+{
+  "type": "shaped",
+  "pattern": [
+    "###",
+    "# #",
+    "###"
+  ],
+  "key": {
+    "#": { "item": "lithforge:cobblestone" }
+  },
+  "result": {
+    "item": "lithforge:furnace",
+    "count": 1
+  }
+}

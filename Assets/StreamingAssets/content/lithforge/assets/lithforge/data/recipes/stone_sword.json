@@ -1,0 +1,16 @@
+{
+  "type": "shaped",
+  "pattern": [
+    "#",
+    "#",
+    "|"
+  ],
+  "key": {
+    "#": { "item": "lithforge:cobblestone" },
+    "|": { "item": "lithforge:stick" }
+  },
+  "result": {
+    "item": "lithforge:stone_sword",
+    "count": 1
+  }
+}

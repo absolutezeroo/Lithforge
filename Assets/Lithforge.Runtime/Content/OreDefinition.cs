@@ -81,11 +81,13 @@ namespace Lithforge.Runtime.Content
         {
             get { return _oreType; }
         }
-    }
 
-    public enum OreType
-    {
-        Blob = 0,
-        Scatter = 1,
+        private void OnValidate()
+        {
+            if (string.IsNullOrEmpty(_oreName))
+            {
+                _oreName = name;
+            }
+        }
     }
 }

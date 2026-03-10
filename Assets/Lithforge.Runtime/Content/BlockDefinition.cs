@@ -193,113 +193,13 @@ namespace Lithforge.Runtime.Content
 
             return count;
         }
-    }
 
-    public enum CollisionShapeType
-    {
-        FullCube = 0,
-        None = 1,
-        Slab = 2,
-        Stairs = 3,
-        Fence = 4,
-    }
-
-    public enum RenderLayerType
-    {
-        Opaque = 0,
-        Cutout = 1,
-        Translucent = 2,
-    }
-
-    [System.Serializable]
-    public sealed class BlockPropertyEntry
-    {
-        [Tooltip("Property name (e.g. 'facing', 'lit', 'axis')")]
-        [SerializeField] private string _name;
-
-        [Tooltip("Property type")]
-        [SerializeField] private BlockPropertyKind _kind;
-
-        [Tooltip("Possible values (for enum type, or auto-generated for bool/int)")]
-        [SerializeField] private List<string> _values = new List<string>();
-
-        [Tooltip("Default value")]
-        [SerializeField] private string _defaultValue;
-
-        [Tooltip("Min value (for int range type)")]
-        [SerializeField] private int _minValue;
-
-        [Tooltip("Max value (for int range type)")]
-        [SerializeField] private int _maxValue;
-
-        public string Name
+        private void OnValidate()
         {
-            get { return _name; }
-        }
-
-        public BlockPropertyKind Kind
-        {
-            get { return _kind; }
-        }
-
-        public IReadOnlyList<string> Values
-        {
-            get { return _values; }
-        }
-
-        public string DefaultValue
-        {
-            get { return _defaultValue; }
-        }
-
-        public int MinValue
-        {
-            get { return _minValue; }
-        }
-
-        public int MaxValue
-        {
-            get { return _maxValue; }
-        }
-
-        public int ValueCount
-        {
-            get
+            if (string.IsNullOrEmpty(_blockName))
             {
-                switch (_kind)
-                {
-                    case BlockPropertyKind.Bool:
-                        return 2;
-                    case BlockPropertyKind.IntRange:
-                        return _maxValue - _minValue + 1;
-                    case BlockPropertyKind.Enum:
-                        return _values.Count;
-                    default:
-                        return 1;
-                }
+                _blockName = name;
             }
         }
-
-        public string GetValue(int index)
-        {
-            switch (_kind)
-            {
-                case BlockPropertyKind.Bool:
-                    return index == 0 ? "true" : "false";
-                case BlockPropertyKind.IntRange:
-                    return (_minValue + index).ToString();
-                case BlockPropertyKind.Enum:
-                    return _values[index];
-                default:
-                    return _defaultValue;
-            }
-        }
-    }
-
-    public enum BlockPropertyKind
-    {
-        Bool = 0,
-        IntRange = 1,
-        Enum = 2,
     }
 }

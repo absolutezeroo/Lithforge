@@ -1,0 +1,10 @@
+{
+  "hardness": 0.3,
+  "blast_resistance": 0.3,
+  "collision_shape": "full_cube",
+  "render_layer": "cutout",
+  "light_emission": 0,
+  "light_filter": 0,
+  "sound_group": "glass",
+  "map_color": "#FFFFFF"
+}

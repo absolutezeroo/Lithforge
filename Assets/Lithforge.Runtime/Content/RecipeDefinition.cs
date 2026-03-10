@@ -83,69 +83,13 @@ namespace Lithforge.Runtime.Content
         {
             get { return _ingredients; }
         }
-    }
 
-    [System.Serializable]
-    public sealed class RecipeKeyEntry
-    {
-        [Tooltip("Pattern character")]
-        [SerializeField] private char _key;
-
-        [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition _item;
-
-        [Tooltip("Item id (fallback when direct reference not set)")]
-        [SerializeField] private string _itemId;
-
-        [Tooltip("Tag reference (alternative to item)")]
-        [SerializeField] private string _tagId;
-
-        public char Key
+        private void OnValidate()
         {
-            get { return _key; }
-        }
-
-        public ItemDefinition Item
-        {
-            get { return _item; }
-        }
-
-        public string ItemId
-        {
-            get { return _itemId; }
-        }
-
-        public string TagId
-        {
-            get { return _tagId; }
-        }
-    }
-
-    [System.Serializable]
-    public sealed class RecipeIngredient
-    {
-        [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition _item;
-
-        [Tooltip("Item id (fallback)")]
-        [SerializeField] private string _itemId;
-
-        [Tooltip("Tag reference (alternative to item)")]
-        [SerializeField] private string _tagId;
-
-        public ItemDefinition Item
-        {
-            get { return _item; }
-        }
-
-        public string ItemId
-        {
-            get { return _itemId; }
-        }
-
-        public string TagId
-        {
-            get { return _tagId; }
+            if (string.IsNullOrEmpty(_recipeName))
+            {
+                _recipeName = name;
+            }
         }
     }
 }

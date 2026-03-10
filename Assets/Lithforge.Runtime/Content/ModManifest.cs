@@ -57,25 +57,13 @@ namespace Lithforge.Runtime.Content
         {
             get { return _dependencies; }
         }
-    }
 
-    [System.Serializable]
-    public sealed class ModDependency
-    {
-        [Tooltip("Required mod id")]
-        [SerializeField] private string _modId;
-
-        [Tooltip("Minimum required version")]
-        [SerializeField] private string _minVersion;
-
-        public string ModId
+        private void OnValidate()
         {
-            get { return _modId; }
-        }
-
-        public string MinVersion
-        {
-            get { return _minVersion; }
+            if (string.IsNullOrEmpty(_modName))
+            {
+                _modName = name;
+            }
         }
     }
 }

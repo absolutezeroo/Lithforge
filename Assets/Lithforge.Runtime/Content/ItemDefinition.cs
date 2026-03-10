@@ -119,5 +119,13 @@ namespace Lithforge.Runtime.Content
         {
             get { return _placesBlock != null; }
         }
+
+        private void OnValidate()
+        {
+            if (string.IsNullOrEmpty(_itemName))
+            {
+                _itemName = name;
+            }
+        }
     }
 }
