@@ -29,12 +29,12 @@ namespace Lithforge.Editor.Content
 
             // Wire model into mapping's default variant
             SerializedObject mappingObj = new SerializedObject(mapping);
-            SerializedProperty variants = mappingObj.FindProperty("_variants");
+            SerializedProperty variants = mappingObj.FindProperty("variants");
             variants.arraySize = 1;
             SerializedProperty variant0 = variants.GetArrayElementAtIndex(0);
-            variant0.FindPropertyRelative("_variantKey").stringValue = "";
-            variant0.FindPropertyRelative("_model").objectReferenceValue = model;
-            variant0.FindPropertyRelative("_weight").intValue = 1;
+            variant0.FindPropertyRelative("variantKey").stringValue = "";
+            variant0.FindPropertyRelative("model").objectReferenceValue = model;
+            variant0.FindPropertyRelative("weight").intValue = 1;
             mappingObj.ApplyModifiedPropertiesWithoutUndo();
 
             // Create BlockDefinition
@@ -45,8 +45,8 @@ namespace Lithforge.Editor.Content
 
             // Wire mapping into block definition
             SerializedObject blockObj = new SerializedObject(block);
-            blockObj.FindProperty("_blockName").stringValue = blockName;
-            blockObj.FindProperty("_blockStateMapping").objectReferenceValue = mapping;
+            blockObj.FindProperty("blockName").stringValue = blockName;
+            blockObj.FindProperty("blockStateMapping").objectReferenceValue = mapping;
             blockObj.ApplyModifiedPropertiesWithoutUndo();
 
             AssetDatabase.SaveAssets();

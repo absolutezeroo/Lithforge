@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed826a7008d41af439b6ee23fed7cb6d, type: 3}
   m_Name: RenderingSettings
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.RenderingSettings
-  _opaqueMaterial: {fileID: 0}
-  _translucentMaterial: {fileID: 0}
-  _skyGradient:
+  opaqueMaterial: {fileID: 0}
+  translucentMaterial: {fileID: 0}
+  skyGradient:
     serializedVersion: 2
     key0: {r: 1, g: 1, b: 1, a: 1}
     key1: {r: 1, g: 1, b: 1, a: 1}
@@ -44,7 +44,7 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
-  _ambientGradient:
+  ambientGradient:
     serializedVersion: 2
     key0: {r: 1, g: 1, b: 1, a: 1}
     key1: {r: 1, g: 1, b: 1, a: 1}
@@ -74,20 +74,20 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
-  _farClipPlane: 500
-  _initialCameraPitch: 30
-  _dayLengthSeconds: 600
-  _startTimeOfDay: 0.25
-  _sunAngleOffset: -90
-  _sunAzimuth: -30
-  _minSunIntensity: 0.1
-  _dayNightCurve:
+  farClipPlane: 500
+  initialCameraPitch: 30
+  dayLengthSeconds: 600
+  startTimeOfDay: 0.25
+  sunAngleOffset: -90
+  sunAzimuth: -30
+  minSunIntensity: 0.1
+  dayNightCurve:
     serializedVersion: 2
     m_Curve: []
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  _blockHighlightLineWidth: 0.02
-  _blockHighlightColor: {r: 0, g: 0, b: 0, a: 1}
-  _blockHighlightExpand: 0.005
-  _atlasTileSize: 16
+  blockHighlightLineWidth: 0.02
+  blockHighlightColor: {r: 0, g: 0, b: 0, a: 1}
+  blockHighlightExpand: 0.005
+  atlasTileSize: 16

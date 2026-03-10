@@ -11,9 +11,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: diamond_ore
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockStateMapping
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
   _variants:
-  - _variantKey: 
+  - _variantKey:
     _model: {fileID: 11400000, guid: a83fa83318335614f97ce3ba5f25eefe, type: 2}
     _rotationX: 0
     _rotationY: 0

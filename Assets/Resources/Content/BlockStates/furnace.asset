@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: furnace
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockStateMapping
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
   _variants:
   - _variantKey: facing=north,lit=true
     _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}

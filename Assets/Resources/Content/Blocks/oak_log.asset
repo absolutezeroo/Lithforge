@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
   m_Name: oak_log
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
   _blockName: oak_log
   _hardness: 2

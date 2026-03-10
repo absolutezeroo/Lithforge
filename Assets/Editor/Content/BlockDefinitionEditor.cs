@@ -29,20 +29,20 @@ namespace Lithforge.Editor.Content
         private void OnEnable()
         {
             _namespace = serializedObject.FindProperty("_namespace");
-            _blockName = serializedObject.FindProperty("_blockName");
-            _hardness = serializedObject.FindProperty("_hardness");
-            _blastResistance = serializedObject.FindProperty("_blastResistance");
-            _requiresTool = serializedObject.FindProperty("_requiresTool");
-            _soundGroup = serializedObject.FindProperty("_soundGroup");
-            _collisionShape = serializedObject.FindProperty("_collisionShape");
-            _renderLayer = serializedObject.FindProperty("_renderLayer");
-            _lightEmission = serializedObject.FindProperty("_lightEmission");
-            _lightFilter = serializedObject.FindProperty("_lightFilter");
-            _mapColor = serializedObject.FindProperty("_mapColor");
-            _lootTable = serializedObject.FindProperty("_lootTable");
-            _blockStateMapping = serializedObject.FindProperty("_blockStateMapping");
-            _properties = serializedObject.FindProperty("_properties");
-            _tags = serializedObject.FindProperty("_tags");
+            _blockName = serializedObject.FindProperty("blockName");
+            _hardness = serializedObject.FindProperty("hardness");
+            _blastResistance = serializedObject.FindProperty("blastResistance");
+            _requiresTool = serializedObject.FindProperty("requiresTool");
+            _soundGroup = serializedObject.FindProperty("soundGroup");
+            _collisionShape = serializedObject.FindProperty("collisionShape");
+            _renderLayer = serializedObject.FindProperty("renderLayer");
+            _lightEmission = serializedObject.FindProperty("lightEmission");
+            _lightFilter = serializedObject.FindProperty("lightFilter");
+            _mapColor = serializedObject.FindProperty("mapColor");
+            _lootTable = serializedObject.FindProperty("lootTable");
+            _blockStateMapping = serializedObject.FindProperty("blockStateMapping");
+            _properties = serializedObject.FindProperty("properties");
+            _tags = serializedObject.FindProperty("tags");
         }
 
         public override void OnInspectorGUI()

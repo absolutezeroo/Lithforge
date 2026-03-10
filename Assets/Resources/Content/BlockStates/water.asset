@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: water
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockStateMapping
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
   _variants:
   - _variantKey: level=0
     _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}

@@ -16,10 +16,10 @@ namespace Lithforge.Editor.Content
 
         private void OnEnable()
         {
-            _parent = serializedObject.FindProperty("_parent");
-            _builtInParent = serializedObject.FindProperty("_builtInParent");
-            _textures = serializedObject.FindProperty("_textures");
-            _elements = serializedObject.FindProperty("_elements");
+            _parent = serializedObject.FindProperty("parent");
+            _builtInParent = serializedObject.FindProperty("builtInParent");
+            _textures = serializedObject.FindProperty("textures");
+            _elements = serializedObject.FindProperty("elements");
         }
 
         public override void OnInspectorGUI()
