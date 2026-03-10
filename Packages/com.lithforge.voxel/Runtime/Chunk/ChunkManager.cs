@@ -18,6 +18,9 @@ namespace Lithforge.Voxel.Chunk
         private readonly int _yUnloadMax;
         private readonly List<int3> _loadQueue = new List<int3>();
         private bool _disposed;
+        private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
+        private readonly List<int> _neighborCountCache = new List<int>();
+        private readonly List<int3> _toRemoveCache = new List<int3>();
 
         public int LoadedCount
         {
@@ -85,9 +88,9 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
-        public List<ManagedChunk> GetChunksToGenerate(int maxCount)
+        public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)
         {
-            List<ManagedChunk> result = new List<ManagedChunk>();
+            result.Clear();
 
             int count = math.min(maxCount, _loadQueue.Count);
 
@@ -107,16 +110,11 @@ namespace Lithforge.Voxel.Chunk
                 result.Add(chunk);
             }
 
-            // Remove claimed coords from queue
-            if (result.Count > 0)
+            // Remove processed prefix — queue is rebuilt each frame by UpdateLoadingQueue
+            if (count > 0)
             {
-                for (int i = 0; i < result.Count; i++)
-                {
-                    _loadQueue.Remove(result[i].Coord);
-                }
+                _loadQueue.RemoveRange(0, count);
             }
-
-            return result;
         }
 
         public List<ManagedChunk> GetChunksToMesh(int maxCount)
@@ -360,6 +358,45 @@ namespace Lithforge.Voxel.Chunk
                 {
                     chunk.ActiveJobHandle.Complete();
                     storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData);
+                }
+            }
+        }
+
+        private static readonly int3[] _neighborOffsets = new int3[]
+        {
+            new int3(1, 0, 0),
+            new int3(-1, 0, 0),
+            new int3(0, 1, 0),
+            new int3(0, -1, 0),
+            new int3(0, 0, 1),
+            new int3(0, 0, -1),
+        };
+
+        /// <summary>
+        /// Marks all Ready neighbors of the given coord as Generated (needing remesh),
+        /// and flags any Meshing neighbors for re-mesh after their current job completes.
+        /// Called after a chunk finishes generation or is loaded from storage.
+        /// </summary>
+        public void InvalidateReadyNeighbors(int3 coord)
+        {
+            for (int i = 0; i < _neighborOffsets.Length; i++)
+            {
+                int3 neighborCoord = coord + _neighborOffsets[i];
+                ManagedChunk neighbor = GetChunk(neighborCoord);
+
+                if (neighbor == null)
+                {
+                    continue;
+                }
+
+                if (neighbor.State == ChunkState.Ready)
+                {
+                    neighbor.State = ChunkState.Generated;
+                }
+                else if (neighbor.State == ChunkState.Meshing)
+                {
+                    // Job is active — flag for re-mesh after it completes
+                    neighbor.NeedsRemesh = true;
                 }
             }
         }
