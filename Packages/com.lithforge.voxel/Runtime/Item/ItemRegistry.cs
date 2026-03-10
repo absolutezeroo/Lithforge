@@ -11,11 +11,11 @@ namespace Lithforge.Voxel.Item
     /// </summary>
     public sealed class ItemRegistry
     {
-        private readonly Dictionary<ResourceId, ItemDefinition> _items;
+        private readonly Dictionary<ResourceId, ItemEntry> _items;
 
         public ItemRegistry()
         {
-            _items = new Dictionary<ResourceId, ItemDefinition>();
+            _items = new Dictionary<ResourceId, ItemEntry>();
         }
 
         /// <summary>
@@ -27,7 +27,7 @@ namespace Lithforge.Voxel.Item
             for (int i = 0; i < entries.Count; i++)
             {
                 StateRegistryEntry entry = entries[i];
-                ResourceId blockId = entry.Definition.Id;
+                ResourceId blockId = entry.Id;
 
                 // Skip air
                 if (entry.BaseStateId == 0)
@@ -35,7 +35,7 @@ namespace Lithforge.Voxel.Item
                     continue;
                 }
 
-                ItemDefinition itemDef = new ItemDefinition(blockId);
+                ItemEntry itemDef = new ItemEntry(blockId);
                 itemDef.MaxStackSize = 64;
                 itemDef.IsBlockItem = true;
                 itemDef.BlockId = blockId;
@@ -48,7 +48,7 @@ namespace Lithforge.Voxel.Item
         /// Registers standalone item definitions (tools, materials).
         /// Overrides any block item with the same id.
         /// </summary>
-        public void RegisterItems(List<ItemDefinition> items)
+        public void RegisterItems(List<ItemEntry> items)
         {
             for (int i = 0; i < items.Count; i++)
             {
@@ -60,9 +60,9 @@ namespace Lithforge.Voxel.Item
         /// Looks up an item definition by resource id.
         /// Returns null if not found.
         /// </summary>
-        public ItemDefinition Get(ResourceId id)
+        public ItemEntry Get(ResourceId id)
         {
-            if (_items.TryGetValue(id, out ItemDefinition def))
+            if (_items.TryGetValue(id, out ItemEntry def))
             {
                 return def;
             }

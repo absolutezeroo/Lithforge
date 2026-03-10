@@ -410,7 +410,7 @@ namespace Lithforge.Runtime.UI
             }
 
             // Update craft output
-            RecipeDefinition match = _craftingEngine.FindMatch(_craftingGrid);
+            RecipeEntry match = _craftingEngine.FindMatch(_craftingGrid);
 
             if (match != null)
             {
@@ -490,7 +490,7 @@ namespace Lithforge.Runtime.UI
                     else
                     {
                         // Try to add to inventory, pick up as held if full
-                        ItemDefinition def = _itemRegistry.Get(oldCraft);
+                        ItemEntry def = _itemRegistry.Get(oldCraft);
                         int maxStack = def != null ? def.MaxStackSize : 64;
                         int leftOver = _inventory.AddItem(oldCraft, 1, maxStack);
 
@@ -530,7 +530,7 @@ namespace Lithforge.Runtime.UI
                 return;
             }
 
-            RecipeDefinition match = _craftingEngine.FindMatch(_craftingGrid);
+            RecipeEntry match = _craftingEngine.FindMatch(_craftingGrid);
 
             if (match == null)
             {
@@ -538,7 +538,7 @@ namespace Lithforge.Runtime.UI
             }
 
             // Add result to held or inventory
-            ItemDefinition resultDef = _itemRegistry.Get(match.ResultItem);
+            ItemEntry resultDef = _itemRegistry.Get(match.ResultItem);
             int durability = (resultDef != null && resultDef.Durability > 0)
                 ? resultDef.Durability
                 : -1;
@@ -549,7 +549,7 @@ namespace Lithforge.Runtime.UI
             }
             else if (_heldItem.ItemId == match.ResultItem)
             {
-                ItemDefinition def = _itemRegistry.Get(match.ResultItem);
+                ItemEntry def = _itemRegistry.Get(match.ResultItem);
                 int maxStack = def != null ? def.MaxStackSize : 64;
 
                 if (_heldItem.Count + match.ResultCount <= maxStack)
@@ -601,7 +601,7 @@ namespace Lithforge.Runtime.UI
             // Return held item to inventory (only clear if it fit)
             if (!_heldItem.IsEmpty)
             {
-                ItemDefinition def = _itemRegistry.Get(_heldItem.ItemId);
+                ItemEntry def = _itemRegistry.Get(_heldItem.ItemId);
                 int maxStack = def != null ? def.MaxStackSize : 64;
                 int leftOver = _inventory.AddItem(_heldItem.ItemId, _heldItem.Count, maxStack);
 
@@ -626,7 +626,7 @@ namespace Lithforge.Runtime.UI
 
                     if (gridItem.Namespace != null)
                     {
-                        ItemDefinition def = _itemRegistry.Get(gridItem);
+                        ItemEntry def = _itemRegistry.Get(gridItem);
                         int maxStack = def != null ? def.MaxStackSize : 64;
                         int leftOver = _inventory.AddItem(gridItem, 1, maxStack);
 

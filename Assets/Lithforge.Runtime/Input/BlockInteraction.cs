@@ -200,11 +200,11 @@ namespace Lithforge.Runtime.Input
             _miningBlockCoord = blockCoord;
             _miningProgress = 0f;
 
-            // Look up hardness from BlockDefinition
+            // Look up hardness from StateRegistryEntry
             StateId stateId = _chunkManager.GetBlock(blockCoord);
-            BlockDefinition definition = _stateRegistry.GetDefinitionForState(stateId);
+            StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
-            if (definition != null)
+            if (entry != null)
             {
                 // Check if held item is the correct tool
                 float toolMultiplier = 5.0f;
@@ -212,7 +212,7 @@ namespace Lithforge.Runtime.Input
 
                 if (!heldItem.IsEmpty)
                 {
-                    ItemDefinition itemDef = _itemRegistry.Get(heldItem.ItemId);
+                    ItemEntry itemDef = _itemRegistry.Get(heldItem.ItemId);
 
                     if (itemDef != null && itemDef.ToolType != ToolType.None)
                     {
@@ -227,7 +227,7 @@ namespace Lithforge.Runtime.Input
                     }
                 }
 
-                _miningRequiredTime = (float)(definition.Hardness * toolMultiplier);
+                _miningRequiredTime = entry.Hardness * toolMultiplier;
 
                 // Minimum break time of 50ms (instant break for hardness 0)
                 if (_miningRequiredTime < 0.05f)
@@ -245,18 +245,18 @@ namespace Lithforge.Runtime.Input
         {
             // Resolve loot table before breaking
             StateId stateId = _chunkManager.GetBlock(blockCoord);
-            BlockDefinition definition = _stateRegistry.GetDefinitionForState(stateId);
+            StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
-            if (definition != null && !string.IsNullOrEmpty(definition.LootTable))
+            if (entry != null && !string.IsNullOrEmpty(entry.LootTable))
             {
-                if (ResourceId.TryParse(definition.LootTable, out ResourceId tableId))
+                if (ResourceId.TryParse(entry.LootTable, out ResourceId tableId))
                 {
                     List<LootDrop> drops = _lootResolver.Resolve(tableId, _lootRandom);
 
                     for (int i = 0; i < drops.Count; i++)
                     {
                         LootDrop drop = drops[i];
-                        ItemDefinition itemDef = _itemRegistry.Get(drop.ItemId);
+                        ItemEntry itemDef = _itemRegistry.Get(drop.ItemId);
                         int maxStack = itemDef != null ? itemDef.MaxStackSize : 64;
                         _inventory.AddItem(drop.ItemId, drop.Count, maxStack);
                     }
@@ -268,7 +268,7 @@ namespace Lithforge.Runtime.Input
 
             if (!heldItem.IsEmpty)
             {
-                ItemDefinition heldDef = _itemRegistry.Get(heldItem.ItemId);
+                ItemEntry heldDef = _itemRegistry.Get(heldItem.ItemId);
 
                 if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability != -1)
                 {
@@ -305,7 +305,7 @@ namespace Lithforge.Runtime.Input
                 return;
             }
 
-            ItemDefinition itemDef = _itemRegistry.Get(selectedItem.ItemId);
+            ItemEntry itemDef = _itemRegistry.Get(selectedItem.ItemId);
 
             if (itemDef == null || !itemDef.IsBlockItem)
             {
@@ -349,7 +349,7 @@ namespace Lithforge.Runtime.Input
             {
                 StateRegistryEntry entry = entries[i];
 
-                if (entry.Definition.Id == blockId)
+                if (entry.Id == blockId)
                 {
                     return new StateId(entry.BaseStateId);
                 }

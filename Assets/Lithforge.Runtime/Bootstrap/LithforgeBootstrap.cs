@@ -1,10 +1,9 @@
-using System.Collections.Generic;
-
 using Lithforge.Core.Data;
 using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Physics;
+using Lithforge.Runtime.Content;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
@@ -83,9 +82,9 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.Debug.Log(
                 $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
                 $"{_contentResult.NativeAtlasLookup.TextureCount} textures, " +
-                $"{_contentResult.BiomeDefinitions.Count} biomes, " +
-                $"{_contentResult.OreDefinitions.Count} ores, " +
-                $"{_contentResult.ItemDefinitions.Count} items, " +
+                $"{_contentResult.BiomeDefinitions.Length} biomes, " +
+                $"{_contentResult.OreDefinitions.Length} ores, " +
+                $"{_contentResult.ItemEntries.Count} items, " +
                 $"{_contentResult.LootTables.Count} loot tables, " +
                 $"{_contentResult.TagRegistry.TagCount} tags.");
         }
@@ -157,13 +156,13 @@ namespace Lithforge.Runtime.Bootstrap
             StateId waterId = FindStateId("lithforge:water");
 
             // Build native biome data
-            List<BiomeDefinition> biomeDefs = _contentResult.BiomeDefinitions;
+            BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;
             _nativeBiomeData = new NativeArray<NativeBiomeData>(
-                biomeDefs.Count, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                biomes.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-            for (int i = 0; i < biomeDefs.Count; i++)
+            for (int i = 0; i < biomes.Length; i++)
             {
-                BiomeDefinition def = biomeDefs[i];
+                BiomeDefinition def = biomes[i];
                 _nativeBiomeData[i] = new NativeBiomeData
                 {
                     BiomeId = (byte)i,
@@ -173,10 +172,10 @@ namespace Lithforge.Runtime.Bootstrap
                     HumidityMin = def.HumidityMin,
                     HumidityMax = def.HumidityMax,
                     HumidityCenter = def.HumidityCenter,
-                    TopBlock = FindStateId(def.TopBlock.ToString()),
-                    FillerBlock = FindStateId(def.FillerBlock.ToString()),
-                    StoneBlock = FindStateId(def.StoneBlock.ToString()),
-                    UnderwaterBlock = FindStateId(def.UnderwaterBlock.ToString()),
+                    TopBlock = FindStateIdForBlock(def.TopBlock),
+                    FillerBlock = FindStateIdForBlock(def.FillerBlock),
+                    StoneBlock = FindStateIdForBlock(def.StoneBlock),
+                    UnderwaterBlock = FindStateIdForBlock(def.UnderwaterBlock),
                     FillerDepth = (byte)def.FillerDepth,
                     TreeDensity = def.TreeDensity,
                     HeightModifier = def.HeightModifier,
@@ -184,23 +183,22 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Build native ore configs
-            List<OreDefinition> oreDefs = _contentResult.OreDefinitions;
+            OreDefinition[] ores = _contentResult.OreDefinitions;
             _nativeOreConfigs = new NativeArray<NativeOreConfig>(
-                oreDefs.Count, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                ores.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-            for (int i = 0; i < oreDefs.Count; i++)
+            for (int i = 0; i < ores.Length; i++)
             {
-                OreDefinition def = oreDefs[i];
+                OreDefinition def = ores[i];
                 _nativeOreConfigs[i] = new NativeOreConfig
                 {
-                    OreStateId = FindStateId(def.OreBlock.ToString()),
-                    ReplaceStateId = FindStateId(def.ReplaceBlock.ToString()),
+                    OreStateId = FindStateIdForBlock(def.OreBlock),
+                    ReplaceStateId = FindStateIdForBlock(def.ReplaceBlock),
                     MinY = def.MinY,
                     MaxY = def.MaxY,
                     VeinSize = def.VeinSize,
                     Frequency = def.Frequency,
-                    OreType = (byte)(string.Equals(def.OreType, "scatter",
-                        System.StringComparison.Ordinal) ? 0 : 1),
+                    OreType = (byte)(def.OreType == OreType.Scatter ? 0 : 1),
                 };
             }
 
@@ -416,6 +414,16 @@ namespace Lithforge.Runtime.Bootstrap
             }
         }
 
+        private StateId FindStateIdForBlock(BlockDefinition blockDef)
+        {
+            if (blockDef == null)
+            {
+                return StateId.Air;
+            }
+
+            return FindStateId(blockDef.Namespace + ":" + blockDef.BlockName);
+        }
+
         private StateId FindStateId(string idString)
         {
             if (string.IsNullOrEmpty(idString) || !idString.Contains(':'))
@@ -435,7 +443,7 @@ namespace Lithforge.Runtime.Bootstrap
             {
                 StateRegistryEntry entry = entries[i];
 
-                if (entry.Definition.Id.Namespace == ns && entry.Definition.Id.Name == name)
+                if (entry.Id.Namespace == ns && entry.Id.Name == name)
                 {
                     return new StateId(entry.BaseStateId);
                 }

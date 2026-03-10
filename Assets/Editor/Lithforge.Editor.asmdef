@@ -1,15 +1,16 @@
 {
-  "name": "Lithforge.Voxel",
-  "rootNamespace": "Lithforge.Voxel",
+  "name": "Lithforge.Editor",
+  "rootNamespace": "Lithforge.Editor",
   "references": [
     "Lithforge.Core",
-    "Unity.Burst",
-    "Unity.Collections",
-    "Unity.Mathematics"
+    "Lithforge.Voxel",
+    "Lithforge.Runtime"
   ],
-  "includePlatforms": [],
+  "includePlatforms": [
+    "Editor"
+  ],
   "excludePlatforms": [],
-  "allowUnsafeCode": true,
+  "allowUnsafeCode": false,
   "overrideReferences": true,
   "precompiledReferences": [
     "Newtonsoft.Json.dll"
@@ -17,5 +18,5 @@
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": true
+  "noEngineReferences": false
 }

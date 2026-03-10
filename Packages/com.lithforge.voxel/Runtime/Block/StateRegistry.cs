@@ -6,8 +6,8 @@ using Unity.Collections;
 namespace Lithforge.Voxel.Block
 {
     /// <summary>
-    /// Managed state registry that assigns StateId ranges to BlockDefinitions.
-    /// Computes the cartesian product of properties for each block.
+    /// Managed state registry that assigns StateId ranges to blocks.
+    /// Accepts BlockRegistrationData with pre-computed state counts.
     /// StateId(0) is always AIR — this is enforced at construction.
     ///
     /// After all blocks are registered, call BakeNative() to produce the
@@ -47,34 +47,34 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Registers a block definition and computes its state range.
+        /// Registers a block via BlockRegistrationData and computes its state range.
         /// Returns the base StateId assigned.
         /// </summary>
-        public ushort Register(BlockDefinition definition)
+        public ushort Register(BlockRegistrationData data)
         {
             if (_frozen)
             {
                 throw new InvalidOperationException(
-                    $"Cannot register '{definition.Id}' — state registry has been frozen.");
+                    $"Cannot register '{data.Id}' — state registry has been frozen.");
             }
 
             ushort baseId = (ushort)_states.Count;
-            int stateCount = definition.ComputeStateCount();
+            int stateCount = data.StateCount;
 
             if (baseId + stateCount > ushort.MaxValue)
             {
                 throw new OverflowException(
-                    $"StateId overflow registering '{definition.Id}': " +
+                    $"StateId overflow registering '{data.Id}': " +
                     $"base={baseId}, count={stateCount}, max={ushort.MaxValue}.");
             }
 
             // BlockOrdinal is the sequential block index (0-based, excluding AIR)
             ushort blockOrdinal = (ushort)_entries.Count;
 
-            byte flags = ComputeFlags(definition);
-            byte renderLayer = ParseRenderLayer(definition.RenderLayer);
-            byte collisionShape = ParseCollisionShape(definition.CollisionShape);
-            uint mapColor = ParseMapColor(definition.MapColor);
+            byte flags = ComputeFlagsFromData(data);
+            byte renderLayer = ParseRenderLayer(data.RenderLayer);
+            byte collisionShape = ParseCollisionShape(data.CollisionShape);
+            uint mapColor = ParseMapColor(data.MapColor);
 
             for (int i = 0; i < stateCount; i++)
             {
@@ -83,8 +83,8 @@ namespace Lithforge.Voxel.Block
                     BlockId = blockOrdinal,
                     Flags = flags,
                     RenderLayer = renderLayer,
-                    LightEmission = (byte)definition.LightEmission,
-                    LightFilter = (byte)definition.LightFilter,
+                    LightEmission = (byte)data.LightEmission,
+                    LightFilter = (byte)data.LightFilter,
                     CollisionShape = collisionShape,
                     TextureIndexBase = 0,
                     MapColor = mapColor,
@@ -98,7 +98,9 @@ namespace Lithforge.Voxel.Block
                 _states.Add(state);
             }
 
-            StateRegistryEntry entry = new StateRegistryEntry(definition, baseId, stateCount, blockOrdinal);
+            StateRegistryEntry entry = new StateRegistryEntry(
+                data.Id, baseId, stateCount, blockOrdinal, data.LootTable,
+                data.Hardness, data.BlastResistance);
             _entries.Add(entry);
 
             return baseId;
@@ -129,11 +131,11 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Finds the BlockDefinition that owns the given StateId.
+        /// Finds the StateRegistryEntry that owns the given StateId.
         /// Returns null for StateId.Air or if no matching entry is found.
         /// O(n) scan over entries — call infrequently (e.g., on block break), not per-frame.
         /// </summary>
-        public BlockDefinition GetDefinitionForState(StateId id)
+        public StateRegistryEntry GetEntryForState(StateId id)
         {
             if (id.Value == 0)
             {
@@ -146,7 +148,7 @@ namespace Lithforge.Voxel.Block
 
                 if (id.Value >= entry.BaseStateId && id.Value < entry.BaseStateId + entry.StateCount)
                 {
-                    return entry.Definition;
+                    return entry;
                 }
             }
 
@@ -179,13 +181,13 @@ namespace Lithforge.Voxel.Block
             _states[id.Value] = state;
         }
 
-        private static byte ComputeFlags(BlockDefinition definition)
+        private static byte ComputeFlagsFromData(BlockRegistrationData data)
         {
             byte flags = 0;
 
-            bool isOpaque = string.Equals(definition.RenderLayer, "opaque", StringComparison.Ordinal);
-            bool isFullCube = string.Equals(definition.CollisionShape, "full_cube", StringComparison.Ordinal);
-            bool emitsLight = definition.LightEmission > 0;
+            bool isOpaque = string.Equals(data.RenderLayer, "opaque", StringComparison.Ordinal);
+            bool isFullCube = string.Equals(data.CollisionShape, "full_cube", StringComparison.Ordinal);
+            bool emitsLight = data.LightEmission > 0;
 
             if (isOpaque)
             {
