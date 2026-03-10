@@ -7,10 +7,8 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
-using VoxelItemDefinition = Lithforge.Voxel.Item.ItemDefinition;
-using VoxelRecipeDefinition = Lithforge.Voxel.Crafting.RecipeDefinition;
-using ItemRegistry = Lithforge.Voxel.Item.ItemRegistry;
-using CraftingEngine = Lithforge.Voxel.Crafting.CraftingEngine;
+using Lithforge.Voxel.Crafting;
+using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
 using Unity.Collections;
@@ -221,11 +219,11 @@ namespace Lithforge.Runtime.Bootstrap
             // Phase 11: Load recipes and build CraftingEngine
             RecipeDefinition[] recipeAssets =
                 Resources.LoadAll<RecipeDefinition>("Content/Recipes");
-            List<VoxelRecipeDefinition> recipes = new List<VoxelRecipeDefinition>();
+            List<RecipeEntry> recipes = new List<RecipeEntry>();
 
             for (int i = 0; i < recipeAssets.Length; i++)
             {
-                VoxelRecipeDefinition recipeDef = ConvertRecipe(recipeAssets[i]);
+                RecipeEntry recipeDef = ConvertRecipe(recipeAssets[i]);
                 recipes.Add(recipeDef);
             }
 
@@ -233,17 +231,17 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
 
             // Phase 12: Build ItemRegistry
-            List<VoxelItemDefinition> itemDefinitions = new List<VoxelItemDefinition>();
+            List<ItemEntry> itemEntries = new List<ItemEntry>();
 
             for (int i = 0; i < items.Length; i++)
             {
-                VoxelItemDefinition itemDef = ConvertItem(items[i]);
-                itemDefinitions.Add(itemDef);
+                ItemEntry itemDef = ConvertItem(items[i]);
+                itemEntries.Add(itemDef);
             }
 
             ItemRegistry itemRegistry = new ItemRegistry();
             itemRegistry.RegisterBlockItems(stateRegistry.Entries);
-            itemRegistry.RegisterItems(itemDefinitions);
+            itemRegistry.RegisterItems(itemEntries);
             _logger.LogInfo($"ItemRegistry: {itemRegistry.Count} items total.");
 
             // Phase 13: Load mods
@@ -288,7 +286,7 @@ namespace Lithforge.Runtime.Bootstrap
                 atlasResult,
                 biomes,
                 ores,
-                itemDefinitions,
+                itemEntries,
                 lootTables,
                 tagRegistry,
                 itemRegistry,
@@ -376,10 +374,10 @@ namespace Lithforge.Runtime.Bootstrap
             return def;
         }
 
-        private static VoxelRecipeDefinition ConvertRecipe(RecipeDefinition source)
+        private static RecipeEntry ConvertRecipe(RecipeDefinition source)
         {
             ResourceId id = new ResourceId(source.Namespace, source.RecipeName);
-            VoxelRecipeDefinition recipe = new VoxelRecipeDefinition(id);
+            RecipeEntry recipe = new RecipeEntry(id);
             recipe.Type = source.Type;
             recipe.ResultCount = source.ResultCount;
 
@@ -420,10 +418,10 @@ namespace Lithforge.Runtime.Bootstrap
             return recipe;
         }
 
-        private static VoxelItemDefinition ConvertItem(ItemDefinition item)
+        private static ItemEntry ConvertItem(ItemDefinition item)
         {
             ResourceId id = new ResourceId(item.Namespace, item.ItemName);
-            VoxelItemDefinition def = new VoxelItemDefinition(id);
+            ItemEntry def = new ItemEntry(id);
             def.MaxStackSize = item.MaxStackSize;
             def.ToolType = item.ToolType;
             def.ToolLevel = item.ToolLevel;

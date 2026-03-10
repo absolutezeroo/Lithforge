@@ -212,7 +212,7 @@ namespace Lithforge.Runtime.Input
 
                 if (!heldItem.IsEmpty)
                 {
-                    ItemDefinition itemDef = _itemRegistry.Get(heldItem.ItemId);
+                    ItemEntry itemDef = _itemRegistry.Get(heldItem.ItemId);
 
                     if (itemDef != null && itemDef.ToolType != ToolType.None)
                     {
@@ -256,7 +256,7 @@ namespace Lithforge.Runtime.Input
                     for (int i = 0; i < drops.Count; i++)
                     {
                         LootDrop drop = drops[i];
-                        ItemDefinition itemDef = _itemRegistry.Get(drop.ItemId);
+                        ItemEntry itemDef = _itemRegistry.Get(drop.ItemId);
                         int maxStack = itemDef != null ? itemDef.MaxStackSize : 64;
                         _inventory.AddItem(drop.ItemId, drop.Count, maxStack);
                     }
@@ -268,7 +268,7 @@ namespace Lithforge.Runtime.Input
 
             if (!heldItem.IsEmpty)
             {
-                ItemDefinition heldDef = _itemRegistry.Get(heldItem.ItemId);
+                ItemEntry heldDef = _itemRegistry.Get(heldItem.ItemId);
 
                 if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability != -1)
                 {
@@ -305,7 +305,7 @@ namespace Lithforge.Runtime.Input
                 return;
             }
 
-            ItemDefinition itemDef = _itemRegistry.Get(selectedItem.ItemId);
+            ItemEntry itemDef = _itemRegistry.Get(selectedItem.ItemId);
 
             if (itemDef == null || !itemDef.IsBlockItem)
             {

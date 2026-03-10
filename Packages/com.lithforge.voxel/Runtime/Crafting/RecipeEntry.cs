@@ -4,11 +4,11 @@ using Lithforge.Core.Data;
 namespace Lithforge.Voxel.Crafting
 {
     /// <summary>
-    /// Data-driven crafting recipe definition.
-    /// Shaped recipes use a pattern grid + key mapping.
-    /// Shapeless recipes use an unordered ingredient list.
+    /// Resolved crafting recipe entry for the CraftingEngine.
+    /// Built from ScriptableObject data by the ContentPipeline.
+    /// Tier 2 type — no UnityEngine dependencies.
     /// </summary>
-    public sealed class RecipeDefinition
+    public sealed class RecipeEntry
     {
         public ResourceId Id { get; }
 
@@ -35,7 +35,7 @@ namespace Lithforge.Voxel.Crafting
         /// </summary>
         public List<ResourceId> Ingredients { get; set; }
 
-        public RecipeDefinition(ResourceId id)
+        public RecipeEntry(ResourceId id)
         {
             Id = id;
             Type = RecipeType.Shaped;

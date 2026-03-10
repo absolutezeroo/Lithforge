@@ -4,11 +4,11 @@ using Lithforge.Core.Data;
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Data-driven item definition parsed from data/{ns}/item/{id}.json.
-    /// Contains all static properties of an item type.
-    /// Tier 1 type — no Unity dependencies.
+    /// Resolved item entry for the runtime item registry.
+    /// Built from ScriptableObject data by the ContentPipeline.
+    /// Tier 2 type — no UnityEngine dependencies.
     /// </summary>
-    public sealed class ItemDefinition
+    public sealed class ItemEntry
     {
         public ResourceId Id { get; }
         public int MaxStackSize { get; set; }
@@ -22,7 +22,7 @@ namespace Lithforge.Voxel.Item
         public ResourceId BlockId { get; set; }
         public List<string> Tags { get; set; }
 
-        public ItemDefinition(ResourceId id)
+        public ItemEntry(ResourceId id)
         {
             Id = id;
             MaxStackSize = 64;

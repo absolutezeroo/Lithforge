@@ -9,9 +9,9 @@ namespace Lithforge.Voxel.Crafting
     /// </summary>
     public sealed class CraftingEngine
     {
-        private readonly List<RecipeDefinition> _recipes;
+        private readonly List<RecipeEntry> _recipes;
 
-        public CraftingEngine(List<RecipeDefinition> recipes)
+        public CraftingEngine(List<RecipeEntry> recipes)
         {
             _recipes = recipes;
         }
@@ -20,11 +20,11 @@ namespace Lithforge.Voxel.Crafting
         /// Finds the first recipe that matches the current grid contents.
         /// Returns null if no recipe matches.
         /// </summary>
-        public RecipeDefinition FindMatch(CraftingGrid grid)
+        public RecipeEntry FindMatch(CraftingGrid grid)
         {
             for (int i = 0; i < _recipes.Count; i++)
             {
-                RecipeDefinition recipe = _recipes[i];
+                RecipeEntry recipe = _recipes[i];
 
                 if (recipe.Type == RecipeType.Shaped)
                 {
@@ -45,7 +45,7 @@ namespace Lithforge.Voxel.Crafting
             return null;
         }
 
-        private bool MatchesShaped(CraftingGrid grid, RecipeDefinition recipe)
+        private bool MatchesShaped(CraftingGrid grid, RecipeEntry recipe)
         {
             if (recipe.Pattern.Count == 0)
             {
@@ -110,7 +110,7 @@ namespace Lithforge.Voxel.Crafting
             return true;
         }
 
-        private bool MatchesShapeless(CraftingGrid grid, RecipeDefinition recipe)
+        private bool MatchesShapeless(CraftingGrid grid, RecipeEntry recipe)
         {
             // Collect all non-empty items from grid
             List<ResourceId> gridItems = new List<ResourceId>();

@@ -11,7 +11,7 @@ using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
-using ItemRegistry = Lithforge.Voxel.Item.ItemRegistry;
+using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
@@ -84,7 +84,7 @@ namespace Lithforge.Runtime.Bootstrap
                 $"{_contentResult.NativeAtlasLookup.TextureCount} textures, " +
                 $"{_contentResult.BiomeDefinitions.Length} biomes, " +
                 $"{_contentResult.OreDefinitions.Length} ores, " +
-                $"{_contentResult.ItemDefinitions.Count} items, " +
+                $"{_contentResult.ItemEntries.Count} items, " +
                 $"{_contentResult.LootTables.Count} loot tables, " +
                 $"{_contentResult.TagRegistry.TagCount} tags.");
         }
