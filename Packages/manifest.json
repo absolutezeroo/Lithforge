@@ -7,7 +7,7 @@
   ],
   "dependencies": {
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#beta",
-    "com.unity.ai.navigation": "2.0.10",
+    "com.unity.ai.navigation": "2.0.11",
     "com.unity.burst": "1.8.28",
     "com.unity.collab-proxy": "2.11.4",
     "com.unity.collections": "2.6.5",

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
+  m_Name: oak_leaves
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockDefinition
+  _namespace: lithforge
+  _blockName: oak_leaves
+  _hardness: 0.2
+  _blastResistance: 0.2
+  _requiresTool: 0
+  _soundGroup: grass
+  _collisionShape: 0
+  _renderLayer: 1
+  _lightEmission: 0
+  _lightFilter: 1
+  _mapColor: '#4A7A32'
+  _lootTable: {fileID: 11400000, guid: 7a6c6fec140ae9546896e6a2548daecd, type: 2}
+  _blockStateMapping: {fileID: 11400000, guid: 8349637fdef47214597fbeb1725d5b0b, type: 2}
+  _properties: []
+  _tags:
+  - lithforge:leaves

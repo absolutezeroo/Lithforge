@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
+  m_Name: gravel
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockDefinition
+  _namespace: lithforge
+  _blockName: gravel
+  _hardness: 0.6
+  _blastResistance: 0.6
+  _requiresTool: 0
+  _soundGroup: gravel
+  _collisionShape: 0
+  _renderLayer: 0
+  _lightEmission: 0
+  _lightFilter: 15
+  _mapColor: '#837E7E'
+  _lootTable: {fileID: 11400000, guid: 67c58da75cba3874aac29eaa367f5a5e, type: 2}
+  _blockStateMapping: {fileID: 11400000, guid: 9663470fed8de2c4ebab6c5a4136aca9, type: 2}
+  _properties: []
+  _tags:
+  - lithforge:mineable_shovel

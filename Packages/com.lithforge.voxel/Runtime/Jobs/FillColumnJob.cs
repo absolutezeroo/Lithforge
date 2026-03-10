@@ -19,7 +19,9 @@ namespace Lithforge.Voxel.Jobs
         public NativeArray<StateId> ChunkStates;
 
         [ReadOnly] public StateId StoneState;
+
         [ReadOnly] public StateId AirState;
+
         [ReadOnly] public int SurfaceHeight;
 
         public void Execute()

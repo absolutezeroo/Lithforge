@@ -10,14 +10,23 @@ namespace Lithforge.Voxel.Block
     public sealed class BlockRegistrationData
     {
         public ResourceId Id { get; }
+
         public int StateCount { get; }
+
         public string RenderLayer { get; }
+
         public string CollisionShape { get; }
+
         public int LightEmission { get; }
+
         public int LightFilter { get; }
+
         public string MapColor { get; }
+
         public string LootTable { get; }
+
         public float Hardness { get; }
+
         public float BlastResistance { get; }
 
         public BlockRegistrationData(

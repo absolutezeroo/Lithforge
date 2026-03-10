@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
+  m_Name: oak_planks
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockDefinition
+  _namespace: lithforge
+  _blockName: oak_planks
+  _hardness: 2
+  _blastResistance: 3
+  _requiresTool: 0
+  _soundGroup: wood
+  _collisionShape: 0
+  _renderLayer: 0
+  _lightEmission: 0
+  _lightFilter: 15
+  _mapColor: '#C29D62'
+  _lootTable: {fileID: 11400000, guid: c4140ed817dcf0547aeef40b96f50ec7, type: 2}
+  _blockStateMapping: {fileID: 11400000, guid: 2deaab497f4abdd4b9f3e68a5b13af75, type: 2}
+  _properties: []
+  _tags:
+  - lithforge:planks
+  - lithforge:mineable_axe

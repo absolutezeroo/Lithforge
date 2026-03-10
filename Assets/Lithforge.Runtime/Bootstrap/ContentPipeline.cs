@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Text;
 using Lithforge.Core.Data;
-using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
+using ILogger = Lithforge.Core.Logging.ILogger;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content;
 using Lithforge.Runtime.Rendering.Atlas;

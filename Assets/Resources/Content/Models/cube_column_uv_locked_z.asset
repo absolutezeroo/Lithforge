@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
+  m_Name: cube_column_uv_locked_z
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
+  _parent: {fileID: 0}
+  _builtInParent: 0
+  _textures:
+  - _variable: particle
+    _value: '#side'
+  - _variable: down
+    _value: '#side'
+  - _variable: up
+    _value: '#side'
+  - _variable: north
+    _value: '#end'
+  - _variable: east
+    _value: '#side'
+  - _variable: south
+    _value: '#end'
+  - _variable: west
+    _value: '#side'
+  _elements: []

@@ -35,7 +35,7 @@ namespace Lithforge.Runtime.Content
 
                 if (!visited.Add(current))
                 {
-                    Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
+                    UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
                     break;
                 }
 
@@ -124,7 +124,7 @@ namespace Lithforge.Runtime.Content
 
                 if (!visited.Add(current))
                 {
-                    Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
+                    UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
                     break;
                 }
 
@@ -194,7 +194,7 @@ namespace Lithforge.Runtime.Content
 
                 if (!visitedVars.Add(varName))
                 {
-                    Debug.LogWarning($"[ContentModelResolver] Circular texture variable reference: #{varName}");
+                    UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular texture variable reference: #{varName}");
                     break;
                 }
 

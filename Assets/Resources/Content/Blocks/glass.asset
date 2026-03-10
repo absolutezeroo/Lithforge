@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
+  m_Name: glass
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockDefinition
+  _namespace: lithforge
+  _blockName: glass
+  _hardness: 0.3
+  _blastResistance: 0.3
+  _requiresTool: 0
+  _soundGroup: glass
+  _collisionShape: 0
+  _renderLayer: 1
+  _lightEmission: 0
+  _lightFilter: 0
+  _mapColor: '#FFFFFF'
+  _lootTable: {fileID: 0}
+  _blockStateMapping: {fileID: 11400000, guid: 64e21944e3448ba4786c217d9d5bb53c, type: 2}
+  _properties: []
+  _tags: []

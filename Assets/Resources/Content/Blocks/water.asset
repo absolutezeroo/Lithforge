@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
+  m_Name: water
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockDefinition
+  _namespace: lithforge
+  _blockName: water
+  _hardness: 100
+  _blastResistance: 100
+  _requiresTool: 0
+  _soundGroup: none
+  _collisionShape: 1
+  _renderLayer: 2
+  _lightEmission: 0
+  _lightFilter: 2
+  _mapColor: '#3F76E4'
+  _lootTable: {fileID: 0}
+  _blockStateMapping: {fileID: 11400000, guid: 455c84b6064508244a3f585244368724, type: 2}
+  _properties:
+  - _name: level
+    _kind: 1
+    _values: []
+    _defaultValue: 0
+    _minValue: 0
+    _maxValue: 15
+  _tags: []

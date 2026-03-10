@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05d0e5b892b029a4db84adda5f6face4, type: 3}
+  m_Name: gold
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.OreDefinition
+  _namespace: lithforge
+  _oreName: gold
+  _oreBlock: {fileID: 11400000, guid: b1c1a53d2318db34aa6468451a34be78, type: 2}
+  _replaceBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
+  _minY: 0
+  _maxY: 32
+  _veinSize: 9
+  _frequency: 2
+  _oreType: 0
