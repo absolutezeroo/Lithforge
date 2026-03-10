@@ -16,6 +16,11 @@ namespace Lithforge.WorldGen.Pipeline
         private readonly NativeNoiseConfig _temperatureNoise;
         private readonly NativeNoiseConfig _humidityNoise;
         private readonly NativeNoiseConfig _caveNoise;
+        private readonly float _caveThreshold;
+        private readonly int _minCarveY;
+        private readonly int _caveSeedOffset1;
+        private readonly int _caveSeedOffset2;
+        private readonly int _seaLevelCarveBuffer;
         private readonly NativeArray<NativeBiomeData> _biomeData;
         private readonly NativeArray<NativeOreConfig> _oreConfigs;
         private readonly NativeArray<BlockStateCompact> _stateTable;
@@ -29,6 +34,11 @@ namespace Lithforge.WorldGen.Pipeline
             NativeNoiseConfig temperatureNoise,
             NativeNoiseConfig humidityNoise,
             NativeNoiseConfig caveNoise,
+            float caveThreshold,
+            int minCarveY,
+            int caveSeedOffset1,
+            int caveSeedOffset2,
+            int seaLevelCarveBuffer,
             NativeArray<NativeBiomeData> biomeData,
             NativeArray<NativeOreConfig> oreConfigs,
             NativeArray<BlockStateCompact> stateTable,
@@ -41,6 +51,11 @@ namespace Lithforge.WorldGen.Pipeline
             _temperatureNoise = temperatureNoise;
             _humidityNoise = humidityNoise;
             _caveNoise = caveNoise;
+            _caveThreshold = caveThreshold;
+            _minCarveY = minCarveY;
+            _caveSeedOffset1 = caveSeedOffset1;
+            _caveSeedOffset2 = caveSeedOffset2;
+            _seaLevelCarveBuffer = seaLevelCarveBuffer;
             _biomeData = biomeData;
             _oreConfigs = oreConfigs;
             _stateTable = stateTable;
@@ -93,6 +108,11 @@ namespace Lithforge.WorldGen.Pipeline
                 AirId = _airId,
                 WaterId = _waterId,
                 SeaLevel = _seaLevel,
+                CaveThreshold = _caveThreshold,
+                MinCarveY = _minCarveY,
+                CaveSeedOffset1 = _caveSeedOffset1,
+                CaveSeedOffset2 = _caveSeedOffset2,
+                SeaLevelCarveBuffer = _seaLevelCarveBuffer,
             };
 
             JobHandle caveHandle = caveJob.Schedule(terrainHandle);

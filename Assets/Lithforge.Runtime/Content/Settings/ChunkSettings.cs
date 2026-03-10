@@ -19,6 +19,36 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(1, 8)]
         [SerializeField] private int _spawnLoadRadius = 2;
 
+        [Header("Frame Budget")]
+        [Tooltip("Maximum chunk generation jobs scheduled per frame")]
+        [Range(1, 16)]
+        [SerializeField] private int _maxGenerationsPerFrame = 4;
+
+        [Tooltip("Maximum chunk mesh jobs scheduled per frame")]
+        [Range(1, 16)]
+        [SerializeField] private int _maxMeshesPerFrame = 4;
+
+        [Header("Y Range — Loading")]
+        [Tooltip("Minimum Y chunk offset from camera to load")]
+        [SerializeField] private int _yLoadMin = -1;
+
+        [Tooltip("Maximum Y chunk offset from camera to load")]
+        [SerializeField] private int _yLoadMax = 3;
+
+        [Header("Y Range — Unloading")]
+        [Tooltip("Minimum Y chunk offset below which chunks are unloaded")]
+        [SerializeField] private int _yUnloadMin = -2;
+
+        [Tooltip("Maximum Y chunk offset above which chunks are unloaded")]
+        [SerializeField] private int _yUnloadMax = 4;
+
+        [Header("Spawn")]
+        [Tooltip("Fallback world Y for player if no solid block is found during spawn scan")]
+        [SerializeField] private int _spawnFallbackY = 65;
+
+        [Tooltip("Initial Y offset above sea level for player position before safe-spawn scan")]
+        [SerializeField] private int _initialSpawnYOffset = 32;
+
         public int PoolSize
         {
             get { return _poolSize; }
@@ -32,6 +62,46 @@ namespace Lithforge.Runtime.Content.Settings
         public int SpawnLoadRadius
         {
             get { return _spawnLoadRadius; }
+        }
+
+        public int MaxGenerationsPerFrame
+        {
+            get { return _maxGenerationsPerFrame; }
+        }
+
+        public int MaxMeshesPerFrame
+        {
+            get { return _maxMeshesPerFrame; }
+        }
+
+        public int YLoadMin
+        {
+            get { return _yLoadMin; }
+        }
+
+        public int YLoadMax
+        {
+            get { return _yLoadMax; }
+        }
+
+        public int YUnloadMin
+        {
+            get { return _yUnloadMin; }
+        }
+
+        public int YUnloadMax
+        {
+            get { return _yUnloadMax; }
+        }
+
+        public int SpawnFallbackY
+        {
+            get { return _spawnFallbackY; }
+        }
+
+        public int InitialSpawnYOffset
+        {
+            get { return _initialSpawnYOffset; }
         }
     }
 }

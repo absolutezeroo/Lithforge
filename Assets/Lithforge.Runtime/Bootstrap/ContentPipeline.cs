@@ -37,11 +37,13 @@ namespace Lithforge.Runtime.Bootstrap
     {
         private readonly ILogger _logger;
         private readonly ContentValidator _validator;
+        private readonly int _atlasTileSize;
 
-        public ContentPipeline(ILogger logger, ContentValidator validator)
+        public ContentPipeline(ILogger logger, ContentValidator validator, int atlasTileSize = 16)
         {
             _logger = logger;
             _validator = validator;
+            _atlasTileSize = atlasTileSize;
         }
 
         public ContentPipelineResult Build(string contentRoot)
@@ -148,7 +150,7 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Resolved {resolvedFaces.Count} block state face textures.");
 
             // Phase 5: Build texture atlas
-            AtlasBuilder atlasBuilder = new AtlasBuilder(_logger);
+            AtlasBuilder atlasBuilder = new AtlasBuilder(_logger, _atlasTileSize);
             AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces, contentRoot);
 
             // Phase 6: Patch texture indices into StateRegistry

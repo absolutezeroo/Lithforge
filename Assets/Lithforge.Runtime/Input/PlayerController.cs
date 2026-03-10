@@ -1,5 +1,6 @@
 using System;
 using Lithforge.Physics;
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Unity.Mathematics;
@@ -16,8 +17,13 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class PlayerController : MonoBehaviour
     {
-        [SerializeField] private float walkSpeed = PhysicsConstants.WalkSpeed;
-        [SerializeField] private float sprintSpeed = PhysicsConstants.SprintSpeed;
+        private float _walkSpeed;
+        private float _sprintSpeed;
+        private float _gravity;
+        private float _maxFallSpeed;
+        private float _jumpSpeed;
+        private float _playerHalfWidth;
+        private float _playerHeight;
 
         private ChunkManager _chunkManager;
         private NativeStateRegistry _nativeStateRegistry;
@@ -37,11 +43,19 @@ namespace Lithforge.Runtime.Input
         public void Initialize(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
-            GameLoop gameLoop)
+            GameLoop gameLoop,
+            PhysicsSettings physics)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _gameLoop = gameLoop;
+            _walkSpeed = physics.WalkSpeed;
+            _sprintSpeed = physics.SprintSpeed;
+            _gravity = physics.Gravity;
+            _maxFallSpeed = physics.MaxFallSpeed;
+            _jumpSpeed = physics.JumpVelocity;
+            _playerHalfWidth = physics.PlayerHalfWidth;
+            _playerHeight = physics.PlayerHeight;
 
             // Cache the delegate to avoid allocation each frame
             _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
@@ -81,17 +95,17 @@ namespace Lithforge.Runtime.Input
             float3 displacement = ComputeHorizontalDisplacement(keyboard, dt);
 
             // Apply gravity to vertical speed (blocks/sec, persistent across frames)
-            _verticalSpeed += PhysicsConstants.Gravity * dt;
+            _verticalSpeed += _gravity * dt;
 
-            if (_verticalSpeed < PhysicsConstants.MaxFallSpeed)
+            if (_verticalSpeed < _maxFallSpeed)
             {
-                _verticalSpeed = PhysicsConstants.MaxFallSpeed;
+                _verticalSpeed = _maxFallSpeed;
             }
 
             // Jump
             if (keyboard.spaceKey.wasPressedThisFrame && _onGround)
             {
-                _verticalSpeed = PhysicsConstants.JumpSpeed;
+                _verticalSpeed = _jumpSpeed;
                 _onGround = false;
             }
 
@@ -107,8 +121,8 @@ namespace Lithforge.Runtime.Input
             CollisionResult result = VoxelCollider.Resolve(
                 ref position,
                 ref displacement,
-                PhysicsConstants.PlayerHalfWidth,
-                PhysicsConstants.PlayerHeight,
+                _playerHalfWidth,
+                _playerHeight,
                 _isSolidDelegate);
 
             _onGround = result.OnGround;
@@ -129,7 +143,7 @@ namespace Lithforge.Runtime.Input
 
         private float3 ComputeHorizontalDisplacement(Keyboard keyboard, float dt)
         {
-            float speed = keyboard.leftShiftKey.isPressed ? sprintSpeed : walkSpeed;
+            float speed = keyboard.leftShiftKey.isPressed ? _sprintSpeed : _walkSpeed;
 
             // Horizontal movement relative to player facing direction (yaw only)
             float3 forward = new float3(transform.forward.x, 0f, transform.forward.z);

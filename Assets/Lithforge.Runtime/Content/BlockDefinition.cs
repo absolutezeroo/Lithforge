@@ -141,21 +141,15 @@ namespace Lithforge.Runtime.Content
         {
             get
             {
-                switch (_collisionShape)
+                return _collisionShape switch
                 {
-                    case CollisionShapeType.None:
-                        return "none";
-                    case CollisionShapeType.FullCube:
-                        return "full_cube";
-                    case CollisionShapeType.Slab:
-                        return "slab";
-                    case CollisionShapeType.Stairs:
-                        return "stairs";
-                    case CollisionShapeType.Fence:
-                        return "fence";
-                    default:
-                        return "full_cube";
-                }
+                    CollisionShapeType.None => "none",
+                    CollisionShapeType.FullCube => "full_cube",
+                    CollisionShapeType.Slab => "slab",
+                    CollisionShapeType.Stairs => "stairs",
+                    CollisionShapeType.Fence => "fence",
+                    _ => "full_cube"
+                };
             }
         }
 
@@ -163,17 +157,13 @@ namespace Lithforge.Runtime.Content
         {
             get
             {
-                switch (_renderLayer)
+                return _renderLayer switch
                 {
-                    case RenderLayerType.Opaque:
-                        return "opaque";
-                    case RenderLayerType.Cutout:
-                        return "cutout";
-                    case RenderLayerType.Translucent:
-                        return "translucent";
-                    default:
-                        return "opaque";
-                }
+                    RenderLayerType.Opaque => "opaque",
+                    RenderLayerType.Cutout => "cutout",
+                    RenderLayerType.Translucent => "translucent",
+                    _ => "opaque"
+                };
             }
         }
 

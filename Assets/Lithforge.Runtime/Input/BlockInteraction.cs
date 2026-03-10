@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Physics;
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Rendering;
 using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
 using Lithforge.Voxel.Block;
@@ -36,6 +37,14 @@ namespace Lithforge.Runtime.Input
         private LootResolver _lootResolver;
         private Random _lootRandom;
 
+        // Physics settings
+        private float _interactionRange;
+        private float _placeCooldownTime;
+        private float _handMiningMultiplier;
+        private float _toolMiningMultiplier;
+        private float _minBreakTime;
+        private int _defaultMaxStackSize;
+
         // Mining state
         private bool _isMining;
         private int3 _miningBlockCoord;
@@ -44,7 +53,6 @@ namespace Lithforge.Runtime.Input
 
         // Placement cooldown
         private float _placeCooldown;
-        private const float _placeCooldownTime = 0.25f;
 
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
@@ -57,7 +65,8 @@ namespace Lithforge.Runtime.Input
             BlockHighlight blockHighlight,
             Inventory inventory,
             ItemRegistry itemRegistry,
-            LootResolver lootResolver)
+            LootResolver lootResolver,
+            PhysicsSettings physics)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
@@ -66,6 +75,12 @@ namespace Lithforge.Runtime.Input
             _inventory = inventory;
             _itemRegistry = itemRegistry;
             _lootResolver = lootResolver;
+            _interactionRange = physics.InteractionRange;
+            _placeCooldownTime = physics.PlaceCooldownTime;
+            _handMiningMultiplier = physics.HandMiningMultiplier;
+            _toolMiningMultiplier = physics.ToolMiningMultiplier;
+            _minBreakTime = physics.MinBreakTime;
+            _defaultMaxStackSize = physics.DefaultMaxStackSize;
             _lootRandom = new Random(Environment.TickCount);
             _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
                 coord, _chunkManager, _nativeStateRegistry);
@@ -106,7 +121,7 @@ namespace Lithforge.Runtime.Input
             VoxelRaycastHit hit = VoxelRaycast.Cast(
                 new float3(transform.position.x, transform.position.y, transform.position.z),
                 new float3(transform.forward.x, transform.forward.y, transform.forward.z),
-                PhysicsConstants.InteractionRange,
+                _interactionRange,
                 _isSolidDelegate);
 
             if (hit.DidHit)
@@ -207,7 +222,7 @@ namespace Lithforge.Runtime.Input
             if (entry != null)
             {
                 // Check if held item is the correct tool
-                float toolMultiplier = 5.0f;
+                float toolMultiplier = _handMiningMultiplier;
                 ItemStack heldItem = _inventory.GetSelectedItem();
 
                 if (!heldItem.IsEmpty)
@@ -216,7 +231,7 @@ namespace Lithforge.Runtime.Input
 
                     if (itemDef != null && itemDef.ToolType != ToolType.None)
                     {
-                        toolMultiplier = 1.5f;
+                        toolMultiplier = _toolMiningMultiplier;
                         // Mining speed modifier from tool
                         float miningSpeed = itemDef.MiningSpeed;
 
@@ -229,15 +244,15 @@ namespace Lithforge.Runtime.Input
 
                 _miningRequiredTime = entry.Hardness * toolMultiplier;
 
-                // Minimum break time of 50ms (instant break for hardness 0)
-                if (_miningRequiredTime < 0.05f)
+                // Minimum break time (instant break for hardness 0)
+                if (_miningRequiredTime < _minBreakTime)
                 {
-                    _miningRequiredTime = 0.05f;
+                    _miningRequiredTime = _minBreakTime;
                 }
             }
             else
             {
-                _miningRequiredTime = 0.05f;
+                _miningRequiredTime = _minBreakTime;
             }
         }
 
@@ -257,7 +272,8 @@ namespace Lithforge.Runtime.Input
                     {
                         LootDrop drop = drops[i];
                         ItemEntry itemDef = _itemRegistry.Get(drop.ItemId);
-                        int maxStack = itemDef != null ? itemDef.MaxStackSize : 64;
+                        int maxStack = itemDef != null ? itemDef.MaxStackSize : _defaultMaxStackSize;
+
                         _inventory.AddItem(drop.ItemId, drop.Count, maxStack);
                     }
                 }

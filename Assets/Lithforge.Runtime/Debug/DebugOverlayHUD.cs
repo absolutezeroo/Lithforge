@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Content.Settings;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Debug
@@ -14,6 +15,15 @@ namespace Lithforge.Runtime.Debug
         private Texture2D _bgTexture;
         private bool _visible = true;
 
+        // Settings
+        private float _fpsSampleInterval = 0.5f;
+        private float _overlayBackgroundAlpha = 0.6f;
+        private int _overlayMinFontSize = 18;
+        private int _overlayScreenDivisor = 50;
+        private int _overlayPanelWidth = 420;
+        private int _overlayPadding = 8;
+        private int _overlayLineSpacing = 6;
+
         /// <summary>
         /// Shows or hides the debug overlay. When hidden, OnGUI returns immediately.
         /// </summary>
@@ -22,10 +32,20 @@ namespace Lithforge.Runtime.Debug
             _visible = visible;
         }
 
-        public void Initialize(GameLoop gameLoop, Voxel.Chunk.ChunkManager chunkManager)
+        public void Initialize(
+            GameLoop gameLoop,
+            Voxel.Chunk.ChunkManager chunkManager,
+            DebugSettings settings)
         {
             _gameLoop = gameLoop;
             _chunkManager = chunkManager;
+            _fpsSampleInterval = settings.FpsSampleInterval;
+            _overlayBackgroundAlpha = settings.OverlayBackgroundAlpha;
+            _overlayMinFontSize = settings.OverlayMinFontSize;
+            _overlayScreenDivisor = settings.OverlayScreenDivisor;
+            _overlayPanelWidth = settings.OverlayPanelWidth;
+            _overlayPadding = settings.OverlayPadding;
+            _overlayLineSpacing = settings.OverlayLineSpacing;
         }
 
         private void Update()
@@ -33,7 +53,7 @@ namespace Lithforge.Runtime.Debug
             _frameCount++;
             _fpsTimer += Time.unscaledDeltaTime;
 
-            if (_fpsTimer >= 0.5f)
+            if (_fpsTimer >= _fpsSampleInterval)
             {
                 _fps = _frameCount / _fpsTimer;
                 _frameCount = 0;
@@ -49,11 +69,11 @@ namespace Lithforge.Runtime.Debug
             }
 
             _bgTexture = new Texture2D(1, 1);
-            _bgTexture.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.6f));
+            _bgTexture.SetPixel(0, 0, new Color(0f, 0f, 0f, _overlayBackgroundAlpha));
             _bgTexture.Apply();
 
             _style = new GUIStyle(GUI.skin.label);
-            _style.fontSize = Mathf.Max(18, Screen.height / 50);
+            _style.fontSize = Mathf.Max(_overlayMinFontSize, Screen.height / _overlayScreenDivisor);
             _style.normal.textColor = Color.white;
             _style.fontStyle = FontStyle.Bold;
         }
@@ -67,44 +87,45 @@ namespace Lithforge.Runtime.Debug
 
             EnsureStyle();
 
-            int lineHeight = _style.fontSize + 6;
-            int padding = 8;
+            int lineHeight = _style.fontSize + _overlayLineSpacing;
+            int padding = _overlayPadding;
             int y = padding;
             int x = padding;
             int lineCount = 2;
+            int labelWidth = _overlayPanelWidth - padding * 2;
 
             if (_chunkManager != null) { lineCount++; }
             if (_gameLoop != null) { lineCount += 2; }
 
             // Background panel
             int panelHeight = lineCount * lineHeight + padding * 2;
-            GUI.DrawTexture(new Rect(0, 0, 420, panelHeight), _bgTexture);
+            GUI.DrawTexture(new Rect(0, 0, _overlayPanelWidth, panelHeight), _bgTexture);
 
             if (Camera.main != null)
             {
                 Vector3 pos = Camera.main.transform.position;
-                GUI.Label(new Rect(x, y, 400, lineHeight),
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight),
                     $"Pos: ({pos.x:F1}, {pos.y:F1}, {pos.z:F1})", _style);
                 y += lineHeight;
             }
 
-            GUI.Label(new Rect(x, y, 400, lineHeight), $"FPS: {_fps:F1}", _style);
+            GUI.Label(new Rect(x, y, labelWidth, lineHeight), $"FPS: {_fps:F1}", _style);
             y += lineHeight;
 
             if (_chunkManager != null)
             {
-                GUI.Label(new Rect(x, y, 400, lineHeight),
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight),
                     $"Chunks: {_chunkManager.LoadedCount}", _style);
                 y += lineHeight;
             }
 
             if (_gameLoop != null)
             {
-                GUI.Label(new Rect(x, y, 400, lineHeight),
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight),
                     $"Gen Queue: {_gameLoop.PendingGenerationCount}", _style);
                 y += lineHeight;
 
-                GUI.Label(new Rect(x, y, 400, lineHeight),
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight),
                     $"Mesh Queue: {_gameLoop.PendingMeshCount}", _style);
             }
         }

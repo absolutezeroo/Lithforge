@@ -1,15 +1,5 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": {
-      "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#beta",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.2",
-        "com.unity.test-framework": "1.1.31"
-      },
-      "hash": "12815af2c2341788669bb7581fa5dab26c50bfe7"
-    },
     "com.lithforge.core": {
       "version": "file:com.lithforge.core",
       "depth": 0,

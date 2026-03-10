@@ -15,12 +15,13 @@ namespace Lithforge.Runtime.Rendering.Atlas
     /// </summary>
     public sealed class AtlasBuilder
     {
-        private const int _tileSize = 16;
+        private readonly int _tileSize;
         private readonly Core.Logging.ILogger _logger;
 
-        public AtlasBuilder(Core.Logging.ILogger logger)
+        public AtlasBuilder(Core.Logging.ILogger logger, int tileSize = 16)
         {
             _logger = logger;
+            _tileSize = tileSize;
         }
 
         /// <summary>

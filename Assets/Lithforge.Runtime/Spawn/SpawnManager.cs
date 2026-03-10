@@ -16,10 +16,9 @@ namespace Lithforge.Runtime.Spawn
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly Transform _playerTransform;
         private readonly int _spawnRadius;
-
-        // Must match ChunkManager.UpdateLoadingQueue Y range
-        private const int _yMin = -1;
-        private const int _yMax = 3;
+        private readonly int _yMin;
+        private readonly int _yMax;
+        private readonly int _fallbackY;
 
         private int3 _spawnChunkCoord;
         private SpawnProgress _progress;
@@ -36,12 +35,18 @@ namespace Lithforge.Runtime.Spawn
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
             Transform playerTransform,
-            int spawnRadius)
+            int spawnRadius,
+            int yMin = -1,
+            int yMax = 3,
+            int fallbackY = 65)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _playerTransform = playerTransform;
             _spawnRadius = spawnRadius;
+            _yMin = yMin;
+            _yMax = yMax;
+            _fallbackY = fallbackY;
 
             // Compute spawn chunk coord from player's initial position
             Vector3 pos = _playerTransform.position;
@@ -174,8 +179,8 @@ namespace Lithforge.Runtime.Spawn
                 }
             }
 
-            // No solid block found — use sea level + 1 as fallback
-            return 65;
+            // No solid block found — use fallback Y
+            return _fallbackY;
         }
     }
 }

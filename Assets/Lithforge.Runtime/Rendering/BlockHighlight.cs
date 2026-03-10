@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Content.Settings;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -11,10 +12,11 @@ namespace Lithforge.Runtime.Rendering
     {
         private LineRenderer _lineRenderer;
         private bool _visible;
+        private float _expand = 0.005f;
 
         // A cube has 12 edges. We draw them as a continuous line strip
         // visiting all edges by revisiting some vertices.
-        // Path: 0→1→2→3→0→4→5→1→5→6→2→6→7→3→7→4
+        // Path: 0->1->2->3->0->4->5->1->5->6->2->6->7->3->7->4
         private static readonly int[] _lineIndices = new int[]
         {
             0, 1, 2, 3, 0, 4, 5, 1, 5, 6, 2, 6, 7, 3, 7, 4
@@ -42,6 +44,15 @@ namespace Lithforge.Runtime.Rendering
             _visible = false;
         }
 
+        public void Initialize(RenderingSettings settings)
+        {
+            _lineRenderer.startWidth = settings.BlockHighlightLineWidth;
+            _lineRenderer.endWidth = settings.BlockHighlightLineWidth;
+            _lineRenderer.startColor = settings.BlockHighlightColor;
+            _lineRenderer.endColor = settings.BlockHighlightColor;
+            _expand = settings.BlockHighlightExpand;
+        }
+
         /// <summary>
         /// Updates the highlight to show around the given block coordinate.
         /// </summary>
@@ -54,9 +65,8 @@ namespace Lithforge.Runtime.Rendering
             }
 
             // Slight expansion to avoid z-fighting with block faces
-            float expand = 0.005f;
-            float3 min = new float3(blockCoord) - new float3(expand);
-            float3 max = new float3(blockCoord) + new float3(1f + expand);
+            float3 min = new float3(blockCoord) - new float3(_expand);
+            float3 max = new float3(blockCoord) + new float3(1f + _expand);
 
             // 8 corners of the cube
             Vector3[] corners = new Vector3[8];

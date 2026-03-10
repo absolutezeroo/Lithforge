@@ -10,6 +10,7 @@ namespace Lithforge.Runtime.Content
     public sealed class ResolvedModel
     {
         public ResolvedFaceTextures Textures { get; set; }
+
         public List<ModelElement> Elements { get; set; }
     }
 }

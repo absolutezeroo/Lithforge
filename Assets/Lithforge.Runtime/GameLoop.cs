@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Meshing;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Voxel.Block;
@@ -30,8 +31,8 @@ namespace Lithforge.Runtime
         private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
         private readonly List<int3> _unloadedCoords = new List<int3>();
 
-        private const int _maxGenerationsPerFrame = 4;
-        private const int _maxMeshesPerFrame = 4;
+        private int _maxGenerationsPerFrame = 4;
+        private int _maxMeshesPerFrame = 4;
 
         private static readonly int3[] _neighborOffsets = new int3[]
         {
@@ -72,7 +73,8 @@ namespace Lithforge.Runtime
             ChunkRenderManager chunkRenderManager,
             DecorationStage decorationStage,
             WorldStorage worldStorage,
-            long seed)
+            long seed,
+            ChunkSettings chunkSettings)
         {
             _chunkManager = chunkManager;
             _generationPipeline = generationPipeline;
@@ -82,6 +84,8 @@ namespace Lithforge.Runtime
             _decorationStage = decorationStage;
             _worldStorage = worldStorage;
             _seed = seed;
+            _maxGenerationsPerFrame = chunkSettings.MaxGenerationsPerFrame;
+            _maxMeshesPerFrame = chunkSettings.MaxMeshesPerFrame;
             _initialized = true;
         }
 

@@ -186,19 +186,19 @@ namespace Lithforge.Editor.Content
 
             _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 
-            DrawSOSection(ref _blocksFoldout, "Blocks", _blocks);
-            DrawSOSection(ref _modelsFoldout, "Block Models", _models);
-            DrawSOSection(ref _itemsFoldout, "Items", _items);
-            DrawSOSection(ref _biomesFoldout, "Biomes", _biomes);
-            DrawSOSection(ref _oresFoldout, "Ores", _ores);
-            DrawSOSection(ref _lootFoldout, "Loot Tables", _lootTables);
-            DrawSOSection(ref _tagsFoldout, "Tags", _tags);
-            DrawSOSection(ref _recipesFoldout, "Recipes", _recipes);
+            DrawSoSection(ref _blocksFoldout, "Blocks", _blocks);
+            DrawSoSection(ref _modelsFoldout, "Block Models", _models);
+            DrawSoSection(ref _itemsFoldout, "Items", _items);
+            DrawSoSection(ref _biomesFoldout, "Biomes", _biomes);
+            DrawSoSection(ref _oresFoldout, "Ores", _ores);
+            DrawSoSection(ref _lootFoldout, "Loot Tables", _lootTables);
+            DrawSoSection(ref _tagsFoldout, "Tags", _tags);
+            DrawSoSection(ref _recipesFoldout, "Recipes", _recipes);
 
             EditorGUILayout.EndScrollView();
         }
 
-        private static void DrawSOSection<T>(ref bool foldout, string label, T[] assets)
+        private static void DrawSoSection<T>(ref bool foldout, string label, T[] assets)
             where T : ScriptableObject
         {
             foldout = EditorGUILayout.Foldout(foldout, $"{label} ({assets.Length})", true);

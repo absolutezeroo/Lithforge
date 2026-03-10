@@ -6,6 +6,7 @@ namespace Lithforge.Runtime.Content
     public sealed class StringPair
     {
         [SerializeField] private string _key;
+
         [SerializeField] private string _value;
 
         public string Key

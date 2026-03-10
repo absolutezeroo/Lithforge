@@ -19,9 +19,11 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public StateId AirId;
         [ReadOnly] public StateId WaterId;
         [ReadOnly] public int SeaLevel;
-
-        private const float _caveThreshold = 0.03f;
-        private const int _minCarveY = 5;
+        [ReadOnly] public float CaveThreshold;
+        [ReadOnly] public int MinCarveY;
+        [ReadOnly] public int CaveSeedOffset1;
+        [ReadOnly] public int CaveSeedOffset2;
+        [ReadOnly] public int SeaLevelCarveBuffer;
 
         public void Execute()
         {
@@ -30,10 +32,10 @@ namespace Lithforge.WorldGen.Stages
             int chunkWorldZ = ChunkCoord.z * ChunkConstants.Size;
 
             NativeNoiseConfig noise1 = CaveNoise;
-            noise1.SeedOffset = 0;
+            noise1.SeedOffset = CaveSeedOffset1;
 
             NativeNoiseConfig noise2 = CaveNoise;
-            noise2.SeedOffset = 31337;
+            noise2.SeedOffset = CaveSeedOffset2;
 
             for (int z = 0; z < ChunkConstants.Size; z++)
             {
@@ -41,7 +43,7 @@ namespace Lithforge.WorldGen.Stages
                 {
                     int worldY = chunkWorldY + y;
 
-                    if (worldY < _minCarveY)
+                    if (worldY < MinCarveY)
                     {
                         continue;
                     }
@@ -56,10 +58,10 @@ namespace Lithforge.WorldGen.Stages
 
                         float caveValue = n1 * n1 + n2 * n2;
 
-                        if (caveValue < _caveThreshold)
+                        if (caveValue < CaveThreshold)
                         {
-                            // Don't carve within 4 blocks of sea level to protect ocean floor
-                            if (worldY >= SeaLevel - 4 && worldY <= SeaLevel)
+                            // Don't carve within buffer of sea level to protect ocean floor
+                            if (worldY >= SeaLevel - SeaLevelCarveBuffer && worldY <= SeaLevel)
                             {
                                 continue;
                             }

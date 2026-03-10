@@ -58,6 +58,11 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                     WaterId = _waterId,
                     SeaLevel = 64,
+                    CaveThreshold = 0.03f,
+                    MinCarveY = 5,
+                    CaveSeedOffset1 = 0,
+                    CaveSeedOffset2 = 31337,
+                    SeaLevelCarveBuffer = 4,
                 };
 
                 job.Schedule().Complete();
@@ -106,6 +111,11 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                     WaterId = _waterId,
                     SeaLevel = 64,
+                    CaveThreshold = 0.03f,
+                    MinCarveY = 5,
+                    CaveSeedOffset1 = 0,
+                    CaveSeedOffset2 = 31337,
+                    SeaLevelCarveBuffer = 4,
                 };
 
                 job.Schedule().Complete();
@@ -149,6 +159,11 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                     WaterId = _waterId,
                     SeaLevel = seaLevel,
+                    CaveThreshold = 0.03f,
+                    MinCarveY = 5,
+                    CaveSeedOffset1 = 0,
+                    CaveSeedOffset2 = 31337,
+                    SeaLevelCarveBuffer = 4,
                 };
 
                 job.Schedule().Complete();
@@ -204,6 +219,11 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                     WaterId = _waterId,
                     SeaLevel = 64,
+                    CaveThreshold = 0.03f,
+                    MinCarveY = 5,
+                    CaveSeedOffset1 = 0,
+                    CaveSeedOffset2 = 31337,
+                    SeaLevelCarveBuffer = 4,
                 };
 
                 job.Schedule().Complete();
@@ -254,6 +274,11 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                     WaterId = _waterId,
                     SeaLevel = 64,
+                    CaveThreshold = 0.03f,
+                    MinCarveY = 5,
+                    CaveSeedOffset1 = 0,
+                    CaveSeedOffset2 = 31337,
+                    SeaLevelCarveBuffer = 4,
                 };
 
                 CaveCarverJob job2 = new CaveCarverJob
@@ -265,6 +290,11 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                     WaterId = _waterId,
                     SeaLevel = 64,
+                    CaveThreshold = 0.03f,
+                    MinCarveY = 5,
+                    CaveSeedOffset1 = 0,
+                    CaveSeedOffset2 = 31337,
+                    SeaLevelCarveBuffer = 4,
                 };
 
                 job1.Schedule().Complete();

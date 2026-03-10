@@ -1,12 +1,16 @@
+using Lithforge.Runtime.Content.Settings;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Rendering
 {
     public sealed class TimeOfDayController : MonoBehaviour
     {
-        [SerializeField] private float dayLengthSeconds = 600f;
-
         private float _timeOfDay;
+        private float _dayLengthSeconds;
+        private float _sunAngleOffset;
+        private float _sunAzimuth;
+        private float _minSunIntensity;
+        private AnimationCurve _dayNightCurve;
         private Light _directionalLight;
         private Material _voxelMaterial;
         private Material _translucentMaterial;
@@ -23,11 +27,19 @@ namespace Lithforge.Runtime.Rendering
             get { return ComputeSunFactor(_timeOfDay); }
         }
 
-        public void Initialize(Material voxelMaterial, Material translucentMaterial = null)
+        public void Initialize(
+            Material voxelMaterial,
+            Material translucentMaterial,
+            RenderingSettings settings)
         {
             _voxelMaterial = voxelMaterial;
             _translucentMaterial = translucentMaterial;
-            _timeOfDay = 0.25f; // Start at noon (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset)
+            _dayLengthSeconds = settings.DayLengthSeconds;
+            _sunAngleOffset = settings.SunAngleOffset;
+            _sunAzimuth = settings.SunAzimuth;
+            _minSunIntensity = settings.MinSunIntensity;
+            _dayNightCurve = settings.DayNightCurve;
+            _timeOfDay = settings.StartTimeOfDay;
 
             // Find or create directional light
             Light[] lights = FindObjectsByType<Light>(FindObjectsSortMode.None);
@@ -51,7 +63,7 @@ namespace Lithforge.Runtime.Rendering
             }
 
             // Advance time
-            _timeOfDay += Time.deltaTime / dayLengthSeconds;
+            _timeOfDay += Time.deltaTime / _dayLengthSeconds;
 
             if (_timeOfDay >= 1.0f)
             {
@@ -71,19 +83,25 @@ namespace Lithforge.Runtime.Rendering
             // Update directional light rotation
             if (_directionalLight != null)
             {
-                float sunAngle = _timeOfDay * 360.0f - 90.0f;
-                _directionalLight.transform.rotation = Quaternion.Euler(sunAngle, -30.0f, 0.0f);
-                _directionalLight.intensity = Mathf.Max(0.1f, sunFactor);
+                float sunAngle = _timeOfDay * 360.0f + _sunAngleOffset;
+                _directionalLight.transform.rotation = Quaternion.Euler(sunAngle, _sunAzimuth, 0.0f);
+                _directionalLight.intensity = Mathf.Max(_minSunIntensity, sunFactor);
             }
         }
 
-        private static float ComputeSunFactor(float time)
+        private float ComputeSunFactor(float time)
         {
-            // Cosine curve: 1.0 at noon (time=0.5), 0.15 at midnight (time=0.0 or 1.0)
+            // Use AnimationCurve if provided
+            if (_dayNightCurve != null && _dayNightCurve.length > 0)
+            {
+                return Mathf.Clamp(_dayNightCurve.Evaluate(time), 0f, 1f);
+            }
+
+            // Cosine fallback: 1.0 at noon (time=0.5), 0.15 at midnight (time=0.0 or 1.0)
             float cosValue = Mathf.Cos(time * 2.0f * Mathf.PI);
             float factor = 0.575f + 0.425f * cosValue;
 
-            return Mathf.Clamp(factor, 0.15f, 1.0f);
+            return Mathf.Clamp(factor, _minSunIntensity, 1.0f);
         }
     }
 }

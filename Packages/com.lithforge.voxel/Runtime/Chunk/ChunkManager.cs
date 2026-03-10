@@ -12,6 +12,10 @@ namespace Lithforge.Voxel.Chunk
         private readonly Dictionary<int3, ManagedChunk> _chunks = new Dictionary<int3, ManagedChunk>();
         private readonly ChunkPool _pool;
         private readonly int _renderDistance;
+        private readonly int _yLoadMin;
+        private readonly int _yLoadMax;
+        private readonly int _yUnloadMin;
+        private readonly int _yUnloadMax;
         private readonly List<int3> _loadQueue = new List<int3>();
         private bool _disposed;
 
@@ -25,10 +29,20 @@ namespace Lithforge.Voxel.Chunk
             get { return _loadQueue.Count; }
         }
 
-        public ChunkManager(ChunkPool pool, int renderDistance)
+        public ChunkManager(
+            ChunkPool pool,
+            int renderDistance,
+            int yLoadMin = -1,
+            int yLoadMax = 3,
+            int yUnloadMin = -2,
+            int yUnloadMax = 4)
         {
             _pool = pool;
             _renderDistance = renderDistance;
+            _yLoadMin = yLoadMin;
+            _yLoadMax = yLoadMax;
+            _yUnloadMin = yUnloadMin;
+            _yUnloadMax = yUnloadMax;
         }
 
         public void UpdateLoadingQueue(int3 cameraChunkCoord)
@@ -47,7 +61,7 @@ namespace Lithforge.Voxel.Chunk
                             continue;
                         }
 
-                        for (int y = -1; y <= 3; y++)
+                        for (int y = _yLoadMin; y <= _yLoadMax; y++)
                         {
                             int3 coord = cameraChunkCoord + new int3(x, y, z);
 
@@ -282,7 +296,7 @@ namespace Lithforge.Voxel.Chunk
             {
                 int3 diff = kvp.Key - cameraChunkCoord;
                 int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
-                bool yOutOfRange = diff.y < -2 || diff.y > 4;
+                bool yOutOfRange = diff.y < _yUnloadMin || diff.y > _yUnloadMax;
 
                 if (xzDist > _renderDistance + 1 || yOutOfRange)
                 {

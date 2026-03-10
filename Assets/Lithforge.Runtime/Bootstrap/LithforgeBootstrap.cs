@@ -4,6 +4,7 @@ using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Physics;
 using Lithforge.Runtime.Content;
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
@@ -28,16 +29,7 @@ namespace Lithforge.Runtime.Bootstrap
     {
         [SerializeField] private Material voxelMaterial;
 
-        [SerializeField] private int poolSize = 256;
-
-        [SerializeField] private int renderDistance = 4;
-
-        [SerializeField] private int seaLevel = 64;
-
-        [SerializeField] private long seed = 42L;
-
-        [SerializeField] private int spawnLoadRadius = 2;
-
+        private LoadedSettings _settings;
         private ServiceContainer _services;
         private ContentPipelineResult _contentResult;
         private ChunkPool _chunkPool;
@@ -53,6 +45,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void Awake()
         {
+            _settings = SettingsLoader.Load();
             _services = new ServiceContainer();
 
             InitializeContent();
@@ -70,7 +63,8 @@ namespace Lithforge.Runtime.Bootstrap
             UnityLogger logger = new UnityLogger();
             ContentValidator validator = new ContentValidator();
 
-            ContentPipeline pipeline = new ContentPipeline(logger, validator);
+            ContentPipeline pipeline = new ContentPipeline(
+                logger, validator, _settings.Rendering.AtlasTileSize);
             string contentRoot = System.IO.Path.Combine(
                 Application.streamingAssetsPath, "content", "lithforge");
 
@@ -94,7 +88,7 @@ namespace Lithforge.Runtime.Bootstrap
             string worldDir = System.IO.Path.Combine(
                 Application.persistentDataPath, "worlds", "default");
             _worldStorage = new WorldStorage(worldDir);
-            _worldStorage.SaveMetadata(seed, "");
+            _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
             _services.Register(_worldStorage);
 
             UnityEngine.Debug.Log($"[Lithforge] World storage: {worldDir}");
@@ -102,8 +96,15 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeChunkSystem()
         {
-            _chunkPool = new ChunkPool(poolSize);
-            _chunkManager = new ChunkManager(_chunkPool, renderDistance);
+            ChunkSettings cs = _settings.Chunk;
+            _chunkPool = new ChunkPool(cs.PoolSize);
+            _chunkManager = new ChunkManager(
+                _chunkPool,
+                cs.RenderDistance,
+                cs.YLoadMin,
+                cs.YLoadMax,
+                cs.YUnloadMin,
+                cs.YUnloadMax);
 
             _services.Register(_chunkPool);
             _services.Register(_chunkManager);
@@ -111,45 +112,12 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeWorldGen()
         {
-            NativeNoiseConfig terrainNoise = new NativeNoiseConfig
-            {
-                Frequency = 0.008f,
-                Lacunarity = 2.0f,
-                Persistence = 0.5f,
-                HeightScale = 24.0f,
-                Octaves = 5,
-                SeedOffset = 0,
-            };
+            WorldGenSettings wg = _settings.WorldGen;
 
-            NativeNoiseConfig temperatureNoise = new NativeNoiseConfig
-            {
-                Frequency = 0.002f,
-                Lacunarity = 2.0f,
-                Persistence = 0.5f,
-                HeightScale = 1.0f,
-                Octaves = 3,
-                SeedOffset = 999,
-            };
-
-            NativeNoiseConfig humidityNoise = new NativeNoiseConfig
-            {
-                Frequency = 0.002f,
-                Lacunarity = 2.0f,
-                Persistence = 0.5f,
-                HeightScale = 1.0f,
-                Octaves = 3,
-                SeedOffset = 1999,
-            };
-
-            NativeNoiseConfig caveNoise = new NativeNoiseConfig
-            {
-                Frequency = 0.03f,
-                Lacunarity = 2.0f,
-                Persistence = 0.5f,
-                HeightScale = 1.0f,
-                Octaves = 2,
-                SeedOffset = 0,
-            };
+            NativeNoiseConfig terrainNoise = wg.BuildTerrainNoise();
+            NativeNoiseConfig temperatureNoise = wg.BuildTemperatureNoise();
+            NativeNoiseConfig humidityNoise = wg.BuildHumidityNoise();
+            NativeNoiseConfig caveNoise = wg.BuildCaveNoise();
 
             StateId stoneId = FindStateId("lithforge:stone");
             StateId airId = StateId.Air;
@@ -207,11 +175,16 @@ namespace Lithforge.Runtime.Bootstrap
                 temperatureNoise,
                 humidityNoise,
                 caveNoise,
+                wg.CaveThreshold,
+                wg.MinCarveY,
+                wg.CaveSeedOffset1,
+                wg.CaveSeedOffset2,
+                wg.SeaLevelCarveBuffer,
                 _nativeBiomeData,
                 _nativeOreConfigs,
                 _contentResult.NativeStateRegistry.States,
                 stoneId, airId, waterId,
-                seaLevel);
+                wg.SeaLevel);
 
             // Build decoration stage
             StateId oakLogId = FindStateId("lithforge:oak_log");
@@ -288,7 +261,8 @@ namespace Lithforge.Runtime.Bootstrap
                 _chunkRenderManager,
                 _decorationStage,
                 _worldStorage,
-                seed);
+                _settings.WorldGen.Seed,
+                _settings.Chunk);
 
             // Create player object with camera as child
             Camera mainCamera = Camera.main;
@@ -305,19 +279,24 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Create player parent object
                 GameObject playerObject = new GameObject("Player");
-                playerObject.transform.position = new Vector3(0, seaLevel + 32, 0);
+                playerObject.transform.position = new Vector3(
+                    0,
+                    _settings.WorldGen.SeaLevel + _settings.Chunk.InitialSpawnYOffset,
+                    0);
 
                 // Reparent camera under player
                 mainCamera.transform.SetParent(playerObject.transform);
                 mainCamera.transform.localPosition = new Vector3(
-                    0f, Lithforge.Physics.PhysicsConstants.PlayerEyeHeight, 0f);
-                mainCamera.transform.localRotation = Quaternion.Euler(30f, 0f, 0f);
-                mainCamera.farClipPlane = 500f;
+                    0f, _settings.Physics.PlayerEyeHeight, 0f);
+                mainCamera.transform.localRotation = Quaternion.Euler(
+                    _settings.Rendering.InitialCameraPitch, 0f, 0f);
+                mainCamera.farClipPlane = _settings.Rendering.FarClipPlane;
 
                 // Add PlayerController to player object
                 PlayerController playerController = playerObject.AddComponent<PlayerController>();
                 playerController.Initialize(
-                    _chunkManager, _contentResult.NativeStateRegistry, _gameLoop);
+                    _chunkManager, _contentResult.NativeStateRegistry,
+                    _gameLoop, _settings.Physics);
                 _services.Register(playerController);
 
                 // Add CameraController to camera
@@ -327,14 +306,25 @@ namespace Lithforge.Runtime.Bootstrap
                 // Add BlockHighlight (standalone object)
                 GameObject highlightObject = new GameObject("BlockHighlight");
                 BlockHighlight blockHighlight = highlightObject.AddComponent<BlockHighlight>();
+                blockHighlight.Initialize(_settings.Rendering);
 
                 // Create player inventory and loot resolver
                 Inventory playerInventory = new Inventory();
                 LootResolver lootResolver = new LootResolver(_contentResult.LootTables);
 
-                // Give player some starting cobblestone
-                ResourceId cobblestoneId = new Lithforge.Core.Data.ResourceId("lithforge", "cobblestone");
-                playerInventory.AddItem(cobblestoneId, 64, 64);
+                // Grant starting items from GameplaySettings
+                StartingItemEntry[] startingItems = _settings.Gameplay.StartingItems;
+
+                for (int i = 0; i < startingItems.Length; i++)
+                {
+                    StartingItemEntry entry = startingItems[i];
+                    ResourceId itemId = new ResourceId(entry.Namespace, entry.Name);
+                    ItemEntry itemDef = _contentResult.ItemRegistry.Get(itemId);
+                    int maxStack = itemDef != null
+                        ? itemDef.MaxStackSize
+                        : _settings.Physics.DefaultMaxStackSize;
+                    playerInventory.AddItem(itemId, entry.Count, maxStack);
+                }
 
                 // Add BlockInteraction to camera (raycasts from camera position/direction)
                 BlockInteraction blockInteraction = mainCamera.gameObject.AddComponent<BlockInteraction>();
@@ -345,7 +335,8 @@ namespace Lithforge.Runtime.Bootstrap
                     blockHighlight,
                     playerInventory,
                     _contentResult.ItemRegistry,
-                    lootResolver);
+                    lootResolver,
+                    _settings.Physics);
                 _services.Register(blockInteraction);
 
                 // Load shared PanelSettings asset for UI Toolkit
@@ -380,7 +371,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add debug HUD
                 DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
-                debugHud.Initialize(_gameLoop, _chunkManager);
+                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
@@ -392,7 +383,10 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
                     playerObject.transform,
-                    spawnLoadRadius);
+                    _settings.Chunk.SpawnLoadRadius,
+                    _settings.Chunk.YLoadMin,
+                    _settings.Chunk.YLoadMax,
+                    _settings.Chunk.SpawnFallbackY);
                 _gameLoop.SetSpawnManager(spawnManager);
 
                 // Create loading screen overlay — HUD is shown after the fade completes
@@ -410,7 +404,10 @@ namespace Lithforge.Runtime.Bootstrap
             if (material != null)
             {
                 _timeOfDayController = gameObject.AddComponent<TimeOfDayController>();
-                _timeOfDayController.Initialize(material, _chunkRenderManager.TranslucentMaterial);
+                _timeOfDayController.Initialize(
+                    material,
+                    _chunkRenderManager.TranslucentMaterial,
+                    _settings.Rendering);
             }
         }
 
@@ -465,7 +462,7 @@ namespace Lithforge.Runtime.Bootstrap
             {
                 _chunkManager.SaveAllChunks(_worldStorage);
                 _worldStorage.FlushAll();
-                _worldStorage.SaveMetadata(seed, "");
+                _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
             }
 
             if (_chunkRenderManager != null)
