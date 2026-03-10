@@ -7,52 +7,52 @@ namespace Lithforge.Runtime.Content
     public sealed class LootItemEntry
     {
         [Tooltip("Entry type (item, empty, loot_table)")]
-        [SerializeField] private string _type = "item";
+        [SerializeField] private string type = "item";
 
         [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition _item;
+        [SerializeField] private ItemDefinition item;
 
         [Tooltip("Item name (fallback when direct reference not set)")]
-        [SerializeField] private string _itemName = "";
+        [SerializeField] private string itemName = "";
 
         [Tooltip("Selection weight")]
         [Min(1)]
-        [SerializeField] private int _weight = 1;
+        [SerializeField] private int weight = 1;
 
         [Tooltip("Conditions for this entry")]
-        [SerializeField] private List<LootConditionEntry> _conditions = new List<LootConditionEntry>();
+        [SerializeField] private List<LootConditionEntry> conditions = new List<LootConditionEntry>();
 
         [Tooltip("Functions to apply to this entry")]
-        [SerializeField] private List<LootFunctionEntry> _functions = new List<LootFunctionEntry>();
+        [SerializeField] private List<LootFunctionEntry> functions = new List<LootFunctionEntry>();
 
         public string Type
         {
-            get { return _type; }
+            get { return type; }
         }
 
         public ItemDefinition Item
         {
-            get { return _item; }
+            get { return item; }
         }
 
         public string ItemName
         {
-            get { return _itemName; }
+            get { return itemName; }
         }
 
         public int Weight
         {
-            get { return _weight; }
+            get { return weight; }
         }
 
         public IReadOnlyList<LootConditionEntry> Conditions
         {
-            get { return _conditions; }
+            get { return conditions; }
         }
 
         public IReadOnlyList<LootFunctionEntry> Functions
         {
-            get { return _functions; }
+            get { return functions; }
         }
     }
 }

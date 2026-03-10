@@ -7,13 +7,13 @@ namespace Lithforge.Runtime.Content.Settings
     public struct StartingItemEntry
     {
         [Tooltip("Item namespace (e.g. lithforge)")]
-        public string Namespace;
+        public string itemNamespace;
 
         [Tooltip("Item name (e.g. cobblestone)")]
-        public string Name;
+        public string itemName;
 
         [Min(1)]
         [Tooltip("Number of items to grant")]
-        public int Count;
+        public int count;
     }
 }

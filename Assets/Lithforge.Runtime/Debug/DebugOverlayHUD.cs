@@ -46,6 +46,7 @@ namespace Lithforge.Runtime.Debug
             _overlayPanelWidth = settings.OverlayPanelWidth;
             _overlayPadding = settings.OverlayPadding;
             _overlayLineSpacing = settings.OverlayLineSpacing;
+            _visible = settings.ShowDebugOverlay;
         }
 
         private void Update()

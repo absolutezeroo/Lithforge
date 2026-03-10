@@ -8,37 +8,37 @@ namespace Lithforge.Runtime.Content
     {
         [Header("Parent")]
         [Tooltip("Parent model (direct reference). Drag-drop for parent chain resolution.")]
-        [SerializeField] private BlockModel _parent;
+        [SerializeField] private BlockModel parent;
 
         [Tooltip("Built-in parent type (used when parent is a terminal built-in model)")]
-        [SerializeField] private BuiltInParentType _builtInParent = BuiltInParentType.None;
+        [SerializeField] private BuiltInParentType builtInParent = BuiltInParentType.None;
 
         [Header("Textures")]
         [Tooltip("Texture variable mappings (variable name → texture path or #variable reference)")]
-        [SerializeField] private List<TextureVariable> _textures = new List<TextureVariable>();
+        [SerializeField] private List<TextureVariable> textures = new List<TextureVariable>();
 
         [Header("Elements")]
         [Tooltip("Model geometry elements (optional, for custom shapes)")]
-        [SerializeField] private List<ModelElement> _elements = new List<ModelElement>();
+        [SerializeField] private List<ModelElement> elements = new List<ModelElement>();
 
         public BlockModel Parent
         {
-            get { return _parent; }
+            get { return parent; }
         }
 
         public BuiltInParentType BuiltInParent
         {
-            get { return _builtInParent; }
+            get { return builtInParent; }
         }
 
         public IReadOnlyList<TextureVariable> Textures
         {
-            get { return _textures; }
+            get { return textures; }
         }
 
         public IReadOnlyList<ModelElement> Elements
         {
-            get { return _elements; }
+            get { return elements; }
         }
     }
 }

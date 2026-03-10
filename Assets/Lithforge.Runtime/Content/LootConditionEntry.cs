@@ -7,19 +7,19 @@ namespace Lithforge.Runtime.Content
     public sealed class LootConditionEntry
     {
         [Tooltip("Condition type")]
-        [SerializeField] private string _conditionType = "";
+        [SerializeField] private string conditionType = "";
 
         [Tooltip("Condition parameters as key=value pairs")]
-        [SerializeField] private List<StringPair> _parameters = new List<StringPair>();
+        [SerializeField] private List<StringPair> parameters = new List<StringPair>();
 
         public string ConditionType
         {
-            get { return _conditionType; }
+            get { return conditionType; }
         }
 
         public IReadOnlyList<StringPair> Parameters
         {
-            get { return _parameters; }
+            get { return parameters; }
         }
     }
 }

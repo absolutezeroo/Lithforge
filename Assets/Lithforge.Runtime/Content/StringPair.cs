@@ -5,24 +5,18 @@ namespace Lithforge.Runtime.Content
     [System.Serializable]
     public sealed class StringPair
     {
-        [SerializeField] private string _key;
+        [SerializeField] private string key;
 
-        [SerializeField] private string _value;
+        [SerializeField] private string value;
 
         public string Key
         {
-            get { return _key; }
+            get { return key; }
         }
 
         public string Value
         {
-            get { return _value; }
-        }
-
-        public StringPair(string key, string value)
-        {
-            _key = key;
-            _value = value;
+            get { return value; }
         }
     }
 }

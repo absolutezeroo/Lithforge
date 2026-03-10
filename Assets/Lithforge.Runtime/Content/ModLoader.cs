@@ -13,14 +13,23 @@ namespace Lithforge.Runtime.Content
         private readonly List<AssetBundle> _loadedBundles = new List<AssetBundle>();
 
         public List<BlockDefinition> LoadedBlocks { get; private set; }
+
         public List<BlockStateMapping> LoadedMappings { get; private set; }
+
         public List<BlockModel> LoadedModels { get; private set; }
+
         public List<ItemDefinition> LoadedItems { get; private set; }
+
         public List<RecipeDefinition> LoadedRecipes { get; private set; }
+
         public List<Tag> LoadedTags { get; private set; }
+
         public List<LootTable> LoadedLootTables { get; private set; }
+
         public List<BiomeDefinition> LoadedBiomes { get; private set; }
+
         public List<OreDefinition> LoadedOres { get; private set; }
+
         public List<ModManifest> LoadedManifests { get; private set; }
 
         public ModLoader()

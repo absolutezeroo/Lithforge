@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdcdb0e565401274baa1bdcaa557955b, type: 3}
+  m_Name: PhysicsSettings
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.PhysicsSettings
+  _walkSpeed: 4.317
+  _sprintSpeed: 5.612
+  _jumpVelocity: 8.5
+  _gravity: -28
+  _maxFallSpeed: -60
+  _playerEyeHeight: 1.62
+  _playerHalfWidth: 0.3
+  _playerHeight: 1.8
+  _stepHeight: 0.6
+  _interactionRange: 5
+  _placeCooldownTime: 0.25
+  _handMiningMultiplier: 5
+  _toolMiningMultiplier: 1.5
+  _minBreakTime: 0.05
+  _defaultMaxStackSize: 64

@@ -7,19 +7,19 @@ namespace Lithforge.Runtime.Content
     public sealed class LootFunctionEntry
     {
         [Tooltip("Function type")]
-        [SerializeField] private string _functionType = "";
+        [SerializeField] private string functionType = "";
 
         [Tooltip("Function parameters as key=value pairs")]
-        [SerializeField] private List<StringPair> _parameters = new List<StringPair>();
+        [SerializeField] private List<StringPair> parameters = new List<StringPair>();
 
         public string FunctionType
         {
-            get { return _functionType; }
+            get { return functionType; }
         }
 
         public IReadOnlyList<StringPair> Parameters
         {
-            get { return _parameters; }
+            get { return parameters; }
         }
     }
 }

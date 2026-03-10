@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Settings
@@ -8,41 +9,41 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Inventory")]
         [Tooltip("Total inventory slot count (advisory — Inventory.SlotCount is the runtime constant)")]
         [Min(9)]
-        [SerializeField] private int _inventorySlotCount = 36;
+        [SerializeField] private int inventorySlotCount = 36;
 
         [Tooltip("Hotbar size (advisory — Inventory.HotbarSize is the runtime constant)")]
         [Min(1)]
-        [SerializeField] private int _hotbarSize = 9;
+        [SerializeField] private int hotbarSize = 9;
 
         [Tooltip("Player crafting grid dimension (2 = 2x2)")]
         [Range(2, 3)]
-        [SerializeField] private int _craftingGridSize = 2;
+        [SerializeField] private int craftingGridSize = 2;
 
         [Header("Starting Items")]
         [Tooltip("Items granted to the player at first spawn")]
-        [SerializeField] private StartingItemEntry[] _startingItems = new StartingItemEntry[]
+        [SerializeField] private StartingItemEntry[] startingItems = new StartingItemEntry[]
         {
-            new StartingItemEntry { Namespace = "lithforge", Name = "cobblestone", Count = 64 },
+            new StartingItemEntry { itemNamespace = "lithforge", itemName = "cobblestone", count = 64 },
         };
 
         public int InventorySlotCount
         {
-            get { return _inventorySlotCount; }
+            get { return inventorySlotCount; }
         }
 
         public int HotbarSize
         {
-            get { return _hotbarSize; }
+            get { return hotbarSize; }
         }
 
         public int CraftingGridSize
         {
-            get { return _craftingGridSize; }
+            get { return craftingGridSize; }
         }
 
-        public StartingItemEntry[] StartingItems
+        public IReadOnlyList<StartingItemEntry> StartingItems
         {
-            get { return _startingItems; }
+            get { return startingItems; }
         }
     }
 }

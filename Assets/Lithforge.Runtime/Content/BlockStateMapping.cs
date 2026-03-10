@@ -8,11 +8,11 @@ namespace Lithforge.Runtime.Content
     {
         [Header("Variants")]
         [Tooltip("Property string → model reference mappings")]
-        [SerializeField] private List<BlockStateVariantEntry> _variants = new List<BlockStateVariantEntry>();
+        [SerializeField] private List<BlockStateVariantEntry> variants = new List<BlockStateVariantEntry>();
 
         public IReadOnlyList<BlockStateVariantEntry> Variants
         {
-            get { return _variants; }
+            get { return variants; }
         }
     }
 }

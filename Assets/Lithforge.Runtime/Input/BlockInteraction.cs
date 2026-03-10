@@ -90,7 +90,10 @@ namespace Lithforge.Runtime.Input
         {
             if (_chunkManager == null || Cursor.lockState != CursorLockMode.Locked)
             {
-                _blockHighlight.Hide();
+                if (_blockHighlight != null)
+                {
+                    _blockHighlight.Hide();
+                }
 
                 return;
             }

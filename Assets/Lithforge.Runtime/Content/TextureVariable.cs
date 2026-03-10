@@ -6,19 +6,19 @@ namespace Lithforge.Runtime.Content
     public sealed class TextureVariable
     {
         [Tooltip("Variable name (e.g. 'all', 'side', 'end', 'north')")]
-        [SerializeField] private string _variable;
+        [SerializeField] private string variable;
 
         [Tooltip("Texture value (resource path like 'lithforge:block/stone' or #variable reference like '#all')")]
-        [SerializeField] private string _value;
+        [SerializeField] private string value;
 
         public string Variable
         {
-            get { return _variable; }
+            get { return variable; }
         }
 
         public string Value
         {
-            get { return _value; }
+            get { return value; }
         }
     }
 }

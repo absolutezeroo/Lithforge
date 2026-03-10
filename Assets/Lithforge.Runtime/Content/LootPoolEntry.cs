@@ -8,36 +8,36 @@ namespace Lithforge.Runtime.Content
     {
         [Tooltip("Minimum rolls")]
         [Min(0)]
-        [SerializeField] private int _rollsMin = 1;
+        [SerializeField] private int rollsMin = 1;
 
         [Tooltip("Maximum rolls")]
         [Min(0)]
-        [SerializeField] private int _rollsMax = 1;
+        [SerializeField] private int rollsMax = 1;
 
         [Tooltip("Entries in this pool")]
-        [SerializeField] private List<LootItemEntry> _entries = new List<LootItemEntry>();
+        [SerializeField] private List<LootItemEntry> entries = new List<LootItemEntry>();
 
         [Tooltip("Conditions for this pool")]
-        [SerializeField] private List<LootConditionEntry> _conditions = new List<LootConditionEntry>();
+        [SerializeField] private List<LootConditionEntry> conditions = new List<LootConditionEntry>();
 
         public int RollsMin
         {
-            get { return _rollsMin; }
+            get { return rollsMin; }
         }
 
         public int RollsMax
         {
-            get { return _rollsMax; }
+            get { return rollsMax; }
         }
 
         public IReadOnlyList<LootItemEntry> Entries
         {
-            get { return _entries; }
+            get { return entries; }
         }
 
         public IReadOnlyList<LootConditionEntry> Conditions
         {
-            get { return _conditions; }
+            get { return conditions; }
         }
     }
 }

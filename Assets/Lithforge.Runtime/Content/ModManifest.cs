@@ -8,61 +8,61 @@ namespace Lithforge.Runtime.Content
     {
         [Header("Identity")]
         [Tooltip("Unique mod identifier")]
-        [SerializeField] private string _modId;
+        [SerializeField] private string modId;
 
         [Tooltip("Display name")]
-        [SerializeField] private string _modName;
+        [SerializeField] private string modName;
 
         [Tooltip("Mod version (semver)")]
-        [SerializeField] private string _version = "1.0.0";
+        [SerializeField] private string version = "1.0.0";
 
         [Header("Metadata")]
         [Tooltip("Mod description")]
         [TextArea(2, 5)]
-        [SerializeField] private string _description;
+        [SerializeField] private string description;
 
         [Tooltip("Mod author(s)")]
-        [SerializeField] private string _author;
+        [SerializeField] private string author;
 
         [Header("Dependencies")]
         [Tooltip("Required mod dependencies (mod_id:min_version)")]
-        [SerializeField] private List<ModDependency> _dependencies = new List<ModDependency>();
+        [SerializeField] private List<ModDependency> dependencies = new List<ModDependency>();
 
         public string ModId
         {
-            get { return _modId; }
+            get { return modId; }
         }
 
         public string ModName
         {
-            get { return _modName; }
+            get { return modName; }
         }
 
         public string Version
         {
-            get { return _version; }
+            get { return version; }
         }
 
         public string Description
         {
-            get { return _description; }
+            get { return description; }
         }
 
         public string Author
         {
-            get { return _author; }
+            get { return author; }
         }
 
         public IReadOnlyList<ModDependency> Dependencies
         {
-            get { return _dependencies; }
+            get { return dependencies; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_modName))
+            if (string.IsNullOrEmpty(modName))
             {
-                _modName = name;
+                modName = name;
             }
         }
     }

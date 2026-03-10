@@ -7,84 +7,76 @@ namespace Lithforge.Runtime.Content
     public sealed class BlockPropertyEntry
     {
         [Tooltip("Property name (e.g. 'facing', 'lit', 'axis')")]
-        [SerializeField] private string _name;
+        [SerializeField] private string name;
 
         [Tooltip("Property type")]
-        [SerializeField] private BlockPropertyKind _kind;
+        [SerializeField] private BlockPropertyKind kind;
 
         [Tooltip("Possible values (for enum type, or auto-generated for bool/int)")]
-        [SerializeField] private List<string> _values = new List<string>();
+        [SerializeField] private List<string> values = new List<string>();
 
         [Tooltip("Default value")]
-        [SerializeField] private string _defaultValue;
+        [SerializeField] private string defaultValue;
 
         [Tooltip("Min value (for int range type)")]
-        [SerializeField] private int _minValue;
+        [SerializeField] private int minValue;
 
         [Tooltip("Max value (for int range type)")]
-        [SerializeField] private int _maxValue;
+        [SerializeField] private int maxValue;
 
         public string Name
         {
-            get { return _name; }
+            get { return name; }
         }
 
         public BlockPropertyKind Kind
         {
-            get { return _kind; }
+            get { return kind; }
         }
 
         public IReadOnlyList<string> Values
         {
-            get { return _values; }
+            get { return values; }
         }
 
         public string DefaultValue
         {
-            get { return _defaultValue; }
+            get { return defaultValue; }
         }
 
         public int MinValue
         {
-            get { return _minValue; }
+            get { return minValue; }
         }
 
         public int MaxValue
         {
-            get { return _maxValue; }
+            get { return maxValue; }
         }
 
         public int ValueCount
         {
             get
             {
-                switch (_kind)
+                return kind switch
                 {
-                    case BlockPropertyKind.Bool:
-                        return 2;
-                    case BlockPropertyKind.IntRange:
-                        return _maxValue - _minValue + 1;
-                    case BlockPropertyKind.Enum:
-                        return _values.Count;
-                    default:
-                        return 1;
-                }
+                    BlockPropertyKind.Bool => 2,
+                    BlockPropertyKind.IntRange => maxValue - minValue + 1,
+                    BlockPropertyKind.Enum => values.Count,
+                    _ => 1,
+                };
             }
         }
 
         public string GetValue(int index)
         {
-            switch (_kind)
+            return kind switch
             {
-                case BlockPropertyKind.Bool:
-                    return index == 0 ? "true" : "false";
-                case BlockPropertyKind.IntRange:
-                    return (_minValue + index).ToString();
-                case BlockPropertyKind.Enum:
-                    return _values[index];
-                default:
-                    return _defaultValue;
-            }
+                BlockPropertyKind.Bool => index == 0 ? "true" : "false",
+                BlockPropertyKind.IntRange => (minValue + index).ToString(),
+                BlockPropertyKind.Enum => values[index],
+                _ => defaultValue,
+            };
         }
     }
 }

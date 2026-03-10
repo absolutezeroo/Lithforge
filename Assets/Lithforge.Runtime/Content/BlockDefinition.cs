@@ -11,56 +11,56 @@ namespace Lithforge.Runtime.Content
         [SerializeField] private string _namespace = "lithforge";
 
         [Tooltip("Block name (e.g. 'stone')")]
-        [SerializeField] private string _blockName = "";
+        [SerializeField] private string blockName = "";
 
         [Header("Gameplay")]
         [Tooltip("Time to break in seconds")]
         [Min(0f)]
-        [SerializeField] private double _hardness = 1.0;
+        [SerializeField] private double hardness = 1.0;
 
         [Tooltip("Resistance to explosions")]
         [Min(0f)]
-        [SerializeField] private double _blastResistance = 1.0;
+        [SerializeField] private double blastResistance = 1.0;
 
         [Tooltip("Whether a tool is required to get drops")]
-        [SerializeField] private bool _requiresTool;
+        [SerializeField] private bool requiresTool;
 
         [Tooltip("Sound group for block sounds")]
-        [SerializeField] private string _soundGroup = "stone";
+        [SerializeField] private string soundGroup = "stone";
 
         [Header("Physics")]
         [Tooltip("Collision shape type")]
-        [SerializeField] private CollisionShapeType _collisionShape = CollisionShapeType.FullCube;
+        [SerializeField] private CollisionShapeType collisionShape = CollisionShapeType.FullCube;
 
         [Header("Rendering")]
         [Tooltip("Render layer for transparency sorting")]
-        [SerializeField] private RenderLayerType _renderLayer = RenderLayerType.Opaque;
+        [SerializeField] private RenderLayerType renderLayer = RenderLayerType.Opaque;
 
         [Tooltip("Light emitted by this block (0-15)")]
         [Range(0, 15)]
-        [SerializeField] private int _lightEmission;
+        [SerializeField] private int lightEmission;
 
         [Tooltip("Light absorbed by this block (0-15)")]
         [Range(0, 15)]
-        [SerializeField] private int _lightFilter = 15;
+        [SerializeField] private int lightFilter = 15;
 
         [Tooltip("Color shown on the map (#RRGGBB or #RRGGBBAA)")]
-        [SerializeField] private string _mapColor = "#808080";
+        [SerializeField] private string mapColor = "#808080";
 
         [Header("References")]
         [Tooltip("Loot table for this block")]
-        [SerializeField] private LootTable _lootTable;
+        [SerializeField] private LootTable lootTable;
 
         [Tooltip("Block state mapping (variants)")]
-        [SerializeField] private BlockStateMapping _blockStateMapping;
+        [SerializeField] private BlockStateMapping blockStateMapping;
 
         [Header("Properties")]
         [Tooltip("Block state properties (axis, facing, lit, etc.)")]
-        [SerializeField] private List<BlockPropertyEntry> _properties = new List<BlockPropertyEntry>();
+        [SerializeField] private List<BlockPropertyEntry> properties = new List<BlockPropertyEntry>();
 
         [Header("Tags")]
         [Tooltip("Tags this block belongs to (string ids for backward compatibility)")]
-        [SerializeField] private List<string> _tags = new List<string>();
+        [SerializeField] private List<string> tags = new List<string>();
 
         public string Namespace
         {
@@ -69,86 +69,86 @@ namespace Lithforge.Runtime.Content
 
         public string BlockName
         {
-            get { return _blockName; }
+            get { return blockName; }
         }
 
         public double Hardness
         {
-            get { return _hardness; }
+            get { return hardness; }
         }
 
         public double BlastResistance
         {
-            get { return _blastResistance; }
+            get { return blastResistance; }
         }
 
         public bool RequiresTool
         {
-            get { return _requiresTool; }
+            get { return requiresTool; }
         }
 
         public string SoundGroup
         {
-            get { return _soundGroup; }
+            get { return soundGroup; }
         }
 
         public CollisionShapeType CollisionShape
         {
-            get { return _collisionShape; }
+            get { return collisionShape; }
         }
 
         public RenderLayerType RenderLayer
         {
-            get { return _renderLayer; }
+            get { return renderLayer; }
         }
 
         public int LightEmission
         {
-            get { return _lightEmission; }
+            get { return lightEmission; }
         }
 
         public int LightFilter
         {
-            get { return _lightFilter; }
+            get { return lightFilter; }
         }
 
         public string MapColor
         {
-            get { return _mapColor; }
+            get { return mapColor; }
         }
 
         public LootTable LootTable
         {
-            get { return _lootTable; }
+            get { return lootTable; }
         }
 
         public BlockStateMapping BlockStateMapping
         {
-            get { return _blockStateMapping; }
+            get { return blockStateMapping; }
         }
 
         public IReadOnlyList<BlockPropertyEntry> Properties
         {
-            get { return _properties; }
+            get { return properties; }
         }
 
         public IReadOnlyList<string> Tags
         {
-            get { return _tags; }
+            get { return tags; }
         }
 
         public string CollisionShapeString
         {
             get
             {
-                return _collisionShape switch
+                return collisionShape switch
                 {
                     CollisionShapeType.None => "none",
                     CollisionShapeType.FullCube => "full_cube",
                     CollisionShapeType.Slab => "slab",
                     CollisionShapeType.Stairs => "stairs",
                     CollisionShapeType.Fence => "fence",
-                    _ => "full_cube"
+                    _ => "full_cube",
                 };
             }
         }
@@ -157,28 +157,28 @@ namespace Lithforge.Runtime.Content
         {
             get
             {
-                return _renderLayer switch
+                return renderLayer switch
                 {
                     RenderLayerType.Opaque => "opaque",
                     RenderLayerType.Cutout => "cutout",
                     RenderLayerType.Translucent => "translucent",
-                    _ => "opaque"
+                    _ => "opaque",
                 };
             }
         }
 
         public int ComputeStateCount()
         {
-            if (_properties.Count == 0)
+            if (properties.Count == 0)
             {
                 return 1;
             }
 
             int count = 1;
 
-            for (int i = 0; i < _properties.Count; i++)
+            for (int i = 0; i < properties.Count; i++)
             {
-                count *= _properties[i].ValueCount;
+                count *= properties[i].ValueCount;
             }
 
             return count;
@@ -186,9 +186,9 @@ namespace Lithforge.Runtime.Content
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_blockName))
+            if (string.IsNullOrEmpty(blockName))
             {
-                _blockName = name;
+                blockName = name;
             }
         }
     }

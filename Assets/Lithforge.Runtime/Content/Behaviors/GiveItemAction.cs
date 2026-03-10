@@ -6,20 +6,20 @@ namespace Lithforge.Runtime.Content.Behaviors
     public sealed class GiveItemAction : BehaviorAction
     {
         [Tooltip("Item to give")]
-        [SerializeField] private ItemDefinition _item;
+        [SerializeField] private ItemDefinition item;
 
         [Tooltip("Number of items to give")]
         [Min(1)]
-        [SerializeField] private int _count = 1;
+        [SerializeField] private int count = 1;
 
         public ItemDefinition Item
         {
-            get { return _item; }
+            get { return item; }
         }
 
         public int Count
         {
-            get { return _count; }
+            get { return count; }
         }
     }
 }

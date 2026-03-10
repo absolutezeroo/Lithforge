@@ -6,19 +6,19 @@ namespace Lithforge.Runtime.Content.Behaviors
     public sealed class SpawnEntityAction : BehaviorAction
     {
         [Tooltip("Entity prefab or id to spawn")]
-        [SerializeField] private string _entityId;
+        [SerializeField] private string entityId;
 
         [Tooltip("Spawn offset from block position")]
-        [SerializeField] private Vector3 _spawnOffset = new Vector3(0.5f, 1.0f, 0.5f);
+        [SerializeField] private Vector3 spawnOffset = new Vector3(0.5f, 1.0f, 0.5f);
 
         public string EntityId
         {
-            get { return _entityId; }
+            get { return entityId; }
         }
 
         public Vector3 SpawnOffset
         {
-            get { return _spawnOffset; }
+            get { return spawnOffset; }
         }
     }
 }

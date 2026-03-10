@@ -6,52 +6,52 @@ namespace Lithforge.Runtime.Content
     public sealed class BlockStateVariantEntry
     {
         [Tooltip("Variant key (e.g. '' for no properties, 'axis=y', 'facing=north,lit=false')")]
-        [SerializeField] private string _variantKey = "";
+        [SerializeField] private string variantKey = "";
 
         [Tooltip("Block model for this variant")]
-        [SerializeField] private BlockModel _model;
+        [SerializeField] private BlockModel model;
 
         [Tooltip("X rotation in degrees (0, 90, 180, 270)")]
-        [SerializeField] private int _rotationX;
+        [SerializeField] private int rotationX;
 
         [Tooltip("Y rotation in degrees (0, 90, 180, 270)")]
-        [SerializeField] private int _rotationY;
+        [SerializeField] private int rotationY;
 
         [Tooltip("Lock UV coordinates when rotating")]
-        [SerializeField] private bool _uvlock;
+        [SerializeField] private bool uvlock;
 
         [Tooltip("Selection weight for weighted random variants")]
         [Min(1)]
-        [SerializeField] private int _weight = 1;
+        [SerializeField] private int weight = 1;
 
         public string VariantKey
         {
-            get { return _variantKey; }
+            get { return variantKey; }
         }
 
         public BlockModel Model
         {
-            get { return _model; }
+            get { return model; }
         }
 
         public int RotationX
         {
-            get { return _rotationX; }
+            get { return rotationX; }
         }
 
         public int RotationY
         {
-            get { return _rotationY; }
+            get { return rotationY; }
         }
 
         public bool Uvlock
         {
-            get { return _uvlock; }
+            get { return uvlock; }
         }
 
         public int Weight
         {
-            get { return _weight; }
+            get { return weight; }
         }
     }
 }

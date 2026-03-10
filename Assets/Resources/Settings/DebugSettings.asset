@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f05fc9280fa5d6942aaaf3a70e972494, type: 3}
+  m_Name: DebugSettings
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.DebugSettings
+  _showDebugOverlay: 0
+  _showChunkBorders: 0
+  _verboseContentLoading: 0
+  _enableProfiling: 1
+  _fpsSampleInterval: 0.5
+  _overlayBackgroundAlpha: 0.6
+  _overlayMinFontSize: 18
+  _overlayScreenDivisor: 50
+  _overlayPanelWidth: 420
+  _overlayPadding: 8
+  _overlayLineSpacing: 6

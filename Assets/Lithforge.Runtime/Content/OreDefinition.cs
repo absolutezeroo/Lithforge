@@ -7,86 +7,86 @@ namespace Lithforge.Runtime.Content
     {
         [Header("Identity")]
         [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string namespace = "lithforge";
 
         [Tooltip("Ore name")]
-        [SerializeField] private string _oreName = "";
+        [SerializeField] private string oreName = "";
 
         [Header("Blocks")]
         [Tooltip("The ore block to place")]
-        [SerializeField] private BlockDefinition _oreBlock;
+        [SerializeField] private BlockDefinition oreBlock;
 
         [Tooltip("The block this ore replaces (usually stone)")]
-        [SerializeField] private BlockDefinition _replaceBlock;
+        [SerializeField] private BlockDefinition replaceBlock;
 
         [Header("Generation")]
         [Tooltip("Minimum Y level")]
-        [SerializeField] private int _minY;
+        [SerializeField] private int minY;
 
         [Tooltip("Maximum Y level")]
-        [SerializeField] private int _maxY = 128;
+        [SerializeField] private int maxY = 128;
 
         [Tooltip("Maximum vein size")]
         [Min(1)]
-        [SerializeField] private int _veinSize = 8;
+        [SerializeField] private int veinSize = 8;
 
         [Tooltip("Generation frequency")]
         [Min(0f)]
-        [SerializeField] private float _frequency = 1.0f;
+        [SerializeField] private float frequency = 1.0f;
 
         [Tooltip("Ore generation type")]
-        [SerializeField] private OreType _oreType = OreType.Blob;
+        [SerializeField] private OreType oreType = OreType.Blob;
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return namespace; }
         }
 
         public string OreName
         {
-            get { return _oreName; }
+            get { return oreName; }
         }
 
         public BlockDefinition OreBlock
         {
-            get { return _oreBlock; }
+            get { return oreBlock; }
         }
 
         public BlockDefinition ReplaceBlock
         {
-            get { return _replaceBlock; }
+            get { return replaceBlock; }
         }
 
         public int MinY
         {
-            get { return _minY; }
+            get { return minY; }
         }
 
         public int MaxY
         {
-            get { return _maxY; }
+            get { return maxY; }
         }
 
         public int VeinSize
         {
-            get { return _veinSize; }
+            get { return veinSize; }
         }
 
         public float Frequency
         {
-            get { return _frequency; }
+            get { return frequency; }
         }
 
         public OreType OreType
         {
-            get { return _oreType; }
+            get { return oreType; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_oreName))
+            if (string.IsNullOrEmpty(oreName))
             {
-                _oreName = name;
+                oreName = name;
             }
         }
     }

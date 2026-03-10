@@ -28,18 +28,11 @@ namespace Lithforge.Runtime.Rendering
             _lineRenderer.useWorldSpace = true;
             _lineRenderer.loop = false;
             _lineRenderer.positionCount = _lineIndices.Length;
-            _lineRenderer.startWidth = 0.02f;
-            _lineRenderer.endWidth = 0.02f;
             _lineRenderer.numCapVertices = 0;
             _lineRenderer.numCornerVertices = 0;
             _lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _lineRenderer.receiveShadows = false;
-
-            // Use a simple unlit black material
             _lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            _lineRenderer.startColor = Color.black;
-            _lineRenderer.endColor = Color.black;
-
             _lineRenderer.enabled = false;
             _visible = false;
         }

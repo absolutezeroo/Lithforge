@@ -6,19 +6,19 @@ namespace Lithforge.Runtime.Content.Behaviors
     public sealed class SpawnParticleAction : BehaviorAction
     {
         [Tooltip("Particle system prefab")]
-        [SerializeField] private ParticleSystem _particlePrefab;
+        [SerializeField] private ParticleSystem particlePrefab;
 
         [Tooltip("Spawn offset from block center")]
-        [SerializeField] private Vector3 _spawnOffset = new Vector3(0.5f, 0.5f, 0.5f);
+        [SerializeField] private Vector3 spawnOffset = new Vector3(0.5f, 0.5f, 0.5f);
 
         public ParticleSystem ParticlePrefab
         {
-            get { return _particlePrefab; }
+            get { return particlePrefab; }
         }
 
         public Vector3 SpawnOffset
         {
-            get { return _spawnOffset; }
+            get { return spawnOffset; }
         }
     }
 }

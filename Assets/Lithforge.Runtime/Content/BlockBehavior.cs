@@ -9,20 +9,20 @@ namespace Lithforge.Runtime.Content
     {
         [Header("Trigger")]
         [Tooltip("When this behavior is triggered")]
-        [SerializeField] private BlockBehaviorTrigger _trigger;
+        [SerializeField] private BlockBehaviorTrigger trigger;
 
         [Header("Actions")]
         [Tooltip("Actions to execute when triggered")]
-        [SerializeField] private List<BehaviorAction> _actions = new List<BehaviorAction>();
+        [SerializeField] private List<BehaviorAction> actions = new List<BehaviorAction>();
 
         public BlockBehaviorTrigger Trigger
         {
-            get { return _trigger; }
+            get { return trigger; }
         }
 
         public IReadOnlyList<BehaviorAction> Actions
         {
-            get { return _actions; }
+            get { return actions; }
         }
     }
 

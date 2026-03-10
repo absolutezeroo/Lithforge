@@ -1,6 +1,6 @@
 namespace Lithforge.Runtime.Content.Settings
 {
-    public struct LoadedSettings
+    public sealed class LoadedSettings
     {
         public WorldGenSettings WorldGen;
         public ChunkSettings Chunk;

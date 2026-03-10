@@ -6,63 +6,63 @@ namespace Lithforge.Runtime.Content
     public sealed class ModelElement
     {
         [Tooltip("From corner position (0-16 range)")]
-        [SerializeField] private Vector3 _from;
+        [SerializeField] private Vector3 from;
 
         [Tooltip("To corner position (0-16 range)")]
-        [SerializeField] private Vector3 _to;
+        [SerializeField] private Vector3 to;
 
         [Header("Faces")]
-        [SerializeField] private ModelFaceEntry _north;
-        [SerializeField] private ModelFaceEntry _south;
-        [SerializeField] private ModelFaceEntry _east;
-        [SerializeField] private ModelFaceEntry _west;
-        [SerializeField] private ModelFaceEntry _up;
-        [SerializeField] private ModelFaceEntry _down;
+        [SerializeField] private ModelFaceEntry north;
+        [SerializeField] private ModelFaceEntry south;
+        [SerializeField] private ModelFaceEntry east;
+        [SerializeField] private ModelFaceEntry west;
+        [SerializeField] private ModelFaceEntry up;
+        [SerializeField] private ModelFaceEntry down;
 
         [Header("Rotation")]
-        [SerializeField] private Vector3 _rotationOrigin;
-        [SerializeField] private ModelRotationAxis _rotationAxis;
-        [SerializeField] private float _rotationAngle;
-        [SerializeField] private bool _rotationRescale;
+        [SerializeField] private Vector3 rotationOrigin;
+        [SerializeField] private ModelRotationAxis rotationAxis;
+        [SerializeField] private float rotationAngle;
+        [SerializeField] private bool rotationRescale;
 
         public Vector3 From
         {
-            get { return _from; }
+            get { return from; }
         }
 
         public Vector3 To
         {
-            get { return _to; }
+            get { return to; }
         }
 
         public ModelFaceEntry North
         {
-            get { return _north; }
+            get { return north; }
         }
 
         public ModelFaceEntry South
         {
-            get { return _south; }
+            get { return south; }
         }
 
         public ModelFaceEntry East
         {
-            get { return _east; }
+            get { return east; }
         }
 
         public ModelFaceEntry West
         {
-            get { return _west; }
+            get { return west; }
         }
 
         public ModelFaceEntry Up
         {
-            get { return _up; }
+            get { return up; }
         }
 
         public ModelFaceEntry Down
         {
-            get { return _down; }
+            get { return down; }
         }
     }
 }

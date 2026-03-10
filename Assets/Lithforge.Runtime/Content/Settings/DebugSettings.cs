@@ -7,101 +7,101 @@ namespace Lithforge.Runtime.Content.Settings
     {
         [Header("Overlay")]
         [Tooltip("Show debug overlay on startup")]
-        [SerializeField] private bool _showDebugOverlay;
+        [SerializeField] private bool showDebugOverlay;
 
         [Tooltip("Show chunk borders")]
-        [SerializeField] private bool _showChunkBorders;
+        [SerializeField] private bool showChunkBorders;
 
         [Header("Logging")]
         [Tooltip("Enable verbose content loading logs")]
-        [SerializeField] private bool _verboseContentLoading;
+        [SerializeField] private bool verboseContentLoading;
 
         [Tooltip("Enable performance profiling markers")]
-        [SerializeField] private bool _enableProfiling = true;
+        [SerializeField] private bool enableProfiling = true;
 
         [Header("FPS Sampling")]
         [Tooltip("FPS averaging interval in seconds")]
         [Min(0.05f)]
-        [SerializeField] private float _fpsSampleInterval = 0.5f;
+        [SerializeField] private float fpsSampleInterval = 0.5f;
 
         [Header("Overlay Appearance")]
         [Tooltip("Background panel alpha (0=transparent, 1=opaque)")]
         [Range(0f, 1f)]
-        [SerializeField] private float _overlayBackgroundAlpha = 0.6f;
+        [SerializeField] private float overlayBackgroundAlpha = 0.6f;
 
         [Tooltip("Minimum font size for overlay labels")]
         [Min(8)]
-        [SerializeField] private int _overlayMinFontSize = 18;
+        [SerializeField] private int overlayMinFontSize = 18;
 
         [Tooltip("Screen height divisor for dynamic font sizing")]
         [Min(10)]
-        [SerializeField] private int _overlayScreenDivisor = 50;
+        [SerializeField] private int overlayScreenDivisor = 50;
 
         [Tooltip("Width of the overlay panel in pixels")]
         [Min(100)]
-        [SerializeField] private int _overlayPanelWidth = 420;
+        [SerializeField] private int overlayPanelWidth = 420;
 
         [Tooltip("Padding inside the overlay panel in pixels")]
         [Min(0)]
-        [SerializeField] private int _overlayPadding = 8;
+        [SerializeField] private int overlayPadding = 8;
 
         [Tooltip("Additional vertical spacing between lines in pixels")]
         [Min(0)]
-        [SerializeField] private int _overlayLineSpacing = 6;
+        [SerializeField] private int overlayLineSpacing = 6;
 
         public bool ShowDebugOverlay
         {
-            get { return _showDebugOverlay; }
+            get { return showDebugOverlay; }
         }
 
         public bool ShowChunkBorders
         {
-            get { return _showChunkBorders; }
+            get { return showChunkBorders; }
         }
 
         public bool VerboseContentLoading
         {
-            get { return _verboseContentLoading; }
+            get { return verboseContentLoading; }
         }
 
         public bool EnableProfiling
         {
-            get { return _enableProfiling; }
+            get { return enableProfiling; }
         }
 
         public float FpsSampleInterval
         {
-            get { return _fpsSampleInterval; }
+            get { return fpsSampleInterval; }
         }
 
         public float OverlayBackgroundAlpha
         {
-            get { return _overlayBackgroundAlpha; }
+            get { return overlayBackgroundAlpha; }
         }
 
         public int OverlayMinFontSize
         {
-            get { return _overlayMinFontSize; }
+            get { return overlayMinFontSize; }
         }
 
         public int OverlayScreenDivisor
         {
-            get { return _overlayScreenDivisor; }
+            get { return overlayScreenDivisor; }
         }
 
         public int OverlayPanelWidth
         {
-            get { return _overlayPanelWidth; }
+            get { return overlayPanelWidth; }
         }
 
         public int OverlayPadding
         {
-            get { return _overlayPadding; }
+            get { return overlayPadding; }
         }
 
         public int OverlayLineSpacing
         {
-            get { return _overlayLineSpacing; }
+            get { return overlayLineSpacing; }
         }
     }
 }

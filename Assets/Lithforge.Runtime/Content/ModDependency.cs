@@ -6,19 +6,19 @@ namespace Lithforge.Runtime.Content
     public sealed class ModDependency
     {
         [Tooltip("Required mod id")]
-        [SerializeField] private string _modId;
+        [SerializeField] private string modId;
 
         [Tooltip("Minimum required version")]
-        [SerializeField] private string _minVersion;
+        [SerializeField] private string minVersion;
 
         public string ModId
         {
-            get { return _modId; }
+            get { return modId; }
         }
 
         public string MinVersion
         {
-            get { return _minVersion; }
+            get { return minVersion; }
         }
     }
 }

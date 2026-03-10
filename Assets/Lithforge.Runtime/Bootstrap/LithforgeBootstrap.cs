@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
@@ -114,10 +115,10 @@ namespace Lithforge.Runtime.Bootstrap
         {
             WorldGenSettings wg = _settings.WorldGen;
 
-            NativeNoiseConfig terrainNoise = wg.BuildTerrainNoise();
-            NativeNoiseConfig temperatureNoise = wg.BuildTemperatureNoise();
-            NativeNoiseConfig humidityNoise = wg.BuildHumidityNoise();
-            NativeNoiseConfig caveNoise = wg.BuildCaveNoise();
+            NativeNoiseConfig terrainNoise = wg.TerrainNoise.ToNativeConfig();
+            NativeNoiseConfig temperatureNoise = wg.TemperatureNoise.ToNativeConfig();
+            NativeNoiseConfig humidityNoise = wg.HumidityNoise.ToNativeConfig();
+            NativeNoiseConfig caveNoise = wg.CaveNoise.ToNativeConfig();
 
             StateId stoneId = FindStateId("lithforge:stone");
             StateId airId = StateId.Air;
@@ -313,17 +314,17 @@ namespace Lithforge.Runtime.Bootstrap
                 LootResolver lootResolver = new LootResolver(_contentResult.LootTables);
 
                 // Grant starting items from GameplaySettings
-                StartingItemEntry[] startingItems = _settings.Gameplay.StartingItems;
+                IReadOnlyList<StartingItemEntry> startingItems = _settings.Gameplay.StartingItems;
 
-                for (int i = 0; i < startingItems.Length; i++)
+                for (int i = 0; i < startingItems.Count; i++)
                 {
                     StartingItemEntry entry = startingItems[i];
-                    ResourceId itemId = new ResourceId(entry.Namespace, entry.Name);
+                    ResourceId itemId = new ResourceId(entry.itemNamespace, entry.itemName);
                     ItemEntry itemDef = _contentResult.ItemRegistry.Get(itemId);
                     int maxStack = itemDef != null
                         ? itemDef.MaxStackSize
                         : _settings.Physics.DefaultMaxStackSize;
-                    playerInventory.AddItem(itemId, entry.Count, maxStack);
+                    playerInventory.AddItem(itemId, entry.count, maxStack);
                 }
 
                 // Add BlockInteraction to camera (raycasts from camera position/direction)

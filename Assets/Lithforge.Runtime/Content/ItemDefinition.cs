@@ -12,48 +12,48 @@ namespace Lithforge.Runtime.Content
         [SerializeField] private string _namespace = "lithforge";
 
         [Tooltip("Item name")]
-        [SerializeField] private string _itemName = "";
+        [SerializeField] private string itemName = "";
 
         [Header("Stack")]
         [Tooltip("Maximum stack size")]
         [Range(1, 64)]
-        [SerializeField] private int _maxStackSize = 64;
+        [SerializeField] private int maxStackSize = 64;
 
         [Header("Tool Properties")]
         [Tooltip("Tool type")]
-        [SerializeField] private ToolType _toolType = ToolType.None;
+        [SerializeField] private ToolType toolType = ToolType.None;
 
         [Tooltip("Tool mining level")]
         [Min(0)]
-        [SerializeField] private int _toolLevel;
+        [SerializeField] private int toolLevel;
 
         [Tooltip("Item durability (0 = unbreakable)")]
         [Min(0)]
-        [SerializeField] private int _durability;
+        [SerializeField] private int durability;
 
         [Tooltip("Attack damage")]
         [Min(0f)]
-        [SerializeField] private float _attackDamage = 1.0f;
+        [SerializeField] private float attackDamage = 1.0f;
 
         [Tooltip("Attack speed")]
         [Min(0f)]
-        [SerializeField] private float _attackSpeed = 4.0f;
+        [SerializeField] private float attackSpeed = 4.0f;
 
         [Tooltip("Mining speed multiplier")]
         [Min(0f)]
-        [SerializeField] private float _miningSpeed = 1.0f;
+        [SerializeField] private float miningSpeed = 1.0f;
 
         [Header("Block Placement")]
         [Tooltip("Block this item places when used")]
-        [SerializeField] private BlockDefinition _placesBlock;
+        [SerializeField] private BlockDefinition placesBlock;
 
         [Header("Model")]
         [Tooltip("Item model reference")]
-        [SerializeField] private BlockModel _itemModel;
+        [SerializeField] private BlockModel itemModel;
 
         [Header("Tags")]
         [Tooltip("Tags this item belongs to")]
-        [SerializeField] private List<string> _tags = new List<string>();
+        [SerializeField] private List<string> tags = new List<string>();
 
         public string Namespace
         {
@@ -62,69 +62,69 @@ namespace Lithforge.Runtime.Content
 
         public string ItemName
         {
-            get { return _itemName; }
+            get { return itemName; }
         }
 
         public int MaxStackSize
         {
-            get { return _maxStackSize; }
+            get { return maxStackSize; }
         }
 
         public ToolType ToolType
         {
-            get { return _toolType; }
+            get { return toolType; }
         }
 
         public int ToolLevel
         {
-            get { return _toolLevel; }
+            get { return toolLevel; }
         }
 
         public int Durability
         {
-            get { return _durability; }
+            get { return durability; }
         }
 
         public float AttackDamage
         {
-            get { return _attackDamage; }
+            get { return attackDamage; }
         }
 
         public float AttackSpeed
         {
-            get { return _attackSpeed; }
+            get { return attackSpeed; }
         }
 
         public float MiningSpeed
         {
-            get { return _miningSpeed; }
+            get { return miningSpeed; }
         }
 
         public BlockDefinition PlacesBlock
         {
-            get { return _placesBlock; }
+            get { return placesBlock; }
         }
 
         public BlockModel ItemModel
         {
-            get { return _itemModel; }
+            get { return itemModel; }
         }
 
         public IReadOnlyList<string> Tags
         {
-            get { return _tags; }
+            get { return tags; }
         }
 
         public bool IsBlockItem
         {
-            get { return _placesBlock != null; }
+            get { return placesBlock != null; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_itemName))
+            if (string.IsNullOrEmpty(itemName))
             {
-                _itemName = name;
+                itemName = name;
             }
         }
     }

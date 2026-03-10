@@ -7,43 +7,43 @@ namespace Lithforge.Runtime.Content
     public sealed class ModelFaceEntry
     {
         [Tooltip("Texture variable reference (e.g. '#all', '#side')")]
-        [SerializeField] private string _texture;
+        [SerializeField] private string texture;
 
         [Tooltip("UV coordinates [u1, v1, u2, v2]")]
-        [SerializeField] private Vector4 _uv;
+        [SerializeField] private Vector4 uv;
 
         [Tooltip("Face culling direction")]
-        [SerializeField] private CullFace _cullFace = CullFace.None;
+        [SerializeField] private CullFace cullFace = CullFace.None;
 
         [Tooltip("Texture rotation (0, 90, 180, 270)")]
-        [SerializeField] private int _rotation;
+        [SerializeField] private int rotation;
 
         [Tooltip("Tint index for biome coloring (-1 = none)")]
-        [SerializeField] private int _tintIndex = -1;
+        [SerializeField] private int tintIndex = -1;
 
         public string Texture
         {
-            get { return _texture; }
+            get { return texture; }
         }
 
         public Vector4 Uv
         {
-            get { return _uv; }
+            get { return uv; }
         }
 
         public CullFace CullFace
         {
-            get { return _cullFace; }
+            get { return cullFace; }
         }
 
         public int Rotation
         {
-            get { return _rotation; }
+            get { return rotation; }
         }
 
         public int TintIndex
         {
-            get { return _tintIndex; }
+            get { return tintIndex; }
         }
     }
 }
