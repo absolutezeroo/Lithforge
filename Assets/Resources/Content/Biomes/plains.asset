@@ -11,20 +11,20 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ee2bcbfe9d845f842a4bfdde0bc5c656, type: 3}
   m_Name: plains
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BiomeDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.WorldGen.BiomeDefinition
   _namespace: lithforge
-  _biomeName: plains
-  _temperatureMin: 0.3
-  _temperatureMax: 0.7
-  _temperatureCenter: 0.5
-  _humidityMin: 0.3
-  _humidityMax: 0.7
-  _humidityCenter: 0.5
-  _topBlock: {fileID: 11400000, guid: 6939bb7628794ae4ea5b7f11fc81faa6, type: 2}
-  _fillerBlock: {fileID: 11400000, guid: 91c83ab8bf0318041b36b318c08acb6f, type: 2}
-  _stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
-  _underwaterBlock: {fileID: 11400000, guid: 91c83ab8bf0318041b36b318c08acb6f, type: 2}
-  _fillerDepth: 3
-  _treeDensity: 0.02
-  _heightModifier: 0
-  _mapColor: {r: 0, g: 1, b: 0, a: 1}
+  biomeName: plains
+  temperatureMin: 0.3
+  temperatureMax: 0.7
+  temperatureCenter: 0.5
+  humidityMin: 0.3
+  humidityMax: 0.7
+  humidityCenter: 0.5
+  topBlock: {fileID: 11400000, guid: 6939bb7628794ae4ea5b7f11fc81faa6, type: 2}
+  fillerBlock: {fileID: 11400000, guid: 91c83ab8bf0318041b36b318c08acb6f, type: 2}
+  stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
+  underwaterBlock: {fileID: 11400000, guid: 91c83ab8bf0318041b36b318c08acb6f, type: 2}
+  fillerDepth: 3
+  treeDensity: 0.02
+  heightModifier: 0
+  mapColor: {r: 0, g: 1, b: 0, a: 1}

@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: dirt
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: dirt
-  _hardness: 0.5
-  _blastResistance: 0.5
-  _requiresTool: 0
-  _soundGroup: gravel
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#866043'
-  _lootTable: {fileID: 11400000, guid: 2a305ab70b3281f4ab52bc2950e898b3, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 6a70b03dba5eeda48934d316db647a04, type: 2}
-  _properties: []
-  _tags:
+  blockName: dirt
+  hardness: 0.5
+  blastResistance: 0.5
+  requiresTool: 0
+  soundGroup: gravel
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#866043'
+  lootTable: {fileID: 11400000, guid: 2a305ab70b3281f4ab52bc2950e898b3, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 6a70b03dba5eeda48934d316db647a04, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_shovel

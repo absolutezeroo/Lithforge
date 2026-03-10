@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: gold_ore
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: gold_ore
-  _hardness: 3
-  _blastResistance: 3
-  _requiresTool: 1
-  _soundGroup: stone
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#FCEE4B'
-  _lootTable: {fileID: 11400000, guid: 396a62dffb79d8d40bd0dcf6d4133eb2, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 8112d027357fa784ea17117695759ad7, type: 2}
-  _properties: []
-  _tags:
+  blockName: gold_ore
+  hardness: 3
+  blastResistance: 3
+  requiresTool: 1
+  soundGroup: stone
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#FCEE4B'
+  lootTable: {fileID: 11400000, guid: 396a62dffb79d8d40bd0dcf6d4133eb2, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 8112d027357fa784ea17117695759ad7, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_pickaxe

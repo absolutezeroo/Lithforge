@@ -11,13 +11,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 05d0e5b892b029a4db84adda5f6face4, type: 3}
   m_Name: coal
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.OreDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.WorldGen.OreDefinition
   _namespace: lithforge
-  _oreName: coal
-  _oreBlock: {fileID: 11400000, guid: c81000269f478824a94d45cfcdb4c14d, type: 2}
-  _replaceBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
-  _minY: 0
-  _maxY: 128
-  _veinSize: 17
-  _frequency: 20
-  _oreType: 0
+  oreName: coal
+  oreBlock: {fileID: 11400000, guid: c81000269f478824a94d45cfcdb4c14d, type: 2}
+  replaceBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
+  minY: 0
+  maxY: 128
+  veinSize: 17
+  frequency: 20
+  oreType: 0

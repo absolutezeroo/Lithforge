@@ -11,18 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f3021b5e12934554a906a373e48fc994, type: 3}
   m_Name: emerald_ore
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.LootTable
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Loot.LootTable
   _namespace: lithforge
-  _tableName: blocks/emerald_ore
-  _type: minecraft:block
-  _pools:
-  - _rollsMin: 0
-    _rollsMax: 0
-    _entries:
-    - _type: minecraft:alternatives
-      _item: {fileID: 0}
-      _itemName: 
-      _weight: 1
-      _conditions: []
-      _functions: []
-    _conditions: []
+  tableName: blocks/emerald_ore
+  type: minecraft:block
+  pools:
+  - rollsMin: 0
+    rollsMax: 0
+    entries:
+    - type: minecraft:alternatives
+      item: {fileID: 0}
+      itemName: 
+      weight: 1
+      conditions: []
+      functions: []
+    conditions: []

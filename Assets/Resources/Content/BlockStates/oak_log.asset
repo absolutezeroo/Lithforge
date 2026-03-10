@@ -12,22 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: oak_log
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
-  _variants:
-  - _variantKey: axis=x
-    _model: {fileID: 11400000, guid: d53f8df8712148047a2967c9922f21f2, type: 2}
-    _rotationX: 90
-    _rotationY: 90
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: axis=y
-    _model: {fileID: 11400000, guid: d53f8df8712148047a2967c9922f21f2, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: axis=z
-    _model: {fileID: 11400000, guid: d53f8df8712148047a2967c9922f21f2, type: 2}
-    _rotationX: 90
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
+  variants:
+  - variantKey: axis=x
+    model: {fileID: 11400000, guid: d53f8df8712148047a2967c9922f21f2, type: 2}
+    rotationX: 90
+    rotationY: 90
+    uvlock: 0
+    weight: 1
+  - variantKey: axis=y
+    model: {fileID: 11400000, guid: d53f8df8712148047a2967c9922f21f2, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: axis=z
+    model: {fileID: 11400000, guid: d53f8df8712148047a2967c9922f21f2, type: 2}
+    rotationX: 90
+    rotationY: 0
+    uvlock: 0
+    weight: 1

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: cube_column_uv_locked_z
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
   parent: {fileID: 0}
   builtInParent: 0
   textures:
@@ -36,4 +36,46 @@ MonoBehaviour:
   - variable: west
     texture: {fileID: 0}
     variableReference: '#side'
-  elements: []
+  elements:
+  - from: {x: 0, y: 0, z: 0}
+    to: {x: 16, y: 16, z: 16}
+    north:
+      texture: '#north'
+      uv: {x: 0, y: 0, z: 0, w: 0}
+      cullFace: 1
+      rotation: 0
+      tintIndex: -1
+    south:
+      texture: '#south'
+      uv: {x: 0, y: 0, z: 0, w: 0}
+      cullFace: 2
+      rotation: 0
+      tintIndex: -1
+    east:
+      texture: '#east'
+      uv: {x: 0, y: 0, z: 0, w: 0}
+      cullFace: 3
+      rotation: 90
+      tintIndex: -1
+    west:
+      texture: '#west'
+      uv: {x: 0, y: 0, z: 0, w: 0}
+      cullFace: 4
+      rotation: 90
+      tintIndex: -1
+    up:
+      texture: '#up'
+      uv: {x: 0, y: 0, z: 0, w: 0}
+      cullFace: 5
+      rotation: 0
+      tintIndex: -1
+    down:
+      texture: '#down'
+      uv: {x: 0, y: 0, z: 0, w: 0}
+      cullFace: 6
+      rotation: 0
+      tintIndex: -1
+    rotationOrigin: {x: 0, y: 0, z: 0}
+    rotationAxis: 0
+    rotationAngle: 0
+    rotationRescale: 0

@@ -12,52 +12,52 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: furnace
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
-  _variants:
-  - _variantKey: facing=north,lit=true
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=south,lit=true
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=east,lit=true
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=west,lit=true
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=north,lit=false
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=south,lit=false
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=east,lit=false
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: facing=west,lit=false
-    _model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
+  variants:
+  - variantKey: facing=north,lit=true
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=south,lit=true
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=east,lit=true
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=west,lit=true
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=north,lit=false
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=south,lit=false
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=east,lit=false
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: facing=west,lit=false
+    model: {fileID: 11400000, guid: f58824f0b01182446bacfbd86c0904a3, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1

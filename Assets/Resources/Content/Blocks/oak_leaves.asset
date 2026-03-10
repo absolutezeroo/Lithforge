@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: oak_leaves
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: oak_leaves
-  _hardness: 0.2
-  _blastResistance: 0.2
-  _requiresTool: 0
-  _soundGroup: grass
-  _collisionShape: 0
-  _renderLayer: 1
-  _lightEmission: 0
-  _lightFilter: 1
-  _mapColor: '#4A7A32'
-  _lootTable: {fileID: 11400000, guid: 7a6c6fec140ae9546896e6a2548daecd, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 8349637fdef47214597fbeb1725d5b0b, type: 2}
-  _properties: []
-  _tags:
+  blockName: oak_leaves
+  hardness: 0.2
+  blastResistance: 0.2
+  requiresTool: 0
+  soundGroup: grass
+  collisionShape: 0
+  renderLayer: 1
+  lightEmission: 0
+  lightFilter: 1
+  mapColor: '#4A7A32'
+  lootTable: {fileID: 11400000, guid: 7a6c6fec140ae9546896e6a2548daecd, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 8349637fdef47214597fbeb1725d5b0b, type: 2}
+  properties: []
+  tags:
   - lithforge:leaves

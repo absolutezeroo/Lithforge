@@ -13,16 +13,24 @@ namespace Lithforge.Runtime.Content.Models
 
         [Header("Faces")]
         [SerializeField] private ModelFaceEntry north;
+
         [SerializeField] private ModelFaceEntry south;
+
         [SerializeField] private ModelFaceEntry east;
+
         [SerializeField] private ModelFaceEntry west;
+
         [SerializeField] private ModelFaceEntry up;
+
         [SerializeField] private ModelFaceEntry down;
 
         [Header("Rotation")]
         [SerializeField] private Vector3 rotationOrigin;
+
         [SerializeField] private ModelRotationAxis rotationAxis;
+
         [SerializeField] private float rotationAngle;
+
         [SerializeField] private bool rotationRescale;
 
         public Vector3 From

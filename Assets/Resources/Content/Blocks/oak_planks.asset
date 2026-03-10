@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: oak_planks
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: oak_planks
-  _hardness: 2
-  _blastResistance: 3
-  _requiresTool: 0
-  _soundGroup: wood
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#C29D62'
-  _lootTable: {fileID: 11400000, guid: c4140ed817dcf0547aeef40b96f50ec7, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 2deaab497f4abdd4b9f3e68a5b13af75, type: 2}
-  _properties: []
-  _tags:
+  blockName: oak_planks
+  hardness: 2
+  blastResistance: 3
+  requiresTool: 0
+  soundGroup: wood
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#C29D62'
+  lootTable: {fileID: 11400000, guid: c4140ed817dcf0547aeef40b96f50ec7, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 2deaab497f4abdd4b9f3e68a5b13af75, type: 2}
+  properties: []
+  tags:
   - lithforge:planks
   - lithforge:mineable_axe

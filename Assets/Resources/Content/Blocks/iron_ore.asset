@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: iron_ore
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: iron_ore
-  _hardness: 3
-  _blastResistance: 3
-  _requiresTool: 1
-  _soundGroup: stone
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#A17951'
-  _lootTable: {fileID: 11400000, guid: fa59778f385addf40a13d90d11d85515, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: aeb761b96d6ed6948b1c198e08ee26b2, type: 2}
-  _properties: []
-  _tags:
+  blockName: iron_ore
+  hardness: 3
+  blastResistance: 3
+  requiresTool: 1
+  soundGroup: stone
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#A17951'
+  lootTable: {fileID: 11400000, guid: fa59778f385addf40a13d90d11d85515, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: aeb761b96d6ed6948b1c198e08ee26b2, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_pickaxe

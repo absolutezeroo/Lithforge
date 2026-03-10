@@ -11,19 +11,19 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c00b882db2c9834d98083765abcb509, type: 3}
   m_Name: stick
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.RecipeDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Recipes.RecipeDefinition
   _namespace: lithforge
-  _recipeName: stick
-  _type: 0
-  _resultItem: {fileID: 0}
-  _resultItemId: lithforge:stick
-  _resultCount: 4
-  _pattern:
+  recipeName: stick
+  type: 0
+  resultItem: {fileID: 0}
+  resultItemId: lithforge:stick
+  resultCount: 4
+  pattern:
   - '#'
   - '#'
-  _keys:
-  - _key: 35
-    _item: {fileID: 0}
-    _itemId: lithforge:oak_planks
-    _tagId: 
-  _ingredients: []
+  keys:
+  - key: 35
+    item: {fileID: 0}
+    itemId: lithforge:oak_planks
+    tagId: 
+  ingredients: []

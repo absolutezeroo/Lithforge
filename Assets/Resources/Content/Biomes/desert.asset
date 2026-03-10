@@ -11,20 +11,20 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ee2bcbfe9d845f842a4bfdde0bc5c656, type: 3}
   m_Name: desert
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BiomeDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.WorldGen.BiomeDefinition
   _namespace: lithforge
-  _biomeName: desert
-  _temperatureMin: 0.7
-  _temperatureMax: 1
-  _temperatureCenter: 0.85
-  _humidityMin: 0
-  _humidityMax: 0.3
-  _humidityCenter: 0.15
-  _topBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
-  _fillerBlock: {fileID: 11400000, guid: 73f24493020ca4545818b3222ea3e1b3, type: 2}
-  _stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
-  _underwaterBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
-  _fillerDepth: 4
-  _treeDensity: 0
-  _heightModifier: 0
-  _mapColor: {r: 0, g: 1, b: 0, a: 1}
+  biomeName: desert
+  temperatureMin: 0.7
+  temperatureMax: 1
+  temperatureCenter: 0.85
+  humidityMin: 0
+  humidityMax: 0.3
+  humidityCenter: 0.15
+  topBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
+  fillerBlock: {fileID: 11400000, guid: 73f24493020ca4545818b3222ea3e1b3, type: 2}
+  stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
+  underwaterBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
+  fillerDepth: 4
+  treeDensity: 0
+  heightModifier: 0
+  mapColor: {r: 0, g: 1, b: 0, a: 1}

@@ -11,16 +11,16 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a37a2746e074a1b41aca21745842d447, type: 3}
   m_Name: iron_sword
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.ItemDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Items.ItemDefinition
   _namespace: lithforge
-  _itemName: iron_sword
-  _maxStackSize: 1
-  _toolType: 5
-  _toolLevel: 2
-  _durability: 250
-  _attackDamage: 6
-  _attackSpeed: 1.6
-  _miningSpeed: 1.5
-  _placesBlock: {fileID: 0}
-  _itemModel: {fileID: 0}
-  _tags: []
+  itemName: iron_sword
+  maxStackSize: 1
+  toolType: 5
+  toolLevel: 2
+  durability: 250
+  attackDamage: 6
+  attackSpeed: 1.6
+  miningSpeed: 1.5
+  placesBlock: {fileID: 0}
+  itemModel: {fileID: 0}
+  tags: []

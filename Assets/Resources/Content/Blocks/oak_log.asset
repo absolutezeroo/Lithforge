@@ -13,28 +13,28 @@ MonoBehaviour:
   m_Name: oak_log
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: oak_log
-  _hardness: 2
-  _blastResistance: 2
-  _requiresTool: 0
-  _soundGroup: wood
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#9E804F'
-  _lootTable: {fileID: 11400000, guid: 01c2b80ae8249a341b7160136c8f3f15, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: c75409ebc07dae149a22720c80b27f2a, type: 2}
-  _properties:
-  - _name: axis
-    _kind: 2
-    _values:
+  blockName: oak_log
+  hardness: 2
+  blastResistance: 2
+  requiresTool: 0
+  soundGroup: wood
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#9E804F'
+  lootTable: {fileID: 11400000, guid: 01c2b80ae8249a341b7160136c8f3f15, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: c75409ebc07dae149a22720c80b27f2a, type: 2}
+  properties:
+  - name: axis
+    kind: 2
+    values:
     - x
     - y
     - z
-    _defaultValue: y
-    _minValue: 0
-    _maxValue: 0
-  _tags:
+    defaultValue: y
+    minValue: 0
+    maxValue: 0
+  tags:
   - lithforge:logs
   - lithforge:mineable_axe

@@ -11,9 +11,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: grass_block
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
   parent: {fileID: 0}
-  builtInParent: 0
+  builtInParent: 2
   textures:
   - variable: bottom
     texture: {fileID: 2800000, guid: b5db6a89ef6da01479a136ded7df0479, type: 3}
@@ -27,4 +27,88 @@ MonoBehaviour:
   - variable: overlay
     texture: {fileID: 2800000, guid: f771c57ed2a59fa40b3238d3f7c195cf, type: 3}
     variableReference: 
-  elements: []
+  elements:
+  - from: {x: 0, y: 0, z: 0}
+    to: {x: 16, y: 16, z: 16}
+    north:
+      texture: '#side'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 1
+      rotation: 0
+      tintIndex: -1
+    south:
+      texture: '#side'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 2
+      rotation: 0
+      tintIndex: -1
+    east:
+      texture: '#side'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 3
+      rotation: 0
+      tintIndex: -1
+    west:
+      texture: '#side'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 4
+      rotation: 0
+      tintIndex: -1
+    up:
+      texture: '#top'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 5
+      rotation: 0
+      tintIndex: 0
+    down:
+      texture: '#bottom'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 6
+      rotation: 0
+      tintIndex: -1
+    rotationOrigin: {x: 0, y: 0, z: 0}
+    rotationAxis: 0
+    rotationAngle: 0
+    rotationRescale: 0
+  - from: {x: 0, y: 0, z: 0}
+    to: {x: 16, y: 16, z: 16}
+    north:
+      texture: '#overlay'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 1
+      rotation: 0
+      tintIndex: 0
+    south:
+      texture: '#overlay'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 2
+      rotation: 0
+      tintIndex: 0
+    east:
+      texture: '#overlay'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 3
+      rotation: 0
+      tintIndex: 0
+    west:
+      texture: '#overlay'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 4
+      rotation: 0
+      tintIndex: 0
+    up:
+      texture: '#top'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 5
+      rotation: 0
+      tintIndex: 0
+    down:
+      texture: '#bottom'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 6
+      rotation: 0
+      tintIndex: -1
+    rotationOrigin: {x: 0, y: 0, z: 0}
+    rotationAxis: 0
+    rotationAngle: 0
+    rotationRescale: 0

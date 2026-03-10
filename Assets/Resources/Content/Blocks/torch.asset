@@ -13,17 +13,17 @@ MonoBehaviour:
   m_Name: torch
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: torch
-  _hardness: 0
-  _blastResistance: 0
-  _requiresTool: 0
-  _soundGroup: wood
-  _collisionShape: 1
-  _renderLayer: 1
-  _lightEmission: 14
-  _lightFilter: 0
-  _mapColor: '#FFFF00'
-  _lootTable: {fileID: 0}
-  _blockStateMapping: {fileID: 11400000, guid: ea0959e83369a4c429bfc00c562aacf1, type: 2}
-  _properties: []
-  _tags: []
+  blockName: torch
+  hardness: 0
+  blastResistance: 0
+  requiresTool: 0
+  soundGroup: wood
+  collisionShape: 1
+  renderLayer: 1
+  lightEmission: 14
+  lightFilter: 0
+  mapColor: '#FFFF00'
+  lootTable: {fileID: 0}
+  blockStateMapping: {fileID: 11400000, guid: ea0959e83369a4c429bfc00c562aacf1, type: 2}
+  properties: []
+  tags: []

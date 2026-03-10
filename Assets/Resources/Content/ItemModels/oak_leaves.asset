@@ -11,8 +11,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: oak_leaves
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 11400000}
-  _builtInParent: 0
-  _textures: []
-  _elements: []
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
+  parent: {fileID: 11400000}
+  builtInParent: 0
+  textures: []
+  elements: []

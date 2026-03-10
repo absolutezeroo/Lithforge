@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: sandstone
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: sandstone
-  _hardness: 0.8
-  _blastResistance: 0.8
-  _requiresTool: 1
-  _soundGroup: stone
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#D8C978'
-  _lootTable: {fileID: 11400000, guid: 4cec68ee71c748540b3023c79a7c1b2b, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 1bd312a0e1d915948aaaf525e327347c, type: 2}
-  _properties: []
-  _tags:
+  blockName: sandstone
+  hardness: 0.8
+  blastResistance: 0.8
+  requiresTool: 1
+  soundGroup: stone
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#D8C978'
+  lootTable: {fileID: 11400000, guid: 4cec68ee71c748540b3023c79a7c1b2b, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 1bd312a0e1d915948aaaf525e327347c, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_pickaxe

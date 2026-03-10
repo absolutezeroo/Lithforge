@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: gravel
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: gravel
-  _hardness: 0.6
-  _blastResistance: 0.6
-  _requiresTool: 0
-  _soundGroup: gravel
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#837E7E'
-  _lootTable: {fileID: 11400000, guid: 67c58da75cba3874aac29eaa367f5a5e, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 9663470fed8de2c4ebab6c5a4136aca9, type: 2}
-  _properties: []
-  _tags:
+  blockName: gravel
+  hardness: 0.6
+  blastResistance: 0.6
+  requiresTool: 0
+  soundGroup: gravel
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#837E7E'
+  lootTable: {fileID: 11400000, guid: 67c58da75cba3874aac29eaa367f5a5e, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 9663470fed8de2c4ebab6c5a4136aca9, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_shovel

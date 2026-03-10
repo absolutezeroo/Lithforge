@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: sandstone
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
-  _variants:
-  - _variantKey:
-    _model: {fileID: 11400000, guid: 783f4a58ab63b094694f143ab6d8f705, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
+  variants:
+  - variantKey: 
+    model: {fileID: 11400000, guid: 783f4a58ab63b094694f143ab6d8f705, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1

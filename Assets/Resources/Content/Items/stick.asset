@@ -11,16 +11,16 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a37a2746e074a1b41aca21745842d447, type: 3}
   m_Name: stick
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.ItemDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Items.ItemDefinition
   _namespace: lithforge
-  _itemName: stick
-  _maxStackSize: 64
-  _toolType: 0
-  _toolLevel: 0
-  _durability: 0
-  _attackDamage: 1
-  _attackSpeed: 4
-  _miningSpeed: 1
-  _placesBlock: {fileID: 0}
-  _itemModel: {fileID: 0}
-  _tags: []
+  itemName: stick
+  maxStackSize: 64
+  toolType: 0
+  toolLevel: 0
+  durability: 0
+  attackDamage: 1
+  attackSpeed: 4
+  miningSpeed: 1
+  placesBlock: {fileID: 0}
+  itemModel: {fileID: 0}
+  tags: []

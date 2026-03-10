@@ -11,16 +11,16 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c00b882db2c9834d98083765abcb509, type: 3}
   m_Name: oak_planks
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.RecipeDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Recipes.RecipeDefinition
   _namespace: lithforge
-  _recipeName: oak_planks
-  _type: 1
-  _resultItem: {fileID: 0}
-  _resultItemId: lithforge:oak_planks
-  _resultCount: 4
-  _pattern: []
-  _keys: []
-  _ingredients:
-  - _item: {fileID: 0}
-    _itemId: lithforge:oak_log
-    _tagId: 
+  recipeName: oak_planks
+  type: 1
+  resultItem: {fileID: 0}
+  resultItemId: lithforge:oak_planks
+  resultCount: 4
+  pattern: []
+  keys: []
+  ingredients:
+  - item: {fileID: 0}
+    itemId: lithforge:oak_log
+    tagId: 

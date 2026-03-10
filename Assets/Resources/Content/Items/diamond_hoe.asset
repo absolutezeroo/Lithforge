@@ -11,16 +11,16 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a37a2746e074a1b41aca21745842d447, type: 3}
   m_Name: diamond_hoe
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.ItemDefinition
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Items.ItemDefinition
   _namespace: lithforge
-  _itemName: diamond_hoe
-  _maxStackSize: 1
-  _toolType: 4
-  _toolLevel: 3
-  _durability: 1561
-  _attackDamage: 1
-  _attackSpeed: 4
-  _miningSpeed: 8
-  _placesBlock: {fileID: 0}
-  _itemModel: {fileID: 0}
-  _tags: []
+  itemName: diamond_hoe
+  maxStackSize: 1
+  toolType: 4
+  toolLevel: 3
+  durability: 1561
+  attackDamage: 1
+  attackSpeed: 4
+  miningSpeed: 8
+  placesBlock: {fileID: 0}
+  itemModel: {fileID: 0}
+  tags: []

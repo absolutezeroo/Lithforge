@@ -11,8 +11,92 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: cube_all_inner_faces
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 1
-  _textures: []
-  _elements: []
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
+  parent: {fileID: 0}
+  builtInParent: 1
+  textures: []
+  elements:
+  - from: {x: 0, y: 0, z: 0}
+    to: {x: 16, y: 16, z: 16}
+    north:
+      texture: '#all'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 1
+      rotation: 0
+      tintIndex: -1
+    south:
+      texture: '#all'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 2
+      rotation: 0
+      tintIndex: -1
+    east:
+      texture: '#all'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 3
+      rotation: 0
+      tintIndex: -1
+    west:
+      texture: '#all'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 4
+      rotation: 0
+      tintIndex: -1
+    up:
+      texture: '#all'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 5
+      rotation: 0
+      tintIndex: -1
+    down:
+      texture: '#all'
+      uv: {x: 0, y: 0, z: 16, w: 16}
+      cullFace: 6
+      rotation: 0
+      tintIndex: -1
+    rotationOrigin: {x: 0, y: 0, z: 0}
+    rotationAxis: 0
+    rotationAngle: 0
+    rotationRescale: 0
+  - from: {x: 15.998, y: 0.002, z: 0.002}
+    to: {x: 0.002, y: 15.998, z: 15.998}
+    north:
+      texture: '#all'
+      uv: {x: 16, y: 0, z: 0, w: 16}
+      cullFace: 2
+      rotation: 0
+      tintIndex: -1
+    south:
+      texture: '#all'
+      uv: {x: 16, y: 0, z: 0, w: 16}
+      cullFace: 1
+      rotation: 0
+      tintIndex: -1
+    east:
+      texture: '#all'
+      uv: {x: 16, y: 0, z: 0, w: 16}
+      cullFace: 4
+      rotation: 0
+      tintIndex: -1
+    west:
+      texture: '#all'
+      uv: {x: 16, y: 0, z: 0, w: 16}
+      cullFace: 3
+      rotation: 0
+      tintIndex: -1
+    up:
+      texture: '#all'
+      uv: {x: 16, y: 0, z: 0, w: 16}
+      cullFace: 5
+      rotation: 0
+      tintIndex: -1
+    down:
+      texture: '#all'
+      uv: {x: 16, y: 0, z: 0, w: 16}
+      cullFace: 6
+      rotation: 0
+      tintIndex: -1
+    rotationOrigin: {x: 0, y: 0, z: 0}
+    rotationAxis: 0
+    rotationAngle: 0
+    rotationRescale: 0

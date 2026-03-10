@@ -12,16 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: grass_block
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
-  _variants:
-  - _variantKey: snowy=false
-    _model: {fileID: 11400000, guid: 70d060ca9e9fe7a44b8159cb6c097e7b, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: snowy=true
-    _model: {fileID: 11400000, guid: 70d060ca9e9fe7a44b8159cb6c097e7b, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
+  variants:
+  - variantKey: snowy=false
+    model: {fileID: 11400000, guid: 70d060ca9e9fe7a44b8159cb6c097e7b, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: snowy=true
+    model: {fileID: 11400000, guid: 70d060ca9e9fe7a44b8159cb6c097e7b, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1

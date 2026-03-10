@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: cobblestone
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: cobblestone
-  _hardness: 2
-  _blastResistance: 6
-  _requiresTool: 1
-  _soundGroup: stone
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#7F7F7F'
-  _lootTable: {fileID: 11400000, guid: d3cb466e76e66cf4e9ff5b1fdb0eea12, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: dd599cdb43e4ee24e8bb7c17ee4b71b5, type: 2}
-  _properties: []
-  _tags:
+  blockName: cobblestone
+  hardness: 2
+  blastResistance: 6
+  requiresTool: 1
+  soundGroup: stone
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#7F7F7F'
+  lootTable: {fileID: 11400000, guid: d3cb466e76e66cf4e9ff5b1fdb0eea12, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: dd599cdb43e4ee24e8bb7c17ee4b71b5, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_pickaxe

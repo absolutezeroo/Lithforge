@@ -11,11 +11,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: golden_hoe
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  parent: {fileID: 0}
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
+  parent: {fileID: 11400000, guid: f45824e27e5c15441b335bdbd86e293a, type: 2}
   builtInParent: 0
   textures:
   - variable: layer0
-    texture: {fileID: 2800000, guid: 1400439e4706ef64684b02d155180c78, type: 3}
+    texture: {fileID: 0}
     variableReference: 
   elements: []

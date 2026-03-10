@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: stone
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: stone
-  _hardness: 1.5
-  _blastResistance: 6
-  _requiresTool: 1
-  _soundGroup: stone
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#7F7F7F'
-  _lootTable: {fileID: 11400000, guid: b638d2fddd2c6944485feaaffcbeef40, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: 7e6d7141bc253e04aa538462fdd36887, type: 2}
-  _properties: []
-  _tags:
+  blockName: stone
+  hardness: 1.5
+  blastResistance: 6
+  requiresTool: 1
+  soundGroup: stone
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#7F7F7F'
+  lootTable: {fileID: 11400000, guid: b638d2fddd2c6944485feaaffcbeef40, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 7e6d7141bc253e04aa538462fdd36887, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_pickaxe

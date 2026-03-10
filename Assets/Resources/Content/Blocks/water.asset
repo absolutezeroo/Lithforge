@@ -13,23 +13,23 @@ MonoBehaviour:
   m_Name: water
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: water
-  _hardness: 100
-  _blastResistance: 100
-  _requiresTool: 0
-  _soundGroup: none
-  _collisionShape: 1
-  _renderLayer: 2
-  _lightEmission: 0
-  _lightFilter: 2
-  _mapColor: '#3F76E4'
-  _lootTable: {fileID: 0}
-  _blockStateMapping: {fileID: 11400000, guid: 455c84b6064508244a3f585244368724, type: 2}
-  _properties:
-  - _name: level
-    _kind: 1
-    _values: []
-    _defaultValue: 0
-    _minValue: 0
-    _maxValue: 15
-  _tags: []
+  blockName: water
+  hardness: 100
+  blastResistance: 100
+  requiresTool: 0
+  soundGroup: none
+  collisionShape: 1
+  renderLayer: 2
+  lightEmission: 0
+  lightFilter: 2
+  mapColor: '#3F76E4'
+  lootTable: {fileID: 0}
+  blockStateMapping: {fileID: 11400000, guid: 455c84b6064508244a3f585244368724, type: 2}
+  properties:
+  - name: level
+    kind: 1
+    values: []
+    defaultValue: 0
+    minValue: 0
+    maxValue: 15
+  tags: []

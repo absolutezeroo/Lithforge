@@ -11,8 +11,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: cube_north_west_mirrored_all
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  parent: {fileID: 0}
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
+  parent: {fileID: 11400000, guid: 00e86719cffff3d45992f0de27035355, type: 2}
   builtInParent: 0
   textures:
   - variable: particle

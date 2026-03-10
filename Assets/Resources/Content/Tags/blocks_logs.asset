@@ -11,11 +11,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 67f3b8ccb8f66ae46940dd6a1b89e3e6, type: 3}
   m_Name: blocks_logs
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Tag
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Tags.Tag
   _namespace: lithforge
-  _tagName: blocks/logs
-  _replace: 0
-  _entries:
+  tagName: blocks/logs
+  replace: 0
+  entries:
   - {fileID: 11400000, guid: 92e15b5b06a1c86439e2716ee1fed8d5, type: 2}
-  _entryIds:
+  entryIds:
   - lithforge:oak_log

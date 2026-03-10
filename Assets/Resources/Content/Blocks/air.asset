@@ -13,17 +13,17 @@ MonoBehaviour:
   m_Name: air
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: air
-  _hardness: 0
-  _blastResistance: 0
-  _requiresTool: 0
-  _soundGroup: none
-  _collisionShape: 1
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 0
-  _mapColor: '#808080'
-  _lootTable: {fileID: 0}
-  _blockStateMapping: {fileID: 11400000, guid: 7bf3c0d0cde295449b6ec86f1caff464, type: 2}
-  _properties: []
-  _tags: []
+  blockName: air
+  hardness: 0
+  blastResistance: 0
+  requiresTool: 0
+  soundGroup: none
+  collisionShape: 1
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 0
+  mapColor: '#808080'
+  lootTable: {fileID: 0}
+  blockStateMapping: {fileID: 11400000, guid: 7bf3c0d0cde295449b6ec86f1caff464, type: 2}
+  properties: []
+  tags: []

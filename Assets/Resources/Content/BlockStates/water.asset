@@ -12,100 +12,100 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2769f4293c46a2c4381ecbae6a6847fb, type: 3}
   m_Name: water
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockStateMapping
-  _variants:
-  - _variantKey: level=0
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=1
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=2
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=3
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=4
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=5
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=6
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=7
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=8
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=9
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=10
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=11
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=12
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=13
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=14
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
-  - _variantKey: level=15
-    _model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
-    _rotationX: 0
-    _rotationY: 0
-    _uvlock: 0
-    _weight: 1
+  variants:
+  - variantKey: level=0
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=1
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=2
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=3
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=4
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=5
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=6
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=7
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=8
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=9
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=10
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=11
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=12
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=13
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=14
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1
+  - variantKey: level=15
+    model: {fileID: 11400000, guid: f3f92efc24de34847a42b94c41f19682, type: 2}
+    rotationX: 0
+    rotationY: 0
+    uvlock: 0
+    weight: 1

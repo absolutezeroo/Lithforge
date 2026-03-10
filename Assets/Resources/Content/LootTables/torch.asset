@@ -11,18 +11,18 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f3021b5e12934554a906a373e48fc994, type: 3}
   m_Name: torch
-  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.LootTable
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Loot.LootTable
   _namespace: lithforge
-  _tableName: blocks/torch
-  _type: block
-  _pools:
-  - _rollsMin: 1
-    _rollsMax: 1
-    _entries:
-    - _type: item
-      _item: {fileID: 0}
-      _itemName: lithforge:torch
-      _weight: 1
-      _conditions: []
-      _functions: []
-    _conditions: []
+  tableName: blocks/torch
+  type: block
+  pools:
+  - rollsMin: 1
+    rollsMax: 1
+    entries:
+    - type: item
+      item: {fileID: 0}
+      itemName: lithforge:torch
+      weight: 1
+      conditions: []
+      functions: []
+    conditions: []

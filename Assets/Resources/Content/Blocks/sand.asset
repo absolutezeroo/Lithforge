@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: sand
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
   _namespace: lithforge
-  _blockName: sand
-  _hardness: 0.5
-  _blastResistance: 0.5
-  _requiresTool: 0
-  _soundGroup: sand
-  _collisionShape: 0
-  _renderLayer: 0
-  _lightEmission: 0
-  _lightFilter: 15
-  _mapColor: '#DBD3A0'
-  _lootTable: {fileID: 11400000, guid: b469845a41188d8499ee6715ad27b500, type: 2}
-  _blockStateMapping: {fileID: 11400000, guid: a46228403404d324e8209bcea530005c, type: 2}
-  _properties: []
-  _tags:
+  blockName: sand
+  hardness: 0.5
+  blastResistance: 0.5
+  requiresTool: 0
+  soundGroup: sand
+  collisionShape: 0
+  renderLayer: 0
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#DBD3A0'
+  lootTable: {fileID: 11400000, guid: b469845a41188d8499ee6715ad27b500, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: a46228403404d324e8209bcea530005c, type: 2}
+  properties: []
+  tags:
   - lithforge:mineable_shovel
   - lithforge:sand

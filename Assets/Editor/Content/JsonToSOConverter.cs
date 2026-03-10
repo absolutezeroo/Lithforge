@@ -25,6 +25,7 @@ namespace Lithforge.Editor.Content
     public static class JsonToSOConverter
     {
         private const string ContentRoot = "Assets/StreamingAssets/content/lithforge/assets/lithforge";
+        private const string TextureRoot = "Assets/StreamingAssets/content/lithforge/assets/lithforge/textures";
         private const string OutputRoot = "Assets/Resources/Content";
 
         private static readonly Dictionary<string, BlockModel> _modelCache =
@@ -61,7 +62,6 @@ namespace Lithforge.Editor.Content
             EnsureDirectory(OutputRoot + "/Recipes");
             EnsureDirectory(OutputRoot + "/Biomes");
             EnsureDirectory(OutputRoot + "/Ores");
-
             EnsureDirectory(OutputRoot + "/ItemModels");
 
             // Order matters: models first, then blockstates, then blocks (which ref both)
@@ -114,16 +114,12 @@ namespace Lithforge.Editor.Content
 
                 if (IsBuiltInModel(parentStr))
                 {
-                    so.FindProperty("_builtInParent").enumValueIndex =
+                    so.FindProperty("builtInParent").enumValueIndex =
                         (int)ParseBuiltInParent(parentStr);
-                }
-                else if (!string.IsNullOrEmpty(parentStr))
-                {
-                    // Will wire parent refs after all models created
                 }
 
                 // Textures
-                SerializedProperty texturesProp = so.FindProperty("_textures");
+                SerializedProperty texturesProp = so.FindProperty("textures");
                 JObject texturesObj = root["textures"] as JObject;
 
                 if (texturesObj != null)
@@ -133,10 +129,33 @@ namespace Lithforge.Editor.Content
                         texturesProp.InsertArrayElementAtIndex(texturesProp.arraySize);
                         SerializedProperty entry = texturesProp.GetArrayElementAtIndex(
                             texturesProp.arraySize - 1);
-                        entry.FindPropertyRelative("_variable").stringValue = kvp.Key;
-                        entry.FindPropertyRelative("_value").stringValue = kvp.Value.ToString();
+
+                        entry.FindPropertyRelative("variable").stringValue = kvp.Key;
+
+                        string texValue = kvp.Value.ToString();
+
+                        if (texValue.StartsWith("#"))
+                        {
+                            entry.FindPropertyRelative("variableReference").stringValue = texValue;
+                        }
+                        else
+                        {
+                            Texture2D tex = ResolveTextureAsset(texValue);
+
+                            if (tex != null)
+                            {
+                                entry.FindPropertyRelative("texture").objectReferenceValue = tex;
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[JsonToSOConverter] Could not find texture for '{texValue}' in model '{blockName}'");
+                            }
+                        }
                     }
                 }
+
+                // Elements
+                ConvertElements(so, root);
 
                 so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -165,7 +184,7 @@ namespace Lithforge.Editor.Content
                         _modelCache.TryGetValue(blockName, out BlockModel childModel))
                     {
                         SerializedObject so = new SerializedObject(childModel);
-                        so.FindProperty("_parent").objectReferenceValue = parentModel;
+                        so.FindProperty("parent").objectReferenceValue = parentModel;
                         so.ApplyModifiedPropertiesWithoutUndo();
                     }
                 }
@@ -198,12 +217,12 @@ namespace Lithforge.Editor.Content
 
                 if (IsBuiltInModel(parentStr))
                 {
-                    so.FindProperty("_builtInParent").enumValueIndex =
+                    so.FindProperty("builtInParent").enumValueIndex =
                         (int)ParseBuiltInParent(parentStr);
                 }
 
                 // Textures
-                SerializedProperty texturesProp = so.FindProperty("_textures");
+                SerializedProperty texturesProp = so.FindProperty("textures");
                 JObject texturesObj = root["textures"] as JObject;
 
                 if (texturesObj != null)
@@ -213,10 +232,33 @@ namespace Lithforge.Editor.Content
                         texturesProp.InsertArrayElementAtIndex(texturesProp.arraySize);
                         SerializedProperty entry = texturesProp.GetArrayElementAtIndex(
                             texturesProp.arraySize - 1);
-                        entry.FindPropertyRelative("_variable").stringValue = kvp.Key;
-                        entry.FindPropertyRelative("_value").stringValue = kvp.Value.ToString();
+
+                        entry.FindPropertyRelative("variable").stringValue = kvp.Key;
+
+                        string texValue = kvp.Value.ToString();
+
+                        if (texValue.StartsWith("#"))
+                        {
+                            entry.FindPropertyRelative("variableReference").stringValue = texValue;
+                        }
+                        else
+                        {
+                            Texture2D tex = ResolveTextureAsset(texValue);
+
+                            if (tex != null)
+                            {
+                                entry.FindPropertyRelative("texture").objectReferenceValue = tex;
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[JsonToSOConverter] Could not find texture for '{texValue}' in item model '{itemName}'");
+                            }
+                        }
                     }
                 }
+
+                // Elements
+                ConvertElements(so, root);
 
                 so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -259,7 +301,7 @@ namespace Lithforge.Editor.Content
                     if (parentModel != null)
                     {
                         SerializedObject so = new SerializedObject(childModel);
-                        so.FindProperty("_parent").objectReferenceValue = parentModel;
+                        so.FindProperty("parent").objectReferenceValue = parentModel;
                         so.ApplyModifiedPropertiesWithoutUndo();
                     }
                 }
@@ -286,7 +328,7 @@ namespace Lithforge.Editor.Content
 
                 BlockStateMapping mapping = ScriptableObject.CreateInstance<BlockStateMapping>();
                 SerializedObject so = new SerializedObject(mapping);
-                SerializedProperty variantsProp = so.FindProperty("_variants");
+                SerializedProperty variantsProp = so.FindProperty("variants");
 
                 JObject variantsObj = root["variants"] as JObject;
 
@@ -305,14 +347,14 @@ namespace Lithforge.Editor.Content
                         SerializedProperty entry = variantsProp.GetArrayElementAtIndex(
                             variantsProp.arraySize - 1);
 
-                        entry.FindPropertyRelative("_variantKey").stringValue = kvp.Key;
-                        entry.FindPropertyRelative("_rotationX").intValue =
+                        entry.FindPropertyRelative("variantKey").stringValue = kvp.Key;
+                        entry.FindPropertyRelative("rotationX").intValue =
                             variantObj["x"]?.Value<int>() ?? 0;
-                        entry.FindPropertyRelative("_rotationY").intValue =
+                        entry.FindPropertyRelative("rotationY").intValue =
                             variantObj["y"]?.Value<int>() ?? 0;
-                        entry.FindPropertyRelative("_uvlock").boolValue =
+                        entry.FindPropertyRelative("uvlock").boolValue =
                             variantObj["uvlock"]?.Value<bool>() ?? false;
-                        entry.FindPropertyRelative("_weight").intValue = 1;
+                        entry.FindPropertyRelative("weight").intValue = 1;
 
                         // Wire model ref
                         string modelStr = variantObj["model"]?.Value<string>();
@@ -323,7 +365,7 @@ namespace Lithforge.Editor.Content
 
                             if (_modelCache.TryGetValue(modelName, out BlockModel model))
                             {
-                                entry.FindPropertyRelative("_model").objectReferenceValue = model;
+                                entry.FindPropertyRelative("model").objectReferenceValue = model;
                             }
                         }
                     }
@@ -345,7 +387,6 @@ namespace Lithforge.Editor.Content
             List<string> allFiles = new List<string>();
             HashSet<string> seenNames = new HashSet<string>();
 
-            // Primary path first
             if (Directory.Exists(primaryDir))
             {
                 string[] primaryFiles = Directory.GetFiles(primaryDir, "*.json");
@@ -357,7 +398,6 @@ namespace Lithforge.Editor.Content
                 }
             }
 
-            // Alt path: only add files not already found in primary
             if (Directory.Exists(altDir))
             {
                 string[] altFiles = Directory.GetFiles(altDir, "*.json");
@@ -392,10 +432,10 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(lootTable);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_tableName").stringValue = "blocks/" + tableName;
-                so.FindProperty("_type").stringValue = root["type"]?.Value<string>() ?? "block";
+                so.FindProperty("tableName").stringValue = "blocks/" + tableName;
+                so.FindProperty("type").stringValue = root["type"]?.Value<string>() ?? "block";
 
-                SerializedProperty poolsProp = so.FindProperty("_pools");
+                SerializedProperty poolsProp = so.FindProperty("pools");
                 JArray poolsArray = root["pools"] as JArray;
 
                 if (poolsArray != null)
@@ -419,19 +459,19 @@ namespace Lithforge.Editor.Content
                         if (rollsToken != null && rollsToken.Type == JTokenType.Integer)
                         {
                             int rolls = rollsToken.Value<int>();
-                            poolEntry.FindPropertyRelative("_rollsMin").intValue = rolls;
-                            poolEntry.FindPropertyRelative("_rollsMax").intValue = rolls;
+                            poolEntry.FindPropertyRelative("rollsMin").intValue = rolls;
+                            poolEntry.FindPropertyRelative("rollsMax").intValue = rolls;
                         }
                         else if (rollsToken != null && rollsToken.Type == JTokenType.Object)
                         {
-                            poolEntry.FindPropertyRelative("_rollsMin").intValue =
+                            poolEntry.FindPropertyRelative("rollsMin").intValue =
                                 rollsToken["min"]?.Value<int>() ?? 1;
-                            poolEntry.FindPropertyRelative("_rollsMax").intValue =
+                            poolEntry.FindPropertyRelative("rollsMax").intValue =
                                 rollsToken["max"]?.Value<int>() ?? 1;
                         }
 
                         // Entries
-                        SerializedProperty entriesProp = poolEntry.FindPropertyRelative("_entries");
+                        SerializedProperty entriesProp = poolEntry.FindPropertyRelative("entries");
                         JArray entriesArray = poolObj["entries"] as JArray;
 
                         if (entriesArray != null)
@@ -449,11 +489,11 @@ namespace Lithforge.Editor.Content
                                 SerializedProperty entryEntry = entriesProp.GetArrayElementAtIndex(
                                     entriesProp.arraySize - 1);
 
-                                entryEntry.FindPropertyRelative("_type").stringValue =
+                                entryEntry.FindPropertyRelative("type").stringValue =
                                     entryObj["type"]?.Value<string>() ?? "item";
-                                entryEntry.FindPropertyRelative("_itemName").stringValue =
+                                entryEntry.FindPropertyRelative("itemName").stringValue =
                                     entryObj["name"]?.Value<string>() ?? "";
-                                entryEntry.FindPropertyRelative("_weight").intValue =
+                                entryEntry.FindPropertyRelative("weight").intValue =
                                     entryObj["weight"]?.Value<int>() ?? 1;
                             }
                         }
@@ -490,29 +530,29 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(block);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_blockName").stringValue = blockName;
-                so.FindProperty("_hardness").doubleValue = root["hardness"]?.Value<double>() ?? 1.0;
-                so.FindProperty("_blastResistance").doubleValue =
+                so.FindProperty("blockName").stringValue = blockName;
+                so.FindProperty("hardness").doubleValue = root["hardness"]?.Value<double>() ?? 1.0;
+                so.FindProperty("blastResistance").doubleValue =
                     root["blast_resistance"]?.Value<double>() ?? 1.0;
-                so.FindProperty("_requiresTool").boolValue =
+                so.FindProperty("requiresTool").boolValue =
                     root["requires_tool"]?.Value<bool>() ?? false;
-                so.FindProperty("_soundGroup").stringValue =
+                so.FindProperty("soundGroup").stringValue =
                     root["sound_group"]?.Value<string>() ?? "stone";
-                so.FindProperty("_lightEmission").intValue =
+                so.FindProperty("lightEmission").intValue =
                     root["light_emission"]?.Value<int>() ?? 0;
-                so.FindProperty("_lightFilter").intValue =
+                so.FindProperty("lightFilter").intValue =
                     root["light_filter"]?.Value<int>() ?? 15;
-                so.FindProperty("_mapColor").stringValue =
+                so.FindProperty("mapColor").stringValue =
                     root["map_color"]?.Value<string>() ?? "#808080";
 
                 // Collision shape
                 string collisionStr = root["collision_shape"]?.Value<string>() ?? "full_cube";
-                so.FindProperty("_collisionShape").enumValueIndex =
+                so.FindProperty("collisionShape").enumValueIndex =
                     (int)ParseCollisionShape(collisionStr);
 
                 // Render layer
                 string renderStr = root["render_layer"]?.Value<string>() ?? "opaque";
-                so.FindProperty("_renderLayer").enumValueIndex =
+                so.FindProperty("renderLayer").enumValueIndex =
                     (int)ParseRenderLayer(renderStr);
 
                 // Loot table reference
@@ -524,14 +564,14 @@ namespace Lithforge.Editor.Content
 
                     if (_lootCache.TryGetValue(lootName, out LootTable loot))
                     {
-                        so.FindProperty("_lootTable").objectReferenceValue = loot;
+                        so.FindProperty("lootTable").objectReferenceValue = loot;
                     }
                 }
 
                 // Block state mapping reference
                 if (_mappingCache.TryGetValue(blockName, out BlockStateMapping mapping))
                 {
-                    so.FindProperty("_blockStateMapping").objectReferenceValue = mapping;
+                    so.FindProperty("blockStateMapping").objectReferenceValue = mapping;
                 }
 
                 // Properties
@@ -539,7 +579,7 @@ namespace Lithforge.Editor.Content
 
                 if (propsToken is JObject propsObj)
                 {
-                    SerializedProperty propsProp = so.FindProperty("_properties");
+                    SerializedProperty propsProp = so.FindProperty("properties");
 
                     foreach (KeyValuePair<string, JToken> prop in propsObj)
                     {
@@ -554,35 +594,35 @@ namespace Lithforge.Editor.Content
                         SerializedProperty entry = propsProp.GetArrayElementAtIndex(
                             propsProp.arraySize - 1);
 
-                        entry.FindPropertyRelative("_name").stringValue = prop.Key;
+                        entry.FindPropertyRelative("name").stringValue = prop.Key;
 
                         string type = propDef["type"]?.Value<string>() ?? "";
                         string defaultVal = propDef["default"]?.Value<string>() ?? "";
 
                         if (string.Equals(type, "bool", StringComparison.Ordinal))
                         {
-                            entry.FindPropertyRelative("_kind").enumValueIndex =
+                            entry.FindPropertyRelative("kind").enumValueIndex =
                                 (int)BlockPropertyKind.Bool;
-                            entry.FindPropertyRelative("_defaultValue").stringValue = defaultVal;
+                            entry.FindPropertyRelative("defaultValue").stringValue = defaultVal;
                         }
                         else if (string.Equals(type, "int", StringComparison.Ordinal))
                         {
-                            entry.FindPropertyRelative("_kind").enumValueIndex =
+                            entry.FindPropertyRelative("kind").enumValueIndex =
                                 (int)BlockPropertyKind.IntRange;
-                            entry.FindPropertyRelative("_minValue").intValue =
+                            entry.FindPropertyRelative("minValue").intValue =
                                 propDef["min"]?.Value<int>() ?? 0;
-                            entry.FindPropertyRelative("_maxValue").intValue =
+                            entry.FindPropertyRelative("maxValue").intValue =
                                 propDef["max"]?.Value<int>() ?? 0;
-                            entry.FindPropertyRelative("_defaultValue").stringValue = defaultVal;
+                            entry.FindPropertyRelative("defaultValue").stringValue = defaultVal;
                         }
                         else if (string.Equals(type, "enum", StringComparison.Ordinal))
                         {
-                            entry.FindPropertyRelative("_kind").enumValueIndex =
+                            entry.FindPropertyRelative("kind").enumValueIndex =
                                 (int)BlockPropertyKind.Enum;
-                            entry.FindPropertyRelative("_defaultValue").stringValue = defaultVal;
+                            entry.FindPropertyRelative("defaultValue").stringValue = defaultVal;
 
                             SerializedProperty valuesProp =
-                                entry.FindPropertyRelative("_values");
+                                entry.FindPropertyRelative("values");
                             JArray valuesArray = propDef["values"] as JArray;
 
                             if (valuesArray != null)
@@ -604,7 +644,7 @@ namespace Lithforge.Editor.Content
 
                 if (tagsArray != null)
                 {
-                    SerializedProperty tagsProp = so.FindProperty("_tags");
+                    SerializedProperty tagsProp = so.FindProperty("tags");
 
                     for (int t = 0; t < tagsArray.Count; t++)
                     {
@@ -644,18 +684,18 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(item);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_itemName").stringValue = itemName;
-                so.FindProperty("_maxStackSize").intValue =
+                so.FindProperty("itemName").stringValue = itemName;
+                so.FindProperty("maxStackSize").intValue =
                     root["max_stack_size"]?.Value<int>() ?? 64;
-                so.FindProperty("_toolLevel").intValue =
+                so.FindProperty("toolLevel").intValue =
                     root["tool_level"]?.Value<int>() ?? 0;
-                so.FindProperty("_durability").intValue =
+                so.FindProperty("durability").intValue =
                     root["durability"]?.Value<int>() ?? 0;
-                so.FindProperty("_attackDamage").floatValue =
+                so.FindProperty("attackDamage").floatValue =
                     root["attack_damage"]?.Value<float>() ?? 1.0f;
-                so.FindProperty("_attackSpeed").floatValue =
+                so.FindProperty("attackSpeed").floatValue =
                     root["attack_speed"]?.Value<float>() ?? 4.0f;
-                so.FindProperty("_miningSpeed").floatValue =
+                so.FindProperty("miningSpeed").floatValue =
                     root["mining_speed"]?.Value<float>() ?? 1.0f;
 
                 // Tool type
@@ -663,7 +703,7 @@ namespace Lithforge.Editor.Content
 
                 if (!string.IsNullOrEmpty(toolTypeStr))
                 {
-                    so.FindProperty("_toolType").enumValueIndex =
+                    so.FindProperty("toolType").enumValueIndex =
                         (int)ParseToolType(toolTypeStr);
                 }
 
@@ -676,7 +716,7 @@ namespace Lithforge.Editor.Content
 
                     if (_blockCache.TryGetValue(blockName, out BlockDefinition blockDef))
                     {
-                        so.FindProperty("_placesBlock").objectReferenceValue = blockDef;
+                        so.FindProperty("placesBlock").objectReferenceValue = blockDef;
                     }
                 }
 
@@ -718,16 +758,16 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(tag);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_tagName").stringValue = tagName;
-                so.FindProperty("_replace").boolValue =
+                so.FindProperty("tagName").stringValue = tagName;
+                so.FindProperty("replace").boolValue =
                     root["replace"]?.Value<bool>() ?? false;
 
                 JArray valuesArray = root["values"] as JArray;
 
                 if (valuesArray != null)
                 {
-                    SerializedProperty entriesProp = so.FindProperty("_entries");
-                    SerializedProperty entryIdsProp = so.FindProperty("_entryIds");
+                    SerializedProperty entriesProp = so.FindProperty("entries");
+                    SerializedProperty entryIdsProp = so.FindProperty("entryIds");
 
                     for (int v = 0; v < valuesArray.Count; v++)
                     {
@@ -795,10 +835,10 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(recipe);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_recipeName").stringValue = recipeName;
+                so.FindProperty("recipeName").stringValue = recipeName;
 
                 string typeStr = root["type"]?.Value<string>() ?? "shaped";
-                so.FindProperty("_type").enumValueIndex =
+                so.FindProperty("type").enumValueIndex =
                     string.Equals(typeStr, "shapeless", StringComparison.Ordinal) ? 1 : 0;
 
                 // Result
@@ -807,8 +847,8 @@ namespace Lithforge.Editor.Content
                 if (resultObj != null)
                 {
                     string resultItemStr = resultObj["item"]?.Value<string>();
-                    so.FindProperty("_resultItemId").stringValue = resultItemStr ?? "";
-                    so.FindProperty("_resultCount").intValue =
+                    so.FindProperty("resultItemId").stringValue = resultItemStr ?? "";
+                    so.FindProperty("resultCount").intValue =
                         resultObj["count"]?.Value<int>() ?? 1;
                 }
 
@@ -817,7 +857,7 @@ namespace Lithforge.Editor.Content
 
                 if (patternArray != null)
                 {
-                    SerializedProperty patternProp = so.FindProperty("_pattern");
+                    SerializedProperty patternProp = so.FindProperty("pattern");
 
                     for (int p = 0; p < patternArray.Count; p++)
                     {
@@ -833,7 +873,7 @@ namespace Lithforge.Editor.Content
 
                 if (keyObj != null)
                 {
-                    SerializedProperty keysProp = so.FindProperty("_keys");
+                    SerializedProperty keysProp = so.FindProperty("keys");
 
                     foreach (KeyValuePair<string, JToken> kvp in keyObj)
                     {
@@ -846,7 +886,7 @@ namespace Lithforge.Editor.Content
                         SerializedProperty entry = keysProp.GetArrayElementAtIndex(
                             keysProp.arraySize - 1);
 
-                        entry.FindPropertyRelative("_key").intValue = kvp.Key[0];
+                        entry.FindPropertyRelative("key").intValue = kvp.Key[0];
 
                         string itemStr = null;
 
@@ -859,7 +899,7 @@ namespace Lithforge.Editor.Content
                             itemStr = kvp.Value.Value<string>();
                         }
 
-                        entry.FindPropertyRelative("_itemId").stringValue = itemStr ?? "";
+                        entry.FindPropertyRelative("itemId").stringValue = itemStr ?? "";
                     }
                 }
 
@@ -868,7 +908,7 @@ namespace Lithforge.Editor.Content
 
                 if (ingredientsArray != null)
                 {
-                    SerializedProperty ingredientsProp = so.FindProperty("_ingredients");
+                    SerializedProperty ingredientsProp = so.FindProperty("ingredients");
 
                     for (int ing = 0; ing < ingredientsArray.Count; ing++)
                     {
@@ -887,7 +927,7 @@ namespace Lithforge.Editor.Content
                         ingredientsProp.InsertArrayElementAtIndex(ingredientsProp.arraySize);
                         SerializedProperty entry = ingredientsProp.GetArrayElementAtIndex(
                             ingredientsProp.arraySize - 1);
-                        entry.FindPropertyRelative("_itemId").stringValue = itemStr ?? "";
+                        entry.FindPropertyRelative("itemId").stringValue = itemStr ?? "";
                     }
                 }
 
@@ -920,31 +960,31 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(biome);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_biomeName").stringValue = biomeName;
-                so.FindProperty("_temperatureMin").floatValue =
+                so.FindProperty("biomeName").stringValue = biomeName;
+                so.FindProperty("temperatureMin").floatValue =
                     root["temperature_min"]?.Value<float>() ?? 0f;
-                so.FindProperty("_temperatureMax").floatValue =
+                so.FindProperty("temperatureMax").floatValue =
                     root["temperature_max"]?.Value<float>() ?? 1f;
-                so.FindProperty("_temperatureCenter").floatValue =
+                so.FindProperty("temperatureCenter").floatValue =
                     root["temperature_center"]?.Value<float>() ?? 0.5f;
-                so.FindProperty("_humidityMin").floatValue =
+                so.FindProperty("humidityMin").floatValue =
                     root["humidity_min"]?.Value<float>() ?? 0f;
-                so.FindProperty("_humidityMax").floatValue =
+                so.FindProperty("humidityMax").floatValue =
                     root["humidity_max"]?.Value<float>() ?? 1f;
-                so.FindProperty("_humidityCenter").floatValue =
+                so.FindProperty("humidityCenter").floatValue =
                     root["humidity_center"]?.Value<float>() ?? 0.5f;
-                so.FindProperty("_fillerDepth").intValue =
+                so.FindProperty("fillerDepth").intValue =
                     root["filler_depth"]?.Value<int>() ?? 3;
-                so.FindProperty("_treeDensity").floatValue =
+                so.FindProperty("treeDensity").floatValue =
                     root["tree_density"]?.Value<float>() ?? 0f;
-                so.FindProperty("_heightModifier").floatValue =
+                so.FindProperty("heightModifier").floatValue =
                     root["height_modifier"]?.Value<float>() ?? 0f;
 
                 // Wire block references
-                WireBlockRef(so, "_topBlock", root["top_block"]?.Value<string>());
-                WireBlockRef(so, "_fillerBlock", root["filler_block"]?.Value<string>());
-                WireBlockRef(so, "_stoneBlock", root["stone_block"]?.Value<string>());
-                WireBlockRef(so, "_underwaterBlock", root["underwater_block"]?.Value<string>());
+                WireBlockRef(so, "topBlock", root["top_block"]?.Value<string>());
+                WireBlockRef(so, "fillerBlock", root["filler_block"]?.Value<string>());
+                WireBlockRef(so, "stoneBlock", root["stone_block"]?.Value<string>());
+                WireBlockRef(so, "underwaterBlock", root["underwater_block"]?.Value<string>());
 
                 so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -975,19 +1015,19 @@ namespace Lithforge.Editor.Content
                 SerializedObject so = new SerializedObject(ore);
 
                 so.FindProperty("_namespace").stringValue = "lithforge";
-                so.FindProperty("_oreName").stringValue = oreName;
-                so.FindProperty("_minY").intValue = root["min_y"]?.Value<int>() ?? 0;
-                so.FindProperty("_maxY").intValue = root["max_y"]?.Value<int>() ?? 128;
-                so.FindProperty("_veinSize").intValue = root["vein_size"]?.Value<int>() ?? 8;
-                so.FindProperty("_frequency").floatValue =
+                so.FindProperty("oreName").stringValue = oreName;
+                so.FindProperty("minY").intValue = root["min_y"]?.Value<int>() ?? 0;
+                so.FindProperty("maxY").intValue = root["max_y"]?.Value<int>() ?? 128;
+                so.FindProperty("veinSize").intValue = root["vein_size"]?.Value<int>() ?? 8;
+                so.FindProperty("frequency").floatValue =
                     root["frequency"]?.Value<float>() ?? 1.0f;
 
                 string oreTypeStr = root["ore_type"]?.Value<string>() ?? "blob";
-                so.FindProperty("_oreType").enumValueIndex =
+                so.FindProperty("oreType").enumValueIndex =
                     string.Equals(oreTypeStr, "scatter", StringComparison.Ordinal) ? 1 : 0;
 
-                WireBlockRef(so, "_oreBlock", root["ore_block"]?.Value<string>());
-                WireBlockRef(so, "_replaceBlock", root["replace_block"]?.Value<string>());
+                WireBlockRef(so, "oreBlock", root["ore_block"]?.Value<string>());
+                WireBlockRef(so, "replaceBlock", root["replace_block"]?.Value<string>());
 
                 so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -1001,6 +1041,176 @@ namespace Lithforge.Editor.Content
             // Wire loot table references on blocks that reference by string path
             // already done inline during ConvertBlocks
         }
+
+        // ──────────────────────────────────────────────
+        // Element conversion
+        // ──────────────────────────────────────────────
+
+        private static void ConvertElements(SerializedObject so, JObject root)
+        {
+            JArray elementsArray = root["elements"] as JArray;
+
+            if (elementsArray == null || elementsArray.Count == 0)
+            {
+                return;
+            }
+
+            SerializedProperty elementsProp = so.FindProperty("elements");
+
+            for (int e = 0; e < elementsArray.Count; e++)
+            {
+                JObject elemObj = elementsArray[e] as JObject;
+
+                if (elemObj == null)
+                {
+                    continue;
+                }
+
+                elementsProp.InsertArrayElementAtIndex(elementsProp.arraySize);
+                SerializedProperty entry = elementsProp.GetArrayElementAtIndex(
+                    elementsProp.arraySize - 1);
+
+                // from / to
+                JArray fromArr = elemObj["from"] as JArray;
+                JArray toArr = elemObj["to"] as JArray;
+
+                if (fromArr != null && fromArr.Count >= 3)
+                {
+                    entry.FindPropertyRelative("from").vector3Value = new Vector3(
+                        fromArr[0].Value<float>(),
+                        fromArr[1].Value<float>(),
+                        fromArr[2].Value<float>());
+                }
+
+                if (toArr != null && toArr.Count >= 3)
+                {
+                    entry.FindPropertyRelative("to").vector3Value = new Vector3(
+                        toArr[0].Value<float>(),
+                        toArr[1].Value<float>(),
+                        toArr[2].Value<float>());
+                }
+
+                // faces
+                JObject facesObj = elemObj["faces"] as JObject;
+
+                if (facesObj != null)
+                {
+                    ConvertFace(entry, "north", facesObj["north"] as JObject);
+                    ConvertFace(entry, "south", facesObj["south"] as JObject);
+                    ConvertFace(entry, "east", facesObj["east"] as JObject);
+                    ConvertFace(entry, "west", facesObj["west"] as JObject);
+                    ConvertFace(entry, "up", facesObj["up"] as JObject);
+                    ConvertFace(entry, "down", facesObj["down"] as JObject);
+                }
+
+                // rotation
+                JObject rotObj = elemObj["rotation"] as JObject;
+
+                if (rotObj != null)
+                {
+                    JArray originArr = rotObj["origin"] as JArray;
+
+                    if (originArr != null && originArr.Count >= 3)
+                    {
+                        entry.FindPropertyRelative("rotationOrigin").vector3Value = new Vector3(
+                            originArr[0].Value<float>(),
+                            originArr[1].Value<float>(),
+                            originArr[2].Value<float>());
+                    }
+
+                    string axisStr = rotObj["axis"]?.Value<string>() ?? "y";
+                    entry.FindPropertyRelative("rotationAxis").enumValueIndex =
+                        ParseRotationAxis(axisStr);
+
+                    entry.FindPropertyRelative("rotationAngle").floatValue =
+                        rotObj["angle"]?.Value<float>() ?? 0f;
+                    entry.FindPropertyRelative("rotationRescale").boolValue =
+                        rotObj["rescale"]?.Value<bool>() ?? false;
+                }
+            }
+        }
+
+        private static void ConvertFace(SerializedProperty elementEntry, string faceName, JObject faceObj)
+        {
+            if (faceObj == null)
+            {
+                return;
+            }
+
+            SerializedProperty faceProp = elementEntry.FindPropertyRelative(faceName);
+
+            faceProp.FindPropertyRelative("texture").stringValue =
+                faceObj["texture"]?.Value<string>() ?? "";
+
+            JArray uvArr = faceObj["uv"] as JArray;
+
+            if (uvArr != null && uvArr.Count >= 4)
+            {
+                faceProp.FindPropertyRelative("uv").vector4Value = new Vector4(
+                    uvArr[0].Value<float>(),
+                    uvArr[1].Value<float>(),
+                    uvArr[2].Value<float>(),
+                    uvArr[3].Value<float>());
+            }
+
+            string cullStr = faceObj["cullface"]?.Value<string>();
+            faceProp.FindPropertyRelative("cullFace").enumValueIndex =
+                ParseCullFace(cullStr);
+
+            faceProp.FindPropertyRelative("rotation").intValue =
+                faceObj["rotation"]?.Value<int>() ?? 0;
+            faceProp.FindPropertyRelative("tintIndex").intValue =
+                faceObj["tintindex"]?.Value<int>() ?? -1;
+        }
+
+        // ──────────────────────────────────────────────
+        // Texture resolution
+        // ──────────────────────────────────────────────
+
+        private static Texture2D ResolveTextureAsset(string resourceId)
+        {
+            // "lithforge:block/stone" → textures/block/stone.png
+            if (string.IsNullOrEmpty(resourceId))
+            {
+                return null;
+            }
+
+            int colonIdx = resourceId.IndexOf(':');
+            string path = colonIdx >= 0 ? resourceId.Substring(colonIdx + 1) : resourceId;
+
+            // Try direct path: textures/{path}.png
+            string assetPath = $"{TextureRoot}/{path}.png";
+            Texture2D tex = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+
+            if (tex != null)
+            {
+                return tex;
+            }
+
+            // Fallback: try just the name part in block/ and item/
+            string name = path;
+            int slashIdx = path.LastIndexOf('/');
+
+            if (slashIdx >= 0)
+            {
+                name = path.Substring(slashIdx + 1);
+            }
+
+            tex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureRoot}/block/{name}.png");
+
+            if (tex != null)
+            {
+                return tex;
+            }
+
+            tex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureRoot}/item/{name}.png");
+
+            return tex;
+        }
+
+        // ──────────────────────────────────────────────
+        // Helpers
+        // ──────────────────────────────────────────────
 
         private static void WireBlockRef(SerializedObject so, string propertyName, string blockIdStr)
         {
@@ -1069,6 +1279,36 @@ namespace Lithforge.Editor.Content
             }
 
             return BuiltInParentType.None;
+        }
+
+        private static int ParseCullFace(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 0; // None
+            }
+
+            switch (value)
+            {
+                case "north": return 1;
+                case "south": return 2;
+                case "east": return 3;
+                case "west": return 4;
+                case "up": return 5;
+                case "down": return 6;
+                default: return 0;
+            }
+        }
+
+        private static int ParseRotationAxis(string value)
+        {
+            switch (value)
+            {
+                case "x": return 0;
+                case "y": return 1;
+                case "z": return 2;
+                default: return 1;
+            }
         }
 
         private static string ExtractModelName(string resourceId)
