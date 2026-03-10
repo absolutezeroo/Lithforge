@@ -37,6 +37,9 @@ namespace Lithforge.Runtime.Content.Blocks
         [Tooltip("Render layer for transparency sorting")]
         [SerializeField] private RenderLayerType renderLayer = RenderLayerType.Opaque;
 
+        [Tooltip("Whether this block is a fluid (water, lava) — affects top-face height")]
+        [SerializeField] private bool isFluid;
+
         [Tooltip("Light emitted by this block (0-15)")]
         [Range(0, 15)]
         [SerializeField] private int lightEmission;
@@ -101,6 +104,11 @@ namespace Lithforge.Runtime.Content.Blocks
         public RenderLayerType RenderLayer
         {
             get { return renderLayer; }
+        }
+
+        public bool IsFluid
+        {
+            get { return isFluid; }
         }
 
         public int LightEmission

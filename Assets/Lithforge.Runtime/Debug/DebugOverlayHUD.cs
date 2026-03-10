@@ -7,6 +7,7 @@ namespace Lithforge.Runtime.Debug
     {
         private GameLoop _gameLoop;
         private Voxel.Chunk.ChunkManager _chunkManager;
+        private Rendering.ChunkRenderManager _chunkRenderManager;
 
         private float _fps;
         private float _fpsTimer;
@@ -35,7 +36,8 @@ namespace Lithforge.Runtime.Debug
         public void Initialize(
             GameLoop gameLoop,
             Voxel.Chunk.ChunkManager chunkManager,
-            DebugSettings settings)
+            DebugSettings settings,
+            Rendering.ChunkRenderManager chunkRenderManager = null)
         {
             _gameLoop = gameLoop;
             _chunkManager = chunkManager;
@@ -46,6 +48,7 @@ namespace Lithforge.Runtime.Debug
             _overlayPanelWidth = settings.OverlayPanelWidth;
             _overlayPadding = settings.OverlayPadding;
             _overlayLineSpacing = settings.OverlayLineSpacing;
+            _chunkRenderManager = chunkRenderManager;
             _visible = settings.ShowDebugOverlay;
         }
 
@@ -96,6 +99,7 @@ namespace Lithforge.Runtime.Debug
             int labelWidth = _overlayPanelWidth - padding * 2;
 
             if (_chunkManager != null) { lineCount++; }
+            if (_chunkRenderManager != null) { lineCount++; }
             if (_gameLoop != null) { lineCount += 2; }
 
             // Background panel
@@ -120,6 +124,13 @@ namespace Lithforge.Runtime.Debug
                 y += lineHeight;
             }
 
+            if (_chunkRenderManager != null)
+            {
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight),
+                    $"Renderers: {_chunkRenderManager.RendererCount}", _style);
+                y += lineHeight;
+            }
+
             if (_gameLoop != null)
             {
                 GUI.Label(new Rect(x, y, labelWidth, lineHeight),
@@ -127,7 +138,7 @@ namespace Lithforge.Runtime.Debug
                 y += lineHeight;
 
                 GUI.Label(new Rect(x, y, labelWidth, lineHeight),
-                    $"Mesh Queue: {_gameLoop.PendingMeshCount}", _style);
+                    $"Mesh Queue: {_gameLoop.PendingMeshCount}  LOD Queue: {_gameLoop.PendingLODMeshCount}", _style);
             }
         }
     }

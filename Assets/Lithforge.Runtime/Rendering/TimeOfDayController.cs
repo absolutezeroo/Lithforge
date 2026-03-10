@@ -13,6 +13,7 @@ namespace Lithforge.Runtime.Rendering
         private AnimationCurve _dayNightCurve;
         private Light _directionalLight;
         private Material _voxelMaterial;
+        private Material _cutoutMaterial;
         private Material _translucentMaterial;
 
         private static readonly int _sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
@@ -27,12 +28,25 @@ namespace Lithforge.Runtime.Rendering
             get { return ComputeSunFactor(_timeOfDay); }
         }
 
+        public Light DirectionalLight
+        {
+            get { return _directionalLight; }
+        }
+
+        public float DayLengthSeconds
+        {
+            get { return _dayLengthSeconds; }
+            set { _dayLengthSeconds = Mathf.Max(1.0f, value); }
+        }
+
         public void Initialize(
             Material voxelMaterial,
+            Material cutoutMaterial,
             Material translucentMaterial,
             RenderingSettings settings)
         {
             _voxelMaterial = voxelMaterial;
+            _cutoutMaterial = cutoutMaterial;
             _translucentMaterial = translucentMaterial;
             _dayLengthSeconds = settings.DayLengthSeconds;
             _sunAngleOffset = settings.SunAngleOffset;
@@ -74,6 +88,11 @@ namespace Lithforge.Runtime.Rendering
 
             // Update materials
             _voxelMaterial.SetFloat(_sunLightFactorId, sunFactor);
+
+            if (_cutoutMaterial != null)
+            {
+                _cutoutMaterial.SetFloat(_sunLightFactorId, sunFactor);
+            }
 
             if (_translucentMaterial != null)
             {

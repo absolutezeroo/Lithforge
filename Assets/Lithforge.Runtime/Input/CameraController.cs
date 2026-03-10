@@ -52,6 +52,16 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        public float LookSensitivity
+        {
+            get { return lookSensitivity; }
+        }
+
+        public void SetLookSensitivity(float value)
+        {
+            lookSensitivity = Mathf.Clamp(value, 0.01f, 2.0f);
+        }
+
         /// <summary>
         /// Gets the camera's forward direction in world space.
         /// </summary>

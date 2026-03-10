@@ -371,6 +371,7 @@ namespace Lithforge.Runtime.UI
                 }
             }
 
+
             if (!_isOpen)
             {
                 return;

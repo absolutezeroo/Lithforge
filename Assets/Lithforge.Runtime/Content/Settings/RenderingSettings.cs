@@ -13,11 +13,22 @@ namespace Lithforge.Runtime.Content.Settings
         [SerializeField] private Material translucentMaterial;
 
         [Header("Sky")]
-        [Tooltip("Sky color gradient over time of day (0=midnight, 0.5=noon, 1=midnight)")]
+        [Tooltip("Sky horizon color gradient over time of day (0=midnight, 0.5=noon, 1=midnight)")]
         [SerializeField] private Gradient skyGradient = new Gradient();
+
+        [Tooltip("Sky zenith color gradient over time of day")]
+        [SerializeField] private Gradient skyZenithGradient = new Gradient();
 
         [Tooltip("Ambient light gradient over time of day")]
         [SerializeField] private Gradient ambientGradient = new Gradient();
+
+        [Header("Fog")]
+        [Tooltip("Fog color gradient over time of day")]
+        [SerializeField] private Gradient fogGradient = new Gradient();
+
+        [Tooltip("Fog density for exponential squared fog")]
+        [Min(0f)]
+        [SerializeField] private float fogDensity = 0.008f;
 
         [Header("Camera")]
         [Tooltip("Near clip plane distance")]
@@ -86,9 +97,24 @@ namespace Lithforge.Runtime.Content.Settings
             get { return skyGradient; }
         }
 
+        public Gradient SkyZenithGradient
+        {
+            get { return skyZenithGradient; }
+        }
+
         public Gradient AmbientGradient
         {
             get { return ambientGradient; }
+        }
+
+        public Gradient FogGradient
+        {
+            get { return fogGradient; }
+        }
+
+        public float FogDensity
+        {
+            get { return fogDensity; }
         }
 
         public float NearClipPlane

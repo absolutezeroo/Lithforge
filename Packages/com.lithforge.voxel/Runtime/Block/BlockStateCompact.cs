@@ -53,5 +53,12 @@ namespace Lithforge.Voxel.Block
         public const byte FlagAir = 4;
 
         public const byte FlagEmitsLight = 8;
+
+        public const byte FlagFluid = 16;
+
+        public bool IsFluid
+        {
+            get { return (Flags & FlagFluid) != 0; }
+        }
     }
 }

@@ -29,10 +29,21 @@ namespace Lithforge.Runtime
 
         private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
         private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+        private readonly List<PendingLODMesh> _pendingLODMeshes = new List<PendingLODMesh>();
         private readonly List<int3> _unloadedCoords = new List<int3>();
 
         private int _maxGenerationsPerFrame = 4;
         private int _maxMeshesPerFrame = 4;
+        private int _maxLODMeshesPerFrame = 2;
+        private int _lod1Distance = 4;
+        private int _lod2Distance = 8;
+        private int _lod3Distance = 14;
+
+        // Frustum culling
+        private readonly Plane[] _frustumPlanes = new Plane[6];
+
+        // Reusable cache to avoid per-frame allocation in LOD methods
+        private readonly List<ManagedChunk> _readyChunksCache = new List<ManagedChunk>();
 
         private static readonly int3[] _neighborOffsets = new int3[]
         {
@@ -55,6 +66,11 @@ namespace Lithforge.Runtime
         public int PendingMeshCount
         {
             get { return _pendingMeshes.Count; }
+        }
+
+        public int PendingLODMeshCount
+        {
+            get { return _pendingLODMeshes.Count; }
         }
 
         /// <summary>
@@ -86,6 +102,10 @@ namespace Lithforge.Runtime
             _seed = seed;
             _maxGenerationsPerFrame = chunkSettings.MaxGenerationsPerFrame;
             _maxMeshesPerFrame = chunkSettings.MaxMeshesPerFrame;
+            _maxLODMeshesPerFrame = chunkSettings.MaxLODMeshesPerFrame;
+            _lod1Distance = chunkSettings.LOD1Distance;
+            _lod2Distance = chunkSettings.LOD2Distance;
+            _lod3Distance = chunkSettings.LOD3Distance;
             _initialized = true;
         }
 
@@ -107,8 +127,17 @@ namespace Lithforge.Runtime
 
             PollGenerationJobs();
             PollMeshJobs();
+            PollLODMeshJobs();
 
             int3 cameraChunkCoord = GetCameraChunkCoord();
+
+            // Update frustum planes for culling
+            Camera cam = Camera.main;
+
+            if (cam != null)
+            {
+                GeometryUtility.CalculateFrustumPlanes(cam, _frustumPlanes);
+            }
 
             _chunkManager.UpdateLoadingQueue(cameraChunkCoord);
             _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords);
@@ -129,6 +158,13 @@ namespace Lithforge.Runtime
 
             ScheduleGenerationJobs();
             ScheduleMeshJobs();
+
+            // LOD and frustum culling only activate after spawn is complete
+            if (SpawnReady)
+            {
+                UpdateChunkLODLevels(cameraChunkCoord);
+                ScheduleLODMeshJobs();
+            }
         }
 
         private void PollGenerationJobs()
@@ -191,6 +227,8 @@ namespace Lithforge.Runtime
                         pending.Coord,
                         pending.Data.OpaqueVertices,
                         pending.Data.OpaqueIndices,
+                        pending.Data.CutoutVertices,
+                        pending.Data.CutoutIndices,
                         pending.Data.TranslucentVertices,
                         pending.Data.TranslucentIndices);
 
@@ -212,6 +250,7 @@ namespace Lithforge.Runtime
                         }
 
                         chunk.ActiveJobHandle = default;
+                        chunk.RenderedLODLevel = 0;
                     }
 
                     _pendingMeshes.RemoveAt(i);
@@ -280,6 +319,23 @@ namespace Lithforge.Runtime
             for (int i = 0; i < chunks.Count; i++)
             {
                 ManagedChunk chunk = chunks[i];
+
+                // Skip frustum culling and LOD during spawn — all chunks must mesh
+                if (SpawnReady)
+                {
+                    // Frustum culling: skip meshing for chunks outside the camera frustum
+                    if (!IsChunkInFrustum(chunk.Coord))
+                    {
+                        continue;
+                    }
+
+                    // Only schedule full-detail mesh for LOD0 chunks
+                    if (chunk.LODLevel > 0)
+                    {
+                        continue;
+                    }
+                }
+
                 chunk.State = ChunkState.Meshing;
 
                 GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
@@ -301,6 +357,8 @@ namespace Lithforge.Runtime
                     LightData = chunk.LightData,
                     OpaqueVertices = meshData.OpaqueVertices,
                     OpaqueIndices = meshData.OpaqueIndices,
+                    CutoutVertices = meshData.CutoutVertices,
+                    CutoutIndices = meshData.CutoutIndices,
                     TranslucentVertices = meshData.TranslucentVertices,
                     TranslucentIndices = meshData.TranslucentIndices,
                 };
@@ -389,6 +447,16 @@ namespace Lithforge.Runtime
                     _pendingMeshes.RemoveAt(i);
                 }
             }
+
+            for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
+            {
+                if (_pendingLODMeshes[i].Coord.Equals(coord))
+                {
+                    _pendingLODMeshes[i].Handle.Complete();
+                    _pendingLODMeshes[i].Data.Dispose();
+                    _pendingLODMeshes.RemoveAt(i);
+                }
+            }
         }
 
         private int3 GetCameraChunkCoord()
@@ -418,6 +486,204 @@ namespace Lithforge.Runtime
             }
 
             _pendingMeshes.Clear();
+
+            for (int i = 0; i < _pendingLODMeshes.Count; i++)
+            {
+                _pendingLODMeshes[i].Handle.Complete();
+                _pendingLODMeshes[i].Data.Dispose();
+            }
+
+            _pendingLODMeshes.Clear();
+        }
+
+        private void UpdateChunkLODLevels(int3 cameraChunkCoord)
+        {
+            // Iterate all Ready chunks and assign LOD level based on distance
+            // This is called each frame but only triggers re-mesh when LOD level changes
+            _chunkManager.FillReadyChunks(_readyChunksCache);
+            List<ManagedChunk> readyChunks = _readyChunksCache;
+
+            for (int i = 0; i < readyChunks.Count; i++)
+            {
+                ManagedChunk chunk = readyChunks[i];
+                int3 diff = chunk.Coord - cameraChunkCoord;
+                int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+
+                int desiredLOD;
+
+                if (xzDist >= _lod3Distance)
+                {
+                    desiredLOD = 3;
+                }
+                else if (xzDist >= _lod2Distance)
+                {
+                    desiredLOD = 2;
+                }
+                else if (xzDist >= _lod1Distance)
+                {
+                    desiredLOD = 1;
+                }
+                else
+                {
+                    desiredLOD = 0;
+                }
+
+                if (chunk.LODLevel != desiredLOD)
+                {
+                    chunk.LODLevel = desiredLOD;
+
+                    // If transitioning to LOD0, trigger full remesh
+                    if (desiredLOD == 0 && chunk.State == ChunkState.Ready)
+                    {
+                        chunk.State = ChunkState.Generated;
+                    }
+                }
+            }
+        }
+
+        private void ScheduleLODMeshJobs()
+        {
+            int slotsAvailable = _maxLODMeshesPerFrame - _pendingLODMeshes.Count;
+
+            if (slotsAvailable <= 0)
+            {
+                return;
+            }
+
+            _chunkManager.FillReadyChunks(_readyChunksCache);
+            int scheduled = 0;
+
+            for (int i = 0; i < _readyChunksCache.Count && scheduled < slotsAvailable; i++)
+            {
+                ManagedChunk chunk = _readyChunksCache[i];
+
+                // Only schedule LOD mesh if LOD level changed and chunk is ready
+                if (chunk.LODLevel == 0 || chunk.LODLevel == chunk.RenderedLODLevel)
+                {
+                    continue;
+                }
+
+                if (chunk.State != ChunkState.Ready)
+                {
+                    continue;
+                }
+
+                // Skip if a LOD job is already in flight for this chunk
+                bool lodPending = false;
+
+                for (int j = 0; j < _pendingLODMeshes.Count; j++)
+                {
+                    if (_pendingLODMeshes[j].Coord.Equals(chunk.Coord))
+                    {
+                        lodPending = true;
+                        break;
+                    }
+                }
+
+                if (lodPending)
+                {
+                    continue;
+                }
+
+                if (!IsChunkInFrustum(chunk.Coord))
+                {
+                    continue;
+                }
+
+                int lodLevel = chunk.LODLevel;
+                int scale = 1 << lodLevel; // 2, 4, or 8
+                int gridSize = ChunkConstants.Size / scale;
+                int gridVolume = gridSize * gridSize * gridSize;
+
+                LODMeshData lodData = new LODMeshData(gridVolume, Allocator.TempJob);
+
+                VoxelDownsampleJob downsampleJob = new VoxelDownsampleJob
+                {
+                    SourceData = chunk.Data,
+                    StateTable = _nativeStateRegistry.States,
+                    Scale = scale,
+                    OutputData = lodData.DownsampledData,
+                };
+
+                JobHandle downsampleHandle = downsampleJob.Schedule();
+
+                LODMeshJob meshJob = new LODMeshJob
+                {
+                    Data = lodData.DownsampledData,
+                    StateTable = _nativeStateRegistry.States,
+                    AtlasEntries = _nativeAtlasLookup.Entries,
+                    GridSize = gridSize,
+                    VoxelScale = scale,
+                    Vertices = lodData.Vertices,
+                    Indices = lodData.Indices,
+                };
+
+                JobHandle meshHandle = meshJob.Schedule(downsampleHandle);
+
+                _pendingLODMeshes.Add(new PendingLODMesh
+                {
+                    Coord = chunk.Coord,
+                    Handle = meshHandle,
+                    Data = lodData,
+                    LODLevel = lodLevel,
+                });
+
+                scheduled++;
+            }
+        }
+
+        private void PollLODMeshJobs()
+        {
+            for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
+            {
+                PendingLODMesh pending = _pendingLODMeshes[i];
+
+                if (pending.Handle.IsCompleted)
+                {
+                    pending.Handle.Complete();
+
+                    // Upload as single-submesh opaque mesh
+                    _chunkRenderManager.UpdateRendererSingleMesh(
+                        pending.Coord,
+                        pending.Data.Vertices,
+                        pending.Data.Indices);
+
+                    pending.Data.Dispose();
+
+                    ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
+
+                    if (chunk != null)
+                    {
+                        chunk.RenderedLODLevel = pending.LODLevel;
+                    }
+
+                    _pendingLODMeshes.RemoveAt(i);
+                }
+            }
+        }
+
+        private bool IsChunkInFrustum(int3 chunkCoord)
+        {
+            Camera cam = Camera.main;
+
+            if (cam == null)
+            {
+                return true;
+            }
+
+            // Compute chunk AABB in world space
+            float3 min = new float3(
+                chunkCoord.x * ChunkConstants.Size,
+                chunkCoord.y * ChunkConstants.Size,
+                chunkCoord.z * ChunkConstants.Size);
+            float3 max = min + new float3(ChunkConstants.Size, ChunkConstants.Size, ChunkConstants.Size);
+
+            Bounds bounds = new Bounds();
+            bounds.SetMinMax(
+                new Vector3(min.x, min.y, min.z),
+                new Vector3(max.x, max.y, max.z));
+
+            return GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds);
         }
 
         private struct PendingGeneration
@@ -431,6 +697,14 @@ namespace Lithforge.Runtime
             public int3 Coord;
             public JobHandle Handle;
             public GreedyMeshData Data;
+        }
+
+        private struct PendingLODMesh
+        {
+            public int3 Coord;
+            public JobHandle Handle;
+            public LODMeshData Data;
+            public int LODLevel;
         }
     }
 }

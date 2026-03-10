@@ -108,8 +108,8 @@ namespace Lithforge.Runtime.Rendering.Atlas
                 // even compressed or non-readable ones.
                 Texture2D readable = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
                 RenderTexture rt = RenderTexture.GetTemporary(_tileSize, _tileSize, 0, RenderTextureFormat.ARGB32);
-                Graphics.Blit(sourceTex, rt);
                 RenderTexture prev = RenderTexture.active;
+                Graphics.Blit(sourceTex, rt);
                 RenderTexture.active = rt;
                 readable.ReadPixels(new Rect(0, 0, _tileSize, _tileSize), 0, 0);
                 readable.Apply();

@@ -44,6 +44,7 @@ namespace Lithforge.Runtime.Bootstrap
         private DecorationStage _decorationStage;
         private WorldStorage _worldStorage;
         private TimeOfDayController _timeOfDayController;
+        private SkyController _skyController;
 
         private void Awake()
         {
@@ -245,12 +246,35 @@ namespace Lithforge.Runtime.Bootstrap
                 translucentMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
             }
 
-            _chunkRenderManager = new ChunkRenderManager(opaqueMaterial, translucentMaterial);
+            // Create cutout material for vegetation (alpha test, double-sided)
+            Material cutoutMaterial;
+            Shader cutoutShader = Shader.Find("Lithforge/VoxelCutout");
+
+            if (cutoutShader != null)
+            {
+                cutoutMaterial = new Material(cutoutShader);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarning("[Lithforge] VoxelCutout shader not found, using opaque fallback.");
+                cutoutMaterial = new Material(opaqueMaterial);
+            }
+
+            if (_contentResult.AtlasResult != null && _contentResult.AtlasResult.TextureArray != null)
+            {
+                cutoutMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
+            }
+
+            _chunkRenderManager = new ChunkRenderManager(opaqueMaterial, cutoutMaterial, translucentMaterial);
             _services.Register(_chunkRenderManager);
         }
 
         private void InitializeGameLoop()
         {
+            CameraController cameraControllerRef = null;
+            SettingsScreen settingsScreenRef = null;
+            UnityEngine.UIElements.PanelSettings panelSettingsRef = null;
+
             // Create GameLoop first (needed by PlayerController for spawn readiness)
             _gameLoop = gameObject.AddComponent<GameLoop>();
             _gameLoop.Initialize(
@@ -302,6 +326,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add CameraController to camera
                 CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
+                cameraControllerRef = cameraController;
                 _services.Register(cameraController);
 
                 // Add BlockHighlight (standalone object)
@@ -345,6 +370,7 @@ namespace Lithforge.Runtime.Bootstrap
                 // Load shared PanelSettings asset for UI Toolkit
                 UnityEngine.UIElements.PanelSettings panelSettings =
                     Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
+                panelSettingsRef = panelSettings;
 
                 if (panelSettings == null)
                 {
@@ -372,13 +398,18 @@ namespace Lithforge.Runtime.Bootstrap
                     panelSettings);
                 _services.Register(inventoryScreen);
 
+                // Add SettingsScreen (initialized after TimeOfDayController is created below)
+                GameObject settingsObject = new GameObject("SettingsScreen");
+                SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();
+                settingsScreenRef = settingsScreen;
+
                 // Add debug HUD
                 DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
-                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug);
+                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug, _chunkRenderManager);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
-                    crosshairHUD, hotbarHUD, inventoryScreen, debugHud);
+                    crosshairHUD, hotbarHUD, inventoryScreen, debugHud, settingsScreen);
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement
@@ -409,8 +440,27 @@ namespace Lithforge.Runtime.Bootstrap
                 _timeOfDayController = gameObject.AddComponent<TimeOfDayController>();
                 _timeOfDayController.Initialize(
                     material,
+                    _chunkRenderManager.CutoutMaterial,
                     _chunkRenderManager.TranslucentMaterial,
                     _settings.Rendering);
+
+                // Initialize procedural sky
+                _skyController = gameObject.AddComponent<SkyController>();
+                _skyController.Initialize(
+                    _timeOfDayController,
+                    _timeOfDayController.DirectionalLight,
+                    _settings.Rendering);
+            }
+
+            // Initialize SettingsScreen now that all systems are available
+            if (settingsScreenRef != null)
+            {
+                settingsScreenRef.Initialize(
+                    _chunkManager,
+                    cameraControllerRef,
+                    _timeOfDayController,
+                    _chunkRenderManager,
+                    panelSettingsRef);
             }
         }
 

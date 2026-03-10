@@ -204,6 +204,11 @@ namespace Lithforge.Voxel.Block
                 flags |= BlockStateCompact.FlagEmitsLight;
             }
 
+            if (data.IsFluid)
+            {
+                flags |= BlockStateCompact.FlagFluid;
+            }
+
             return flags;
         }
 

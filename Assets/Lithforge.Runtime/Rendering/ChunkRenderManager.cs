@@ -11,6 +11,7 @@ namespace Lithforge.Runtime.Rendering
     {
         private readonly Dictionary<int3, ChunkRenderer> _renderers = new Dictionary<int3, ChunkRenderer>();
         private readonly Material _opaqueMaterial;
+        private readonly Material _cutoutMaterial;
         private readonly Material _translucentMaterial;
         private readonly Material[] _materials;
         private readonly Transform _parent;
@@ -25,16 +26,22 @@ namespace Lithforge.Runtime.Rendering
             get { return _opaqueMaterial; }
         }
 
+        public Material CutoutMaterial
+        {
+            get { return _cutoutMaterial; }
+        }
+
         public Material TranslucentMaterial
         {
             get { return _translucentMaterial; }
         }
 
-        public ChunkRenderManager(Material opaqueMaterial, Material translucentMaterial)
+        public ChunkRenderManager(Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial)
         {
             _opaqueMaterial = opaqueMaterial;
+            _cutoutMaterial = cutoutMaterial;
             _translucentMaterial = translucentMaterial;
-            _materials = new Material[] { opaqueMaterial, translucentMaterial };
+            _materials = new Material[] { opaqueMaterial, cutoutMaterial, translucentMaterial };
 
             GameObject parentGo = new GameObject("ChunkRenderers");
             _parent = parentGo.transform;
@@ -45,17 +52,43 @@ namespace Lithforge.Runtime.Rendering
             NativeList<MeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
             NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
+            ChunkRenderer renderer = GetOrCreateRenderer(coord);
+            renderer.UpdateMesh(opaqueVerts, opaqueIndices, translucentVerts, translucentIndices);
+        }
+
+        public void UpdateRenderer(
+            int3 coord,
+            NativeList<MeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
+            NativeList<MeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
+            NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
+        {
+            ChunkRenderer renderer = GetOrCreateRenderer(coord);
+            renderer.UpdateMesh(opaqueVerts, opaqueIndices, cutoutVerts, cutoutIndices, translucentVerts, translucentIndices);
+        }
+
+        /// <summary>
+        /// Updates a chunk renderer with a single-submesh opaque mesh (used for LOD).
+        /// </summary>
+        public void UpdateRendererSingleMesh(
+            int3 coord,
+            NativeList<MeshVertex> vertices, NativeList<int> indices)
+        {
+            ChunkRenderer renderer = GetOrCreateRenderer(coord);
+            renderer.UpdateMesh(vertices, indices);
+        }
+
+        private ChunkRenderer GetOrCreateRenderer(int3 coord)
+        {
             if (!_renderers.TryGetValue(coord, out ChunkRenderer renderer))
             {
                 GameObject go = new GameObject($"Chunk_{coord.x}_{coord.y}_{coord.z}");
                 go.transform.SetParent(_parent, false);
                 renderer = go.AddComponent<ChunkRenderer>();
                 renderer.Initialize(coord, _materials);
-
                 _renderers[coord] = renderer;
             }
 
-            renderer.UpdateMesh(opaqueVerts, opaqueIndices, translucentVerts, translucentIndices);
+            return renderer;
         }
 
         public void DestroyRenderer(int3 coord)

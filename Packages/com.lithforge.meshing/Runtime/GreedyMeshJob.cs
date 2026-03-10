@@ -33,6 +33,8 @@ namespace Lithforge.Meshing
 
         public NativeList<MeshVertex> OpaqueVertices;
         public NativeList<int> OpaqueIndices;
+        public NativeList<MeshVertex> CutoutVertices;
+        public NativeList<int> CutoutIndices;
         public NativeList<MeshVertex> TranslucentVertices;
         public NativeList<int> TranslucentIndices;
 
@@ -131,6 +133,7 @@ namespace Lithforge.Meshing
                         // Compute AO for each vertex corner
                         ComputeVertexAO(face, blockPos, u, v,
                             out byte ao00, out byte ao10, out byte ao01, out byte ao11);
+
                         faceAO00[idx] = ao00;
                         faceAO10[idx] = ao10;
                         faceAO01[idx] = ao01;
@@ -260,17 +263,21 @@ namespace Lithforge.Meshing
             ushort stateVal, byte ao00, byte ao10, byte ao01, byte ao11, byte light,
             byte renderLayer)
         {
-            // Route to correct buffer: renderLayer 2 (translucent) goes to translucent buffers
-            bool isTranslucent = renderLayer == 2;
-            NativeList<MeshVertex> targetVertices = isTranslucent ? TranslucentVertices : OpaqueVertices;
-            NativeList<int> targetIndices = isTranslucent ? TranslucentIndices : OpaqueIndices;
+            // Route to correct buffer: renderLayer 0=opaque, 1=cutout, 2=translucent
+            NativeList<MeshVertex> targetVertices;
+            NativeList<int> targetIndices;
+
+            (targetVertices, targetIndices) = renderLayer switch
+            {
+                1 => (CutoutVertices, CutoutIndices),
+                2 => (TranslucentVertices, TranslucentIndices),
+                _ => (OpaqueVertices, OpaqueIndices),
+            };
 
             int vertexStart = targetVertices.Length;
 
-            float3 pos00, pos10, pos01, pos11;
-
-            ComputeQuadPositions(face, slice, u0, v0, width, height,
-                out pos00, out pos10, out pos01, out pos11);
+            ComputeQuadPositions(face, slice, u0, v0, width, height, stateVal,
+                out float3 pos00, out float3 pos10, out float3 pos01, out float3 pos11);
 
             float3 normal = (float3)GetFaceNormal(face);
 
@@ -406,36 +413,46 @@ namespace Lithforge.Meshing
             {
                 int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
                 int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+
                 return NeighborPosX[ny * ChunkConstants.Size + nz];
             }
+
             if (pos.x < 0)
             {
                 int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
                 int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+
                 return NeighborNegX[ny * ChunkConstants.Size + nz];
             }
+
             if (pos.y >= ChunkConstants.Size)
             {
                 int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
                 int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
+
                 return NeighborPosY[nz * ChunkConstants.Size + nx];
             }
+
             if (pos.y < 0)
             {
                 int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
                 int nz = math.clamp(pos.z, 0, ChunkConstants.Size - 1);
+
                 return NeighborNegY[nz * ChunkConstants.Size + nx];
             }
             if (pos.z >= ChunkConstants.Size)
             {
                 int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
                 int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+
                 return NeighborPosZ[ny * ChunkConstants.Size + nx];
             }
+
             if (pos.z < 0)
             {
                 int nx = math.clamp(pos.x, 0, ChunkConstants.Size - 1);
                 int ny = math.clamp(pos.y, 0, ChunkConstants.Size - 1);
+
                 return NeighborNegZ[ny * ChunkConstants.Size + nx];
             }
 
@@ -468,67 +485,90 @@ namespace Lithforge.Meshing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int3 FaceToBlockPos(int face, int slice, int u, int v)
         {
-            switch (face)
+            return face switch
             {
-                case 0: return new int3(slice, v, u);       // +X: slice=x, u=z, v=y
-                case 1: return new int3(slice, v, u);       // -X: slice=x, u=z, v=y
-                case 2: return new int3(u, slice, v);       // +Y: slice=y, u=x, v=z
-                case 3: return new int3(u, slice, v);       // -Y: slice=y, u=x, v=z
-                case 4: return new int3(u, v, slice);       // +Z: slice=z, u=x, v=y
-                default: return new int3(u, v, slice);      // -Z: slice=z, u=x, v=y
-            }
+                // +X: slice=x, u=z, v=y
+                0 => new int3(slice, v, u),
+                // -X: slice=x, u=z, v=y
+                1 => new int3(slice, v, u),
+                // +Y: slice=y, u=x, v=z
+                2 => new int3(u, slice, v),
+                // -Y: slice=y, u=x, v=z
+                3 => new int3(u, slice, v),
+                // +Z: slice=z, u=x, v=y
+                4 => new int3(u, v, slice),
+                // -Z: slice=z, u=x, v=y
+                _ => new int3(u, v, slice),
+            };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int3 GetFaceNormal(int face)
         {
-            switch (face)
+            return face switch
             {
-                case 0: return new int3(1, 0, 0);
-                case 1: return new int3(-1, 0, 0);
-                case 2: return new int3(0, 1, 0);
-                case 3: return new int3(0, -1, 0);
-                case 4: return new int3(0, 0, 1);
-                default: return new int3(0, 0, -1);
-            }
+                0 => new int3(1, 0, 0),
+                1 => new int3(-1, 0, 0),
+                2 => new int3(0, 1, 0),
+                3 => new int3(0, -1, 0),
+                4 => new int3(0, 0, 1),
+                _ => new int3(0, 0, -1),
+            };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int3 GetFaceUAxis(int face)
         {
-            switch (face)
+            return face switch
             {
-                case 0: return new int3(0, 0, 1);   // +X: u=z
-                case 1: return new int3(0, 0, 1);   // -X: u=z
-                case 2: return new int3(1, 0, 0);   // +Y: u=x
-                case 3: return new int3(1, 0, 0);   // -Y: u=x
-                case 4: return new int3(1, 0, 0);   // +Z: u=x
-                default: return new int3(1, 0, 0);   // -Z: u=x
-            }
+                // +X: u=z
+                0 => new int3(0, 0, 1),
+                // -X: u=z
+                1 => new int3(0, 0, 1),
+                // +Y: u=x
+                2 => new int3(1, 0, 0),
+                // -Y: u=x
+                3 => new int3(1, 0, 0),
+                // +Z: u=x
+                4 => new int3(1, 0, 0),
+                // -Z: u=x
+                _ => new int3(1, 0, 0),
+            };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int3 GetFaceVAxis(int face)
         {
-            switch (face)
+            return face switch
             {
-                case 0: return new int3(0, 1, 0);   // +X: v=y
-                case 1: return new int3(0, 1, 0);   // -X: v=y
-                case 2: return new int3(0, 0, 1);   // +Y: v=z
-                case 3: return new int3(0, 0, 1);   // -Y: v=z
-                case 4: return new int3(0, 1, 0);   // +Z: v=y
-                default: return new int3(0, 1, 0);   // -Z: v=y
-            }
+                // +X: v=y
+                0 => new int3(0, 1, 0),
+                // -X: v=y
+                1 => new int3(0, 1, 0),
+                // +Y: v=z
+                2 => new int3(0, 0, 1),
+                // -Y: v=z
+                3 => new int3(0, 0, 1),
+                // +Z: v=y
+                4 => new int3(0, 1, 0),
+                _ => new int3(0, 1, 0),
+            };
         }
 
-        private static void ComputeQuadPositions(
+        private void ComputeQuadPositions(
             int face, int slice, int u0, int v0, int width, int height,
+            ushort stateVal,
             out float3 pos00, out float3 pos10, out float3 pos01, out float3 pos11)
         {
             // The quad is emitted on the face of the block at the slice position.
             // For positive faces (+X, +Y, +Z), the face is at slice+1.
             // For negative faces (-X, -Y, -Z), the face is at slice.
-            float sliceOffset = (face == 0 || face == 2 || face == 4) ? (slice + 1.0f) : slice;
+            // Fluid blocks have their top face lowered by 2/16 (0.125).
+            bool isFluidTop = face == 2 && StateTable[stateVal].IsFluid;
+            float fluidOffset = isFluidTop ? -0.125f : 0.0f;
+            float sliceOffset = (face == 0 || face == 2 || face == 4)
+                ? (slice + 1.0f + fluidOffset)
+                : slice;
 
             switch (face)
             {
@@ -537,36 +577,42 @@ namespace Lithforge.Meshing
                     pos10 = new float3(sliceOffset, v0, u0 + width);
                     pos01 = new float3(sliceOffset, v0 + height, u0);
                     pos11 = new float3(sliceOffset, v0 + height, u0 + width);
+
                     return;
                 case 1: // -X: face at x=slice, quad spans z=[u0..u0+w], y=[v0..v0+h]
                     pos00 = new float3(sliceOffset, v0, u0 + width);
                     pos10 = new float3(sliceOffset, v0, u0);
                     pos01 = new float3(sliceOffset, v0 + height, u0 + width);
                     pos11 = new float3(sliceOffset, v0 + height, u0);
+
                     return;
                 case 2: // +Y: face at y=slice+1, quad spans x=[u0..u0+w], z=[v0..v0+h]
                     pos00 = new float3(u0, sliceOffset, v0);
                     pos10 = new float3(u0 + width, sliceOffset, v0);
                     pos01 = new float3(u0, sliceOffset, v0 + height);
                     pos11 = new float3(u0 + width, sliceOffset, v0 + height);
+
                     return;
                 case 3: // -Y: face at y=slice, quad spans x=[u0..u0+w], z=[v0..v0+h]
                     pos00 = new float3(u0, sliceOffset, v0 + height);
                     pos10 = new float3(u0 + width, sliceOffset, v0 + height);
                     pos01 = new float3(u0, sliceOffset, v0);
                     pos11 = new float3(u0 + width, sliceOffset, v0);
+
                     return;
                 case 4: // +Z: face at z=slice+1, quad spans x=[u0..u0+w], y=[v0..v0+h]
                     pos00 = new float3(u0 + width, v0, sliceOffset);
                     pos10 = new float3(u0, v0, sliceOffset);
                     pos01 = new float3(u0 + width, v0 + height, sliceOffset);
                     pos11 = new float3(u0, v0 + height, sliceOffset);
+
                     return;
                 default: // -Z: face at z=slice, quad spans x=[u0..u0+w], y=[v0..v0+h]
                     pos00 = new float3(u0, v0, sliceOffset);
                     pos10 = new float3(u0 + width, v0, sliceOffset);
                     pos01 = new float3(u0, v0 + height, sliceOffset);
                     pos11 = new float3(u0 + width, v0 + height, sliceOffset);
+
                     return;
             }
         }

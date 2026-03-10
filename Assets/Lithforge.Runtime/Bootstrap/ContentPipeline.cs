@@ -87,7 +87,8 @@ namespace Lithforge.Runtime.Bootstrap
                     lootTableStr,
                     (float)block.Hardness,
                     (float)block.BlastResistance,
-                    block.RequiresTool);
+                    block.RequiresTool,
+                    block.IsFluid);
 
                 stateRegistry.Register(regData);
                 blockLookup[id.ToString()] = block;

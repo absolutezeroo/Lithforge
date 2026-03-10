@@ -12,17 +12,20 @@ namespace Lithforge.Runtime.UI
         private readonly HotbarHUD _hotbarHud;
         private readonly InventoryScreen _inventoryScreen;
         private readonly DebugOverlayHUD _debugHud;
+        private readonly SettingsScreen _settingsScreen;
 
         public HudVisibilityController(
             CrosshairHUD crosshairHud,
             HotbarHUD hotbarHud,
             InventoryScreen inventoryScreen,
-            DebugOverlayHUD debugHud)
+            DebugOverlayHUD debugHud,
+            SettingsScreen settingsScreen)
         {
             _crosshairHud = crosshairHud;
             _hotbarHud = hotbarHud;
             _inventoryScreen = inventoryScreen;
             _debugHud = debugHud;
+            _settingsScreen = settingsScreen;
         }
 
         /// <summary>
@@ -48,6 +51,11 @@ namespace Lithforge.Runtime.UI
             if (_debugHud != null)
             {
                 _debugHud.SetVisible(false);
+            }
+
+            if (_settingsScreen != null)
+            {
+                _settingsScreen.SetVisible(false);
             }
         }
 
@@ -77,6 +85,12 @@ namespace Lithforge.Runtime.UI
             if (_inventoryScreen != null)
             {
                 _inventoryScreen.SetVisible(true);
+            }
+
+            // Restore SettingsScreen root so the Escape key toggle can show _panel.
+            if (_settingsScreen != null)
+            {
+                _settingsScreen.SetVisible(true);
             }
         }
     }

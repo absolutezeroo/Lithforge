@@ -12,10 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c6242b4959fd8f48aab43cf4033c7dc, type: 3}
   m_Name: GameplaySettings
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.GameplaySettings
-  _inventorySlotCount: 36
-  _hotbarSize: 9
-  _craftingGridSize: 2
-  _startingItems:
-  - Namespace: lithforge
-    Name: cobblestone
-    Count: 64
+  inventorySlotCount: 36
+  hotbarSize: 9
+  craftingGridSize: 2
+  startingItems:
+  - itemNamespace: lithforge
+    itemName: cobblestone
+    count: 64
+  - itemNamespace: lithforge
+    itemName: stone_axe
+    count: 1

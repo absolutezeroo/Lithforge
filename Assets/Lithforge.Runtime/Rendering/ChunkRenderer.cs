@@ -46,6 +46,14 @@ namespace Lithforge.Runtime.Rendering
             MeshUploader.Upload(_mesh, opaqueVerts, opaqueIndices, translucentVerts, translucentIndices);
         }
 
+        public void UpdateMesh(
+            NativeList<MeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
+            NativeList<MeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
+            NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
+        {
+            MeshUploader.Upload(_mesh, opaqueVerts, opaqueIndices, cutoutVerts, cutoutIndices, translucentVerts, translucentIndices);
+        }
+
         private void OnDestroy()
         {
             if (_mesh != null)

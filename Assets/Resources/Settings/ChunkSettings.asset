@@ -12,14 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a51ef788fe2700459d0da69931da239, type: 3}
   m_Name: ChunkSettings
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.ChunkSettings
-  _poolSize: 256
-  _renderDistance: 4
-  _spawnLoadRadius: 2
-  _maxGenerationsPerFrame: 4
-  _maxMeshesPerFrame: 4
-  _yLoadMin: -1
-  _yLoadMax: 3
-  _yUnloadMin: -2
-  _yUnloadMax: 4
-  _spawnFallbackY: 65
-  _initialSpawnYOffset: 32
+  poolSize: 256
+  renderDistance: 4
+  spawnLoadRadius: 3
+  maxGenerationsPerFrame: 6
+  maxMeshesPerFrame: 6
+  yLoadMin: -1
+  yLoadMax: 3
+  yUnloadMin: -2
+  yUnloadMax: 4
+  lod1Distance: 4
+  lod2Distance: 8
+  lod3Distance: 14
+  maxLODMeshesPerFrame: 2
+  spawnFallbackY: 62
+  initialSpawnYOffset: 32

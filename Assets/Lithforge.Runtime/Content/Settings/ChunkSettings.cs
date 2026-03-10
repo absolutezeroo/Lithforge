@@ -42,6 +42,23 @@ namespace Lithforge.Runtime.Content.Settings
         [Tooltip("Maximum Y chunk offset above which chunks are unloaded")]
         [SerializeField] private int yUnloadMax = 4;
 
+        [Header("LOD")]
+        [Tooltip("Chunk distance (in chunks) at which LOD1 (2x downsample) begins")]
+        [Range(2, 32)]
+        [SerializeField] private int lod1Distance = 4;
+
+        [Tooltip("Chunk distance (in chunks) at which LOD2 (4x downsample) begins")]
+        [Range(4, 48)]
+        [SerializeField] private int lod2Distance = 8;
+
+        [Tooltip("Chunk distance (in chunks) at which LOD3 (8x downsample) begins")]
+        [Range(6, 64)]
+        [SerializeField] private int lod3Distance = 14;
+
+        [Tooltip("Maximum LOD mesh jobs scheduled per frame")]
+        [Range(1, 16)]
+        [SerializeField] private int maxLODMeshesPerFrame = 2;
+
         [Header("Spawn")]
         [Tooltip("Fallback world Y for player if no solid block is found during spawn scan")]
         [SerializeField] private int spawnFallbackY = 65;
@@ -92,6 +109,26 @@ namespace Lithforge.Runtime.Content.Settings
         public int YUnloadMax
         {
             get { return yUnloadMax; }
+        }
+
+        public int LOD1Distance
+        {
+            get { return lod1Distance; }
+        }
+
+        public int LOD2Distance
+        {
+            get { return lod2Distance; }
+        }
+
+        public int LOD3Distance
+        {
+            get { return lod3Distance; }
+        }
+
+        public int MaxLODMeshesPerFrame
+        {
+            get { return maxLODMeshesPerFrame; }
         }
 
         public int SpawnFallbackY

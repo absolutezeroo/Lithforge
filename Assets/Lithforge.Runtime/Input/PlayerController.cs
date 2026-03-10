@@ -82,8 +82,6 @@ namespace Lithforge.Runtime.Input
                 return;
             }
 
-            HandleCursorToggle(keyboard);
-
             if (Cursor.lockState != CursorLockMode.Locked)
             {
                 return;
@@ -181,22 +179,5 @@ namespace Lithforge.Runtime.Input
             return new float3(moveDir.x * speed * dt, 0f, moveDir.z * speed * dt);
         }
 
-
-        private void HandleCursorToggle(Keyboard keyboard)
-        {
-            if (keyboard.escapeKey.wasPressedThisFrame)
-            {
-                if (Cursor.lockState == CursorLockMode.Locked)
-                {
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
-                }
-                else
-                {
-                    Cursor.lockState = CursorLockMode.Locked;
-                    Cursor.visible = false;
-                }
-            }
-        }
     }
 }

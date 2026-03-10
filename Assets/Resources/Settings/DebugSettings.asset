@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f05fc9280fa5d6942aaaf3a70e972494, type: 3}
   m_Name: DebugSettings
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.DebugSettings
-  _showDebugOverlay: 0
-  _showChunkBorders: 0
-  _verboseContentLoading: 0
-  _enableProfiling: 1
-  _fpsSampleInterval: 0.5
-  _overlayBackgroundAlpha: 0.6
-  _overlayMinFontSize: 18
-  _overlayScreenDivisor: 50
-  _overlayPanelWidth: 420
-  _overlayPadding: 8
-  _overlayLineSpacing: 6
+  showDebugOverlay: 1
+  showChunkBorders: 0
+  verboseContentLoading: 0
+  enableProfiling: 1
+  fpsSampleInterval: 0.5
+  overlayBackgroundAlpha: 0.6
+  overlayMinFontSize: 18
+  overlayScreenDivisor: 50
+  overlayPanelWidth: 420
+  overlayPadding: 8
+  overlayLineSpacing: 6

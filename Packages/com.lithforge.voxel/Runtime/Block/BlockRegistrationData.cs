@@ -31,6 +31,8 @@ namespace Lithforge.Voxel.Block
 
         public bool RequiresTool { get; }
 
+        public bool IsFluid { get; }
+
         public BlockRegistrationData(
             ResourceId id,
             int stateCount,
@@ -42,7 +44,8 @@ namespace Lithforge.Voxel.Block
             string lootTable,
             float hardness,
             float blastResistance,
-            bool requiresTool)
+            bool requiresTool,
+            bool isFluid = false)
         {
             Id = id;
             StateCount = stateCount;
@@ -55,6 +58,7 @@ namespace Lithforge.Voxel.Block
             Hardness = hardness;
             BlastResistance = blastResistance;
             RequiresTool = requiresTool;
+            IsFluid = isFluid;
         }
     }
 }

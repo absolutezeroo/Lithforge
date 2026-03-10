@@ -12,37 +12,42 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e78b79a079862a4b8c9d5575a859fa5, type: 3}
   m_Name: WorldGenSettings
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.WorldGenSettings
-  _terrainFrequency: 0.008
-  _terrainLacunarity: 2
-  _terrainPersistence: 0.5
-  _terrainHeightScale: 24
-  _terrainOctaves: 5
-  _terrainSeedOffset: 0
-  _temperatureFrequency: 0.002
-  _temperatureLacunarity: 2
-  _temperaturePersistence: 0.5
-  _temperatureHeightScale: 1
-  _temperatureOctaves: 3
-  _temperatureSeedOffset: 999
-  _humidityFrequency: 0.002
-  _humidityLacunarity: 2
-  _humidityPersistence: 0.5
-  _humidityHeightScale: 1
-  _humidityOctaves: 3
-  _humiditySeedOffset: 1999
-  _caveFrequency: 0.03
-  _caveLacunarity: 2
-  _cavePersistence: 0.5
-  _caveHeightScale: 1
-  _caveOctaves: 2
-  _caveThreshold: 0.03
-  _minCarveY: 5
-  _caveSeedOffset1: 0
-  _caveSeedOffset2: 31337
-  _seaLevelCarveBuffer: 4
-  _seed: 42
-  _seaLevel: 64
-  _heightCurve:
+  terrainNoise:
+    frequency: 0.008
+    lacunarity: 2
+    persistence: 0.5
+    heightScale: 24
+    octaves: 5
+    seedOffset: 0
+  temperatureNoise:
+    frequency: 0.002
+    lacunarity: 2
+    persistence: 0.5
+    heightScale: 1
+    octaves: 3
+    seedOffset: 999
+  humidityNoise:
+    frequency: 0.002
+    lacunarity: 2
+    persistence: 0.5
+    heightScale: 1
+    octaves: 3
+    seedOffset: 1999
+  caveNoise:
+    frequency: 0.03
+    lacunarity: 2
+    persistence: 0.5
+    heightScale: 1
+    octaves: 2
+    seedOffset: 0
+  caveThreshold: 0.03
+  minCarveY: 5
+  caveSeedOffset1: 0
+  caveSeedOffset2: 31337
+  seaLevelCarveBuffer: 4
+  seed: 42
+  seaLevel: 62
+  heightCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3

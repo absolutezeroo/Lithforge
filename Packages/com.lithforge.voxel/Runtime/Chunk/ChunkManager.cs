@@ -11,7 +11,7 @@ namespace Lithforge.Voxel.Chunk
     {
         private readonly Dictionary<int3, ManagedChunk> _chunks = new Dictionary<int3, ManagedChunk>();
         private readonly ChunkPool _pool;
-        private readonly int _renderDistance;
+        private int _renderDistance;
         private readonly int _yLoadMin;
         private readonly int _yLoadMax;
         private readonly int _yUnloadMin;
@@ -27,6 +27,16 @@ namespace Lithforge.Voxel.Chunk
         public int PendingLoadCount
         {
             get { return _loadQueue.Count; }
+        }
+
+        public int RenderDistance
+        {
+            get { return _renderDistance; }
+        }
+
+        public void SetRenderDistance(int distance)
+        {
+            _renderDistance = math.max(1, distance);
         }
 
         public ChunkManager(
@@ -152,6 +162,23 @@ namespace Lithforge.Voxel.Chunk
         {
             return _chunks.TryGetValue(coord, out ManagedChunk neighbor)
                 && neighbor.State >= ChunkState.Generated;
+        }
+
+        /// <summary>
+        /// Fills the provided list with all chunks in the Ready state.
+        /// Clears the list before filling. Used for LOD level assignment.
+        /// </summary>
+        public void FillReadyChunks(List<ManagedChunk> result)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                if (kvp.Value.State == ChunkState.Ready)
+                {
+                    result.Add(kvp.Value);
+                }
+            }
         }
 
         public ManagedChunk GetChunk(int3 coord)
