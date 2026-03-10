@@ -1,6 +1,0 @@
-{
-  "parent": "lithforge:item/handheld",
-  "textures": {
-    "layer0": "lithforge:item/wooden_shovel"
-  }
-}

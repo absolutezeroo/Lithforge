@@ -200,11 +200,11 @@ namespace Lithforge.Runtime.Input
             _miningBlockCoord = blockCoord;
             _miningProgress = 0f;
 
-            // Look up hardness from BlockDefinition
+            // Look up hardness from StateRegistryEntry
             StateId stateId = _chunkManager.GetBlock(blockCoord);
-            BlockDefinition definition = _stateRegistry.GetDefinitionForState(stateId);
+            StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
-            if (definition != null)
+            if (entry != null)
             {
                 // Check if held item is the correct tool
                 float toolMultiplier = 5.0f;
@@ -227,7 +227,7 @@ namespace Lithforge.Runtime.Input
                     }
                 }
 
-                _miningRequiredTime = (float)(definition.Hardness * toolMultiplier);
+                _miningRequiredTime = entry.Hardness * toolMultiplier;
 
                 // Minimum break time of 50ms (instant break for hardness 0)
                 if (_miningRequiredTime < 0.05f)
@@ -245,11 +245,11 @@ namespace Lithforge.Runtime.Input
         {
             // Resolve loot table before breaking
             StateId stateId = _chunkManager.GetBlock(blockCoord);
-            BlockDefinition definition = _stateRegistry.GetDefinitionForState(stateId);
+            StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
-            if (definition != null && !string.IsNullOrEmpty(definition.LootTable))
+            if (entry != null && !string.IsNullOrEmpty(entry.LootTable))
             {
-                if (ResourceId.TryParse(definition.LootTable, out ResourceId tableId))
+                if (ResourceId.TryParse(entry.LootTable, out ResourceId tableId))
                 {
                     List<LootDrop> drops = _lootResolver.Resolve(tableId, _lootRandom);
 
@@ -349,7 +349,7 @@ namespace Lithforge.Runtime.Input
             {
                 StateRegistryEntry entry = entries[i];
 
-                if (entry.Definition.Id == blockId)
+                if (entry.Id == blockId)
                 {
                     return new StateId(entry.BaseStateId);
                 }

@@ -27,7 +27,7 @@ namespace Lithforge.Voxel.Item
             for (int i = 0; i < entries.Count; i++)
             {
                 StateRegistryEntry entry = entries[i];
-                ResourceId blockId = entry.Definition.Id;
+                ResourceId blockId = entry.Id;
 
                 // Skip air
                 if (entry.BaseStateId == 0)

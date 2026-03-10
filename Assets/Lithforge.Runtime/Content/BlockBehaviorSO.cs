@@ -1,0 +1,38 @@
+using System.Collections.Generic;
+using Lithforge.Runtime.Content.Behaviors;
+using UnityEngine;
+
+namespace Lithforge.Runtime.Content
+{
+    [CreateAssetMenu(fileName = "NewBlockBehavior", menuName = "Lithforge/Content/Block Behavior", order = 9)]
+    public sealed class BlockBehaviorSO : ScriptableObject
+    {
+        [Header("Trigger")]
+        [Tooltip("When this behavior is triggered")]
+        [SerializeField] private BlockBehaviorTrigger _trigger;
+
+        [Header("Actions")]
+        [Tooltip("Actions to execute when triggered")]
+        [SerializeField] private List<BehaviorActionSO> _actions = new List<BehaviorActionSO>();
+
+        public BlockBehaviorTrigger Trigger
+        {
+            get { return _trigger; }
+        }
+
+        public IReadOnlyList<BehaviorActionSO> Actions
+        {
+            get { return _actions; }
+        }
+    }
+
+    public enum BlockBehaviorTrigger
+    {
+        OnBreak = 0,
+        OnPlace = 1,
+        OnInteract = 2,
+        OnNeighborUpdate = 3,
+        OnRandomTick = 4,
+        OnSteppedOn = 5,
+    }
+}

@@ -1,8 +1,0 @@
-{
-  "parent": "lithforge:block/cube_all",
-  "textures": {
-    "bottom": "lithforge:block/sandstone_bottom",
-    "side": "lithforge:block/sandstone",
-    "top": "lithforge:block/sandstone_top"
-  }
-}

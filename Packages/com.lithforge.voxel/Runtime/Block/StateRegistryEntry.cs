@@ -1,21 +1,36 @@
+using Lithforge.Core.Data;
+
 namespace Lithforge.Voxel.Block
 {
     /// <summary>
-    /// Entry mapping a BlockDefinition to its contiguous StateId range.
+    /// Entry mapping a block to its contiguous StateId range.
     /// </summary>
     public sealed class StateRegistryEntry
     {
-        public BlockDefinition Definition { get; }
+        public ResourceId Id { get; }
         public ushort BaseStateId { get; }
         public int StateCount { get; }
         public ushort BlockOrdinal { get; }
+        public string LootTable { get; }
+        public float Hardness { get; }
+        public float BlastResistance { get; }
 
-        internal StateRegistryEntry(BlockDefinition definition, ushort baseStateId, int stateCount, ushort blockOrdinal)
+        internal StateRegistryEntry(
+            ResourceId id,
+            ushort baseStateId,
+            int stateCount,
+            ushort blockOrdinal,
+            string lootTable,
+            float hardness,
+            float blastResistance)
         {
-            Definition = definition;
+            Id = id;
             BaseStateId = baseStateId;
             StateCount = stateCount;
             BlockOrdinal = blockOrdinal;
+            LootTable = lootTable;
+            Hardness = hardness;
+            BlastResistance = blastResistance;
         }
     }
 }

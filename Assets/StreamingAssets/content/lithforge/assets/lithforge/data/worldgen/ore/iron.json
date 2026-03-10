@@ -1,9 +1,0 @@
-{
-  "ore_block": "lithforge:iron_ore",
-  "replace_block": "lithforge:stone",
-  "min_y": 0,
-  "max_y": 64,
-  "vein_size": 9,
-  "frequency": 13,
-  "ore_type": "blob"
-}

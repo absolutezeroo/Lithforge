@@ -1,9 +1,0 @@
-{
-  "max_stack_size": 1,
-  "tool_type": "hoe",
-  "tool_level": 0,
-  "durability": 32,
-  "attack_damage": 1.0,
-  "attack_speed": 1.0,
-  "mining_speed": 12.0
-}

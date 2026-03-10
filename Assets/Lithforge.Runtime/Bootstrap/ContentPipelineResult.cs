@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Content;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Crafting;
@@ -20,8 +21,8 @@ namespace Lithforge.Runtime.Bootstrap
         public NativeStateRegistry NativeStateRegistry { get; }
         public NativeAtlasLookup NativeAtlasLookup { get; }
         public AtlasResult AtlasResult { get; }
-        public List<BiomeDefinition> BiomeDefinitions { get; }
-        public List<OreDefinition> OreDefinitions { get; }
+        public BiomeDefinitionSO[] BiomeDefinitions { get; }
+        public OreDefinitionSO[] OreDefinitions { get; }
         public List<ItemDefinition> ItemDefinitions { get; }
         public Dictionary<ResourceId, LootTableDefinition> LootTables { get; }
         public TagRegistry TagRegistry { get; }
@@ -33,8 +34,8 @@ namespace Lithforge.Runtime.Bootstrap
             NativeStateRegistry nativeStateRegistry,
             NativeAtlasLookup nativeAtlasLookup,
             AtlasResult atlasResult,
-            List<BiomeDefinition> biomeDefinitions,
-            List<OreDefinition> oreDefinitions,
+            BiomeDefinitionSO[] biomeDefinitions,
+            OreDefinitionSO[] oreDefinitions,
             List<ItemDefinition> itemDefinitions,
             Dictionary<ResourceId, LootTableDefinition> lootTables,
             TagRegistry tagRegistry,
