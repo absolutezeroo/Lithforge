@@ -221,10 +221,12 @@ namespace Lithforge.Runtime.Input
                 return;
             }
 
-            // Check if target changed
+            // Check if target changed — skip accumulation on the first frame
             if (!_isMining || !_miningBlockCoord.Equals(hit.BlockCoord))
             {
                 StartMining(hit.BlockCoord);
+
+                return;
             }
 
             // Accumulate mining progress

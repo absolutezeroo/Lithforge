@@ -82,9 +82,10 @@ Shader "Lithforge/VoxelOpaque"
                 output.ao = lerp(1.0h, aoNorm, (half)_AOStrength);
 
                 // Lighting: block light (g) and sun light (b)
+                // Ambient is applied separately in the fragment shader
                 half blockLight = input.color.g;
                 half sunLight = input.color.b * (half)_SunLightFactor;
-                output.light = max(max(blockLight, sunLight), (half)_AmbientLight);
+                output.light = max(blockLight, sunLight);
 
                 output.fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
 
