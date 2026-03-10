@@ -2,7 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Lithforge.Runtime.Content;
+using Lithforge.Runtime.Content.Blocks;
+using Lithforge.Runtime.Content.Items;
+using Lithforge.Runtime.Content.Loot;
+using Lithforge.Runtime.Content.Models;
+using Lithforge.Runtime.Content.Recipes;
+using Lithforge.Runtime.Content.Tags;
+using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using Newtonsoft.Json.Linq;

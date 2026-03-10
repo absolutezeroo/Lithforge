@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Content.Items;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Behaviors

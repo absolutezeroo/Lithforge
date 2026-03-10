@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Meshing.Atlas;
-using Lithforge.Runtime.Content;
+using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Crafting;
