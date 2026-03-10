@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: coal_ore
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 1
-  _textures:
-  - _variable: all
-    _value: lithforge:block/coal_ore
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: all
+    texture: {fileID: 2800000, guid: ff12e964781136c469f38993bc056098, type: 3}
+    variableReference: 
+  elements: []

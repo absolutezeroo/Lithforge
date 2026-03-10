@@ -12,21 +12,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: cube_north_west_mirrored_all
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 11400000, guid: 00e86719cffff3d45992f0de27035355, type: 2}
-  _builtInParent: 0
-  _textures:
-  - _variable: particle
-    _value: '#all'
-  - _variable: down
-    _value: '#all'
-  - _variable: up
-    _value: '#all'
-  - _variable: north
-    _value: '#all'
-  - _variable: east
-    _value: '#all'
-  - _variable: south
-    _value: '#all'
-  - _variable: west
-    _value: '#all'
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: particle
+    texture: {fileID: 0}
+    variableReference: '#all'
+  - variable: down
+    texture: {fileID: 0}
+    variableReference: '#all'
+  - variable: up
+    texture: {fileID: 0}
+    variableReference: '#all'
+  - variable: north
+    texture: {fileID: 0}
+    variableReference: '#all'
+  - variable: east
+    texture: {fileID: 0}
+    variableReference: '#all'
+  - variable: south
+    texture: {fileID: 0}
+    variableReference: '#all'
+  - variable: west
+    texture: {fileID: 0}
+    variableReference: '#all'
+  elements: []

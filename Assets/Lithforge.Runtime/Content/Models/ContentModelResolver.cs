@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Lithforge.Core.Data;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Models
@@ -13,7 +12,7 @@ namespace Lithforge.Runtime.Content.Models
     {
         private const int _maxParentDepth = 16;
 
-        public ResolvedFaceTextures Resolve(BlockModel model)
+        public ResolvedFaceTextures2D Resolve(BlockModel model)
         {
             if (model == null)
             {
@@ -51,7 +50,7 @@ namespace Lithforge.Runtime.Content.Models
             }
 
             // Merge textures from root to leaf (parent first, child overrides)
-            Dictionary<string, string> mergedTextures = new Dictionary<string, string>();
+            Dictionary<string, TextureVariable> mergedTextures = new Dictionary<string, TextureVariable>();
 
             for (int i = chain.Count - 1; i >= 0; i--)
             {
@@ -59,7 +58,7 @@ namespace Lithforge.Runtime.Content.Models
 
                 for (int t = 0; t < textures.Count; t++)
                 {
-                    mergedTextures[textures[t].Variable] = textures[t].Value;
+                    mergedTextures[textures[t].Variable] = textures[t];
                 }
             }
 
@@ -79,12 +78,12 @@ namespace Lithforge.Runtime.Content.Models
                 }
             }
 
-            // Resolve #variable references
-            Dictionary<string, ResourceId> resolvedTextures = new Dictionary<string, ResourceId>();
+            // Resolve #variable references to Texture2D
+            Dictionary<string, Texture2D> resolvedTextures = new Dictionary<string, Texture2D>();
 
-            foreach (KeyValuePair<string, string> kvp in mergedTextures)
+            foreach (KeyValuePair<string, TextureVariable> kvp in mergedTextures)
             {
-                ResourceId resolved = ResolveTextureValue(kvp.Value, mergedTextures);
+                Texture2D resolved = ResolveTextureVariable(kvp.Value, mergedTextures);
                 resolvedTextures[kvp.Key] = resolved;
             }
 
@@ -139,7 +138,7 @@ namespace Lithforge.Runtime.Content.Models
                 current = current.Parent;
             }
 
-            Dictionary<string, string> mergedTextures = new Dictionary<string, string>();
+            Dictionary<string, TextureVariable> mergedTextures = new Dictionary<string, TextureVariable>();
 
             for (int i = chain.Count - 1; i >= 0; i--)
             {
@@ -147,7 +146,7 @@ namespace Lithforge.Runtime.Content.Models
 
                 for (int t = 0; t < textures.Count; t++)
                 {
-                    mergedTextures[textures[t].Variable] = textures[t].Value;
+                    mergedTextures[textures[t].Variable] = textures[t];
                 }
             }
 
@@ -166,11 +165,11 @@ namespace Lithforge.Runtime.Content.Models
                 }
             }
 
-            Dictionary<string, ResourceId> resolvedTextures = new Dictionary<string, ResourceId>();
+            Dictionary<string, Texture2D> resolvedTextures = new Dictionary<string, Texture2D>();
 
-            foreach (KeyValuePair<string, string> kvp in mergedTextures)
+            foreach (KeyValuePair<string, TextureVariable> kvp in mergedTextures)
             {
-                ResourceId resolved = ResolveTextureValue(kvp.Value, mergedTextures);
+                Texture2D resolved = ResolveTextureVariable(kvp.Value, mergedTextures);
                 resolvedTextures[kvp.Key] = resolved;
             }
 
@@ -181,16 +180,23 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
-        private static ResourceId ResolveTextureValue(
-            string value,
-            Dictionary<string, string> mergedTextures)
+        private static Texture2D ResolveTextureVariable(
+            TextureVariable texVar,
+            Dictionary<string, TextureVariable> mergedTextures)
         {
-            HashSet<string> visitedVars = new HashSet<string>();
-            string current = value;
-
-            while (current != null && current.StartsWith("#"))
+            // If it has a direct Texture2D, use it
+            if (!texVar.IsVariableReference)
             {
-                string varName = current.Substring(1);
+                return texVar.Texture;
+            }
+
+            // Walk #variable chain
+            HashSet<string> visitedVars = new HashSet<string>();
+            string currentRef = texVar.VariableReference;
+
+            while (currentRef != null && currentRef.StartsWith("#"))
+            {
+                string varName = currentRef.Substring(1);
 
                 if (!visitedVars.Add(varName))
                 {
@@ -198,9 +204,14 @@ namespace Lithforge.Runtime.Content.Models
                     break;
                 }
 
-                if (mergedTextures.TryGetValue(varName, out string resolved))
+                if (mergedTextures.TryGetValue(varName, out TextureVariable resolved))
                 {
-                    current = resolved;
+                    if (!resolved.IsVariableReference)
+                    {
+                        return resolved.Texture;
+                    }
+
+                    currentRef = resolved.VariableReference;
                 }
                 else
                 {
@@ -208,17 +219,13 @@ namespace Lithforge.Runtime.Content.Models
                 }
             }
 
-            if (current != null && !current.StartsWith("#") && ResourceId.TryParse(current, out ResourceId texId))
-            {
-                return texId;
-            }
-
-            return new ResourceId("lithforge", "block/missing");
+            // Could not resolve — return null (handled downstream as missing)
+            return null;
         }
 
-        private static ResolvedFaceTextures ResolveWithBuiltIn(
+        private static ResolvedFaceTextures2D ResolveWithBuiltIn(
             BuiltInParentType parentType,
-            Dictionary<string, ResourceId> textures)
+            Dictionary<string, Texture2D> textures)
         {
             switch (parentType)
             {
@@ -239,11 +246,11 @@ namespace Lithforge.Runtime.Content.Models
             }
         }
 
-        private static ResolvedFaceTextures ResolveCubeAll(Dictionary<string, ResourceId> textures)
+        private static ResolvedFaceTextures2D ResolveCubeAll(Dictionary<string, Texture2D> textures)
         {
-            if (textures.TryGetValue("all", out ResourceId allTex))
+            if (textures.TryGetValue("all", out Texture2D allTex))
             {
-                return new ResolvedFaceTextures
+                return new ResolvedFaceTextures2D
                 {
                     North = allTex,
                     South = allTex,
@@ -257,12 +264,12 @@ namespace Lithforge.Runtime.Content.Models
             return ResolveCube(textures);
         }
 
-        private static ResolvedFaceTextures ResolveCubeColumn(Dictionary<string, ResourceId> textures)
+        private static ResolvedFaceTextures2D ResolveCubeColumn(Dictionary<string, Texture2D> textures)
         {
-            if (textures.TryGetValue("end", out ResourceId endTex) &&
-                textures.TryGetValue("side", out ResourceId sideTex))
+            if (textures.TryGetValue("end", out Texture2D endTex) &&
+                textures.TryGetValue("side", out Texture2D sideTex))
             {
-                return new ResolvedFaceTextures
+                return new ResolvedFaceTextures2D
                 {
                     North = sideTex,
                     South = sideTex,
@@ -276,29 +283,26 @@ namespace Lithforge.Runtime.Content.Models
             return ResolveCube(textures);
         }
 
-        private static ResolvedFaceTextures ResolveCube(Dictionary<string, ResourceId> textures)
+        private static ResolvedFaceTextures2D ResolveCube(Dictionary<string, Texture2D> textures)
         {
-            ResourceId missing = new ResourceId("lithforge", "block/missing");
-
-            return new ResolvedFaceTextures
+            return new ResolvedFaceTextures2D
             {
-                North = GetWithFallbacks(textures, missing, "north", "front", "side"),
-                South = GetWithFallbacks(textures, missing, "south", "side"),
-                East = GetWithFallbacks(textures, missing, "east", "side"),
-                West = GetWithFallbacks(textures, missing, "west", "side"),
-                Up = GetWithFallbacks(textures, missing, "up", "top", "end"),
-                Down = GetWithFallbacks(textures, missing, "down", "bottom", "end"),
+                North = GetWithFallbacks(textures, null, "north", "front", "side"),
+                South = GetWithFallbacks(textures, null, "south", "side"),
+                East = GetWithFallbacks(textures, null, "east", "side"),
+                West = GetWithFallbacks(textures, null, "west", "side"),
+                Up = GetWithFallbacks(textures, null, "up", "top", "end"),
+                Down = GetWithFallbacks(textures, null, "down", "bottom", "end"),
             };
         }
 
-        private static ResolvedFaceTextures ResolveCubeBottomTop(Dictionary<string, ResourceId> textures)
+        private static ResolvedFaceTextures2D ResolveCubeBottomTop(Dictionary<string, Texture2D> textures)
         {
-            ResourceId missing = new ResourceId("lithforge", "block/missing");
-            ResourceId top = GetWithFallbacks(textures, missing, "top", "end");
-            ResourceId bottom = GetWithFallbacks(textures, missing, "bottom", "end");
-            ResourceId side = GetWithFallbacks(textures, missing, "side");
+            Texture2D top = GetWithFallbacks(textures, null, "top", "end");
+            Texture2D bottom = GetWithFallbacks(textures, null, "bottom", "end");
+            Texture2D side = GetWithFallbacks(textures, null, "side");
 
-            return new ResolvedFaceTextures
+            return new ResolvedFaceTextures2D
             {
                 North = side,
                 South = side,
@@ -309,27 +313,24 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
-        private static ResolvedFaceTextures ResolveOrientable(Dictionary<string, ResourceId> textures)
+        private static ResolvedFaceTextures2D ResolveOrientable(Dictionary<string, Texture2D> textures)
         {
-            ResourceId missing = new ResourceId("lithforge", "block/missing");
-
-            return new ResolvedFaceTextures
+            return new ResolvedFaceTextures2D
             {
-                North = GetWithFallbacks(textures, missing, "front", "north", "side"),
-                South = GetWithFallbacks(textures, missing, "south", "side"),
-                East = GetWithFallbacks(textures, missing, "east", "side"),
-                West = GetWithFallbacks(textures, missing, "west", "side"),
-                Up = GetWithFallbacks(textures, missing, "top", "up", "end"),
-                Down = GetWithFallbacks(textures, missing, "bottom", "down", "end"),
+                North = GetWithFallbacks(textures, null, "front", "north", "side"),
+                South = GetWithFallbacks(textures, null, "south", "side"),
+                East = GetWithFallbacks(textures, null, "east", "side"),
+                West = GetWithFallbacks(textures, null, "west", "side"),
+                Up = GetWithFallbacks(textures, null, "top", "up", "end"),
+                Down = GetWithFallbacks(textures, null, "bottom", "down", "end"),
             };
         }
 
-        private static ResolvedFaceTextures ResolveCross(Dictionary<string, ResourceId> textures)
+        private static ResolvedFaceTextures2D ResolveCross(Dictionary<string, Texture2D> textures)
         {
-            ResourceId missing = new ResourceId("lithforge", "block/missing");
-            ResourceId cross = GetWithFallbacks(textures, missing, "cross", "all");
+            Texture2D cross = GetWithFallbacks(textures, null, "cross", "all");
 
-            return new ResolvedFaceTextures
+            return new ResolvedFaceTextures2D
             {
                 North = cross,
                 South = cross,
@@ -340,14 +341,14 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
-        private static ResourceId GetWithFallbacks(
-            Dictionary<string, ResourceId> textures,
-            ResourceId fallback,
+        private static Texture2D GetWithFallbacks(
+            Dictionary<string, Texture2D> textures,
+            Texture2D fallback,
             params string[] keys)
         {
             for (int i = 0; i < keys.Length; i++)
             {
-                if (textures.TryGetValue(keys[i], out ResourceId result))
+                if (textures.TryGetValue(keys[i], out Texture2D result))
                 {
                     return result;
                 }
@@ -356,18 +357,16 @@ namespace Lithforge.Runtime.Content.Models
             return fallback;
         }
 
-        private static ResolvedFaceTextures CreateMissing()
+        private static ResolvedFaceTextures2D CreateMissing()
         {
-            ResourceId missing = new ResourceId("lithforge", "block/missing");
-
-            return new ResolvedFaceTextures
+            return new ResolvedFaceTextures2D
             {
-                North = missing,
-                South = missing,
-                East = missing,
-                West = missing,
-                Up = missing,
-                Down = missing,
+                North = null,
+                South = null,
+                East = null,
+                West = null,
+                Up = null,
+                Down = null,
             };
         }
     }

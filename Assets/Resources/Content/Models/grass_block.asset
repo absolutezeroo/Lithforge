@@ -12,15 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: grass_block
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 2
-  _textures:
-  - _variable: bottom
-    _value: lithforge:block/dirt
-  - _variable: top
-    _value: lithforge:block/grass_block_top
-  - _variable: side
-    _value: lithforge:block/grass_block_side
-  - _variable: overlay
-    _value: lithforge:block/grass_block_side_overlay
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: bottom
+    texture: {fileID: 2800000, guid: b5db6a89ef6da01479a136ded7df0479, type: 3}
+    variableReference: 
+  - variable: top
+    texture: {fileID: 2800000, guid: 888f022d8fbe99d4b91dc916f66cf707, type: 3}
+    variableReference: 
+  - variable: side
+    texture: {fileID: 2800000, guid: 19472687b2856dc449aa944593d3ef5f, type: 3}
+    variableReference: 
+  - variable: overlay
+    texture: {fileID: 2800000, guid: f771c57ed2a59fa40b3238d3f7c195cf, type: 3}
+    variableReference: 
+  elements: []

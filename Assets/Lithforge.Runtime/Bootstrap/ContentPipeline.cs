@@ -53,7 +53,7 @@ namespace Lithforge.Runtime.Bootstrap
             _atlasTileSize = atlasTileSize;
         }
 
-        public ContentPipelineResult Build(string contentRoot)
+        public ContentPipelineResult Build()
         {
             // Phase 1: Load block definitions
             BlockDefinition[] blocks = Resources.LoadAll<BlockDefinition>("Content/Blocks");
@@ -97,12 +97,12 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 3: Resolve block models via ContentModelResolver
             ContentModelResolver modelResolver = new ContentModelResolver();
-            Dictionary<BlockModel, ResolvedFaceTextures> resolvedModelCache =
-                new Dictionary<BlockModel, ResolvedFaceTextures>();
+            Dictionary<BlockModel, ResolvedFaceTextures2D> resolvedModelCache =
+                new Dictionary<BlockModel, ResolvedFaceTextures2D>();
 
             // Phase 4: Resolve blockstate variants to per-face textures
-            Dictionary<StateId, ResolvedFaceTextures> resolvedFaces =
-                new Dictionary<StateId, ResolvedFaceTextures>();
+            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces =
+                new Dictionary<StateId, ResolvedFaceTextures2D>();
 
             IReadOnlyList<StateRegistryEntry> entries = stateRegistry.Entries;
 
@@ -144,7 +144,7 @@ namespace Lithforge.Runtime.Bootstrap
                         continue;
                     }
 
-                    if (!resolvedModelCache.TryGetValue(variant.Model, out ResolvedFaceTextures faces))
+                    if (!resolvedModelCache.TryGetValue(variant.Model, out ResolvedFaceTextures2D faces))
                     {
                         faces = modelResolver.Resolve(variant.Model);
                         resolvedModelCache[variant.Model] = faces;
@@ -158,13 +158,13 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 5: Build texture atlas
             AtlasBuilder atlasBuilder = new AtlasBuilder(_logger, _atlasTileSize);
-            AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces, contentRoot);
+            AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces);
 
             // Phase 6: Patch texture indices into StateRegistry
-            foreach (KeyValuePair<StateId, ResolvedFaceTextures> kvp in resolvedFaces)
+            foreach (KeyValuePair<StateId, ResolvedFaceTextures2D> kvp in resolvedFaces)
             {
                 StateId id = kvp.Key;
-                ResolvedFaceTextures faces = kvp.Value;
+                ResolvedFaceTextures2D faces = kvp.Value;
 
                 ushort texNorth = GetTextureIndex(atlasResult, faces.North);
                 ushort texSouth = GetTextureIndex(atlasResult, faces.South);
@@ -456,9 +456,9 @@ namespace Lithforge.Runtime.Bootstrap
             return def;
         }
 
-        private static ushort GetTextureIndex(AtlasResult atlas, ResourceId textureId)
+        private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)
         {
-            if (atlas.IndexByTexture.TryGetValue(textureId, out int index))
+            if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))
             {
                 return (ushort)index;
             }

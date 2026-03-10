@@ -12,11 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: oak_log
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 3
-  _textures:
-  - _variable: end
-    _value: lithforge:block/oak_log_top
-  - _variable: side
-    _value: lithforge:block/oak_log
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: end
+    texture: {fileID: 2800000, guid: fad918285bb931c4ea9c76dde53d8b5d, type: 3}
+    variableReference: 
+  - variable: side
+    texture: {fileID: 2800000, guid: c772b07615be4b541bb900a66230f69a, type: 3}
+    variableReference: 
+  elements: []

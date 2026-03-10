@@ -8,17 +8,30 @@ namespace Lithforge.Runtime.Content.Models
         [Tooltip("Variable name (e.g. 'all', 'side', 'end', 'north')")]
         [SerializeField] private string variable;
 
-        [Tooltip("Texture value (resource path like 'lithforge:block/stone' or #variable reference like '#all')")]
-        [SerializeField] private string value;
+        [Tooltip("Direct texture reference (drag-drop a Texture2D asset)")]
+        [SerializeField] private Texture2D texture;
+
+        [Tooltip("Variable reference (e.g. '#all') for indirection to another variable")]
+        [SerializeField] private string variableReference;
 
         public string Variable
         {
             get { return variable; }
         }
 
-        public string Value
+        public Texture2D Texture
         {
-            get { return value; }
+            get { return texture; }
+        }
+
+        public string VariableReference
+        {
+            get { return variableReference; }
+        }
+
+        public bool IsVariableReference
+        {
+            get { return !string.IsNullOrEmpty(variableReference) && variableReference.StartsWith("#"); }
         }
     }
 }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: air
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 0
-  _textures: []
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures: []
+  elements: []

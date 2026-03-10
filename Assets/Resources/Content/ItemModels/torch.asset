@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: torch
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 11400000, guid: 7901f7e3e3806ce408a852e0cfd1b8e6, type: 2}
-  _builtInParent: 0
-  _textures:
-  - _variable: layer0
-    _value: minecraft:block/torch
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: layer0
+    texture: {fileID: 2800000, guid: da0c4d1d604d05146bd9c4d6a8a63604, type: 3}
+    variableReference: 
+  elements: []

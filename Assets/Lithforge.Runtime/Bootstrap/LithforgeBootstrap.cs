@@ -67,10 +67,8 @@ namespace Lithforge.Runtime.Bootstrap
 
             ContentPipeline pipeline = new ContentPipeline(
                 logger, validator, _settings.Rendering.AtlasTileSize);
-            string contentRoot = System.IO.Path.Combine(
-                Application.streamingAssetsPath, "content", "lithforge");
 
-            _contentResult = pipeline.Build(contentRoot);
+            _contentResult = pipeline.Build();
 
             _services.Register(_contentResult.StateRegistry);
             _services.Register(_contentResult.NativeStateRegistry);

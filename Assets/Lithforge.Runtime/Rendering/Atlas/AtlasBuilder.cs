@@ -1,17 +1,16 @@
 using System.Collections.Generic;
-using System.IO;
-using Lithforge.Core.Data;
 using Lithforge.Core.Logging;
+using Lithforge.Runtime.Content.Models;
 using Lithforge.Voxel.Block;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Rendering.Atlas
 {
     /// <summary>
-    /// Builds a Texture2DArray from content PNG files.
+    /// Builds a Texture2DArray from direct Texture2D references.
     /// Discovers all unique textures referenced by resolved block states,
-    /// loads them from StreamingAssets, and assigns sequential array indices.
-    /// Index 0 is always the missing texture (magenta).
+    /// reads their pixels, and assigns sequential array indices.
+    /// Index 0 is always the missing texture (magenta checkerboard).
     /// </summary>
     public sealed class AtlasBuilder
     {
@@ -27,43 +26,35 @@ namespace Lithforge.Runtime.Rendering.Atlas
         /// <summary>
         /// Builds the texture atlas from resolved face textures.
         /// </summary>
-        public AtlasResult Build(
-            Dictionary<StateId, ResolvedFaceTextures> resolvedFaces,
-            string contentRoot)
+        public AtlasResult Build(Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
         {
-            // Collect all unique texture ResourceIds
-            HashSet<ResourceId> uniqueTextures = new HashSet<ResourceId>();
+            // Collect all unique Texture2D refs (null = missing)
+            HashSet<Texture2D> uniqueTextures = new HashSet<Texture2D>();
 
-            foreach (KeyValuePair<StateId, ResolvedFaceTextures> kvp in resolvedFaces)
+            foreach (KeyValuePair<StateId, ResolvedFaceTextures2D> kvp in resolvedFaces)
             {
-                ResolvedFaceTextures faces = kvp.Value;
+                ResolvedFaceTextures2D faces = kvp.Value;
 
-                uniqueTextures.Add(faces.North);
-                uniqueTextures.Add(faces.South);
-                uniqueTextures.Add(faces.East);
-                uniqueTextures.Add(faces.West);
-                uniqueTextures.Add(faces.Up);
-                uniqueTextures.Add(faces.Down);
+                if (faces.North != null) { uniqueTextures.Add(faces.North); }
+                if (faces.South != null) { uniqueTextures.Add(faces.South); }
+                if (faces.East != null) { uniqueTextures.Add(faces.East); }
+                if (faces.West != null) { uniqueTextures.Add(faces.West); }
+                if (faces.Up != null) { uniqueTextures.Add(faces.Up); }
+                if (faces.Down != null) { uniqueTextures.Add(faces.Down); }
             }
 
             // Build index mapping: 0 = missing, then each unique texture
-            Dictionary<ResourceId, int> indexByTexture = new Dictionary<ResourceId, int>();
-            List<ResourceId> orderedTextures = new List<ResourceId>();
+            Dictionary<Texture2D, int> indexByTexture = new Dictionary<Texture2D, int>();
+            List<Texture2D> orderedTextures = new List<Texture2D>();
 
-            // Reserve index 0 for missing texture
-            ResourceId missingId = new ResourceId("lithforge", "block/missing");
-            indexByTexture[missingId] = 0;
-            orderedTextures.Add(missingId);
+            // Reserve index 0 for missing texture (null key not stored — handled by lookup miss)
+            orderedTextures.Add(null);
 
-            foreach (ResourceId texId in uniqueTextures)
+            foreach (Texture2D tex in uniqueTextures)
             {
-                if (!indexByTexture.ContainsKey(texId))
-                {
-                    int nextIndex = orderedTextures.Count;
-                    indexByTexture[texId] = nextIndex;
-
-                    orderedTextures.Add(texId);
-                }
+                int nextIndex = orderedTextures.Count;
+                indexByTexture[tex] = nextIndex;
+                orderedTextures.Add(tex);
             }
 
             int sliceCount = orderedTextures.Count;
@@ -95,51 +86,39 @@ namespace Lithforge.Runtime.Rendering.Atlas
 
             textureArray.SetPixelData(magentaPixels, 0, 0);
 
-            // Load each texture
+            // Copy each texture into its slice via RenderTexture blit.
+            // This avoids requiring isReadable on source textures.
             for (int i = 1; i < orderedTextures.Count; i++)
             {
-                ResourceId texId = orderedTextures[i];
-                string texturePath = Path.Combine(
-                    contentRoot, "assets",
-                    texId.Namespace,
-                    "textures",
-                    texId.Name + ".png");
+                Texture2D sourceTex = orderedTextures[i];
 
-                if (File.Exists(texturePath))
+                if (sourceTex == null)
                 {
-                    byte[] pngBytes = File.ReadAllBytes(texturePath);
-                    Texture2D tempTex = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
-                    tempTex.LoadImage(pngBytes);
-
-                    // Resize if needed
-                    if (tempTex.width != _tileSize || tempTex.height != _tileSize)
-                    {
-                        _logger.LogWarning(
-                            $"Texture '{texId}' is {tempTex.width}x{tempTex.height}, expected {_tileSize}x{_tileSize}.");
-
-                        Texture2D resized = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
-                        RenderTexture rt = RenderTexture.GetTemporary(_tileSize, _tileSize);
-                        Graphics.Blit(tempTex, rt);
-                        RenderTexture prev = RenderTexture.active;
-                        RenderTexture.active = rt;
-                        resized.ReadPixels(new Rect(0, 0, _tileSize, _tileSize), 0, 0);
-                        resized.Apply();
-                        RenderTexture.active = prev;
-                        RenderTexture.ReleaseTemporary(rt);
-                        Object.DestroyImmediate(tempTex);
-                        tempTex = resized;
-                    }
-
-                    // Use GetPixels32 to ensure consistent RGBA32 format.
-                    Color32[] pixels = tempTex.GetPixels32();
-                    textureArray.SetPixelData(pixels, 0, i);
-                    Object.DestroyImmediate(tempTex);
-                }
-                else
-                {
-                    _logger.LogWarning($"Texture file not found: {texturePath}. Using missing texture.");
                     textureArray.SetPixelData(magentaPixels, 0, i);
+                    continue;
                 }
+
+                if (sourceTex.width != _tileSize || sourceTex.height != _tileSize)
+                {
+                    _logger.LogWarning(
+                        $"Texture '{sourceTex.name}' is {sourceTex.width}x{sourceTex.height}, expected {_tileSize}x{_tileSize}.");
+                }
+
+                // Blit through RenderTexture so we can read any texture,
+                // even compressed or non-readable ones.
+                Texture2D readable = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
+                RenderTexture rt = RenderTexture.GetTemporary(_tileSize, _tileSize, 0, RenderTextureFormat.ARGB32);
+                Graphics.Blit(sourceTex, rt);
+                RenderTexture prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                readable.ReadPixels(new Rect(0, 0, _tileSize, _tileSize), 0, 0);
+                readable.Apply();
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+
+                Color32[] pixels = readable.GetPixels32();
+                textureArray.SetPixelData(pixels, 0, i);
+                Object.DestroyImmediate(readable);
             }
 
             textureArray.Apply(false, true);

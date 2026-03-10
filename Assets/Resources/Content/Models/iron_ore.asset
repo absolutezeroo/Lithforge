@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: iron_ore
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 1
-  _textures:
-  - _variable: all
-    _value: lithforge:block/iron_ore
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: all
+    texture: {fileID: 2800000, guid: 8880f4213461f6048943b850e0d7c55c, type: 3}
+    variableReference: 
+  elements: []

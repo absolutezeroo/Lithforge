@@ -12,13 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: sandstone
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 1
-  _textures:
-  - _variable: bottom
-    _value: lithforge:block/sandstone_bottom
-  - _variable: side
-    _value: lithforge:block/sandstone
-  - _variable: top
-    _value: lithforge:block/sandstone_top
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: bottom
+    texture: {fileID: 2800000, guid: 9c0768e6719283f4db8cfa06b3a70f65, type: 3}
+    variableReference: 
+  - variable: side
+    texture: {fileID: 2800000, guid: 7ab634f2efb06de4a959b7efa5ae2f6d, type: 3}
+    variableReference: 
+  - variable: top
+    texture: {fileID: 2800000, guid: 5d2ed65c4aadbaa49ad14655375845bc, type: 3}
+    variableReference: 
+  elements: []

@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39b7875dc39711f4fab4ad63ddec4494, type: 3}
   m_Name: stone_shovel
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.BlockModel
-  _parent: {fileID: 0}
-  _builtInParent: 6
-  _textures:
-  - _variable: layer0
-    _value: lithforge:item/stone_shovel
-  _elements: []
+  parent: {fileID: 0}
+  builtInParent: 0
+  textures:
+  - variable: layer0
+    texture: {fileID: 2800000, guid: 557cd947955acaa4fbd80992cc6ec346, type: 3}
+    variableReference: 
+  elements: []

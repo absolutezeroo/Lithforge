@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Lithforge.Core.Data;
 
 namespace Lithforge.Runtime.Content.Models
 {
@@ -9,7 +8,7 @@ namespace Lithforge.Runtime.Content.Models
     /// </summary>
     public sealed class ResolvedModel
     {
-        public ResolvedFaceTextures Textures { get; set; }
+        public ResolvedFaceTextures2D Textures { get; set; }
 
         public List<ModelElement> Elements { get; set; }
     }
