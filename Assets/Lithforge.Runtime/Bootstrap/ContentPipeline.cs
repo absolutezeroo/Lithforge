@@ -86,7 +86,8 @@ namespace Lithforge.Runtime.Bootstrap
                     block.MapColor,
                     lootTableStr,
                     (float)block.Hardness,
-                    (float)block.BlastResistance);
+                    (float)block.BlastResistance,
+                    block.RequiresTool);
 
                 stateRegistry.Register(regData);
                 blockLookup[id.ToString()] = block;
@@ -279,7 +280,8 @@ namespace Lithforge.Runtime.Bootstrap
                     modBlock.MapColor,
                     modLootStr,
                     (float)modBlock.Hardness,
-                    (float)modBlock.BlastResistance);
+                    (float)modBlock.BlastResistance,
+                    modBlock.RequiresTool);
 
                 stateRegistry.Register(modRegData);
             }

@@ -278,10 +278,11 @@ namespace Lithforge.Meshing
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
             // Unpack nibbles: high 4 bits = sunLight, low 4 bits = blockLight
+            // Minecraft gamma curve: brightness = pow(0.8, 15 - level)
             byte sunLight = (byte)(light >> 4);
             byte blockLight = (byte)(light & 0x0F);
-            float sunNorm = sunLight / 15.0f;
-            float blockNorm = blockLight / 15.0f;
+            float sunNorm = math.pow(0.8f, 15 - sunLight);
+            float blockNorm = math.pow(0.8f, 15 - blockLight);
 
             // Vertex color: r=AO, g=blockLight, b=sunLight, a=texIndex
             half4 color00 = new half4((half)(ao00 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);

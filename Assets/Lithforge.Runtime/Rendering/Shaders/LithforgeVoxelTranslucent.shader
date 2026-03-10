@@ -107,9 +107,10 @@ Shader "Lithforge/VoxelTranslucent"
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
                 half lambert = (half)(ndotl * 0.6 + 0.4);
 
-                half3 directColor = texColor.rgb * lambert * mainLight.color.rgb;
+                // Voxel light modulates direct lighting; ambient is a floor independent of light level
+                half3 directColor = texColor.rgb * lambert * mainLight.color.rgb * input.light;
                 half3 ambientColor = texColor.rgb * (half)_AmbientLight;
-                half3 finalColor = (directColor + ambientColor) * input.ao * input.light;
+                half3 finalColor = (directColor + ambientColor) * input.ao;
                 finalColor = MixFog(finalColor, input.fogFactor);
 
                 return half4(finalColor, (half)_WaterAlpha);

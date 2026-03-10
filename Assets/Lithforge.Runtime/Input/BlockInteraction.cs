@@ -9,6 +9,7 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
+using Lithforge.Voxel.Tag;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -35,7 +36,19 @@ namespace Lithforge.Runtime.Input
         private Inventory _inventory;
         private ItemRegistry _itemRegistry;
         private LootResolver _lootResolver;
+        private TagRegistry _tagRegistry;
         private Random _lootRandom;
+
+        // ToolType → mineable tag mapping (Minecraft-style correct-tool check)
+        private static readonly Dictionary<ToolType, ResourceId> _toolTagMap =
+            new Dictionary<ToolType, ResourceId>
+            {
+                { ToolType.Pickaxe, ResourceId.Parse("lithforge:mineable_pickaxe") },
+                { ToolType.Axe, ResourceId.Parse("lithforge:mineable_axe") },
+                { ToolType.Shovel, ResourceId.Parse("lithforge:mineable_shovel") },
+                { ToolType.Hoe, ResourceId.Parse("lithforge:mineable_hoe") },
+                { ToolType.Sword, ResourceId.Parse("lithforge:mineable_sword") },
+            };
 
         // Physics settings
         private float _interactionRange;
@@ -44,12 +57,18 @@ namespace Lithforge.Runtime.Input
         private float _toolMiningMultiplier;
         private float _minBreakTime;
         private int _defaultMaxStackSize;
+        private float _playerHalfWidth;
+        private float _playerHeight;
+
+        // Player transform (feet position)
+        private Transform _playerTransform;
 
         // Mining state
         private bool _isMining;
         private int3 _miningBlockCoord;
         private float _miningProgress;
         private float _miningRequiredTime;
+        private bool _canHarvest;
 
         // Placement cooldown
         private float _placeCooldown;
@@ -66,6 +85,8 @@ namespace Lithforge.Runtime.Input
             Inventory inventory,
             ItemRegistry itemRegistry,
             LootResolver lootResolver,
+            TagRegistry tagRegistry,
+            Transform playerTransform,
             PhysicsSettings physics)
         {
             _chunkManager = chunkManager;
@@ -75,12 +96,16 @@ namespace Lithforge.Runtime.Input
             _inventory = inventory;
             _itemRegistry = itemRegistry;
             _lootResolver = lootResolver;
+            _tagRegistry = tagRegistry;
+            _playerTransform = playerTransform;
             _interactionRange = physics.InteractionRange;
             _placeCooldownTime = physics.PlaceCooldownTime;
             _handMiningMultiplier = physics.HandMiningMultiplier;
             _toolMiningMultiplier = physics.ToolMiningMultiplier;
             _minBreakTime = physics.MinBreakTime;
             _defaultMaxStackSize = physics.DefaultMaxStackSize;
+            _playerHalfWidth = physics.PlayerHalfWidth;
+            _playerHeight = physics.PlayerHeight;
             _lootRandom = new Random(Environment.TickCount);
             _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
                 coord, _chunkManager, _nativeStateRegistry);
@@ -217,6 +242,7 @@ namespace Lithforge.Runtime.Input
             _isMining = true;
             _miningBlockCoord = blockCoord;
             _miningProgress = 0f;
+            _canHarvest = true;
 
             // Look up hardness from StateRegistryEntry
             StateId stateId = _chunkManager.GetBlock(blockCoord);
@@ -224,8 +250,16 @@ namespace Lithforge.Runtime.Input
 
             if (entry != null)
             {
-                // Check if held item is the correct tool
-                float toolMultiplier = _handMiningMultiplier;
+                // Minecraft-style mining formula:
+                // - Correct tool: hardness * 1.5 / toolSpeed
+                // - Wrong tool or bare hands: hardness * 5.0
+                // - requiresTool blocks need the correct tool to drop loot
+
+                float hardness = entry.Hardness;
+                bool isCorrectTool = false;
+                float toolSpeed = 1.0f;
+                int toolLevel = 0;
+
                 ItemStack heldItem = _inventory.GetSelectedItem();
 
                 if (!heldItem.IsEmpty)
@@ -234,18 +268,30 @@ namespace Lithforge.Runtime.Input
 
                     if (itemDef != null && itemDef.ToolType != ToolType.None)
                     {
-                        toolMultiplier = _toolMiningMultiplier;
-                        // Mining speed modifier from tool
-                        float miningSpeed = itemDef.MiningSpeed;
+                        toolSpeed = itemDef.MiningSpeed;
+                        toolLevel = itemDef.ToolLevel;
 
-                        if (miningSpeed > 1.0f)
+                        // Check if this tool type matches the block's mineable tag
+                        if (_toolTagMap.TryGetValue(itemDef.ToolType, out ResourceId requiredTag))
                         {
-                            toolMultiplier /= miningSpeed;
+                            isCorrectTool = _tagRegistry.HasTag(entry.Id, requiredTag);
                         }
                     }
                 }
 
-                _miningRequiredTime = entry.Hardness * toolMultiplier;
+                if (isCorrectTool)
+                {
+                    // Correct tool: hardness * 1.5 / toolSpeed
+                    _miningRequiredTime = hardness * _toolMiningMultiplier / toolSpeed;
+                    _canHarvest = true;
+                }
+                else
+                {
+                    // Wrong tool or bare hands: hardness * 5.0
+                    _miningRequiredTime = hardness * _handMiningMultiplier;
+                    // requiresTool blocks need the correct tool to drop loot
+                    _canHarvest = !entry.RequiresTool;
+                }
 
                 // Minimum break time (instant break for hardness 0)
                 if (_miningRequiredTime < _minBreakTime)
@@ -261,11 +307,11 @@ namespace Lithforge.Runtime.Input
 
         private void BreakBlock(int3 blockCoord)
         {
-            // Resolve loot table before breaking
+            // Resolve loot table before breaking (only if player can harvest this block)
             StateId stateId = _chunkManager.GetBlock(blockCoord);
             StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
-            if (entry != null && !string.IsNullOrEmpty(entry.LootTable))
+            if (_canHarvest && entry != null && !string.IsNullOrEmpty(entry.LootTable))
             {
                 if (ResourceId.TryParse(entry.LootTable, out ResourceId tableId))
                 {
@@ -350,6 +396,26 @@ namespace Lithforge.Runtime.Input
                 return;
             }
 
+            // Check that the placed block does not overlap the player AABB
+            if (_playerTransform != null)
+            {
+                float3 feetPos = new float3(
+                    _playerTransform.position.x,
+                    _playerTransform.position.y,
+                    _playerTransform.position.z);
+
+                Aabb playerBox = new Aabb(
+                    new float3(feetPos.x - _playerHalfWidth, feetPos.y, feetPos.z - _playerHalfWidth),
+                    new float3(feetPos.x + _playerHalfWidth, feetPos.y + _playerHeight, feetPos.z + _playerHalfWidth));
+
+                Aabb blockBox = Aabb.FromBlockCoord(placeCoord);
+
+                if (playerBox.Intersects(blockBox))
+                {
+                    return;
+                }
+            }
+
             _dirtiedChunks.Clear();
             _chunkManager.SetBlock(placeCoord, placeState, _dirtiedChunks);
 
@@ -382,6 +448,7 @@ namespace Lithforge.Runtime.Input
             _isMining = false;
             _miningProgress = 0f;
             _miningRequiredTime = 0f;
+            _canHarvest = true;
         }
 
 

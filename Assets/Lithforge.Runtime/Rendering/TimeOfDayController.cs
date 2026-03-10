@@ -80,12 +80,12 @@ namespace Lithforge.Runtime.Rendering
                 _translucentMaterial.SetFloat(_sunLightFactorId, sunFactor);
             }
 
-            // Update directional light rotation
+            // Update directional light rotation (intensity is fixed; voxel light system handles brightness)
             if (_directionalLight != null)
             {
                 float sunAngle = _timeOfDay * 360.0f + _sunAngleOffset;
                 _directionalLight.transform.rotation = Quaternion.Euler(sunAngle, _sunAzimuth, 0.0f);
-                _directionalLight.intensity = Mathf.Max(_minSunIntensity, sunFactor);
+                _directionalLight.intensity = 1.0f;
             }
         }
 

@@ -290,6 +290,7 @@ namespace Lithforge.Runtime.Bootstrap
                     0f, _settings.Physics.PlayerEyeHeight, 0f);
                 mainCamera.transform.localRotation = Quaternion.Euler(
                     _settings.Rendering.InitialCameraPitch, 0f, 0f);
+                mainCamera.nearClipPlane = _settings.Rendering.NearClipPlane;
                 mainCamera.farClipPlane = _settings.Rendering.FarClipPlane;
 
                 // Add PlayerController to player object
@@ -336,6 +337,8 @@ namespace Lithforge.Runtime.Bootstrap
                     playerInventory,
                     _contentResult.ItemRegistry,
                     lootResolver,
+                    _contentResult.TagRegistry,
+                    playerObject.transform,
                     _settings.Physics);
                 _services.Register(blockInteraction);
 

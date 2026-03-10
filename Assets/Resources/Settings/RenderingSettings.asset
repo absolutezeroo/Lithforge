@@ -74,10 +74,11 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
+  nearClipPlane: 0.05
   farClipPlane: 500
   initialCameraPitch: 30
   dayLengthSeconds: 600
-  startTimeOfDay: 0.25
+  startTimeOfDay: 0.5
   sunAngleOffset: -90
   sunAzimuth: -30
   minSunIntensity: 0.1

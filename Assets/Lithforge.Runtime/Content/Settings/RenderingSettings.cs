@@ -20,6 +20,10 @@ namespace Lithforge.Runtime.Content.Settings
         [SerializeField] private Gradient ambientGradient = new Gradient();
 
         [Header("Camera")]
+        [Tooltip("Near clip plane distance")]
+        [Min(0.01f)]
+        [SerializeField] private float nearClipPlane = 0.05f;
+
         [Tooltip("Far clip plane distance")]
         [Min(50f)]
         [SerializeField] private float farClipPlane = 500f;
@@ -35,7 +39,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         [Tooltip("Starting normalised time of day (0=midnight, 0.25=sunrise, 0.5=noon)")]
         [Range(0f, 1f)]
-        [SerializeField] private float startTimeOfDay = 0.25f;
+        [SerializeField] private float startTimeOfDay = 0.5f;
 
         [Tooltip("Sun pitch rotation offset applied to time-of-day angle")]
         [SerializeField] private float sunAngleOffset = -90f;
@@ -85,6 +89,11 @@ namespace Lithforge.Runtime.Content.Settings
         public Gradient AmbientGradient
         {
             get { return ambientGradient; }
+        }
+
+        public float NearClipPlane
+        {
+            get { return nearClipPlane; }
         }
 
         public float FarClipPlane
