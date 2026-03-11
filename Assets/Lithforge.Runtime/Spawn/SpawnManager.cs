@@ -111,7 +111,9 @@ namespace Lithforge.Runtime.Spawn
                             _spawnChunkCoord.z + z);
                         ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-                        if (chunk != null && chunk.State == ChunkState.Ready)
+                        if (chunk != null && (chunk.State == ChunkState.Ready ||
+                                              (chunk.State == ChunkState.Generated && chunk.RenderedLODLevel >= 0) ||
+                                              chunk.State == ChunkState.Meshing))
                         {
                             readyCount++;
                         }
