@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Lithforge.Meshing;
+using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -9,35 +10,22 @@ using UnityEngine.Rendering;
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Stores chunk meshes in three mega-mesh buffers (opaque, cutout, translucent)
-    /// and draws them with exactly 3 Graphics.RenderMesh calls per frame.
+    /// Stores per-chunk Mesh objects and draws them each frame with Graphics.RenderMesh.
     /// Replaces the old ChunkRenderManager/ChunkRenderer GameObject-based approach.
     /// No GameObjects, MeshFilters, or MeshRenderers are created.
     /// Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
     public sealed class ChunkMeshStore : IDisposable
     {
-        /// <summary>Default page count for opaque buffer (most geometry).</summary>
-        private const int OpaqueVertexPages = 1024;
-        private const int OpaqueIndexPages = 1024;
-
-        /// <summary>Cutout and translucent buffers are much smaller.</summary>
-        private const int CutoutVertexPages = 128;
-        private const int CutoutIndexPages = 128;
-        private const int TranslucentVertexPages = 128;
-        private const int TranslucentIndexPages = 128;
-
-        private readonly Dictionary<int3, ChunkSlotEntry> _entries = new Dictionary<int3, ChunkSlotEntry>();
+        private readonly Dictionary<int3, ChunkMeshEntry> _meshes = new Dictionary<int3, ChunkMeshEntry>();
         private readonly RenderParams _opaqueParams;
         private readonly RenderParams _cutoutParams;
         private readonly RenderParams _translucentParams;
-        private readonly MegaMeshBuffer _opaqueBuffer;
-        private readonly MegaMeshBuffer _cutoutBuffer;
-        private readonly MegaMeshBuffer _translucentBuffer;
+        private readonly Plane[] _frustumPlanes = new Plane[6];
 
         public int RendererCount
         {
-            get { return _entries.Count; }
+            get { return _meshes.Count; }
         }
 
         public Material OpaqueMaterial { get; }
@@ -70,10 +58,6 @@ namespace Lithforge.Runtime.Rendering
                 receiveShadows = false,
                 layer = 0,
             };
-
-            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", OpaqueVertexPages, OpaqueIndexPages);
-            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", CutoutVertexPages, CutoutIndexPages);
-            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", TranslucentVertexPages, TranslucentIndexPages);
         }
 
         /// <summary>
@@ -86,57 +70,11 @@ namespace Lithforge.Runtime.Rendering
             NativeList<MeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
             NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
-            // Free existing slots if this chunk already has an entry
-            FreeExistingSlots(coord);
-
-            ChunkSlotEntry entry = new ChunkSlotEntry();
-
-            // Allocate and write opaque data
-            if (opaqueVerts.Length > 0)
-            {
-                entry.OpaqueSlot = _opaqueBuffer.Allocate(opaqueVerts.Length, opaqueIndices.Length);
-
-                if (entry.OpaqueSlot.IsValid)
-                {
-                    _opaqueBuffer.WriteSlot(entry.OpaqueSlot, coord, opaqueVerts, opaqueIndices);
-                }
-            }
-            else
-            {
-                entry.OpaqueSlot = MegaMeshSlot.Invalid;
-            }
-
-            // Allocate and write cutout data
-            if (cutoutVerts.Length > 0)
-            {
-                entry.CutoutSlot = _cutoutBuffer.Allocate(cutoutVerts.Length, cutoutIndices.Length);
-
-                if (entry.CutoutSlot.IsValid)
-                {
-                    _cutoutBuffer.WriteSlot(entry.CutoutSlot, coord, cutoutVerts, cutoutIndices);
-                }
-            }
-            else
-            {
-                entry.CutoutSlot = MegaMeshSlot.Invalid;
-            }
-
-            // Allocate and write translucent data
-            if (translucentVerts.Length > 0)
-            {
-                entry.TranslucentSlot = _translucentBuffer.Allocate(translucentVerts.Length, translucentIndices.Length);
-
-                if (entry.TranslucentSlot.IsValid)
-                {
-                    _translucentBuffer.WriteSlot(entry.TranslucentSlot, coord, translucentVerts, translucentIndices);
-                }
-            }
-            else
-            {
-                entry.TranslucentSlot = MegaMeshSlot.Invalid;
-            }
-
-            _entries[coord] = entry;
+            Mesh mesh = GetOrCreateMesh(coord);
+            MeshUploader.Upload(mesh, opaqueVerts, opaqueIndices,
+                cutoutVerts, cutoutIndices,
+                translucentVerts, translucentIndices);
+            StoreEntry(coord, mesh);
         }
 
         /// <summary>
@@ -147,101 +85,124 @@ namespace Lithforge.Runtime.Rendering
             int3 coord,
             NativeList<MeshVertex> vertices, NativeList<int> indices)
         {
-            // Free existing slots if this chunk already has an entry
-            FreeExistingSlots(coord);
-
-            ChunkSlotEntry entry = new ChunkSlotEntry
-            {
-                CutoutSlot = MegaMeshSlot.Invalid,
-                TranslucentSlot = MegaMeshSlot.Invalid,
-            };
-
-            if (vertices.Length > 0)
-            {
-                entry.OpaqueSlot = _opaqueBuffer.Allocate(vertices.Length, indices.Length);
-
-                if (entry.OpaqueSlot.IsValid)
-                {
-                    _opaqueBuffer.WriteSlot(entry.OpaqueSlot, coord, vertices, indices);
-                }
-            }
-            else
-            {
-                entry.OpaqueSlot = MegaMeshSlot.Invalid;
-            }
-
-            _entries[coord] = entry;
+            Mesh mesh = GetOrCreateMesh(coord);
+            MeshUploader.Upload(mesh, vertices, indices);
+            StoreEntry(coord, mesh);
         }
 
         /// <summary>
-        /// Submits exactly 3 draw calls (opaque, cutout, translucent) for the entire world.
-        /// The GPU handles clipping of off-screen triangles.
+        /// Draws all chunk meshes visible in the camera frustum.
+        /// Submits one Graphics.RenderMesh call per non-empty submesh per visible chunk.
         /// Must be called from LateUpdate.
         /// </summary>
-        public void RenderAll()
+        public void RenderAll(Camera camera)
         {
-            _opaqueBuffer.FlushSubMesh();
-            _cutoutBuffer.FlushSubMesh();
-            _translucentBuffer.FlushSubMesh();
-
-            if (_opaqueBuffer.HasGeometry)
+            if (camera != null)
             {
-                Graphics.RenderMesh(_opaqueParams, _opaqueBuffer.Mesh, 0, Matrix4x4.identity);
+                GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
             }
 
-            if (_cutoutBuffer.HasGeometry)
+            foreach (KeyValuePair<int3, ChunkMeshEntry> pair in _meshes)
             {
-                Graphics.RenderMesh(_cutoutParams, _cutoutBuffer.Mesh, 0, Matrix4x4.identity);
-            }
+                ChunkMeshEntry entry = pair.Value;
+                Mesh mesh = entry.Mesh;
+                int subMeshCount = mesh.subMeshCount;
 
-            if (_translucentBuffer.HasGeometry)
-            {
-                Graphics.RenderMesh(_translucentParams, _translucentBuffer.Mesh, 0, Matrix4x4.identity);
+                if (subMeshCount == 0)
+                {
+                    continue;
+                }
+
+                // Frustum cull
+                if (camera != null && !GeometryUtility.TestPlanesAABB(_frustumPlanes, entry.WorldBounds))
+                {
+                    continue;
+                }
+
+                Matrix4x4 matrix = Matrix4x4.Translate(entry.WorldPosition);
+
+                // Draw opaque submesh
+                if (mesh.GetIndexCount(0) > 0)
+                {
+                    Graphics.RenderMesh(_opaqueParams, mesh, 0, matrix);
+                }
+
+                // Draw cutout submesh
+                if (subMeshCount >= 2 && mesh.GetIndexCount(1) > 0)
+                {
+                    Graphics.RenderMesh(_cutoutParams, mesh, 1, matrix);
+                }
+
+                // Draw translucent submesh
+                if (subMeshCount >= 3 && mesh.GetIndexCount(2) > 0)
+                {
+                    Graphics.RenderMesh(_translucentParams, mesh, 2, matrix);
+                }
             }
         }
 
         public void DestroyRenderer(int3 coord)
         {
-            FreeExistingSlots(coord);
-            _entries.Remove(coord);
+            if (_meshes.TryGetValue(coord, out ChunkMeshEntry entry))
+            {
+                UnityEngine.Object.Destroy(entry.Mesh);
+                _meshes.Remove(coord);
+            }
         }
 
         public void Dispose()
         {
-            _entries.Clear();
-            _opaqueBuffer.Dispose();
-            _cutoutBuffer.Dispose();
-            _translucentBuffer.Dispose();
+            foreach (KeyValuePair<int3, ChunkMeshEntry> pair in _meshes)
+            {
+                if (pair.Value.Mesh != null)
+                {
+                    UnityEngine.Object.Destroy(pair.Value.Mesh);
+                }
+            }
+
+            _meshes.Clear();
         }
 
-        private void FreeExistingSlots(int3 coord)
+        private Mesh GetOrCreateMesh(int3 coord)
         {
-            if (!_entries.TryGetValue(coord, out ChunkSlotEntry existing))
+            if (_meshes.TryGetValue(coord, out ChunkMeshEntry existing))
             {
-                return;
+                return existing.Mesh;
             }
 
-            if (existing.OpaqueSlot.IsValid)
+            Mesh mesh = new Mesh
             {
-                _opaqueBuffer.Free(existing.OpaqueSlot);
-            }
-
-            if (existing.CutoutSlot.IsValid)
-            {
-                _cutoutBuffer.Free(existing.CutoutSlot);
-            }
-
-            if (existing.TranslucentSlot.IsValid)
-            {
-                _translucentBuffer.Free(existing.TranslucentSlot);
-            }
+                name = $"Chunk_{coord.x}_{coord.y}_{coord.z}",
+            };
+            mesh.MarkDynamic();
+            return mesh;
         }
 
-        private struct ChunkSlotEntry
+        private void StoreEntry(int3 coord, Mesh mesh)
         {
-            public MegaMeshSlot OpaqueSlot;
-            public MegaMeshSlot CutoutSlot;
-            public MegaMeshSlot TranslucentSlot;
+            int chunkSize = ChunkConstants.Size;
+            Vector3 worldPos = new Vector3(
+                coord.x * chunkSize,
+                coord.y * chunkSize,
+                coord.z * chunkSize);
+
+            Bounds bounds = new Bounds(
+                worldPos + new Vector3(chunkSize * 0.5f, chunkSize * 0.5f, chunkSize * 0.5f),
+                new Vector3(chunkSize, chunkSize, chunkSize));
+
+            _meshes[coord] = new ChunkMeshEntry
+            {
+                Mesh = mesh,
+                WorldBounds = bounds,
+                WorldPosition = worldPos,
+            };
+        }
+
+        private struct ChunkMeshEntry
+        {
+            public Mesh Mesh;
+            public Bounds WorldBounds;
+            public Vector3 WorldPosition;
         }
     }
 }

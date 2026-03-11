@@ -163,7 +163,7 @@ namespace Lithforge.Runtime
                 return;
             }
 
-            _chunkMeshStore.RenderAll();
+            _chunkMeshStore.RenderAll(_mainCamera);
         }
 
         private int3 GetCameraChunkCoord()
