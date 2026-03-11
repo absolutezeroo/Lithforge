@@ -113,6 +113,14 @@ namespace Lithforge.Runtime.Scheduling
         {
             _chunkManager.FillChunksNeedingRelight(_relightCache);
 
+            if (_relightCache.Count == 0)
+            {
+                return;
+            }
+
+            // Transition invalid chunks immediately, pack valid ones to front
+            int validCount = 0;
+
             for (int i = 0; i < _relightCache.Count; i++)
             {
                 ManagedChunk chunk = _relightCache[i];
@@ -120,46 +128,62 @@ namespace Lithforge.Runtime.Scheduling
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
                 {
                     chunk.State = ChunkState.Generated;
-
-                    continue;
                 }
-
-                // For block edits, we need to know which voxels changed.
-                // Since SetBlock modifies one voxel and sets RelightPending,
-                // we do a full light recalculation using LightRemovalJob with
-                // all voxels that have non-zero light as seeds.
-                // This is simpler than tracking individual changed indices and
-                // still fast for single block edits within a chunk.
-                NativeList<int> changedList = new NativeList<int>(1, Allocator.TempJob);
-
-                // Scan for the changed voxel by looking for light-emitting blocks
-                // or recently modified positions. Since we don't track the exact
-                // changed index through SetBlock, we re-run full propagation.
-                // Create a fresh light pass instead:
-                // Clear all light data and re-run initial lighting + propagation
-                for (int idx = 0; idx < ChunkConstants.Volume; idx++)
+                else
                 {
-                    changedList.Add(idx);
+                    _relightCache[validCount] = chunk;
+                    validCount++;
                 }
+            }
+
+            if (validCount == 0)
+            {
+                return;
+            }
+
+            // All jobs use the same changed indices (full chunk rescan).
+            // Since SetBlock doesn't track the exact changed index, we pass all voxels.
+            NativeArray<int> allIndices = new NativeArray<int>(ChunkConstants.Volume, Allocator.TempJob);
+
+            for (int idx = 0; idx < ChunkConstants.Volume; idx++)
+            {
+                allIndices[idx] = idx;
+            }
+
+            // Batch-schedule all relight jobs then complete once
+            NativeArray<JobHandle> handles = new NativeArray<JobHandle>(validCount, Allocator.Temp);
+
+            for (int i = 0; i < validCount; i++)
+            {
+                ManagedChunk chunk = _relightCache[i];
 
                 LightRemovalJob removalJob = new LightRemovalJob
                 {
                     LightData = chunk.LightData,
                     ChunkData = chunk.Data,
                     StateTable = _nativeStateRegistry.States,
-                    ChangedIndices = changedList.AsArray(),
+                    ChangedIndices = allIndices,
                 };
 
-                removalJob.Schedule().Complete();
-                changedList.Dispose();
+                handles[i] = removalJob.Schedule();
+            }
 
-                chunk.State = ChunkState.Generated;
+            JobHandle combined = JobHandle.CombineDependencies(handles);
+            combined.Complete();
+
+            handles.Dispose();
+            allIndices.Dispose();
+
+            for (int i = 0; i < validCount; i++)
+            {
+                _relightCache[i].State = ChunkState.Generated;
             }
         }
 
         /// <summary>
         /// Schedules greedy mesh jobs for Generated chunks.
-        /// When applyFilters is true, frustum culling and LOD0-only filtering are applied.
+        /// When applyFilters is true, LOD0-only filtering is applied and frustum chunks
+        /// are prioritized (but off-frustum chunks still mesh if budget remains).
         /// During spawn (applyFilters=false), all Generated chunks are meshed unconditionally.
         /// </summary>
         public void ScheduleJobs(bool applyFilters)
@@ -171,26 +195,46 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            _chunkManager.FillChunksToMesh(_meshCandidateCache, slotsAvailable);
+            // Request extra candidates when filtering, since some will be filtered by LOD
+            int candidateCount = applyFilters ? slotsAvailable * 2 : slotsAvailable;
+            _chunkManager.FillChunksToMesh(_meshCandidateCache, candidateCount);
 
-            for (int i = 0; i < _meshCandidateCache.Count; i++)
+            if (applyFilters)
             {
-                ManagedChunk chunk = _meshCandidateCache[i];
-
-                if (applyFilters)
+                // Remove non-LOD0 chunks (LOD chunks are handled by LODScheduler)
+                for (int i = _meshCandidateCache.Count - 1; i >= 0; i--)
                 {
-                    // Frustum culling: skip meshing for chunks outside the camera frustum
-                    if (!_culling.IsInFrustum(chunk.Coord))
+                    if (_meshCandidateCache[i].LODLevel > 0)
                     {
-                        continue;
-                    }
-
-                    // Only schedule full-detail mesh for LOD0 chunks
-                    if (chunk.LODLevel > 0)
-                    {
-                        continue;
+                        _meshCandidateCache.RemoveAt(i);
                     }
                 }
+
+                // Partition: frustum chunks first, then the rest.
+                // Stable for the front group (preserves neighbor-count priority).
+                int writeIdx = 0;
+
+                for (int i = 0; i < _meshCandidateCache.Count; i++)
+                {
+                    ManagedChunk c = _meshCandidateCache[i];
+
+                    if (_culling.IsInFrustum(c.Coord))
+                    {
+                        _meshCandidateCache[i] = _meshCandidateCache[writeIdx];
+                        _meshCandidateCache[writeIdx] = c;
+                        writeIdx++;
+                    }
+                }
+            }
+
+            // Schedule up to slotsAvailable from the prioritized list
+            int scheduleCount = _meshCandidateCache.Count < slotsAvailable
+                ? _meshCandidateCache.Count
+                : slotsAvailable;
+
+            for (int i = 0; i < scheduleCount; i++)
+            {
+                ManagedChunk chunk = _meshCandidateCache[i];
 
                 chunk.State = ChunkState.Meshing;
 

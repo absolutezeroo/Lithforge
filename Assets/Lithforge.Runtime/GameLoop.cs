@@ -141,6 +141,8 @@ namespace Lithforge.Runtime
             }
 
             _generationScheduler.ScheduleJobs();
+            _generationScheduler.ProcessCrossChunkLightUpdates();
+            _meshScheduler.ProcessRelightPending();
             _meshScheduler.ScheduleJobs(SpawnReady);
 
             // LOD scheduling only activates after spawn is complete
