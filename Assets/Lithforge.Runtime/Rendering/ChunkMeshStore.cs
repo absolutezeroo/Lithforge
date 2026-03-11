@@ -17,14 +17,6 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class ChunkMeshStore : IDisposable
     {
-        /// <summary>Initial vertex capacity for the opaque buffer (most geometry).</summary>
-        private const int OpaqueInitialVertices = 524288;
-        private const int OpaqueInitialIndices = 786432;
-
-        /// <summary>Cutout and translucent buffers are much smaller.</summary>
-        private const int SmallInitialVertices = 65536;
-        private const int SmallInitialIndices = 98304;
-
         private readonly HashSet<int3> _activeChunks = new HashSet<int3>();
         private readonly RenderParams _opaqueParams;
         private readonly RenderParams _cutoutParams;
@@ -44,7 +36,9 @@ namespace Lithforge.Runtime.Rendering
 
         public Material TranslucentMaterial { get; }
 
-        public ChunkMeshStore(Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial)
+        public ChunkMeshStore(
+            Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
+            int renderDistance, int yLoadMin, int yLoadMax)
         {
             OpaqueMaterial = opaqueMaterial;
             CutoutMaterial = cutoutMaterial;
@@ -69,12 +63,21 @@ namespace Lithforge.Runtime.Rendering
                 layer = 0,
             };
 
-            _opaqueBuffer = new MegaMeshBuffer(
-                "MegaMesh_Opaque", OpaqueInitialVertices, OpaqueInitialIndices);
-            _cutoutBuffer = new MegaMeshBuffer(
-                "MegaMesh_Cutout", SmallInitialVertices, SmallInitialIndices);
-            _translucentBuffer = new MegaMeshBuffer(
-                "MegaMesh_Translucent", SmallInitialVertices, SmallInitialIndices);
+            // Estimate buffer sizes from render distance.
+            // Average ~3000 opaque verts/chunk, ~4500 indices/chunk.
+            // Cutout/translucent are ~10% of opaque.
+            // +50% headroom for chunk churn (old slots not yet compacted).
+            int diameter = renderDistance * 2 + 1;
+            int yLevels = yLoadMax - yLoadMin + 1;
+            int maxChunks = diameter * diameter * yLevels;
+            int opaqueVerts = maxChunks * 3000 * 3 / 2;
+            int opaqueIdx = maxChunks * 4500 * 3 / 2;
+            int smallVerts = maxChunks * 300 * 3 / 2;
+            int smallIdx = maxChunks * 450 * 3 / 2;
+
+            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx);
+            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx);
+            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx);
         }
 
         /// <summary>

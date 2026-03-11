@@ -285,7 +285,11 @@ namespace Lithforge.Runtime.Bootstrap
                 cutoutMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
             }
 
-            _chunkMeshStore = new ChunkMeshStore(opaqueMaterial, cutoutMaterial, translucentMaterial);
+            _chunkMeshStore = new ChunkMeshStore(
+                opaqueMaterial, cutoutMaterial, translucentMaterial,
+                _settings.Chunk.RenderDistance,
+                _settings.Chunk.YLoadMin,
+                _settings.Chunk.YLoadMax);
         }
 
         private void InitializeGameLoop(LoadingScreen loadingScreen, UnityEngine.UIElements.PanelSettings panelSettings)
