@@ -171,7 +171,7 @@
 
 - [x] `Lithforge.Meshing`: VoxelDownsampleJob + LODMeshJob (Burst), LODMeshData
 - [x] LOD levels 0-3 (full → half → quarter → eighth) via dual-path scheduling (MeshScheduler + LODScheduler)
-- [x] Culling: frustum-prioritized meshing + generation, distance-based unload with save-on-unload
+- [x] Culling: frustum-prioritized meshing, forward-weighted generation queue, distance-based unload with save-on-unload
 - [x] 3-submesh pipeline: opaque(0) → cutout(1) → translucent(2)
 - [x] LithforgeVoxelCutout.shader (alpha test, Cull Off, double-sided)
 - [x] BlockStateCompact.FlagFluid for water top-face height offset

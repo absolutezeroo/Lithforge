@@ -49,8 +49,7 @@ Lithforge/
 │   │   │   │   ├── ManagedChunk.cs            # wrapper with LODLevel, BorderLightEntries, IsDirty
 │   │   │   │   ├── ChunkBorderExtractor.cs    # extracts 32×32 border slices from neighbors
 │   │   │   │   ├── ChunkPool.cs               # pre-allocated NativeArray pool
-│   │   │   │   ├── ChunkManager.cs            # load/unload/save lifecycle
-│   │   │   │   └── ChunkDistanceComparer.cs
+│   │   │   │   └── ChunkManager.cs            # load/unload/save lifecycle, forward-weighted queue sort
 │   │   │   ├── Storage/
 │   │   │   │   ├── WorldMetadata.cs           # world.json: seed, version, content_hash
 │   │   │   │   ├── ChunkSerializer.cs         # palette + DeflateStream compression
@@ -159,7 +158,7 @@ Lithforge/
 │   │   │   ├── ContentPipelineResult.cs       # aggregates all loaded content
 │   │   │   └── UnityLogger.cs                 # ILogger → Debug.Log bridge
 │   │   ├── Scheduling/
-│   │   │   ├── GenerationScheduler.cs         # frustum-sorted generation, cross-chunk light updates
+│   │   │   ├── GenerationScheduler.cs         # generation scheduling, cross-chunk light updates
 │   │   │   ├── MeshScheduler.cs               # LOD0 greedy meshing, relight gating
 │   │   │   └── LODScheduler.cs                # LOD1-3 downsample + mesh, level transitions
 │   │   ├── Rendering/

@@ -22,7 +22,13 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
-        private ChunkDistanceComparer _distanceComparer;
+
+        /// <summary>
+        /// Schwartzian transform caches for forward-weighted queue sort.
+        /// Resized on demand, never shrunk. Owner: ChunkManager.
+        /// </summary>
+        private float[] _sortScoreCache = Array.Empty<float>();
+        private int3[] _sortCoordCache = Array.Empty<int3>();
 
         /// <summary>
         /// Cursor index into _loadQueue. Advanced instead of RemoveRange(0, count).
@@ -66,7 +72,7 @@ namespace Lithforge.Voxel.Chunk
             _yUnloadMax = yUnloadMax;
         }
 
-        public void UpdateLoadingQueue(int3 cameraChunkCoord)
+        public void UpdateLoadingQueue(int3 cameraChunkCoord, float3 cameraForward)
         {
             int3 diff = cameraChunkCoord - _lastCameraChunkCoord;
             int movedDist = math.max(math.abs(diff.x), math.max(math.abs(diff.y), math.abs(diff.z)));
@@ -108,9 +114,40 @@ namespace Lithforge.Voxel.Chunk
                 }
             }
 
-            // Sort by squared Euclidean distance for smooth fill-in order
-            _distanceComparer.Center = cameraChunkCoord;
-            _loadQueue.Sort(_distanceComparer);
+            // Schwartzian transform: pre-compute sort scores to avoid
+            // repeated normalizesafe (rsqrt) inside O(n log n) comparisons.
+            // score = dist² * (2 - dot), so forward chunks score lower (higher priority).
+            int count = _loadQueue.Count;
+
+            if (_sortScoreCache.Length < count)
+            {
+                int newSize = math.max(count, _sortScoreCache.Length * 2);
+                _sortScoreCache = new float[newSize];
+                _sortCoordCache = new int3[newSize];
+            }
+
+            float3 forwardXZ = math.normalizesafe(new float3(cameraForward.x, 0, cameraForward.z));
+
+            for (int i = 0; i < count; i++)
+            {
+                int3 coord = _loadQueue[i];
+                _sortCoordCache[i] = coord;
+
+                int3 d = coord - cameraChunkCoord;
+                float3 dirXZ = math.normalizesafe(new float3(d.x, 0, d.z));
+                float dot = math.dot(dirXZ, forwardXZ);
+                float distSq = math.lengthsq(d);
+                _sortScoreCache[i] = distSq * (2.0f - dot);
+            }
+
+            Array.Sort(_sortScoreCache, _sortCoordCache, 0, count);
+
+            _loadQueue.Clear();
+
+            for (int i = 0; i < count; i++)
+            {
+                _loadQueue.Add(_sortCoordCache[i]);
+            }
         }
 
         public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)

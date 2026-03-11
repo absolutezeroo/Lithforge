@@ -77,8 +77,6 @@ namespace Lithforge.Runtime
                 nativeStateRegistry,
                 seed,
                 chunkSettings.MaxGenerationsPerFrame);
-            _generationScheduler.SetCulling(_culling);
-
             _mainCamera = Camera.main;
 
             _meshScheduler = new MeshScheduler(
@@ -127,7 +125,7 @@ namespace Lithforge.Runtime
 
             _culling.UpdateFrustum(_mainCamera);
 
-            _chunkManager.UpdateLoadingQueue(cameraChunkCoord);
+            _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
             _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords, _worldStorage);
 
             // Advance spawn state machine until complete

@@ -358,7 +358,7 @@ Unity's built-in `LODGroup` component is NOT used because LOD decisions are chun
 
 - **MeshScheduler** uses frustum info to **prioritize** in-frustum chunks for meshing. Off-frustum chunks still mesh if budget remains after in-frustum chunks.
 - **LODScheduler** checks frustum intersection before scheduling LOD transitions for Ready chunks.
-- **GenerationScheduler** sorts generation candidates with frustum-visible chunks first (stable partial sort).
+- **GenerationScheduler** consumes candidates from ChunkManager's forward-weighted loading queue (sorted by `dist² * (2 - dot)` in `UpdateLoadingQueue`).
 
 ### Distance Culling
 

@@ -30,7 +30,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void UpdateLoadingQueue_CreatesCorrectCoords()
         {
-            _chunkManager.UpdateLoadingQueue(int3.zero);
+            _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> result = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(result, 100);
@@ -55,7 +55,7 @@ namespace Lithforge.Voxel.Tests
         {
             // Create 3 chunks in Generated state with different neighbor counts
             // Chunk at origin with 2 generated neighbors should sort first
-            _chunkManager.UpdateLoadingQueue(int3.zero);
+            _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);
@@ -84,7 +84,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void UnloadDistantChunks_ReturnsToPool()
         {
-            _chunkManager.UpdateLoadingQueue(int3.zero);
+            _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);
@@ -111,7 +111,7 @@ namespace Lithforge.Voxel.Tests
         public void SetBlock_DirtiesNeighborAtBorder()
         {
             // Create chunk at (0,0,0) and (-1,0,0)
-            _chunkManager.UpdateLoadingQueue(int3.zero);
+            _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);
@@ -146,7 +146,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void SetBlock_OnlyDirtiesCurrentChunkInMiddle()
         {
-            _chunkManager.UpdateLoadingQueue(int3.zero);
+            _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);
@@ -169,7 +169,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void SetBlock_AcceptedDuringRelightPending()
         {
-            _chunkManager.UpdateLoadingQueue(int3.zero);
+            _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);

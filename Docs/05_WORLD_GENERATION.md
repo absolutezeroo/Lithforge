@@ -285,9 +285,9 @@ At sea level, `depthFactor = 1.0`. At `worldY = 0`, `depthFactor = 1.5` (caves u
 
 Guards: carving skips Y < `MinCarveY`, skips a buffer zone near sea level (`SeaLevelCarveBuffer`), and never carves air or water blocks.
 
-### Generation Scheduling — Frustum Priority
+### Generation Scheduling — Forward-Weighted Priority
 
-`GenerationScheduler.ScheduleJobs()` gets candidates from `ChunkManager.FillChunksToGenerate()`, then sorts them with frustum-visible chunks first (stable partial sort). This ensures visible terrain generates before off-screen chunks.
+`GenerationScheduler.ScheduleJobs()` gets candidates from `ChunkManager.FillChunksToGenerate()`, which pops from a queue pre-sorted by `dist² * (2 - dot(direction, cameraForward))` in `UpdateLoadingQueue`. This ensures chunks in the camera's forward direction generate before those behind or to the side.
 
 If a saved chunk exists in `WorldStorage`, it loads synchronously (no job scheduled) and transitions directly to `Generated`. Otherwise, the 7-stage Burst job chain runs on a worker thread.
 
