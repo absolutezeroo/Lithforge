@@ -58,8 +58,7 @@ namespace Lithforge.Runtime.Input
             _playerHeight = physics.PlayerHeight;
 
             // Cache the delegate to avoid allocation each frame
-            _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
-                coord, _chunkManager, _nativeStateRegistry);
+            _isSolidDelegate = SolidBlockQuery.CreateDelegate(_chunkManager, _nativeStateRegistry);
         }
 
         private void Update()

@@ -159,6 +159,91 @@ namespace Lithforge.Voxel.Tests
         }
 
         [Test]
+        public void RoundTrip_WithLightData_PreservesBitExact()
+        {
+            NativeArray<StateId> original = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> originalLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeArray<StateId> restored = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> restoredLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                // Fill with non-zero light and block data
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    original[i] = new StateId((ushort)(i % 5 + 1));
+                    byte sun = (byte)((i * 7) % 16);
+                    byte block = (byte)((i * 3) % 16);
+                    originalLight[i] = (byte)((sun << 4) | block);
+                }
+
+                byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight);
+
+                Assert.IsTrue(success, "Deserialization should succeed");
+
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    Assert.AreEqual(original[i], restored[i],
+                        $"Voxel mismatch at index {i}");
+                    Assert.AreEqual(originalLight[i], restoredLight[i],
+                        $"Light mismatch at index {i}");
+                }
+            }
+            finally
+            {
+                original.Dispose();
+                originalLight.Dispose();
+                restored.Dispose();
+                restoredLight.Dispose();
+            }
+        }
+
+        [Test]
+        public void RoundTrip_PreservesMultipleBlockTypes()
+        {
+            NativeArray<StateId> original = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeArray<byte> originalLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> restored = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> restoredLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                // Fill with 10 different StateId values in a recognizable pattern
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    original[i] = new StateId((ushort)((i * 13 + 7) % 10));
+                }
+
+                byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight);
+
+                Assert.IsTrue(success, "Deserialization should succeed");
+
+                for (int i = 0; i < ChunkConstants.Volume; i++)
+                {
+                    Assert.AreEqual(original[i], restored[i],
+                        $"Block type mismatch at index {i}: expected {original[i].Value} got {restored[i].Value}");
+                }
+            }
+            finally
+            {
+                original.Dispose();
+                originalLight.Dispose();
+                restored.Dispose();
+                restoredLight.Dispose();
+            }
+        }
+
+        [Test]
         public void Serialize_Compression_SmallerThanRaw()
         {
             NativeArray<StateId> chunkData = new NativeArray<StateId>(

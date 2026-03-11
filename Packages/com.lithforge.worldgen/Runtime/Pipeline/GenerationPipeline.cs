@@ -173,11 +173,17 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle lightingHandle = lightingJob.Schedule(oreHandle);
 
             // Stage 7: Light propagation (BFS flood fill)
+            // Border light output for cross-chunk propagation.
+            // Owner: GenerationHandle. Dispose: GenerationScheduler after reading.
+            NativeList<NativeBorderLightEntry> borderLightOutput =
+                new NativeList<NativeBorderLightEntry>(256, Allocator.Persistent);
+
             LightPropagationJob lightPropJob = new LightPropagationJob
             {
                 ChunkData = chunkData,
                 StateTable = _stateTable,
                 LightData = lightData,
+                BorderLightOutput = borderLightOutput,
             };
 
             JobHandle lightPropHandle = lightPropJob.Schedule(lightingHandle);
@@ -190,6 +196,7 @@ namespace Lithforge.WorldGen.Pipeline
                 BiomeMap = biomeMap,
                 TemperatureMap = temperatureMap,
                 HumidityMap = humidityMap,
+                BorderLightOutput = borderLightOutput,
             };
         }
     }

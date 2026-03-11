@@ -150,15 +150,9 @@ namespace Lithforge.WorldGen.Decoration
 
         private NativeBiomeData GetBiome(byte biomeId)
         {
-            for (int i = 0; i < _biomeData.Length; i++)
-            {
-                if (_biomeData[i].BiomeId == biomeId)
-                {
-                    return _biomeData[i];
-                }
-            }
-
-            return _biomeData[0];
+            // O(1) direct access: BiomeId is a sequential index assigned in Bootstrap.
+            // Invariant: BiomeData[i].BiomeId == i, verified at startup.
+            return biomeId < _biomeData.Length ? _biomeData[biomeId] : _biomeData[0];
         }
 
         private static uint Hash(int x, int z, long seed)

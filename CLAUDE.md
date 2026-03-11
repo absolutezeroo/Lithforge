@@ -125,6 +125,69 @@ Main Thread ──schedule──► Worker Thread (Burst Job) ──produce─�
 DOTS/ECS is used **ONLY** for entity simulation (mobs, NPCs, projectiles).
 NOT for: chunks, meshing, worldgen, lighting, crafting, content loading, modding, UI.
 
+## Allocation Rules (Main Thread)
+
+- **Fill pattern** for methods returning lists: caller passes a `List<T>`, callee calls `Clear()` then `Add()`. Never return `new List<T>()` from per-frame methods.
+- **Cache reusable collections** as private fields (`_cache = new List<T>()`) and clear/reuse each frame. This applies to `LootResolver._dropCache`, `CraftingEngine._shapelessCache`, `ChunkManager._meshCandidateCache`, etc.
+- **Cursor-based queue advancement**: instead of `list.RemoveRange(0, n)` (O(n) copy), track a `_queueIndex` cursor and reset when the queue drains.
+- **Pre-parse hot-path values**: call `LootFunction.PreParseValues()` at load time so `ApplyFunctions()` reads cached ints instead of calling `int.TryParse()` per resolve.
+- **Schwartzian transform** for sorting: pre-compute sort keys into a parallel array, then sort by key. Avoids repeated computation inside comparison delegates.
+
+## Light System Invariants
+
+- Light data is **nibble-packed**: high 4 bits = sunlight (0–15), low 4 bits = block light (0–15). Use `LightUtils.Pack/GetSunLight/GetBlockLight`.
+- **Cross-chunk light propagation**: `LightPropagationJob` collects border light leaks into `NativeList<NativeBorderLightEntry>`. After job completion, `GenerationScheduler` copies these to managed `BorderLightEntry` on `ManagedChunk` and marks neighbors for `LightUpdateJob`.
+- **Light removal on block edit**: `SetBlock()` sets chunk state to `RelightPending`. `MeshScheduler.ProcessRelightPending()` runs `LightRemovalJob` (BFS removal + re-seed propagation) before meshing.
+- **ChunkState FSM**: `Unloaded → Loading → Generating → Decorating → RelightPending → Generated → Meshing → Ready`. The `RelightPending` state gates meshing until relight completes.
+
+## Storage Safety
+
+- **Atomic file writes**: `RegionFile.Flush()` writes to a `.tmp` file, flushes, rotates the original to `.bak`, then renames `.tmp` to final. On failure, deletes `.tmp` and leaves the original untouched.
+- **ChunkSerializer** uses `NativeArray.CopyTo(byte[])` and `CopyFrom(byte[])` for bulk light data transfer — never byte-by-byte loops.
+
+## Known Limits
+
+- **Texture array layers ≤ 1024**: `MeshVertex.Color.a` stores texture index as `half`. The `half` type represents integers exactly up to 2048, but ContentPipeline asserts at 1024 for safety margin.
+- **BiomeData[i].BiomeId == i**: biome lookup is O(1) by direct index. This invariant is asserted at startup in `LithforgeBootstrap`. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.
+- **ChunkPool uses HashSet for checked-out tracking**: `Return()` is O(1) amortized, not O(n).
+
+## Anti-Regression Rules
+
+### Per-Frame Allocation Ban
+Before committing, grep the diff for `new List`, `new Dictionary`, `new T[]` in methods
+called each frame (Update, Poll, Process, Tick, Schedule). If found outside constructors
+or `static readonly` fields, it's a bug. Convert to a private field with Clear()+reuse.
+
+### Schedule+Complete Ban
+Never call `job.Schedule().Complete()` in a loop. Batch-schedule all jobs, then call
+`JobHandle.CompleteAll()` or `combinedHandle.Complete()` once.
+
+### ChunkState Ordinal Invariant
+`ChunkState` values are compared with `>=` and `<`. When adding a new state:
+1. Decide where it falls in the lifecycle ordering
+2. Grep ALL `ChunkState.` comparisons and verify correctness
+3. Document the ordering invariant in the enum comment
+
+### Burst Duplication Protocol
+When duplicating code across IJob structs (unavoidable in Burst):
+1. Add `// SHARED BFS LOGIC` header with list of all copies
+2. Add entry in CLAUDE.md "Known Code Duplication" table
+3. Any edit to one copy MUST be applied to all copies in the same commit
+
+## Known Code Duplication (Burst constraint)
+
+The following BFS light propagation methods are duplicated across 3 IJob structs
+because Burst IJob structs cannot share instance methods or access shared NativeArrays.
+**Any change to one MUST be replicated to all three in the same commit.**
+
+| Method | LightPropagationJob | LightRemovalJob | LightUpdateJob |
+|--------|-------------------|-----------------|----------------|
+| PropagateSun / RepropagateSun | ✓ | ✓ | ✓ |
+| TryPropagateSun | ✓ | ✓ | ✓ |
+| PropagateBlockLight / RepropagateBlock | ✓ | ✓ | ✓ |
+| TryPropagateBlock | ✓ | ✓ | ✓ |
+| IndexToXYZ | ✓ | ✓ | ✓ |
+
 ## Reference Sources
 
 Local copies of reference implementations are available in `Sources/` (git-ignored):

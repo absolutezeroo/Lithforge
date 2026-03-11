@@ -75,12 +75,7 @@ namespace Lithforge.Voxel.Storage
                         using (DeflateStream deflate = new DeflateStream(lightMs, CompressionLevel.Fastest, true))
                         {
                             byte[] raw = new byte[lightData.Length];
-
-                            for (int i = 0; i < lightData.Length; i++)
-                            {
-                                raw[i] = lightData[i];
-                            }
-
+                            lightData.CopyTo(raw);
                             deflate.Write(raw, 0, raw.Length);
                         }
 
@@ -173,10 +168,7 @@ namespace Lithforge.Voxel.Storage
                             totalRead += bytesRead;
                         }
 
-                        for (int i = 0; i < lightData.Length; i++)
-                        {
-                            lightData[i] = raw[i];
-                        }
+                        lightData.CopyFrom(raw);
                     }
                 }
 

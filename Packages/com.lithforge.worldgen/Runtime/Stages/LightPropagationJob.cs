@@ -5,9 +5,21 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
+    /// <summary>
+    /// Blittable struct for border light entries produced by the propagation job.
+    /// Stored in a NativeList and read back on the main thread.
+    /// </summary>
+    public struct NativeBorderLightEntry
+    {
+        public int3 LocalPosition;
+        public byte PackedLight;
+        public byte Face;
+    }
+
     [BurstCompile]
     public struct LightPropagationJob : IJob
     {
@@ -15,6 +27,13 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         public NativeArray<byte> LightData;
+
+        /// <summary>
+        /// Output: border light entries for cross-chunk propagation.
+        /// Contains voxels at chunk faces with light > 1 that should propagate to neighbors.
+        /// Owner: caller (GenerationScheduler). Dispose: caller after reading.
+        /// </summary>
+        public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
         public void Execute()
         {
@@ -47,7 +66,61 @@ namespace Lithforge.WorldGen.Stages
 
             sunQueue.Dispose();
             blockQueue.Dispose();
+
+            // Collect border light leaks for cross-chunk propagation
+            CollectBorderLightLeaks();
         }
+
+        /// <summary>
+        /// After propagation completes, scan all 6 faces of the chunk for voxels
+        /// with light > 1. These are "leaks" that need to propagate to neighbors.
+        /// </summary>
+        private void CollectBorderLightLeaks()
+        {
+            int lastIdx = ChunkConstants.Size - 1;
+
+            for (int a = 0; a < ChunkConstants.Size; a++)
+            {
+                for (int b = 0; b < ChunkConstants.Size; b++)
+                {
+                    // +X face (x=31)
+                    CollectBorderVoxel(lastIdx, a, b, new int3(lastIdx, a, b), 0);
+                    // -X face (x=0)
+                    CollectBorderVoxel(0, a, b, new int3(0, a, b), 1);
+                    // +Y face (y=31)
+                    CollectBorderVoxel(a, lastIdx, b, new int3(a, lastIdx, b), 2);
+                    // -Y face (y=0)
+                    CollectBorderVoxel(a, 0, b, new int3(a, 0, b), 3);
+                    // +Z face (z=31)
+                    CollectBorderVoxel(a, b, lastIdx, new int3(a, b, lastIdx), 4);
+                    // -Z face (z=0)
+                    CollectBorderVoxel(a, b, 0, new int3(a, b, 0), 5);
+                }
+            }
+        }
+
+        private void CollectBorderVoxel(int x, int y, int z, int3 localPos, byte face)
+        {
+            int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+            byte packed = LightData[index];
+            byte sun = LightUtils.GetSunLight(packed);
+            byte block = LightUtils.GetBlockLight(packed);
+
+            if (sun > 1 || block > 1)
+            {
+                BorderLightOutput.Add(new NativeBorderLightEntry
+                {
+                    LocalPosition = localPos,
+                    PackedLight = packed,
+                    Face = face,
+                });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SHARED BFS LOGIC — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
+        // Any modification MUST be applied to all three files in the same commit.
+        // ═══════════════════════════════════════════════════════════════════════
 
         private void PropagateSunlight(ref NativeQueue<int> queue)
         {
