@@ -131,5 +131,36 @@ namespace Lithforge.Voxel.Tests
 
             Assert.IsFalse(checkedOut.IsCreated);
         }
+
+        [Test]
+        public void Return_MultipleCheckouts_TracksCorrectly()
+        {
+            ChunkPool pool = new ChunkPool(4);
+
+            try
+            {
+                NativeArray<StateId> a = pool.Checkout();
+                NativeArray<StateId> b = pool.Checkout();
+                NativeArray<StateId> c = pool.Checkout();
+
+                Assert.AreEqual(3, pool.CheckedOutCount);
+                Assert.AreEqual(1, pool.AvailableCount);
+
+                pool.Return(b);
+                Assert.AreEqual(2, pool.CheckedOutCount);
+                Assert.AreEqual(2, pool.AvailableCount);
+
+                pool.Return(a);
+                Assert.AreEqual(1, pool.CheckedOutCount);
+
+                pool.Return(c);
+                Assert.AreEqual(0, pool.CheckedOutCount);
+                Assert.AreEqual(4, pool.AvailableCount);
+            }
+            finally
+            {
+                pool.Dispose();
+            }
+        }
     }
 }

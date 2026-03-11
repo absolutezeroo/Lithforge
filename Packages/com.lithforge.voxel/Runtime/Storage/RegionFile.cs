@@ -137,7 +137,8 @@ namespace Lithforge.Voxel.Storage
                 existingData[kvp.Key] = kvp.Value;
             }
 
-            // Write entire file
+            // Atomic write: write to temp file, then rename to replace the original.
+            // This prevents corruption if a crash occurs during write.
             string dir = Path.GetDirectoryName(_filePath);
 
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
@@ -145,31 +146,71 @@ namespace Lithforge.Voxel.Storage
                 Directory.CreateDirectory(dir);
             }
 
-            using (FileStream fs = new FileStream(_filePath, FileMode.Create, FileAccess.Write))
-            using (BinaryWriter writer = new BinaryWriter(fs))
+            string tempPath = _filePath + ".tmp";
+
+            try
             {
-                // Reserve header space
-                writer.Write(new byte[_headerSize]);
-
-                // Write data and track offsets
-                int[] offsets = new int[RegionSize * RegionSize];
-                int[] sizes = new int[RegionSize * RegionSize];
-
-                foreach (KeyValuePair<int, byte[]> kvp in existingData)
+                using (FileStream fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                using (BinaryWriter writer = new BinaryWriter(fs))
                 {
-                    offsets[kvp.Key] = (int)fs.Position;
-                    sizes[kvp.Key] = kvp.Value.Length;
-                    writer.Write(kvp.Value);
+                    // Reserve header space
+                    writer.Write(new byte[_headerSize]);
+
+                    // Write data and track offsets
+                    int[] offsets = new int[RegionSize * RegionSize];
+                    int[] sizes = new int[RegionSize * RegionSize];
+
+                    foreach (KeyValuePair<int, byte[]> kvp in existingData)
+                    {
+                        offsets[kvp.Key] = (int)fs.Position;
+                        sizes[kvp.Key] = kvp.Value.Length;
+                        writer.Write(kvp.Value);
+                    }
+
+                    // Write header
+                    fs.Seek(0, SeekOrigin.Begin);
+
+                    for (int i = 0; i < RegionSize * RegionSize; i++)
+                    {
+                        writer.Write(offsets[i]);
+                        writer.Write(sizes[i]);
+                    }
+
+                    fs.Flush();
                 }
 
-                // Write header
-                fs.Seek(0, SeekOrigin.Begin);
-
-                for (int i = 0; i < RegionSize * RegionSize; i++)
+                // Backup rotation: keep the previous version as .bak
+                if (File.Exists(_filePath))
                 {
-                    writer.Write(offsets[i]);
-                    writer.Write(sizes[i]);
+                    string backupPath = _filePath + ".bak";
+
+                    if (File.Exists(backupPath))
+                    {
+                        File.Delete(backupPath);
+                    }
+
+                    File.Move(_filePath, backupPath);
                 }
+
+                // Atomic rename: replaces original (atomic on most OS)
+                File.Move(tempPath, _filePath);
+            }
+            catch
+            {
+                // Write failed — delete temp file, leave original untouched
+                if (File.Exists(tempPath))
+                {
+                    try
+                    {
+                        File.Delete(tempPath);
+                    }
+                    catch
+                    {
+                        // Best effort cleanup
+                    }
+                }
+
+                throw;
             }
 
             _cache.Clear();

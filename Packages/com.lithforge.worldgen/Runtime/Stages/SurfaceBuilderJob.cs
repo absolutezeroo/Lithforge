@@ -74,15 +74,9 @@ namespace Lithforge.WorldGen.Stages
 
         private NativeBiomeData GetBiome(byte biomeId)
         {
-            for (int i = 0; i < BiomeData.Length; i++)
-            {
-                if (BiomeData[i].BiomeId == biomeId)
-                {
-                    return BiomeData[i];
-                }
-            }
-
-            return BiomeData[0];
+            // O(1) direct access: BiomeId is a sequential index assigned in Bootstrap.
+            // Invariant: BiomeData[i].BiomeId == i, verified at startup.
+            return biomeId < BiomeData.Length ? BiomeData[biomeId] : BiomeData[0];
         }
     }
 }

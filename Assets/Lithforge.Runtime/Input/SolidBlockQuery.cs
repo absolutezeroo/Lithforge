@@ -1,3 +1,4 @@
+using System;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Unity.Mathematics;
@@ -19,6 +20,17 @@ namespace Lithforge.Runtime.Input
             BlockStateCompact compact = nativeStateRegistry.States[stateId.Value];
 
             return compact.CollisionShape != 0;
+        }
+
+        /// <summary>
+        /// Creates a cached delegate for the IsSolid check. Call once during initialization
+        /// and store the result to avoid per-frame delegate allocation.
+        /// </summary>
+        public static Func<int3, bool> CreateDelegate(
+            ChunkManager chunkManager,
+            NativeStateRegistry nativeStateRegistry)
+        {
+            return (int3 coord) => IsSolid(coord, chunkManager, nativeStateRegistry);
         }
     }
 }

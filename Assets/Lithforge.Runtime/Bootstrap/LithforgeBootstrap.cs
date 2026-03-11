@@ -32,7 +32,6 @@ namespace Lithforge.Runtime.Bootstrap
         [SerializeField] private Material voxelMaterial;
 
         private LoadedSettings _settings;
-        private ServiceContainer _services;
         private ContentPipelineResult _contentResult;
         private ChunkPool _chunkPool;
         private ChunkManager _chunkManager;
@@ -49,7 +48,6 @@ namespace Lithforge.Runtime.Bootstrap
         private void Awake()
         {
             _settings = SettingsLoader.Load();
-            _services = new ServiceContainer();
 
             InitializeContent();
             InitializeStorage();
@@ -71,9 +69,6 @@ namespace Lithforge.Runtime.Bootstrap
 
             _contentResult = pipeline.Build();
 
-            _services.Register(_contentResult.StateRegistry);
-            _services.Register(_contentResult.NativeStateRegistry);
-
             UnityEngine.Debug.Log(
                 $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
                 $"{_contentResult.NativeAtlasLookup.TextureCount} textures, " +
@@ -90,8 +85,6 @@ namespace Lithforge.Runtime.Bootstrap
                 Application.persistentDataPath, "worlds", "default");
             _worldStorage = new WorldStorage(worldDir);
             _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
-            _services.Register(_worldStorage);
-
             UnityEngine.Debug.Log($"[Lithforge] World storage: {worldDir}");
         }
 
@@ -107,8 +100,6 @@ namespace Lithforge.Runtime.Bootstrap
                 cs.YUnloadMin,
                 cs.YUnloadMax);
 
-            _services.Register(_chunkPool);
-            _services.Register(_chunkManager);
         }
 
         private void InitializeWorldGen()
@@ -149,6 +140,14 @@ namespace Lithforge.Runtime.Bootstrap
                     TreeDensity = def.TreeDensity,
                     HeightModifier = def.HeightModifier,
                 };
+            }
+
+            // Verify BiomeData[i].BiomeId == i invariant (required for O(1) lookup)
+            for (int i = 0; i < biomes.Length; i++)
+            {
+                UnityEngine.Debug.Assert(
+                    _nativeBiomeData[i].BiomeId == i,
+                    $"[Lithforge] BiomeData invariant violated: BiomeData[{i}].BiomeId == {_nativeBiomeData[i].BiomeId}, expected {i}.");
             }
 
             // Build native ore configs
@@ -192,7 +191,6 @@ namespace Lithforge.Runtime.Bootstrap
             StateId oakLeavesId = FindStateId("lithforge:oak_leaves");
             _decorationStage = new DecorationStage(_nativeBiomeData, oakLogId, oakLeavesId, airId);
 
-            _services.Register(_generationPipeline);
         }
 
         private void InitializeRendering()
@@ -266,7 +264,6 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             _chunkRenderManager = new ChunkRenderManager(opaqueMaterial, cutoutMaterial, translucentMaterial);
-            _services.Register(_chunkRenderManager);
         }
 
         private void InitializeGameLoop()
@@ -322,13 +319,9 @@ namespace Lithforge.Runtime.Bootstrap
                 playerController.Initialize(
                     _chunkManager, _contentResult.NativeStateRegistry,
                     _gameLoop, _settings.Physics);
-                _services.Register(playerController);
-
                 // Add CameraController to camera
                 CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
                 cameraControllerRef = cameraController;
-                _services.Register(cameraController);
-
                 // Add BlockHighlight (standalone object)
                 GameObject highlightObject = new GameObject("BlockHighlight");
                 BlockHighlight blockHighlight = highlightObject.AddComponent<BlockHighlight>();
@@ -365,8 +358,6 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.TagRegistry,
                     playerObject.transform,
                     _settings.Physics);
-                _services.Register(blockInteraction);
-
                 // Load shared PanelSettings asset for UI Toolkit
                 UnityEngine.UIElements.PanelSettings panelSettings =
                     Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
@@ -396,8 +387,6 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ItemRegistry,
                     _contentResult.CraftingEngine,
                     panelSettings);
-                _services.Register(inventoryScreen);
-
                 // Add SettingsScreen (initialized after TimeOfDayController is created below)
                 GameObject settingsObject = new GameObject("SettingsScreen");
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();

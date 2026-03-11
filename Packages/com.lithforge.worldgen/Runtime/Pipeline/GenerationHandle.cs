@@ -1,4 +1,5 @@
 using System;
+using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
 
@@ -12,6 +13,13 @@ namespace Lithforge.WorldGen.Pipeline
         public NativeArray<byte> BiomeMap;
         public NativeArray<float> TemperatureMap;
         public NativeArray<float> HumidityMap;
+
+        /// <summary>
+        /// Border light entries collected by LightPropagationJob for cross-chunk propagation.
+        /// Owner: GenerationHandle (allocated in GenerationPipeline.Schedule).
+        /// Dispose: GenerationScheduler.PollCompleted() after reading entries.
+        /// </summary>
+        public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
         public void Dispose()
         {
@@ -33,6 +41,11 @@ namespace Lithforge.WorldGen.Pipeline
             if (HumidityMap.IsCreated)
             {
                 HumidityMap.Dispose();
+            }
+
+            if (BorderLightOutput.IsCreated)
+            {
+                BorderLightOutput.Dispose();
             }
 
             // LightData is not disposed here — it is transferred to ManagedChunk
@@ -64,6 +77,11 @@ namespace Lithforge.WorldGen.Pipeline
             if (HumidityMap.IsCreated)
             {
                 HumidityMap.Dispose();
+            }
+
+            if (BorderLightOutput.IsCreated)
+            {
+                BorderLightOutput.Dispose();
             }
         }
     }
