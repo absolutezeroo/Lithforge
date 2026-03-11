@@ -52,7 +52,7 @@ namespace Lithforge.WorldGen.Stages
 
                         int depth = surfaceY - worldY;
 
-                        if (depth == 1)
+                        if (depth >= 0 && depth <= 1)
                         {
                             if (surfaceY >= SeaLevel)
                             {

@@ -13,251 +13,138 @@ Lithforge/
 │   │
 │   ├── com.lithforge.core/
 │   │   ├── Runtime/
-│   │   │   ├── Data/
-│   │   │   │   ├── ResourceId.cs              # readonly record struct "namespace:name"
-│   │   │   │   ├── IRegistry.cs               # interface: Get, Contains, GetAll
-│   │   │   │   ├── RegistryBuilder.cs          # mutable during content loading
+│   │   │   ├── Registry/
 │   │   │   │   ├── Registry.cs                 # frozen read-only after Build()
-│   │   │   │   ├── DataDefinition.cs           # abstract base for all definitions
-│   │   │   │   └── IDataLoader.cs              # JSON deserialization contract
-│   │   │   ├── Serialization/
-│   │   │   │   ├── IBinaryWriter.cs
-│   │   │   │   ├── IBinaryReader.cs
-│   │   │   │   ├── LithBinaryWriter.cs         # little-endian, span-based
-│   │   │   │   └── LithBinaryReader.cs
-│   │   │   ├── Events/
-│   │   │   │   ├── IEventBus.cs                # Publish<T>, Subscribe<T>, Unsubscribe
-│   │   │   │   └── EventBus.cs                 # managed, main-thread only, synchronous
+│   │   │   │   ├── RegistryBuilder.cs          # mutable during content loading
+│   │   │   │   └── IRegistry.cs                # interface: Get, Contains, GetAll
 │   │   │   ├── Logging/
 │   │   │   │   ├── ILogger.cs
-│   │   │   │   └── LogLevel.cs
-│   │   │   └── Validation/
-│   │   │       ├── ContentValidator.cs         # validates JSON against expected schema
-│   │   │       ├── ValidationResult.cs         # errors, warnings list
-│   │   │       └── ValidationPolicy.cs         # strict vs lenient
+│   │   │   │   ├── LogLevel.cs
+│   │   │   │   └── NullLogger.cs
+│   │   │   ├── Validation/
+│   │   │   │   ├── ContentValidator.cs
+│   │   │   │   └── ValidationResult.cs
+│   │   │   └── Data/
+│   │   │       └── ResourceId.cs               # readonly struct "namespace:name"
 │   │   ├── Tests/
 │   │   │   └── Lithforge.Core.Tests.asmdef
 │   │   ├── package.json
-│   │   └── Lithforge.Core.asmdef              # References: NOTHING
-│   │
-│   ├── com.lithforge.crafting/                # Tier 1
-│   │   ├── Runtime/
-│   │   │   ├── Inventory.cs                   # generic slot container
-│   │   │   ├── RecipeDefinition.cs            # shaped, shapeless, smelting
-│   │   │   ├── RecipeRegistry.cs
-│   │   │   ├── RecipeType.cs
-│   │   │   ├── CraftingEngine.cs              # validates and executes crafting
-│   │   │   └── Ingredient.cs                  # item or tag reference
-│   │   ├── Lithforge.Crafting.asmdef          # References: Core
-│   │   └── package.json
-│   │
-│   ├── com.lithforge.modding/                 # Tier 1
-│   │   ├── Runtime/
-│   │   │   ├── ModManifest.cs                 # mod.json parsing
-│   │   │   ├── ModRegistry.cs                 # loaded mods, load order
-│   │   │   ├── ModContext.cs                  # scoped API access per mod
-│   │   │   ├── ModLoadPhase.cs                # Discovery, Registration, Init, Ready
-│   │   │   ├── ModDependencyResolver.cs       # topological sort with cycle detection
-│   │   │   └── API/
-│   │   │       ├── IBlockAPI.cs
-│   │   │       ├── IItemAPI.cs
-│   │   │       ├── IWorldGenAPI.cs
-│   │   │       ├── IEntityAPI.cs
-│   │   │       ├── ICraftingAPI.cs
-│   │   │       ├── ITagAPI.cs
-│   │   │       ├── ILootAPI.cs
-│   │   │       └── IEventAPI.cs
-│   │   ├── Lithforge.Modding.asmdef           # References: Core
-│   │   └── package.json
+│   │   └── Lithforge.Core.asmdef              # References: NOTHING, noEngineReferences: true
 │   │
 │   │  ══════════ TIER 2 — Unity Core (Burst/Jobs/NativeContainers) ══════════
 │   │
 │   ├── com.lithforge.voxel/
 │   │   ├── Runtime/
 │   │   │   ├── Block/
-│   │   │   │   ├── BlockDefinition.cs         # Tier 1 type (no Unity deps in this file)
-│   │   │   │   ├── BlockRegistry.cs           # Registry<BlockDefinition>
 │   │   │   │   ├── StateId.cs                 # readonly struct (ushort), blittable
-│   │   │   │   ├── BlockState.cs              # managed resolved state
 │   │   │   │   ├── BlockStateCompact.cs       # blittable struct for Burst (cached flags)
+│   │   │   │   ├── BlockRegistrationData.cs   # managed block registration info
 │   │   │   │   ├── StateRegistry.cs           # managed: builds state palette
-│   │   │   │   ├── NativeStateRegistry.cs     # NativeArray<BlockStateCompact> bake for jobs
-│   │   │   │   ├── BlockStateDefinition.cs    # blockstate JSON → variants/multipart
-│   │   │   │   ├── Property/
-│   │   │   │   │   ├── IPropertyValue.cs
-│   │   │   │   │   ├── BoolProperty.cs
-│   │   │   │   │   ├── IntProperty.cs
-│   │   │   │   │   ├── EnumProperty.cs
-│   │   │   │   │   └── PropertyDefinition.cs
-│   │   │   │   └── Model/
-│   │   │   │       ├── BlockModelDefinition.cs
-│   │   │   │       ├── ModelElement.cs
-│   │   │   │       ├── ModelFace.cs
-│   │   │   │       ├── ModelVariant.cs
-│   │   │   │       ├── MultipartCase.cs
-│   │   │   │       ├── ModelRegistry.cs
-│   │   │   │       └── ModelResolver.cs
+│   │   │   │   ├── StateRegistryEntry.cs
+│   │   │   │   └── NativeStateRegistry.cs     # NativeArray<BlockStateCompact> bake for jobs
 │   │   │   ├── Chunk/
 │   │   │   │   ├── ChunkConstants.cs          # Size=32, Volume=32768
-│   │   │   │   ├── ChunkData.cs               # NativeArray<StateId>, palette compression
-│   │   │   │   ├── ChunkState.cs              # enum: Unloaded→Generating→Generated→Meshing→Ready→Dirty
-│   │   │   │   ├── ChunkNeighborData.cs       # NativeArray border slices from 6 neighbors
-│   │   │   │   └── ChunkPool.cs               # pre-allocated NativeArray pool to avoid alloc/dealloc churn
-│   │   │   ├── World/
-│   │   │   │   ├── VoxelWorld.cs              # facade: GetBlock, SetBlock, GetChunk
-│   │   │   │   ├── IChunkProvider.cs
-│   │   │   │   └── ChunkManager.cs            # load/unload/save lifecycle
+│   │   │   │   ├── ChunkData.cs               # NativeArray<StateId>
+│   │   │   │   ├── ChunkState.cs              # enum: Unloaded→Loading→Generating→Decorating→RelightPending→Generated→Meshing→Ready
+│   │   │   │   ├── ManagedChunk.cs            # wrapper with LODLevel, BorderLightEntries, IsDirty
+│   │   │   │   ├── ChunkBorderExtractor.cs    # extracts 32×32 border slices from neighbors
+│   │   │   │   ├── ChunkPool.cs               # pre-allocated NativeArray pool
+│   │   │   │   ├── ChunkManager.cs            # load/unload/save lifecycle
+│   │   │   │   └── ChunkDistanceComparer.cs
+│   │   │   ├── Storage/
+│   │   │   │   ├── WorldMetadata.cs           # world.json: seed, version, content_hash
+│   │   │   │   ├── ChunkSerializer.cs         # palette + DeflateStream compression
+│   │   │   │   ├── RegionFile.cs              # atomic write with .tmp/.bak rotation
+│   │   │   │   └── WorldStorage.cs            # region-based chunk persistence
 │   │   │   ├── Item/
-│   │   │   │   ├── ItemDefinition.cs
-│   │   │   │   ├── ItemRegistry.cs
+│   │   │   │   ├── ToolType.cs
 │   │   │   │   ├── ItemStack.cs
-│   │   │   │   └── ItemModelDefinition.cs
-│   │   │   ├── Tag/
-│   │   │   │   ├── TagDefinition.cs
-│   │   │   │   ├── TagRegistry.cs
-│   │   │   │   └── TagKey.cs
+│   │   │   │   ├── ItemEntry.cs
+│   │   │   │   ├── ItemRegistry.cs
+│   │   │   │   └── Inventory.cs               # 36-slot player inventory
 │   │   │   ├── Loot/
 │   │   │   │   ├── LootTableDefinition.cs
-│   │   │   │   ├── LootTableRegistry.cs
+│   │   │   │   ├── LootPool.cs
+│   │   │   │   ├── LootEntry.cs
 │   │   │   │   ├── LootCondition.cs
-│   │   │   │   └── LootFunction.cs
-│   │   │   ├── Fluid/
-│   │   │   │   ├── FluidDefinition.cs
-│   │   │   │   └── FluidState.cs
-│   │   │   └── Storage/
-│   │   │       ├── IWorldStorage.cs
-│   │   │       ├── RegionFile.cs
-│   │   │       ├── ChunkSerializer.cs
-│   │   │       └── WorldMetadata.cs
+│   │   │   │   ├── LootFunction.cs
+│   │   │   │   ├── LootDrop.cs
+│   │   │   │   └── LootResolver.cs
+│   │   │   ├── Tag/
+│   │   │   │   ├── TagDefinition.cs
+│   │   │   │   └── TagRegistry.cs             # bidirectional lookup
+│   │   │   ├── Crafting/
+│   │   │   │   ├── RecipeType.cs
+│   │   │   │   ├── RecipeEntry.cs
+│   │   │   │   ├── CraftingGrid.cs
+│   │   │   │   └── CraftingEngine.cs
+│   │   │   └── Jobs/
+│   │   │       └── FillColumnJob.cs
 │   │   ├── Lithforge.Voxel.asmdef             # References: Core, Unity.Collections, Unity.Mathematics, Unity.Burst
 │   │   ├── Tests/
 │   │   └── package.json
 │   │
-│   ├── com.lithforge.worldgen/                # Tier 2
+│   ├── com.lithforge.worldgen/
 │   │   ├── Runtime/
 │   │   │   ├── Pipeline/
-│   │   │   │   ├── IGenerationStage.cs        # managed interface (orchestrator is not Burst)
-│   │   │   │   ├── GenerationPipeline.cs      # iterates stages, dispatches Burst jobs per stage
-│   │   │   │   └── GenerationContext.cs       # NativeArray-backed shared state
+│   │   │   │   ├── GenerationPipeline.cs      # schedules 7-stage Burst job chain
+│   │   │   │   └── GenerationHandle.cs        # tracks in-flight generation + temp NativeArrays
 │   │   │   ├── Stages/
-│   │   │   │   ├── TerrainShapeJob.cs         # [BurstCompile] IJob
-│   │   │   │   ├── CaveCarverJob.cs           # [BurstCompile] IJob
+│   │   │   │   ├── TerrainShapeJob.cs         # [BurstCompile] IJob — 2D heightmap
+│   │   │   │   ├── CaveCarverJob.cs           # [BurstCompile] IJob — spaghetti caves
 │   │   │   │   ├── BiomeAssignmentJob.cs      # [BurstCompile] IJob
 │   │   │   │   ├── SurfaceBuilderJob.cs       # [BurstCompile] IJob
-│   │   │   │   ├── OreGenerationJob.cs        # [BurstCompile] IJob
-│   │   │   │   ├── DecorationStage.cs         # managed (structure placement crosses chunks)
-│   │   │   │   └── InitialLightingJob.cs      # [BurstCompile] IJob
+│   │   │   │   ├── OreGenerationJob.cs        # [BurstCompile] IJob — blob/scatter
+│   │   │   │   ├── InitialLightingJob.cs      # [BurstCompile] IJob
+│   │   │   │   ├── LightPropagationJob.cs     # [BurstCompile] IJob — BFS flood fill
+│   │   │   │   ├── LightRemovalJob.cs         # [BurstCompile] IJob — BFS removal
+│   │   │   │   └── LightUpdateJob.cs          # [BurstCompile] IJob — cross-chunk updates
+│   │   │   ├── Decoration/
+│   │   │   │   ├── DecorationStage.cs         # managed: per-biome tree placement
+│   │   │   │   ├── TreeTemplate.cs            # 3 variants: OakTree, BirchTree, SpruceTree
+│   │   │   │   ├── TreeBlock.cs
+│   │   │   │   ├── PendingBlock.cs
+│   │   │   │   └── PendingDecorationStore.cs  # cross-chunk pending blocks
 │   │   │   ├── Biome/
-│   │   │   │   ├── BiomeDefinition.cs
-│   │   │   │   ├── BiomeRegistry.cs
-│   │   │   │   ├── NativeBiomeData.cs         # blittable bake for Burst
-│   │   │   │   └── BiomeSelector.cs
-│   │   │   ├── Noise/
-│   │   │   │   ├── NoiseConfig.cs
-│   │   │   │   ├── NativeNoiseProvider.cs     # Burst-compatible noise (Unity.Mathematics)
-│   │   │   │   └── NoiseType.cs
+│   │   │   │   └── NativeBiomeData.cs         # blittable: climate ranges, surface blocks, TreeTemplateIndex
 │   │   │   ├── Ore/
-│   │   │   │   ├── OreDefinition.cs
-│   │   │   │   ├── OreType.cs
-│   │   │   │   └── OrePlacerJob.cs            # [BurstCompile]
-│   │   │   ├── Structure/
-│   │   │   │   ├── StructureDefinition.cs
-│   │   │   │   ├── StructureRegistry.cs
-│   │   │   │   └── StructurePlacer.cs
-│   │   │   └── Feature/
-│   │   │       ├── ConfiguredFeature.cs
-│   │   │       ├── PlacedFeature.cs
-│   │   │       └── PlacementModifier.cs
+│   │   │   │   └── NativeOreConfig.cs         # blittable ore generation params
+│   │   │   ├── Noise/
+│   │   │   │   ├── NativeNoise.cs             # Burst-compatible FBM noise (Unity.Mathematics)
+│   │   │   │   └── NativeNoiseConfig.cs       # blittable noise parameters
+│   │   │   └── Lighting/
+│   │   │       └── LightUtils.cs              # nibble pack/unpack helpers
 │   │   ├── Lithforge.WorldGen.asmdef          # References: Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs
+│   │   ├── Tests/
 │   │   └── package.json
 │   │
-│   ├── com.lithforge.meshing/                 # Tier 2
+│   ├── com.lithforge.meshing/
 │   │   ├── Runtime/
-│   │   │   ├── MeshData.cs                    # NativeList<MeshVertex> + NativeList<int> indices
-│   │   │   ├── MeshVertex.cs                  # blittable struct matching VertexAttributeDescriptor
-│   │   │   ├── ChunkMeshResult.cs             # opaque + cutout + translucent MeshData
-│   │   │   ├── Greedy/
-│   │   │   │   ├── GreedyMeshJob.cs           # [BurstCompile] IJob — full greedy pipeline
-│   │   │   │   ├── GreedySlice.cs             # 32×32 face mask (NativeArray<uint>)
-│   │   │   │   └── FaceMask.cs                # bitwise row merge utilities
-│   │   │   ├── Custom/
-│   │   │   │   ├── CustomModelMesher.cs       # emits geometry from model elements
-│   │   │   │   ├── MultipartResolver.cs
-│   │   │   │   └── FluidMesher.cs
-│   │   │   ├── AO/
-│   │   │   │   └── AmbientOcclusion.cs        # per-vertex AO (Burst-compatible static methods)
-│   │   │   ├── Atlas/
-│   │   │   │   ├── AtlasRegion.cs             # UV rect struct (blittable)
-│   │   │   │   ├── NativeAtlasLookup.cs       # NativeArray<AtlasRegion> indexed by texture ID
-│   │   │   │   └── AtlasBuilder.cs            # managed: builds atlas, produces NativeAtlasLookup
-│   │   │   ├── LOD/
-│   │   │   │   ├── LODLevel.cs
-│   │   │   │   ├── LODMeshJob.cs              # [BurstCompile] simplified meshing
-│   │   │   │   ├── LODManager.cs
-│   │   │   │   └── LODConfig.cs
-│   │   │   └── Culling/
-│   │   │       ├── FrustumCuller.cs
-│   │   │       ├── DistanceCuller.cs
-│   │   │       └── OcclusionCuller.cs
+│   │   │   ├── MeshData.cs                    # NativeList<MeshVertex> + NativeList<int>
+│   │   │   ├── MeshVertex.cs                  # 40-byte blittable vertex struct
+│   │   │   ├── VoxelAO.cs                     # per-vertex AO (Burst-compatible)
+│   │   │   ├── GreedyMeshJob.cs               # [BurstCompile] IJob — binary greedy meshing
+│   │   │   ├── GreedyMeshData.cs              # TempJob containers for greedy mesh flight
+│   │   │   ├── CulledMeshJob.cs               # [BurstCompile] IJob — simple face culling
+│   │   │   ├── VoxelDownsampleJob.cs          # [BurstCompile] IJob — majority-vote downsample
+│   │   │   ├── LODMeshJob.cs                  # [BurstCompile] IJob — culled faces for LOD
+│   │   │   ├── LODMeshData.cs                 # TempJob containers for LOD mesh flight
+│   │   │   └── Atlas/
+│   │   │       ├── AtlasEntry.cs
+│   │   │       └── NativeAtlasLookup.cs       # NativeArray indexed by texture ID
 │   │   ├── Lithforge.Meshing.asmdef           # References: Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs
+│   │   ├── Tests/
 │   │   └── package.json
 │   │
-│   ├── com.lithforge.lighting/                # Tier 2
-│   │   ├── Runtime/
-│   │   │   ├── LightData.cs                   # NativeArray<byte> (packed 4+4 bits)
-│   │   │   ├── LightPropagationJob.cs         # [BurstCompile] BFS with NativeQueue
-│   │   │   ├── LightRemovalJob.cs             # [BurstCompile] BFS removal
-│   │   │   ├── SunlightPropagationJob.cs      # [BurstCompile] top-down column
-│   │   │   ├── LightEngine.cs                 # managed orchestrator: schedules jobs
-│   │   │   └── LightConstants.cs              # MAX_LIGHT=15
-│   │   ├── Lithforge.Lighting.asmdef          # References: Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs
-│   │   └── package.json
-│   │
-│   ├── com.lithforge.physics/                 # Tier 2
-│   │   ├── Runtime/
-│   │   │   ├── VoxelRaycast.cs                # DDA raycast (Burst-compatible static method)
-│   │   │   ├── VoxelCollider.cs               # AABB vs voxel grid
-│   │   │   ├── CollisionShapeType.cs          # enum: FullCube, Slab, Stairs, Fence, None
-│   │   │   ├── CollisionShapeData.cs          # blittable AABB list per shape type
-│   │   │   └── PhysicsConstants.cs            # GRAVITY, TERMINAL_VELOCITY
-│   │   ├── Lithforge.Physics.asmdef           # References: Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst
-│   │   └── package.json
-│   │
-│   ├── com.lithforge.entity/                  # Tier 2 (hybrid: definitions in Tier 1 types, runtime in DOTS)
-│   │   ├── Runtime/
-│   │   │   ├── Definition/
-│   │   │   │   ├── EntityDefinition.cs        # managed, data-driven
-│   │   │   │   └── EntityRegistry.cs
-│   │   │   ├── Components/                    # DOTS IComponentData
-│   │   │   │   ├── VoxelTransform.cs          # float3 position, quaternion rotation
-│   │   │   │   ├── VoxelVelocity.cs           # float3 velocity
-│   │   │   │   ├── Health.cs                  # int current, int max
-│   │   │   │   ├── MobAI.cs                   # AI state enum + target entity
-│   │   │   │   └── Lifetime.cs                # float remaining (for projectiles)
-│   │   │   └── Systems/                       # DOTS ISystem
-│   │   │       ├── MovementSystem.cs          # [BurstCompile] applies velocity + voxel collision
-│   │   │       ├── GravitySystem.cs           # [BurstCompile]
-│   │   │       ├── AISystem.cs
-│   │   │       ├── DamageSystem.cs
-│   │   │       ├── LifetimeSystem.cs          # [BurstCompile] destroys expired entities
-│   │   │       └── SpawnSystem.cs
-│   │   ├── Lithforge.Entity.asmdef            # References: Core, Voxel, Physics, Unity.Entities, Unity.Transforms, Unity.Collections, Unity.Mathematics, Unity.Burst
-│   │   └── package.json
-│   │
-│   └── com.lithforge.network/                 # Tier 1/2 (deferred to V2)
+│   └── com.lithforge.physics/
 │       ├── Runtime/
-│       │   ├── PacketDefinition.cs
-│       │   ├── PacketRegistry.cs
-│       │   ├── Protocol/
-│       │   │   ├── ChunkDataPacket.cs
-│       │   │   ├── BlockChangePacket.cs
-│       │   │   └── EntityUpdatePacket.cs
-│       │   ├── Client/
-│       │   │   └── NetworkClient.cs
-│       │   └── Server/
-│       │       ├── NetworkServer.cs
-│       │       └── PlayerSession.cs
-│       ├── Lithforge.Network.asmdef           # References: Core, Voxel, Unity.Collections
+│       │   ├── VoxelRaycast.cs                # DDA raycast (Burst-compatible static method)
+│       │   ├── VoxelCollider.cs               # AABB vs voxel grid
+│       │   ├── Aabb.cs
+│       │   ├── CollisionResult.cs
+│       │   ├── RaycastHit.cs
+│       │   └── PhysicsConstants.cs
+│       ├── Lithforge.Physics.asmdef           # References: Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst
 │       └── package.json
 │
 ├── Assets/
@@ -265,88 +152,92 @@ Lithforge/
 │   │  ══════════ TIER 3 — Unity Runtime ══════════
 │   │
 │   ├── Lithforge.Runtime/
+│   │   ├── GameLoop.cs                        # MonoBehaviour: per-frame orchestration of all schedulers
 │   │   ├── Bootstrap/
-│   │   │   ├── LithforgeBootstrap.cs          # [RuntimeInitializeOnLoadMethod] entry point
-│   │   │   ├── InitializationSequence.cs      # creates all services in order
-│   │   │   ├── ServiceContainer.cs            # simple DI, no framework dependency
-│   │   │   └── GameLoop.cs                    # MonoBehaviour: Update/LateUpdate orchestration
+│   │   │   ├── LithforgeBootstrap.cs          # MonoBehaviour entry point (Awake + Start coroutine)
+│   │   │   ├── ContentPipeline.cs             # 14-phase IEnumerable<string> content loading
+│   │   │   ├── ContentPipelineResult.cs       # aggregates all loaded content
+│   │   │   └── UnityLogger.cs                 # ILogger → Debug.Log bridge
+│   │   ├── Scheduling/
+│   │   │   ├── GenerationScheduler.cs         # frustum-sorted generation, cross-chunk light updates
+│   │   │   ├── MeshScheduler.cs               # LOD0 greedy meshing, relight gating
+│   │   │   └── LODScheduler.cs                # LOD1-3 downsample + mesh, level transitions
 │   │   ├── Rendering/
-│   │   │   ├── ChunkRenderManager.cs          # manages chunk GameObjects lifecycle
-│   │   │   ├── ChunkRenderer.cs               # MonoBehaviour: MeshFilter + MeshRenderer per chunk
-│   │   │   ├── MeshUploader.cs                # Mesh.MeshDataArray → Mesh (main thread)
-│   │   │   ├── VoxelMaterialManager.cs        # SharedMaterial instances for opaque/cutout/translucent
-│   │   │   ├── TextureAtlasManager.cs         # builds Texture2DArray from content textures
-│   │   │   ├── LODRenderer.cs                 # swaps mesh based on LOD level
-│   │   │   ├── SkyController.cs               # procedural sky + day/night
-│   │   │   ├── FogController.cs               # distance fog per biome
+│   │   │   ├── ChunkRenderManager.cs          # manages ChunkRenderer GameObjects
+│   │   │   ├── ChunkRenderer.cs               # MonoBehaviour: MeshFilter + MeshRenderer
+│   │   │   ├── ChunkCulling.cs                # frustum plane extraction + AABB test
+│   │   │   ├── MeshUploader.cs                # Mesh.AllocateWritableMeshData → ApplyAndDispose
+│   │   │   ├── BlockHighlight.cs              # LineRenderer wireframe on targeted block
+│   │   │   ├── SkyController.cs               # procedural sky + fog + ambient from TimeOfDay
+│   │   │   ├── TimeOfDayController.cs         # cosine cycle, drives _SunLightFactor
+│   │   │   ├── Atlas/
+│   │   │   │   ├── AtlasBuilder.cs            # builds Texture2DArray from face textures
+│   │   │   │   └── AtlasResult.cs
 │   │   │   └── Shaders/
-│   │   │       ├── LithforgeVoxelOpaque.shader     # URP-compatible, atlas sampling, AO, lighting
-│   │   │       ├── LithforgeVoxelCutout.shader     # alpha test, double-sided
-│   │   │       ├── LithforgeVoxelTranslucent.shader # alpha blend, water animation
-│   │   │       └── LithforgeSky.shader              # atmospheric scattering
-│   │   ├── UI/
-│   │   │   ├── UIManager.cs                   # screen stack, transitions
-│   │   │   ├── Screens/
-│   │   │   │   ├── MainMenuScreen.cs/.uxml/.uss
-│   │   │   │   ├── WorldSelectScreen.cs/.uxml/.uss
-│   │   │   │   ├── WorldCreateScreen.cs/.uxml/.uss
-│   │   │   │   ├── SettingsScreen.cs/.uxml/.uss
-│   │   │   │   └── PauseMenuScreen.cs/.uxml/.uss
-│   │   │   ├── HUD/
-│   │   │   │   ├── CrosshairHUD.cs            # uGUI Canvas overlay
-│   │   │   │   ├── HotbarHUD.cs
-│   │   │   │   ├── HealthBarHUD.cs
-│   │   │   │   ├── ChatHUD.cs
-│   │   │   │   └── DebugOverlayHUD.cs         # IMGUI for performance counters
-│   │   │   └── Inventory/
-│   │   │       ├── InventoryScreen.cs/.uxml
-│   │   │       ├── CraftingGridUI.cs
-│   │   │       └── ItemSlotUI.cs
+│   │   │       ├── LithforgeVoxelOpaque.shader
+│   │   │       ├── LithforgeVoxelUnlit.shader
+│   │   │       └── LithforgeVoxelTranslucent.shader
 │   │   ├── Input/
-│   │   │   ├── InputManager.cs                # InputSystem action map wrapper
-│   │   │   ├── PlayerController.cs            # CharacterController + custom voxel collision
-│   │   │   ├── CameraController.cs            # mouse look, FOV, head bob
-│   │   │   ├── BlockInteraction.cs            # place/break via VoxelRaycast
-│   │   │   └── LithforgeInputActions.inputactions  # Unity InputSystem asset
-│   │   ├── Audio/
-│   │   │   ├── AudioManager.cs                # AudioSource pool management
-│   │   │   ├── BlockSoundPlayer.cs
-│   │   │   └── AmbientSoundPlayer.cs
+│   │   │   ├── PlayerController.cs            # gravity, WASD, voxel collision, step-up
+│   │   │   ├── CameraController.cs            # mouse look
+│   │   │   ├── FPSCameraController.cs
+│   │   │   ├── BlockInteraction.cs            # progressive mining, placement from inventory
+│   │   │   └── SolidBlockQuery.cs
+│   │   ├── UI/
+│   │   │   ├── CrosshairHUD.cs
+│   │   │   ├── HotbarHUD.cs
+│   │   │   ├── InventoryScreen.cs             # UI Toolkit, E-key toggle
+│   │   │   ├── SettingsScreen.cs              # UI Toolkit, Escape key, live-apply sliders
+│   │   │   ├── LoadingScreen.cs               # UI Toolkit, sortingOrder=500, progress bar + fade
+│   │   │   ├── HudVisibilityController.cs     # hides HUDs during loading
+│   │   │   ├── ItemDisplayFormatter.cs
+│   │   │   └── Resources/DefaultPanelSettings.asset
+│   │   ├── Spawn/
+│   │   │   ├── SpawnManager.cs                # Minecraft-style safe spawn finding
+│   │   │   ├── SpawnState.cs                  # Checking → FindingY → Teleporting → Done
+│   │   │   └── SpawnProgress.cs
 │   │   ├── Debug/
-│   │   │   ├── ChunkBorderVisualizer.cs       # Gizmos wireframe
-│   │   │   ├── NoisePreviewWindow.cs          # EditorWindow for noise visualization
-│   │   │   ├── PerformanceMonitor.cs          # ProfilerMarker integration + IMGUI overlay
-│   │   │   ├── BiomeMapVisualizer.cs
-│   │   │   └── StateInspector.cs              # shows BlockState of targeted block
-│   │   └── Lithforge.Runtime.asmdef           # References: ALL Tier 1+2 packages, UnityEngine, URP, UI Toolkit, InputSystem
+│   │   │   └── DebugOverlayHUD.cs             # FPS, loaded chunks, renderer count, LOD queue
+│   │   ├── Content/
+│   │   │   ├── Blocks/                        # BlockDefinition.cs, BlockStateMapping.cs, etc.
+│   │   │   ├── Items/                         # ItemDefinition.cs (ScriptableObject)
+│   │   │   ├── Loot/                          # LootTable.cs (ScriptableObject)
+│   │   │   ├── Models/                        # BlockModel.cs, ContentModelResolver.cs
+│   │   │   ├── Recipes/                       # RecipeDefinition.cs (ScriptableObject)
+│   │   │   ├── Tags/                          # Tag.cs (ScriptableObject)
+│   │   │   ├── WorldGen/                      # BiomeDefinition.cs, OreDefinition.cs (SOs)
+│   │   │   ├── Mods/                          # ModLoader.cs (AssetBundle-based .lithmod loading)
+│   │   │   ├── Behaviors/                     # BehaviorAction.cs and subclasses
+│   │   │   └── Settings/                      # SettingsLoader.cs, ChunkSettings.cs, etc. (SOs)
+│   │   └── Lithforge.Runtime.asmdef           # References: ALL Tier 1+2 packages, UnityEngine, URP, InputSystem
 │   │
-│   ├── Content/                               # Data-driven content (loaded from StreamingAssets at runtime)
-│   │   └── lithforge/
-│   │       ├── assets/lithforge/
-│   │       │   ├── blockstates/
-│   │       │   ├── models/block/
-│   │       │   ├── models/block/_parents/
-│   │       │   ├── models/item/
-│   │       │   ├── textures/block/
-│   │       │   ├── textures/item/
-│   │       │   ├── textures/colormap/
-│   │       │   └── sounds/
-│   │       └── data/lithforge/
-│   │           ├── blocks/
-│   │           ├── items/
-│   │           ├── loot_tables/blocks/
-│   │           ├── recipes/crafting/
-│   │           ├── recipes/smelting/
-│   │           ├── tags/blocks/
-│   │           ├── tags/items/
-│   │           └── worldgen/
-│   │               ├── biome/
-│   │               ├── configured_feature/
-│   │               ├── placed_feature/
-│   │               └── noise_settings/
+│   ├── Editor/
+│   │   ├── Lithforge.Editor.asmdef            # Editor-only, references Core + Voxel + Runtime
+│   │   ├── Content/                           # BlockDefinitionEditor, ContentDashboard, JsonToSOConverter
+│   │   └── Settings/                          # SettingsAssetCreator
 │   │
-│   ├── StreamingAssets/
-│   │   └── content/ → symlink or copy of Content/ for runtime access
+│   ├── Resources/
+│   │   ├── Content/                           # ScriptableObject assets loaded via Resources.LoadAll<T>()
+│   │   │   ├── Blocks/                        # 19x BlockDefinition.asset
+│   │   │   ├── BlockStates/                   # 19x BlockStateMapping.asset
+│   │   │   ├── Models/                        # 16x BlockModel.asset (cube, cube_all, cube_column, etc.)
+│   │   │   ├── Items/                         # 21x ItemDefinition.asset
+│   │   │   ├── ItemModels/                    # ~17x BlockModel.asset
+│   │   │   ├── LootTables/                    # ~21x LootTable.asset
+│   │   │   ├── Tags/                          # 6x Tag.asset
+│   │   │   ├── Recipes/                       # 13x RecipeDefinition.asset
+│   │   │   ├── Biomes/                        # 4x BiomeDefinition.asset
+│   │   │   ├── Ores/                          # 4x OreDefinition.asset
+│   │   │   └── Textures/
+│   │   │       ├── Blocks/                    # ~30x Texture2D PNG
+│   │   │       └── Items/                     # ~27x Texture2D PNG
+│   │   └── Settings/                          # 6x Settings ScriptableObject assets
+│   │       ├── ChunkSettings.asset
+│   │       ├── WorldGenSettings.asset
+│   │       ├── RenderingSettings.asset
+│   │       ├── PhysicsSettings.asset
+│   │       ├── GameplaySettings.asset
+│   │       └── DebugSettings.asset
 │   │
 │   └── Settings/
 │       ├── URPAsset.asset
@@ -354,22 +245,8 @@ Lithforge/
 │       └── QualitySettings.asset
 │
 ├── Docs/
-│   ├── 01_PROJECT_OVERVIEW.md
-│   ├── 02_SOLUTION_ARCHITECTURE.md
-│   ├── 03_VOXEL_CORE.md
-│   ├── 04_MESHING_AND_RENDERING.md
-│   ├── 05_WORLD_GENERATION.md
-│   ├── 06_THREADING_AND_BURST.md
-│   ├── 07_DATA_DRIVEN_CONTENT.md
-│   ├── 08_REFERENCE_ANALYSIS.md
-│   ├── 09_ROADMAP.md
-│   ├── 10_ERROR_HANDLING.md
-│   ├── 11_PLATFORM_ARCHITECTURE.md
-│   ├── 12_OBSERVABILITY.md
+│   ├── 01_PROJECT_OVERVIEW.md ... 12_OBSERVABILITY.md
 │   └── adr/
-│       ├── ADR-001_unity_over_godot.md
-│       ├── ADR-002_three_tier_architecture.md
-│       └── ...
 │
 ├── Sources/                                   # Reference implementations (git-ignored)
 │   ├── luanti-master/                         # C++ voxel engine (Minetest fork)
@@ -379,6 +256,18 @@ Lithforge/
 ├── .editorconfig
 └── Lithforge.sln                              # Generated by Unity
 ```
+
+### Planned Packages (NOT YET IMPLEMENTED)
+
+The following packages are planned but do not exist in the codebase yet:
+
+| Package | Tier | Purpose | Current Location |
+|---------|------|---------|-----------------|
+| `com.lithforge.crafting` | 1 | Separate crafting package | CraftingEngine lives in com.lithforge.voxel/Runtime/Crafting/ |
+| `com.lithforge.modding` | 1 | Mod manifest parsing, load order, APIs | ModLoader lives in Assets/Lithforge.Runtime/Content/Mods/ |
+| `com.lithforge.lighting` | 2 | Standalone light engine | Light jobs live in com.lithforge.worldgen/Runtime/Stages/ |
+| `com.lithforge.entity` | 2 | DOTS ECS entities (mobs, NPCs) | Not started |
+| `com.lithforge.network` | 1/2 | Client-server multiplayer | Not started |
 
 ---
 
@@ -390,30 +279,33 @@ Lithforge/
                     │ (pure C#)        │  depends on: NOTHING
                     └────────┬─────────┘
                              │
-         ┌───────────────────┼───────────────────┐
-         │                   │                   │
-   ┌─────▼──────┐    ┌──────▼──────┐    ┌──────▼──────┐
-   │  Crafting   │    │   Modding   │    │   Voxel     │  TIER 1 (data) + TIER 2 (native)
-   │  (Tier 1)   │    │  (Tier 1)   │    │  (Tier 2)   │
-   └─────────────┘    └─────────────┘    └──────┬──────┘
-                                                 │
-                    ┌────────────────┬────────────┼────────────┬──────────────┐
-                    │                │            │            │              │
-              ┌─────▼─────┐  ┌──────▼─────┐ ┌────▼────┐ ┌────▼─────┐ ┌─────▼─────┐
-              │ WorldGen   │  │  Meshing   │ │Lighting │ │ Physics  │ │  Entity   │
-              │ (Tier 2)   │  │ (Tier 2)   │ │(Tier 2) │ │(Tier 2)  │ │(Tier 2)   │
-              └────────────┘  └────────────┘ └─────────┘ └──────────┘ └───────────┘
-                                                                          │ (DOTS)
-═══════════════════════════════ TIER 3 BOUNDARY ═══════════════════════════════════
+                    ┌────────▼─────────┐
+                    │   Voxel          │  TIER 2
+                    │   (Tier 2)       │  + Burst, Collections, Math, Newtonsoft.Json
+                    └────────┬─────────┘
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+    ┌─────▼─────┐    ┌──────▼─────┐    ┌──────▼──────┐
+    │ WorldGen   │    │  Meshing   │    │  Physics    │
+    │ (Tier 2)   │    │ (Tier 2)   │    │ (Tier 2)    │
+    │ + Jobs     │    │ + Jobs     │    │ (no Jobs)   │
+    └────────────┘    └────────────┘    └─────────────┘
 
-                           ┌───────────────────┐
-                           │ Lithforge.Runtime  │  TIER 3
-                           │ (UnityEngine)      │  References ALL above
-                           └─────────┬─────────┘
-                                     │
-              ┌──────────┬───────────┼───────────┬──────────┐
-              │          │           │           │          │
-          Rendering     UI        Input       Audio      Debug
+═══════════════════════ TIER 3 BOUNDARY ═══════════════════
+
+                    ┌───────────────────┐
+                    │ Lithforge.Runtime  │  TIER 3
+                    │ (UnityEngine)      │  References ALL above
+                    └─────────┬─────────┘
+                              │
+        ┌──────────┬──────────┼──────────┬──────────┐
+        │          │          │          │          │
+    Bootstrap  Scheduling  Rendering    UI      Content
+                              │
+                        ┌─────┼─────┐
+                        │     │     │
+                     Input  Spawn  Debug
 ```
 
 ---
@@ -423,14 +315,10 @@ Lithforge/
 | Assembly | Tier | May Reference | Must NOT Reference |
 |----------|------|--------------|-------------------|
 | `Lithforge.Core` | 1 | (nothing) | Any Unity namespace |
-| `Lithforge.Crafting` | 1 | Core | Any Unity namespace |
-| `Lithforge.Modding` | 1 | Core | Any Unity namespace |
-| `Lithforge.Voxel` | 2 | Core, Unity.Collections, Unity.Mathematics, Unity.Burst | UnityEngine, Unity.Entities |
+| `Lithforge.Voxel` | 2 | Core, Unity.Collections, Unity.Mathematics, Unity.Burst, Newtonsoft.Json | UnityEngine |
 | `Lithforge.WorldGen` | 2 | Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs | UnityEngine |
 | `Lithforge.Meshing` | 2 | Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs | UnityEngine |
-| `Lithforge.Lighting` | 2 | Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs | UnityEngine |
 | `Lithforge.Physics` | 2 | Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst | UnityEngine |
-| `Lithforge.Entity` | 2 | Core, Voxel, Physics, Unity.Entities, Unity.Transforms, Unity.Collections, Unity.Mathematics, Unity.Burst | UnityEngine (except for authoring) |
 | `Lithforge.Runtime` | 3 | ALL packages, UnityEngine, URP, InputSystem, UIToolkit | (no restrictions) |
 
 ---

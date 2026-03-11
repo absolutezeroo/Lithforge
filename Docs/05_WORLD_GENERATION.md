@@ -12,17 +12,17 @@ GenerationPipeline (managed orchestrator)
 ├── BiomeAssignmentJob     [BurstCompile]  priority: 200
 ├── SurfaceBuilderJob      [BurstCompile]  priority: 300
 ├── OreGenerationJob       [BurstCompile]  priority: 400
-├── DecorationStage        managed         priority: 500  (cross-chunk structures)
-├── StructureStage         managed         priority: 600  (villages, dungeons)
-└── InitialLightingJob     [BurstCompile]  priority: 700
+├── InitialLightingJob     [BurstCompile]  priority: 500
+└── LightPropagationJob    [BurstCompile]  priority: 600
 ```
 
-### Why Stages Are Not All Burst Jobs
+**Note**: `DecorationStage` (trees) runs on the main thread after generation jobs complete, not as part of the Burst job chain. It is invoked by `GenerationScheduler` after the `GenerationHandle` completes.
 
-Most stages are Burst-compiled `IJob` structs that operate on NativeArrays. Two exceptions:
+### Why DecorationStage Is Not a Burst Job
 
-- **DecorationStage**: Tree/structure placement may cross chunk boundaries, requiring writes to the `ConcurrentDictionary<int3, PendingDecorations>` (managed collection). The stage schedules a Burst job for the actual block placement within the chunk, but the cross-boundary coordination is managed.
-- **StructureStage**: Large multi-chunk structures (villages, dungeons) require complex layout logic with managed collections. Block placement within each chunk section is Burst-compiled.
+Tree placement may cross chunk boundaries, requiring writes to `PendingDecorationStore` (managed collection). The actual block writes are simple `StateId` assignments. Cross-boundary blocks are stored as `PendingBlock` entries and applied when the target chunk reaches its own `Decorate()` phase.
+
+**StructureStage** (villages, dungeons) is listed in the pipeline design but NOT yet implemented.
 
 ### Pipeline Execution
 
@@ -146,55 +146,17 @@ public struct GenerationHandle : System.IDisposable
 
 ### TerrainShapeJob
 
-```csharp
-[BurstCompile]
-public struct TerrainShapeJob : IJob
-{
-    // Outputs
-    public NativeArray<StateId> ChunkData;
-    public NativeArray<int> HeightMap;
+Uses **2D heightmap** noise to determine terrain shape. Each column (x, z) gets a single surface height derived from `NativeNoise.Sample2D()`:
 
-    // Inputs
-    [ReadOnly] public long Seed;
-    [ReadOnly] public int3 ChunkCoord;
-    [ReadOnly] public NativeNoiseConfig NoiseConfig;
-    [ReadOnly] public int SeaLevel;
-    [ReadOnly] public StateId StoneId;
-    [ReadOnly] public StateId WaterId;
-    [ReadOnly] public StateId AirId;
-
-    public void Execute()
-    {
-        int worldX = ChunkCoord.x * ChunkConstants.Size;
-        int worldY = ChunkCoord.y * ChunkConstants.Size;
-        int worldZ = ChunkCoord.z * ChunkConstants.Size;
-
-        for (int x = 0; x < ChunkConstants.Size; x++)
-        {
-            for (int z = 0; z < ChunkConstants.Size; z++)
-            {
-                float noiseVal = NativeNoise.Sample2D(
-                    worldX + x, worldZ + z, NoiseConfig, Seed);
-                int surfaceY = SeaLevel + (int)(noiseVal * NoiseConfig.HeightScale);
-                HeightMap[z * ChunkConstants.Size + x] = surfaceY;
-
-                for (int y = 0; y < ChunkConstants.Size; y++)
-                {
-                    int wy = worldY + y;
-                    int index = ChunkData_GetIndex(x, y, z);
-
-                    if (wy <= surfaceY)
-                        ChunkData[index] = StoneId;
-                    else if (wy <= SeaLevel)
-                        ChunkData[index] = WaterId;
-                    else
-                        ChunkData[index] = AirId;
-                }
-            }
-        }
-    }
-}
 ```
+surfaceY = SeaLevel + round(noiseValue)
+```
+
+For each voxel: below `surfaceY` → stone, between `surfaceY` and `SeaLevel` → water, above both → air.
+
+The `HeightMap` output (32×32 = 1024 entries) is reused by `BiomeAssignmentJob` and `SurfaceBuilderJob`.
+
+**Note**: 3D density-based terrain (overhangs, floating islands) is NOT currently implemented. The terrain is strictly a heightmap with no overhangs. 3D terrain generation via density noise is a planned future enhancement.
 
 ### NativeNoise — Burst-Compatible Noise
 
@@ -265,36 +227,69 @@ public struct NativeNoiseConfig
 
 ### Ore Types
 
-All 6 ore types from Luanti, implemented as Burst jobs:
+Two ore types are currently implemented in `OreGenerationJob` (Burst):
 
-| Type | Algorithm | Burst | Parameters |
-|------|-----------|-------|------------|
-| Scatter | Random positions at configured density | Yes | density, y_range |
-| Blob | Spheroid clusters at random centers | Yes | cluster_size, y_range |
-| Vein | 3D noise-guided branching paths | Yes | noise_config, thickness |
-| Sheet | Thin horizontal layer | Yes | thickness, y_level, noise |
-| Stratum | Continuous horizontal band | Yes | thickness, y_level |
-| Puff | Noise-shaped 3D deposits | Yes | noise_config, threshold |
+| Type | Algorithm | Parameters |
+|------|-----------|------------|
+| Scatter | Random positions at configured frequency | minY, maxY, frequency |
+| Blob | Spheroid clusters at random centers | veinSize, minY, maxY, frequency |
+
+Each ore uses a deterministic `Random` seeded per ore per chunk. The job replaces `replaceBlock` (usually stone) with `oreBlock` when placement conditions are met.
+
+Additional ore types from Luanti (Vein, Sheet, Stratum, Puff) are planned but not yet implemented.
+
+### Tree Templates and Per-Biome Selection
+
+Three tree templates are defined in `TreeTemplate.cs` as static methods:
+
+| Index | Template | Shape |
+|-------|----------|-------|
+| 0 | `OakTree` | 5-block trunk, 5×5×3 canopy + 3×3 top |
+| 1 | `BirchTree` | 7-block trunk (tall), 3×3×3 canopy + 1×1 top |
+| 2 | `SpruceTree` | 6-block trunk, tapering 5×5→3×3→1×1 canopy |
+
+All three currently use oak_log and oak_leaves StateIds (no separate wood types yet — shapes differ but materials are identical).
+
+Each `BiomeDefinition` has a `treeType` field (0–2) that maps to `NativeBiomeData.TreeTemplateIndex`. `DecorationStage` reads this per-column to select the template.
+
+Tree placement per column: read `biomeId` from biomeMap → fetch `NativeBiomeData` (O(1) direct index) → if `TreeDensity > 0`, roll deterministic hash from world XZ + seed → if `roll < TreeDensity`, call `PlaceTree(biome.TreeTemplateIndex)`.
 
 ### Cross-Chunk Decoration Handling
 
-Trees and structures that cross chunk boundaries use a **pending decorations** system:
+Trees that cross chunk boundaries use a **pending decorations** system via `PendingDecorationStore`:
 
 ```
 1. During DecorationStage for chunk C:
-   - For each decoration to place:
+   - For each tree block to place:
      - Blocks within C → write directly to ChunkData
-     - Blocks outside C → store in ConcurrentDictionary<int3, List<PendingBlock>>
+     - Blocks outside C → compute target chunk coord, store as PendingBlock in PendingDecorationStore
 
-2. When neighbor chunk N is generated:
-   - After N's own DecorationStage:
-   - Check ConcurrentDictionary for pending blocks targeting N
-   - Apply pending blocks to N's ChunkData
-   - Remove consumed entries
+2. When neighbor chunk N runs Decorate():
+   - First calls _pendingStore.ApplyPending(coord) to apply deferred blocks from other chunks
+   - Then runs its own tree placement
 
-3. ConcurrentDictionary is managed code (not Burst).
+3. PendingDecorationStore is managed code (not Burst).
    The actual block writes are simple StateId assignments.
 ```
+
+### CaveCarverJob — Depth Variation
+
+Spaghetti caves use two 3D noise samples with different seed offsets, combined as `caveValue = n1² + n2²`. A voxel is carved when `caveValue < adjustedThreshold`.
+
+Depth factor makes caves larger underground:
+```
+depthFactor = 1.0 + 0.5 * saturate((SeaLevel - worldY) / SeaLevel)
+adjustedThreshold = CaveThreshold * depthFactor
+```
+At sea level, `depthFactor = 1.0`. At `worldY = 0`, `depthFactor = 1.5` (caves up to 50% larger).
+
+Guards: carving skips Y < `MinCarveY`, skips a buffer zone near sea level (`SeaLevelCarveBuffer`), and never carves air or water blocks.
+
+### Generation Scheduling — Frustum Priority
+
+`GenerationScheduler.ScheduleJobs()` gets candidates from `ChunkManager.FillChunksToGenerate()`, then sorts them with frustum-visible chunks first (stable partial sort). This ensures visible terrain generates before off-screen chunks.
+
+If a saved chunk exists in `WorldStorage`, it loads synchronously (no job scheduled) and transitions directly to `Generated`. Otherwise, the 7-stage Burst job chain runs on a worker thread.
 
 ---
 
@@ -309,9 +304,9 @@ public struct NativeBiomeData
     public byte BiomeId;
     public float TemperatureMin;
     public float TemperatureMax;
+    public float TemperatureCenter;     // for distance-based selection
     public float HumidityMin;
     public float HumidityMax;
-    public float TemperatureCenter;     // for distance-based selection
     public float HumidityCenter;
 
     public StateId TopBlock;            // grass_block, sand, snow
@@ -319,6 +314,9 @@ public struct NativeBiomeData
     public StateId StoneBlock;          // stone, deepslate
     public StateId UnderwaterBlock;     // gravel, sand
     public byte FillerDepth;            // how many layers of filler
+    public float TreeDensity;           // probability per column (0.0 = no trees)
+    public float HeightModifier;        // terrain height adjustment
+    public byte TreeTemplateIndex;      // 0=Oak, 1=Birch, 2=Spruce
 }
 ```
 
@@ -392,4 +390,6 @@ public struct BiomeAssignmentJob : IJob
 5. WorldGen output is deterministic given the same seed and registered content definitions.
 6. No stage allocates NativeContainers with `Allocator.Persistent` — all per-generation allocations use `Allocator.TempJob`.
 7. The `GenerationHandle` caller is responsible for `Dispose()` of all temporary NativeArrays after job completion.
-8. Decoration overflow (cross-chunk blocks) is handled via managed `ConcurrentDictionary`, never via Burst.
+8. Decoration overflow (cross-chunk blocks) is handled via managed `PendingDecorationStore`, never via Burst.
+9. `BiomeData[i].BiomeId == i` — biome lookup is O(1) by direct index. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.
+10. `DecorationStage` runs on the main thread after the Burst job chain completes, invoked by `GenerationScheduler`.

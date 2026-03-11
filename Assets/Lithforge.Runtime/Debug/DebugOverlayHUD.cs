@@ -1,4 +1,5 @@
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Input;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Debug
@@ -8,6 +9,7 @@ namespace Lithforge.Runtime.Debug
         private GameLoop _gameLoop;
         private Voxel.Chunk.ChunkManager _chunkManager;
         private Rendering.ChunkRenderManager _chunkRenderManager;
+        private PlayerController _playerController;
 
         private Camera _mainCamera;
         private float _fps;
@@ -38,7 +40,8 @@ namespace Lithforge.Runtime.Debug
             GameLoop gameLoop,
             Voxel.Chunk.ChunkManager chunkManager,
             DebugSettings settings,
-            Rendering.ChunkRenderManager chunkRenderManager = null)
+            Rendering.ChunkRenderManager chunkRenderManager = null,
+            PlayerController playerController = null)
         {
             _gameLoop = gameLoop;
             _chunkManager = chunkManager;
@@ -50,6 +53,7 @@ namespace Lithforge.Runtime.Debug
             _overlayPadding = settings.OverlayPadding;
             _overlayLineSpacing = settings.OverlayLineSpacing;
             _chunkRenderManager = chunkRenderManager;
+            _playerController = playerController;
             _visible = settings.ShowDebugOverlay;
             _mainCamera = Camera.main;
         }
@@ -103,6 +107,7 @@ namespace Lithforge.Runtime.Debug
             if (_chunkManager != null) { lineCount++; }
             if (_chunkRenderManager != null) { lineCount++; }
             if (_gameLoop != null) { lineCount += 2; }
+            if (_playerController != null && _playerController.IsFlying) { lineCount++; }
 
             // Background panel
             int panelHeight = lineCount * lineHeight + padding * 2;
@@ -141,6 +146,15 @@ namespace Lithforge.Runtime.Debug
 
                 GUI.Label(new Rect(x, y, labelWidth, lineHeight),
                     $"Mesh Queue: {_gameLoop.PendingMeshCount}  LOD Queue: {_gameLoop.PendingLODMeshCount}", _style);
+                y += lineHeight;
+            }
+
+            if (_playerController != null && _playerController.IsFlying)
+            {
+                string flyLabel = _playerController.IsNoclip
+                    ? $"FLY [noclip] {_playerController.FlySpeed:F1} b/s"
+                    : $"FLY {_playerController.FlySpeed:F1} b/s";
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight), flyLabel, _style);
             }
         }
     }

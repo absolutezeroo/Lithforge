@@ -7,25 +7,30 @@
 - **Engine**: Unity / C# with Burst, Jobs, NativeContainers, DOTS (entities only)
 - **Render Pipeline**: URP (Universal Render Pipeline)
 - **Architecture**: Three-tier (Pure C# → Unity Core → Unity Runtime)
-- **Data convention**: Minecraft-style (assets/data split, one file per definition)
+- **Data convention**: ScriptableObjects in `Assets/Resources/Content/`, loaded via `Resources.LoadAll<T>()`
 - **License**: LGPL-2.1-or-later
 
 ## Three-Tier Architecture
 
 ```
 Tier 1 — Pure C# (no Unity dependency)
-  Packages: Core, Crafting, Modding
-  Contains: definitions, registries, content loading, serialization, validation
+  Package: com.lithforge.core
+  Contains: ResourceId, Registry<T>, ContentValidator, ILogger
 
 Tier 2 — Unity Core (Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs)
-  Packages: Voxel, WorldGen, Meshing, Lighting, Physics, Entity
-  Contains: NativeArray chunk data, Burst-compiled jobs, NativeStateRegistry
-  NO UnityEngine references.
+  Packages: com.lithforge.voxel, com.lithforge.worldgen, com.lithforge.meshing, com.lithforge.physics
+  Contains: NativeArray chunk data, Burst-compiled jobs, NativeStateRegistry, ChunkManager,
+            WorldStorage, CraftingEngine, LootResolver, Inventory
+  NO UnityEngine references (except Unity.Mathematics, Unity.Collections, Unity.Burst, Unity.Jobs).
 
 Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
   Location: Assets/Lithforge.Runtime/
-  Contains: MonoBehaviours, mesh upload, shaders, UI, input, audio, debug
+  Contains: GameLoop, Schedulers (GenerationScheduler, MeshScheduler, LODScheduler),
+            ChunkRenderManager, MeshUploader, ContentPipeline, UI (HotbarHUD, InventoryScreen,
+            SettingsScreen, LoadingScreen), SkyController, SpawnManager, Bootstrap
 ```
+
+**Planned but not yet implemented**: com.lithforge.crafting (separate package), com.lithforge.modding, com.lithforge.lighting (standalone), com.lithforge.entity (DOTS ECS). Currently, crafting/loot/inventory live in com.lithforge.voxel, and lighting jobs live in com.lithforge.worldgen.
 
 ## Critical Rules
 
@@ -72,7 +77,7 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 |------|------|-----------|---------|
 | `ResourceId` | 1 | No (string) | "namespace:name" identifier |
 | `Registry<T>` | 1 | No (managed) | Frozen read-only registry |
-| `BlockDefinition` | 1 | No (managed) | Data-driven block properties |
+| `BlockDefinition` | 3 | No (ScriptableObject) | Data-driven block properties |
 | `StateId` | 2 | Yes (ushort) | Index into NativeStateRegistry |
 | `BlockStateCompact` | 2 | Yes (struct) | Cached render/physics flags for Burst |
 | `NativeStateRegistry` | 2 | Yes (NativeArray) | Burst-accessible state lookup |
@@ -83,33 +88,66 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 
 ## Dual Representation Pattern
 
-Types that need both managed (content loading, modding) and Burst-compatible forms:
+ScriptableObjects (managed, editor-friendly) are baked to Burst-compatible native structs at startup:
 
 ```
-BlockState (managed, full properties) ──BakeNative()──► BlockStateCompact (blittable)
-Registry<BlockDefinition> ──BakeNative()──► NativeStateRegistry (NativeArray)
-BiomeDefinition (managed) ──BakeNative()──► NativeBiomeData (blittable)
-OreDefinition (managed) ──BakeNative()──► NativeOreConfig (blittable)
-Atlas regions (managed) ──BakeNative()──► NativeAtlasLookup (NativeArray)
+BlockDefinition (SO) → StateRegistry ──BakeNative()──► NativeStateRegistry (NativeArray<BlockStateCompact>)
+BiomeDefinition (SO) ──BakeNative()──► NativeBiomeData (blittable)
+OreDefinition (SO) ──BakeNative()──► NativeOreConfig (blittable)
+Atlas regions ──BakeNative()──► NativeAtlasLookup (NativeArray)
 ```
 
-Baking happens once at content load freeze. Both representations must be kept in sync. The managed version is authoritative (source of truth); the native version is derived.
+Baking happens once during `ContentPipeline.Build()`. The managed SO is authoritative (source of truth); the native version is derived and read-only.
 
-## Content Files
+## Content System
 
-Location: `Assets/StreamingAssets/content/` (core) or `{persistentDataPath}/mods/` (mods)
+Content is defined via **Unity ScriptableObjects** loaded through `Resources.LoadAll<T>()` at startup by `ContentPipeline.Build()`.
+
+Location: `Assets/Resources/Content/`
 
 ```
-Block definition:     data/{ns}/blocks/{id}.json
-BlockState mapping:   assets/{ns}/blockstates/{id}.json
-Block model:          assets/{ns}/models/block/{id}.json
-Item model:           assets/{ns}/models/item/{id}.json
-Loot table:           data/{ns}/loot_tables/blocks/{id}.json
-Tags:                 data/{ns}/tags/blocks/{tag}.json
-Recipes:              data/{ns}/recipes/{type}/{id}.json
-Biomes:               data/{ns}/worldgen/biome/{id}.json
-Noise settings:       data/{ns}/worldgen/noise_settings/{id}.json
+Blocks/          → BlockDefinition (ScriptableObject)
+BlockStates/     → BlockStateMapping (ScriptableObject)
+Models/          → BlockModel (ScriptableObject)
+Items/           → ItemDefinition (ScriptableObject)
+ItemModels/      → BlockModel (ScriptableObject)
+LootTables/      → LootTable (ScriptableObject)
+Tags/            → Tag (ScriptableObject)
+Recipes/         → RecipeDefinition (ScriptableObject)
+Biomes/          → BiomeDefinition (ScriptableObject)
+Ores/            → OreDefinition (ScriptableObject)
+Textures/Blocks/ → Texture2D (block face textures)
+Textures/Items/  → Texture2D (item icons)
 ```
+
+Settings: `Assets/Resources/Settings/`
+
+```
+ChunkSettings.asset      → render distance, LOD distances, spawn radius, mesh budget
+WorldGenSettings.asset   → noise configs (terrain, cave, temperature, humidity), sea level
+RenderingSettings.asset  → fog, AO, sky colors
+PhysicsSettings.asset    → gravity, step height
+GameplaySettings.asset   → gameplay tuning
+DebugSettings.asset      → debug overlay toggles
+```
+
+**Loading pipeline** (`ContentPipeline.Build()` is an `IEnumerable<string>` yielding phase descriptions):
+1. Load BlockDefinitions → register in StateRegistry
+2. Expand BlockStates (cartesian product of properties) → StateRegistry
+3. Resolve BlockModels (ContentModelResolver with parent inheritance chain)
+4. Resolve per-state per-face Texture2D references
+5. Build Texture2DArray atlas (AtlasBuilder)
+6. Patch texture indices in StateRegistry
+7. Load BiomeDefinitions, OreDefinitions
+8. Load ItemDefinitions
+9. Load LootTables → convert to LootTableDefinition (Tier 2)
+10. Load Tags → convert to TagDefinition, build TagRegistry
+11. Load RecipeDefinitions → build CraftingEngine
+12. Build ItemRegistry (block items + standalone items)
+13. Load AssetBundle mods from `persistentDataPath/mods/*.lithmod`
+14. BakeNative() → NativeStateRegistry + NativeAtlasLookup
+
+**Mods**: Currently loaded as Unity AssetBundles (`.lithmod` files) containing ScriptableObjects. JSON-based content loading for mods is planned but NOT implemented.
 
 ## Job Data Flow
 
@@ -122,8 +160,8 @@ Main Thread ──schedule──► Worker Thread (Burst Job) ──produce─�
 
 ## ECS Scope
 
-DOTS/ECS is used **ONLY** for entity simulation (mobs, NPCs, projectiles).
-NOT for: chunks, meshing, worldgen, lighting, crafting, content loading, modding, UI.
+DOTS/ECS is **planned** for entity simulation (mobs, NPCs, projectiles) but NOT yet implemented.
+No com.lithforge.entity package exists yet. Chunks, meshing, worldgen, lighting, crafting, content loading, and UI do not use ECS.
 
 ## Allocation Rules (Main Thread)
 
@@ -138,12 +176,33 @@ NOT for: chunks, meshing, worldgen, lighting, crafting, content loading, modding
 - Light data is **nibble-packed**: high 4 bits = sunlight (0–15), low 4 bits = block light (0–15). Use `LightUtils.Pack/GetSunLight/GetBlockLight`.
 - **Cross-chunk light propagation**: `LightPropagationJob` collects border light leaks into `NativeList<NativeBorderLightEntry>`. After job completion, `GenerationScheduler` copies these to managed `BorderLightEntry` on `ManagedChunk` and marks neighbors for `LightUpdateJob`.
 - **Light removal on block edit**: `SetBlock()` sets chunk state to `RelightPending`. `MeshScheduler.ProcessRelightPending()` runs `LightRemovalJob` (BFS removal + re-seed propagation) before meshing.
-- **ChunkState FSM**: `Unloaded → Loading → Generating → Decorating → RelightPending → Generated → Meshing → Ready`. The `RelightPending` state gates meshing until relight completes.
+- **ChunkState FSM**: `Unloaded → Loading → Generating → Decorating → RelightPending → Generated → Meshing → Ready`. The `RelightPending` state gates meshing until relight completes. `Generated → Meshing` is handled by either MeshScheduler (LOD0) or LODScheduler (LOD>0).
 
 ## Storage Safety
 
 - **Atomic file writes**: `RegionFile.Flush()` writes to a `.tmp` file, flushes, rotates the original to `.bak`, then renames `.tmp` to final. On failure, deletes `.tmp` and leaves the original untouched.
 - **ChunkSerializer** uses `NativeArray.CopyTo(byte[])` and `CopyFrom(byte[])` for bulk light data transfer — never byte-by-byte loops.
+
+## LOD System
+
+Dual-path meshing from `Generated` state:
+
+```
+Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)                    → Ready
+            └─ LODLevel > 0 → LODScheduler  (VoxelDownsampleJob + LODMeshJob)   → Ready
+```
+
+- `LODScheduler.UpdateLODLevels()` assigns LOD levels to both Generated and Ready chunks based on Chebyshev XZ distance from camera chunk.
+- LOD distances are configured in ChunkSettings: LOD1 (2x2x2 merge → 16³), LOD2 (4x4x4 → 8³), LOD3 (8x8x8 → 4³).
+- When a Ready chunk's LOD level changes:
+  - LOD0 → LOD>0: LODScheduler replaces the mesh with a downsampled version.
+  - LOD>0 → LOD0: chunk state reset to `Generated`, MeshScheduler remeshes at full detail.
+- MeshScheduler filters out LODLevel > 0 chunks (they belong to LODScheduler).
+- Frustum culling on MeshScheduler **prioritizes** but does NOT block meshing — off-frustum chunks mesh if budget remains.
+- LODMeshJob emits full-brightness vertices (AO=1, light=1) — no AO or lighting at LOD.
+- VoxelDownsampleJob uses majority-vote: if >50% of source voxels are air, output is air; otherwise picks first opaque block.
+
+**Invariant**: A chunk in `Generated` state MUST always have a path to `Ready`, regardless of its LODLevel.
 
 ## Known Limits
 

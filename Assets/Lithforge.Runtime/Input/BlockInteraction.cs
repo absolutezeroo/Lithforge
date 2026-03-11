@@ -63,6 +63,9 @@ namespace Lithforge.Runtime.Input
         // Player transform (feet position)
         private Transform _playerTransform;
 
+        // Player controller reference (for fly mode scroll-wheel gating)
+        private PlayerController _playerController;
+
         // Mining state
         private bool _isMining;
         private int3 _miningBlockCoord;
@@ -87,7 +90,8 @@ namespace Lithforge.Runtime.Input
             LootResolver lootResolver,
             TagRegistry tagRegistry,
             Transform playerTransform,
-            PhysicsSettings physics)
+            PhysicsSettings physics,
+            PlayerController playerController)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
@@ -106,6 +110,7 @@ namespace Lithforge.Runtime.Input
             _defaultMaxStackSize = physics.DefaultMaxStackSize;
             _playerHalfWidth = physics.PlayerHalfWidth;
             _playerHeight = physics.PlayerHeight;
+            _playerController = playerController;
             _lootRandom = new Random(Environment.TickCount);
             _isSolidDelegate = SolidBlockQuery.CreateDelegate(_chunkManager, _nativeStateRegistry);
         }
@@ -185,6 +190,12 @@ namespace Lithforge.Runtime.Input
 
         private void HandleScrollWheel(Mouse mouse)
         {
+            // In fly mode, scroll wheel controls fly speed instead of hotbar
+            if (_playerController != null && _playerController.IsFlying)
+            {
+                return;
+            }
+
             float scroll = mouse.scroll.ReadValue().y;
 
             if (scroll > 0.1f)

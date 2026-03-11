@@ -91,6 +91,12 @@ namespace Lithforge.Physics
                 }
             }
 
+            // Save state for step-up: we need the pre-wall-collision position
+            // and velocities to test whether stepping up clears the obstacle.
+            float savedVelocityX = velocity.x;
+            float savedVelocityZ = velocity.z;
+            float3 posAfterY = position;
+
             // Resolve X axis
             position.x += velocity.x;
             entityBox = BuildEntityBox(position, halfWidth, height);
@@ -181,15 +187,17 @@ namespace Lithforge.Physics
 
             // Step-up: if a horizontal collision occurred and the player is on the ground,
             // check if stepping up by StepHeight would clear the obstruction.
+            // We test at the INTENDED horizontal position (before wall pushback) so that
+            // full-height blocks correctly block the step-up attempt.
             if (result.OnGround && (hitWallX || hitWallZ))
             {
                 float stepHeight = PhysicsConstants.StepHeight;
-                float3 testPos = position;
-                testPos.y += stepHeight;
+                float3 testPos = new float3(
+                    posAfterY.x + savedVelocityX,
+                    posAfterY.y + stepHeight,
+                    posAfterY.z + savedVelocityZ);
                 Aabb testBox = BuildEntityBox(testPos, halfWidth, height);
 
-                // Compute fresh broad-phase bounds from the stepped-up test position,
-                // since the original bounds were computed before X/Z corrections.
                 Aabb stepBroadPhase = testBox.Expand(new float3(0.01f));
                 int stepMinX = (int)math.floor(stepBroadPhase.Min.x);
                 int stepMinY = (int)math.floor(stepBroadPhase.Min.y);
@@ -225,7 +233,7 @@ namespace Lithforge.Physics
 
                 if (!blocked)
                 {
-                    position.y += stepHeight;
+                    position = testPos;
                     result.HitWall = false;
                 }
             }

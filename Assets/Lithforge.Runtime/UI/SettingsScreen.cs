@@ -223,6 +223,8 @@ namespace Lithforge.Runtime.UI
             AddKeybindRow(scrollView, "Inventory", "E");
             AddKeybindRow(scrollView, "Break Block", "Left Click");
             AddKeybindRow(scrollView, "Place Block", "Right Click");
+            AddKeybindRow(scrollView, "Fly Mode", "F");
+            AddKeybindRow(scrollView, "Noclip (while flying)", "N");
 
             // Close button
             Button closeButton = new Button(() => { Close(); });

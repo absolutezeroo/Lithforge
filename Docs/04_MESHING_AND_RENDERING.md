@@ -306,9 +306,47 @@ public Texture2DArray BuildTextureArray(Dictionary<ResourceId, byte[]> texturePn
 
 ## LOD System
 
-Identical to engine-agnostic spec (4 levels: Full → Half → Quarter → Heightmap). Implementation uses separate `Mesh` objects per LOD level. `LODRenderer` swaps the `MeshFilter.sharedMesh` when LOD level changes.
+Dual-path meshing from `Generated` state, managed by separate schedulers:
 
-Unity's built-in `LODGroup` component is NOT used because our LOD decisions are chunk-distance-based, not per-object screen-size-based.
+```
+Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)                    → Ready
+            └─ LODLevel > 0 → LODScheduler  (VoxelDownsampleJob + LODMeshJob)   → Ready
+```
+
+### LOD Level Assignment
+
+`LODScheduler.UpdateLODLevels()` runs every frame before mesh scheduling. It computes Chebyshev XZ distance (in chunk units) from the camera chunk and assigns:
+
+| Distance | LOD Level | Downsample | Effective Grid |
+|----------|-----------|-----------|----------------|
+| < lod1Distance | 0 | None (full detail) | 32³ |
+| >= lod1Distance | 1 | 2×2×2 merge | 16³ |
+| >= lod2Distance | 2 | 4×4×4 merge | 8³ |
+| >= lod3Distance | 3 | 8×8×8 merge | 4³ |
+
+Distances are configured in `ChunkSettings` (defaults: lod1=4, lod2=8, lod3=14 chunks).
+
+### VoxelDownsampleJob (Burst)
+
+For each output cell, scans `Scale³` source voxels. If more than half are air, output is air. Otherwise picks the first opaque block found (majority-vote). No light data is accessed during downsampling.
+
+### LODMeshJob (Burst)
+
+Iterates the downsampled grid and emits simple culled-face quads (no greedy merging, no AO). Vertices are baked with full brightness: `Color = half4(1, 1, 1, texIndex)` (AO=1, blockLight=1, sunLight=1). Single submesh (opaque only). Boundary faces at grid edges are always emitted.
+
+The job chain is: `VoxelDownsampleJob.Schedule()` → `LODMeshJob.Schedule(downsampleHandle)`.
+
+### Mesh Upload for LOD
+
+LOD meshes use `ChunkRenderManager.UpdateRendererSingleMesh()` which calls `MeshUploader.Upload()` with a single submesh (vs. 3 submeshes for full-detail). The mesh is completely replaced — no `MeshFilter.sharedMesh` swap.
+
+### LOD Transitions
+
+When a Ready chunk's LOD level changes:
+- **LOD0 → LOD>0**: LODScheduler schedules a downsample+mesh job, replaces the mesh on completion.
+- **LOD>0 → LOD0**: Chunk state resets to `Generated`, MeshScheduler picks it up for full greedy meshing.
+
+Unity's built-in `LODGroup` component is NOT used because LOD decisions are chunk-distance-based, not per-object screen-size-based.
 
 ---
 
@@ -316,14 +354,12 @@ Unity's built-in `LODGroup` component is NOT used because our LOD decisions are 
 
 ### Frustum Culling
 
-Unity handles frustum culling automatically per `MeshRenderer` via its internal culling system. No custom frustum culler needed for basic rendering.
+`ChunkCulling` extracts frustum planes via `GeometryUtility.CalculateFrustumPlanes()` and tests chunk AABBs with `TestPlanesAABB()`.
 
-For **early rejection** of chunk generation/meshing (don't generate chunks behind the camera), the `ChunkManager` uses a manual frustum check against chunk AABBs before scheduling jobs.
+- **MeshScheduler** uses frustum info to **prioritize** in-frustum chunks for meshing. Off-frustum chunks still mesh if budget remains after in-frustum chunks.
+- **LODScheduler** checks frustum intersection before scheduling LOD transitions for Ready chunks.
+- **GenerationScheduler** sorts generation candidates with frustum-visible chunks first (stable partial sort).
 
 ### Distance Culling
 
-Chunks beyond render distance have their `MeshRenderer.enabled = false` or their GameObject deactivated. `ChunkManager` handles this.
-
-### Occlusion Culling
-
-The chunk-level occlusion test (fully opaque neighbors → skip render) is implemented in managed code in `ChunkManager`. Unity's built-in occlusion culling (baked) is not suitable for dynamic voxel worlds.
+Chunks beyond render distance are unloaded by `ChunkManager.UnloadDistantChunks()`. Dirty chunks are saved to `WorldStorage` before their NativeArrays return to the ChunkPool.

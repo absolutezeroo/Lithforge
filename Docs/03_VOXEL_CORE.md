@@ -85,26 +85,29 @@ public static class ChunkConstants
 ### ChunkState Lifecycle
 
 ```
-UNLOADED ──► GENERATING ──► GENERATED ──► MESHING ──► READY ◄──► DIRTY
-                                                        │
-                                                        ▼
-                                                    UNLOADING ──► UNLOADED
+UNLOADED → LOADING → GENERATING → DECORATING → RELIGHTPENDING → GENERATED → MESHING → READY
+                                                                     │ (LOD>0)          ↑
+                                                                     └── LODScheduler ───┘
 ```
 
-| State | Meaning | Thread Access |
-|-------|---------|---------------|
-| `Unloaded` | No data allocated | — |
-| `Generating` | Generation job in flight | Worker thread (exclusive write) |
-| `Generated` | Data ready, waiting for neighbors before meshing | Main thread read, no writes |
-| `Meshing` | Mesh job in flight | Worker thread (read-only on chunk data) |
-| `Ready` | Rendered, stable | Main thread (write on block change), worker (read for neighbor meshing) |
-| `Dirty` | Block changed, queued for remesh | Main thread (write), worker (read for remesh job) |
-| `Unloading` | Pending save, then return to pool | Main thread only |
+| State | Ordinal | Meaning | Thread Access |
+|-------|---------|---------|---------------|
+| `Unloaded` | 0 | No data allocated | — |
+| `Loading` | 1 | Being loaded from disk | Main thread |
+| `Generating` | 2 | Generation job in flight | Worker thread (exclusive write) |
+| `Decorating` | 3 | Decoration stage running (trees) | Main thread |
+| `RelightPending` | 4 | Block edit occurred, must relight before meshing | Main thread |
+| `Generated` | 5 | Data ready, first state eligible for meshing | Main thread read |
+| `Meshing` | 6 | Mesh job in flight (GreedyMeshJob or LODMeshJob) | Worker thread (read-only) |
+| `Ready` | 7 | Rendered, stable | Main thread (write on block change) |
 
 **Transition rules:**
-- State transitions use `Interlocked.CompareExchange` for thread safety.
-- A chunk cannot be meshed until all 6 face-adjacent neighbors are at least `Generated`.
-- A chunk cannot be unloaded while any job holds a reference to its NativeArray. The `ChunkManager` must `Complete()` any pending job before unloading.
+- States from `RelightPending` onward have valid voxel data. States from `Generated` onward are eligible for meshing.
+- `Generated → Meshing` is handled by MeshScheduler (LOD0) or LODScheduler (LOD>0).
+- When a Ready chunk's LOD level changes from >0 to 0, its state resets to `Generated` for full remeshing.
+- A chunk cannot be meshed until all 6 face-adjacent neighbors are at least `Generated` (LOD0 meshing only).
+- A chunk cannot be unloaded while any job holds a reference to its NativeArray.
+- Dirty chunks on unload are saved via `WorldStorage.SaveChunk()` before returning to ChunkPool.
 
 ---
 
@@ -291,7 +294,7 @@ Body (variable):
 - Engine refuses to load regions with a higher version than it supports (no forward compat).
 - Engine applies migration transforms for older versions (sequential: v1→v2→v3→current).
 - When a mod is removed, its StateIds are unknown. Unknown StateIds are replaced with air on chunk load, logged as warnings.
-- World metadata (`world.json`) stores: engine version, world seed, content hash (SHA256 of all registered block/item IDs sorted), creation timestamp.
+- World metadata (`world.json` in world directory, written by `WorldMetadata.Save()`) stores: seed, version, content_hash, last_saved (ISO 8601).
 
 ---
 

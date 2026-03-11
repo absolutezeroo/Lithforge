@@ -9,11 +9,11 @@
 - [x] Unity project with URP configured
 - [x] All local packages created (`com.lithforge.*`) with correct `.asmdef` and `package.json`
 - [x] `.editorconfig` with enforced rules
-- [x] `Lithforge.Core`: ResourceId, RegistryBuilder/Registry, EventBus, ILogger, ContentValidator, ValidationResult
-- [x] `Lithforge.Voxel`: ChunkConstants, StateId, BlockStateCompact, BlockDefinition, BlockRegistry, StateRegistry, NativeStateRegistry, ChunkData (NativeArray), ChunkPool
-- [x] JSON loader for `data/*/blocks/*.json` → BlockDefinition + StateRegistry computation
+- [x] `Lithforge.Core`: ResourceId, RegistryBuilder/Registry, ILogger, NullLogger, ContentValidator, ValidationResult
+- [x] `Lithforge.Voxel`: ChunkConstants, StateId, BlockStateCompact, StateRegistry, NativeStateRegistry, ChunkData (NativeArray), ChunkPool
+- [x] Content loading via ScriptableObjects in `Assets/Resources/Content/` + `Resources.LoadAll<T>()` (originally designed as JSON, migrated to SOs for editor ergonomics)
 - [x] Native bake: `StateRegistry.BakeNative()` → `NativeStateRegistry`
-- [x] Sample content: stone, dirt, grass_block, oak_log, water, air (JSON files in StreamingAssets)
+- [x] Sample content: stone, dirt, grass_block, oak_log, water, air (ScriptableObject assets in Resources/Content/)
 - [x] **Burst PoC**: one `[BurstCompile] IJob` that fills a `NativeArray<StateId>` with stone/air based on height → proves Burst pipeline works
 - [x] `Lithforge.Core.Tests`: Registry, ResourceId, ContentValidator
 - [x] `Lithforge.Voxel.Tests`: BlockDefinition loading, StateRegistry cartesian product, NativeStateRegistry bake, StateId round-trip
@@ -78,8 +78,8 @@
 
 - [x] `Lithforge.Meshing`: GreedyMeshJob (Burst binary greedy), AmbientOcclusion (Burst-compatible)
 - [x] `Lithforge.Meshing`: AtlasBuilder, NativeAtlasLookup bake
-- [x] `Lithforge.Lighting`: InitialLightingJob (Burst sunlight), LightData (NativeArray<byte>)
-- [x] Content asset loading: blockstate JSON → model JSON → parent resolution → per-face texture index
+- [x] `Lithforge.WorldGen`: InitialLightingJob (Burst sunlight), LightData (NativeArray<byte>) — lighting jobs live in worldgen package
+- [x] Content asset loading: BlockStateMapping SO → BlockModel SO → parent resolution → per-face texture index
 - [x] LithforgeVoxelOpaque.shader: AO, block light, sun light, Texture2DArray sampling
 - [x] Benchmark: GreedyMeshJob vs CulledMeshJob (triangle count, job time)
 - [x] `Lithforge.Voxel`: ChunkNeighborData extraction for cross-border meshing
@@ -110,11 +110,11 @@
 - [x] `Lithforge.WorldGen`: CaveCarverJob (Burst — worm caves)
 - [x] `Lithforge.WorldGen`: OreGenerationJob (Burst — scatter + blob)
 - [x] `Lithforge.WorldGen`: DecorationStage (managed — oak tree templates)
-- [x] Biome content: plains, forest, desert, mountains (JSON)
-- [x] Ore content: coal, iron, gold, diamond (JSON)
+- [x] Biome content: plains, forest, desert, mountains (ScriptableObjects with TreeTemplateIndex)
+- [x] Ore content: coal, iron, gold, diamond (ScriptableObjects — blob + scatter types)
 - [x] `Lithforge.Voxel.Storage`: RegionFile, ChunkSerializer (zstd), WorldMetadata
 - [x] Save on quit, load on launch
-- [x] `Lithforge.Lighting`: LightPropagationJob (Burst BFS), LightRemovalJob
+- [x] `Lithforge.WorldGen`: LightPropagationJob (Burst BFS), LightRemovalJob, LightUpdateJob — all in worldgen/Runtime/Stages/
 - [x] Day/night cycle: sun angle uniform driving shader sun_light_factor
 
 ### Acceptance Criteria
@@ -140,7 +140,7 @@
 
 - [x] `Lithforge.Physics`: VoxelRaycast (DDA, Burst-compatible), VoxelCollider (AABB vs grid)
 - [x] `Lithforge.Runtime.Input`: BlockInteraction (place/break), PlayerController with gravity + voxel collision
-- [x] `Lithforge.Crafting`: RecipeDefinition loading, CraftingEngine, Inventory
+- [x] `Lithforge.Voxel`: CraftingEngine, Inventory, RecipeEntry — crafting lives in voxel package (no separate crafting package)
 - [x] `Lithforge.Voxel`: Loot table loading + drop resolution
 - [x] `Lithforge.Voxel`: Tag loading + tool requirement checking
 - [x] `Lithforge.Runtime.UI`: CrosshairHUD, HotbarHUD, InventoryScreen (UI Toolkit)
@@ -163,22 +163,22 @@
 
 ---
 
-## Sprint 5 — LOD & Performance (Weeks 11-12)
+## Sprint 5 — LOD & Performance (Weeks 11-12) ✅ COMPLETED
 
 **Goal**: LOD system, culling, water, sky, performance pass.
 
 ### Deliverables
 
-- [ ] `Lithforge.Meshing.LOD`: LODManager, LODMeshJob (Burst), LODConfig
-- [ ] LOD levels 0-3 (full → half → quarter → heightmap)
-- [ ] Culling: distance-based chunk disable, manual frustum check for job scheduling
-- [ ] `Lithforge.Meshing`: FluidMesher (water surface with height interpolation)
-- [ ] LithforgeVoxelCutout.shader (alpha test, double-sided for grass/flowers)
-- [ ] LithforgeVoxelTranslucent.shader (alpha blend for water)
-- [ ] `Lithforge.Runtime.Rendering`: SkyController (procedural sky)
-- [ ] `Lithforge.Runtime.UI`: SettingsScreen (render distance, FOV, keybinds)
-- [ ] ChunkPool tuning, palette compression for distant chunks
-- [ ] Full profiling pass with Unity Profiler + BenchmarkDotNet
+- [x] `Lithforge.Meshing`: VoxelDownsampleJob + LODMeshJob (Burst), LODMeshData
+- [x] LOD levels 0-3 (full → half → quarter → eighth) via dual-path scheduling (MeshScheduler + LODScheduler)
+- [x] Culling: frustum-prioritized meshing + generation, distance-based unload with save-on-unload
+- [x] 3-submesh pipeline: opaque(0) → cutout(1) → translucent(2)
+- [x] LithforgeVoxelCutout.shader (alpha test, Cull Off, double-sided)
+- [x] BlockStateCompact.FlagFluid for water top-face height offset
+- [x] LithforgeSky.shader (procedural skybox: sun disc, horizon-zenith gradient, star field)
+- [x] SkyController + TimeOfDayController driving skybox, fog, ambient
+- [x] SettingsScreen (UI Toolkit): render distance, FOV, AO, sensitivity, day length, volume
+- [x] DebugOverlayHUD: renderer count, LOD queue count
 
 ### Acceptance Criteria
 
@@ -237,7 +237,7 @@
 4. **Tier boundary enforcement**: CI validates that `.asmdef` references match documented tier rules.
 5. **Safety checks ON in editor**: NativeContainer leak detection, job safety checks enabled.
 6. **Safety checks OFF in builds**: `ENABLE_UNITY_COLLECTIONS_CHECKS` stripped for performance.
-7. **Content validation in CI**: All JSON content files validated against expected schema on every commit.
+7. **Content validation**: ScriptableObject references validated by ContentPipeline at startup (missing refs logged as warnings).
 8. **Memory budget tracking**: Debug overlay tracks native memory. Alert if budget exceeds target.
 9. **ProfilerMarker on every hot path**: Every Burst job and every main-thread operation has a marker.
 10. **ADR for every architectural decision**: New ADR required before any structural change.

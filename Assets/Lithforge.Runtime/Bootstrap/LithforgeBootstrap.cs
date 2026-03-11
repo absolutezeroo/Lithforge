@@ -378,7 +378,8 @@ namespace Lithforge.Runtime.Bootstrap
                     lootResolver,
                     _contentResult.TagRegistry,
                     playerObject.transform,
-                    _settings.Physics);
+                    _settings.Physics,
+                    playerController);
                 // PanelSettings already loaded by Start() coroutine
                 if (panelSettings == null)
                 {
@@ -411,7 +412,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add debug HUD
                 DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
-                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug, _chunkRenderManager);
+                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug, _chunkRenderManager, playerController);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(

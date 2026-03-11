@@ -1,196 +1,134 @@
 # Lithforge — Platform Architecture
 
-## Lithforge as a Platform
+## Current Architecture
 
-Lithforge is not just a voxel engine runtime — it is a **game-creation platform**. This means it must support game creators who build complete games on top of the engine, modders who extend those games, and players who consume the content.
+Lithforge is currently a **single-game voxel engine**. All content (blocks, items, biomes, recipes, etc.) is defined as Unity ScriptableObjects in `Assets/Resources/Content/`. There is no separate game/mod/content-pack layer yet.
 
-## Content Hierarchy
+### Content Hierarchy (Current)
 
 ```
-┌─────────────────────────────────────────┐
-│  Lithforge Engine                        │
-│  (Packages/ — core, voxel, meshing, etc) │
-│  Provides: runtime, rendering, physics,  │
-│  worldgen, crafting, entity simulation   │
-└──────────────────┬──────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  Lithforge Engine                                │
+│  Packages/com.lithforge.* (core, voxel,          │
+│  worldgen, meshing, physics)                     │
+│  Provides: runtime, rendering, physics, worldgen │
+└──────────────────┬──────────────────────────────┘
                    │
-┌──────────────────▼──────────────────────┐
-│  Game                                    │
-│  (A complete game built on Lithforge)    │
-│  Provides: game rules, custom UI, mobs,  │
-│  progression, win conditions, branding   │
-│  Defined by: game.json manifest          │
-│  Example: "Stonebound" — a survival RPG  │
-└──────────────────┬──────────────────────┘
+┌──────────────────▼──────────────────────────────┐
+│  Core Content (ScriptableObjects)                │
+│  Assets/Resources/Content/                       │
+│  Blocks, BlockStates, Models, Items, Biomes,     │
+│  Ores, Recipes, LootTables, Tags, Textures       │
+└──────────────────┬──────────────────────────────┘
                    │
-┌──────────────────▼──────────────────────┐
-│  Mods (extend a game)                    │
-│  Provide: new blocks, items, mobs, etc   │
-│  Defined by: mod.json manifest           │
-│  Can depend on: engine version + game ID │
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│  Content Packs (data-only, no code)      │
-│  Provide: texture packs, sound packs,    │
-│  language packs                          │
-│  Defined by: pack.json manifest          │
-└──────────────────────────────────────────┘
+┌──────────────────▼──────────────────────────────┐
+│  Settings (ScriptableObjects)                    │
+│  Assets/Resources/Settings/                      │
+│  ChunkSettings, WorldGenSettings, Rendering,     │
+│  Physics, Gameplay, Debug                        │
+└─────────────────────────────────────────────────┘
 ```
 
-## Game Manifest
+### Bootstrap & Loading
 
-A game is defined by a `game.json` at its root:
+**`LithforgeBootstrap.Awake()`**:
+1. `SettingsLoader.Load()` — loads all 6 Settings SOs via `Resources.Load<T>("Settings/...")`
+   with `LoadOrCreate<T>()` fallback (creates transient default if missing)
 
-```json
-{
-  "id": "stonebound",
-  "name": "Stonebound",
-  "version": "1.0.0",
-  "engine_version": ">=0.1.0",
-  "description": "A survival RPG in a voxel world",
-  "authors": ["Studio Name"],
-  "license": "MIT",
-  "entry_content": "stonebound",
-  "main_menu_scene": "stonebound:main_menu",
-  "default_worldgen": "stonebound:overworld",
-  "features": {
-    "crafting": true,
-    "inventory_size": 36,
-    "hotbar_size": 9,
-    "health": { "enabled": true, "max": 20 },
-    "hunger": { "enabled": true, "max": 20 },
-    "day_night_cycle": { "enabled": true, "day_length_seconds": 600 }
-  }
-}
-```
+**`LithforgeBootstrap.Start()`** (coroutine):
+2. Creates `LoadingScreen` early (UI Toolkit, sortingOrder=500)
+3. Runs `ContentPipeline.Build()` as `IEnumerable<string>`, yielding a frame between each phase:
+   - Phases 1-6: Blocks → StateRegistry → ModelResolver → AtlasBuilder → texture patch
+   - Phase 7: BiomeDefinitions, OreDefinitions
+   - Phase 8: ItemDefinitions
+   - Phases 9-12: LootTables, Tags, Recipes, ItemRegistry
+   - Phase 13: AssetBundle mods from `persistentDataPath/mods/*.lithmod`
+   - Phase 14: BakeNative() → NativeStateRegistry + NativeAtlasLookup
+4. Initialize ChunkPool, ChunkManager, GenerationPipeline, WorldStorage
+5. Initialize GameLoop with GenerationScheduler, MeshScheduler, LODScheduler
+6. Initialize SpawnManager, UI (HotbarHUD, CrosshairHUD, InventoryScreen, SettingsScreen), Input
 
-### Game Directory Structure
+### Content Definition Types
 
-```
-games/stonebound/
-├── game.json
-├── assets/stonebound/
-│   ├── blockstates/
-│   ├── models/
-│   ├── textures/
-│   └── sounds/
-├── data/stonebound/
-│   ├── blocks/
-│   ├── items/
-│   ├── recipes/
-│   ├── loot_tables/
-│   ├── tags/
-│   └── worldgen/
-└── scripts/                   # V2: game-specific C# code (optional)
-    └── StoneFoundInit.cs
-```
+| ScriptableObject | Location | Purpose |
+|---|---|---|
+| BlockDefinition | Content/Blocks/ | Block properties (hardness, render layer, collision, light) |
+| BlockStateMapping | Content/BlockStates/ | State→model mapping per property variant |
+| BlockModel | Content/Models/ | Face textures, parent inheritance (cube, cube_all, cube_column) |
+| ItemDefinition | Content/Items/ | Item properties (stack size, tool type, mining speed) |
+| BiomeDefinition | Content/Biomes/ | Temperature/humidity ranges, surface blocks, tree template index |
+| OreDefinition | Content/Ores/ | Vein size, frequency, Y range, ore type |
+| RecipeDefinition | Content/Recipes/ | Shaped/shapeless crafting patterns |
+| LootTable | Content/LootTables/ | Block drop rules with pools, entries, and functions |
+| Tag | Content/Tags/ | Block groupings (mineable_pickaxe, logs, leaves, planks, etc.) |
 
-## Game Customization Points
+### Dual Representation
 
-A game can override or extend engine behavior through:
-
-| Extension Point | Mechanism | Example |
-|----------------|-----------|---------|
-| Add blocks/items/biomes | Data files in game namespace | New ore types, weapons |
-| Override core tags | `"replace": true` in tag file | Change what pickaxe can mine |
-| Custom world generation | NoiseSettings + custom features | Unique terrain shape |
-| Custom UI | Override UI prefabs/UXML | Themed inventory screen |
-| Game rules | `game.json` features | Enable/disable hunger |
-| Custom entities | Entity definitions + behaviors | Boss mobs |
-| Custom recipes | Recipe files | New crafting categories |
-
-## Mod ↔ Game ↔ Engine Relationship
+Managed ScriptableObjects are baked to Burst-compatible native structs at startup:
 
 ```
-Engine provides:
-  - Block/item/entity/biome registries
-  - WorldGen pipeline
-  - Meshing/rendering
-  - Physics/collision
-  - Crafting engine
-  - Input/UI/Audio infrastructure
-  - Modding API
-
-Game provides:
-  - All content definitions (blocks, items, etc.)
-  - Game rules configuration
-  - Custom UI themes
-  - Initial world settings
-  - Progression system (optional)
-
-Mod provides:
-  - Additional content (new blocks, items, etc.)
-  - Extensions to existing tags
-  - Additional worldgen features
-  - Must declare which game it targets
+BlockDefinition (SO) → StateRegistry ──BakeNative()──► NativeStateRegistry (NativeArray<BlockStateCompact>)
+BiomeDefinition (SO) ──BakeNative()──► NativeBiomeData (blittable)
+OreDefinition (SO)   ──BakeNative()──► NativeOreConfig (blittable)
+AtlasRegions         ──BakeNative()──► NativeAtlasLookup (NativeArray)
 ```
 
-## Distribution
+Baking happens once during `ContentPipeline.Build()` Phase 14. The managed SO is authoritative; the native version is derived and read-only.
 
-### Standalone Game Build
+### World Storage
 
-A game built on Lithforge is distributed as a standalone Unity build:
+Worlds are saved in `Application.persistentDataPath/worlds/{worldName}/`:
+- `world.json` — metadata: seed, version, content_hash, last_saved (written by `WorldMetadata.Save()`)
+- `region/r.{rx}.{ry}.{rz}.lfrg` — region files (atomic write with .tmp + .bak rotation)
+- Chunks marked `IsDirty` are saved on unload via `WorldStorage.SaveChunk()`
 
-```
-StoneFoundGame/
-├── Stonebound.exe              # Unity player
-├── Stonebound_Data/
-│   ├── StreamingAssets/
-│   │   ├── engine/             # Lithforge core content
-│   │   ├── game/               # Game content
-│   │   └── mods/               # User-installed mods
-│   └── ...                     # Unity runtime files
-```
+---
 
-### Mod Distribution
+## Mod Support (AssetBundle-Based — Minimal)
 
-Mods are distributed as folders or zip archives:
+The current mod system uses Unity **AssetBundles**:
 
-```
-mods/ruby_mod/
-├── mod.json
-├── assets/ruby_mod/
-│   ├── blockstates/
-│   ├── models/
-│   └── textures/
-└── data/ruby_mod/
-    ├── blocks/
-    ├── items/
-    └── tags/
-```
+- Mod files: `Application.persistentDataPath/mods/*.lithmod`
+- `ModLoader.LoadAllMods()` scans for `.lithmod` files, loads them via `AssetBundle.LoadFromFile()`
+- Each bundle contains ScriptableObject assets (same types as core content)
+- Loaded mod blocks are registered into `StateRegistry` after core content (Phase 13)
+- Other mod content types (items, biomes, etc.) are loaded but not yet fully wired into the pipeline
 
-## Version Compatibility
+`ModManifest.cs` and `ModDependency.cs` exist in `Assets/Lithforge.Runtime/Content/Mods/` but are not yet used for dependency resolution or load ordering.
 
-### Engine → Game
+---
 
-The engine declares a version. Games declare `engine_version: ">=X.Y.Z"`. The engine checks this at game load time.
+## Future: Full Modding Architecture (NOT YET IMPLEMENTED)
 
-- **Patch versions** (0.1.X → 0.1.Y): Always compatible. No breaking changes.
-- **Minor versions** (0.X → 0.Y): New features added. Existing features not removed. Games should work.
-- **Major versions** (X → Y): Breaking changes possible. Games must be updated.
+The following is the planned architecture for comprehensive mod support. **None of this exists in code yet.**
 
-### Game → Mod
+### Planned Features
 
-Same semver scheme. Mods declare `game: "stonebound"` and `game_version: ">=1.0.0"`.
+- **JSON-based content files** alongside ScriptableObjects (SOs for core content, JSON for mods)
+- **game.json manifests** defining complete games on top of the engine
+- **mod.json manifests** with dependency declarations and version constraints
+- **Content pack system** (texture packs, sound packs, language packs)
+- **Filesystem-based content loading** via StreamingAssets + persistentDataPath
+- **Topological sort** of mod load order with cycle detection
+- **Tag merging** (additive or replace modes across namespaces)
+- **Semver-based version compatibility** (engine→game→mod)
 
-### Modding API Stability
-
-- **Stable API**: Block, item, recipe, tag, loot table, biome, worldgen feature registration. These are data-driven and versioned by the data format.
-- **Unstable API**: Code modding hooks (V2). Marked with `[Unstable]` attribute. May change between minor versions.
-- **Internal API**: Engine internals not exposed to mods. Can change at any time.
-
-## Content Loading Order
+### Planned Content Hierarchy
 
 ```
-1. Load engine core content: content/lithforge/
-2. Detect and validate game: games/{game_id}/game.json
-3. Load game content: games/{game_id}/assets/ + data/
-4. Discover mods: mods/*/mod.json
-5. Validate mod dependencies (game ID, engine version, inter-mod deps)
-6. Topological sort mods by dependency
-7. Load mods in order: each mod's assets/ + data/
-8. Merge tags (additive for replace:false, override for replace:true)
-9. Build registries, freeze, bake native data
-10. World ready
+Engine  →  Game (game.json)  →  Mods (mod.json)  →  Content Packs (pack.json)
 ```
+
+### Planned Content Loading Order
+
+```
+1. Load engine core content
+2. Detect and validate game manifest (game.json)
+3. Load game content
+4. Discover mods, validate dependencies, topological sort
+5. Load mods in dependency order
+6. Merge tags across namespaces
+7. Build registries, freeze, bake native data
+```
+
+This architecture will enable third-party game creation and community modding on top of the Lithforge engine.
