@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Lithforge.Meshing;
-using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -10,22 +9,33 @@ using UnityEngine.Rendering;
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Stores per-chunk Mesh objects and draws them each frame with Graphics.RenderMesh.
+    /// Stores chunk meshes in three mega-mesh buffers (opaque, cutout, translucent)
+    /// and draws them with exactly 3 Graphics.RenderMesh calls per frame.
     /// Replaces the old ChunkRenderManager/ChunkRenderer GameObject-based approach.
     /// No GameObjects, MeshFilters, or MeshRenderers are created.
     /// Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
     public sealed class ChunkMeshStore : IDisposable
     {
-        private readonly Dictionary<int3, ChunkMeshEntry> _meshes = new Dictionary<int3, ChunkMeshEntry>();
+        /// <summary>Initial vertex capacity for the opaque buffer (most geometry).</summary>
+        private const int OpaqueInitialVertices = 131072;
+        private const int OpaqueInitialIndices = 196608;
+
+        /// <summary>Cutout and translucent buffers are much smaller.</summary>
+        private const int SmallInitialVertices = 16384;
+        private const int SmallInitialIndices = 24576;
+
+        private readonly HashSet<int3> _activeChunks = new HashSet<int3>();
         private readonly RenderParams _opaqueParams;
         private readonly RenderParams _cutoutParams;
         private readonly RenderParams _translucentParams;
-        private readonly Plane[] _frustumPlanes = new Plane[6];
+        private readonly MegaMeshBuffer _opaqueBuffer;
+        private readonly MegaMeshBuffer _cutoutBuffer;
+        private readonly MegaMeshBuffer _translucentBuffer;
 
         public int RendererCount
         {
-            get { return _meshes.Count; }
+            get { return _activeChunks.Count; }
         }
 
         public Material OpaqueMaterial { get; }
@@ -58,6 +68,13 @@ namespace Lithforge.Runtime.Rendering
                 receiveShadows = false,
                 layer = 0,
             };
+
+            _opaqueBuffer = new MegaMeshBuffer(
+                "MegaMesh_Opaque", OpaqueInitialVertices, OpaqueInitialIndices);
+            _cutoutBuffer = new MegaMeshBuffer(
+                "MegaMesh_Cutout", SmallInitialVertices, SmallInitialIndices);
+            _translucentBuffer = new MegaMeshBuffer(
+                "MegaMesh_Translucent", SmallInitialVertices, SmallInitialIndices);
         }
 
         /// <summary>
@@ -70,11 +87,10 @@ namespace Lithforge.Runtime.Rendering
             NativeList<MeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
             NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
-            Mesh mesh = GetOrCreateMesh(coord);
-            MeshUploader.Upload(mesh, opaqueVerts, opaqueIndices,
-                cutoutVerts, cutoutIndices,
-                translucentVerts, translucentIndices);
-            StoreEntry(coord, mesh);
+            _opaqueBuffer.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
+            _cutoutBuffer.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
+            _translucentBuffer.AllocateOrUpdate(coord, translucentVerts, translucentIndices);
+            _activeChunks.Add(coord);
         }
 
         /// <summary>
@@ -85,124 +101,54 @@ namespace Lithforge.Runtime.Rendering
             int3 coord,
             NativeList<MeshVertex> vertices, NativeList<int> indices)
         {
-            Mesh mesh = GetOrCreateMesh(coord);
-            MeshUploader.Upload(mesh, vertices, indices);
-            StoreEntry(coord, mesh);
+            _opaqueBuffer.AllocateOrUpdate(coord, vertices, indices);
+            _cutoutBuffer.Free(coord);
+            _translucentBuffer.Free(coord);
+            _activeChunks.Add(coord);
         }
 
         /// <summary>
-        /// Draws all chunk meshes visible in the camera frustum.
-        /// Submits one Graphics.RenderMesh call per non-empty submesh per visible chunk.
+        /// Submits exactly 3 draw calls (opaque, cutout, translucent) for the entire world.
+        /// The GPU handles clipping of off-screen triangles. No per-chunk frustum culling
+        /// is needed since all geometry is in 3 mega-meshes.
         /// Must be called from LateUpdate.
         /// </summary>
         public void RenderAll(Camera camera)
         {
-            if (camera != null)
+            _opaqueBuffer.FlushSubMesh();
+            _cutoutBuffer.FlushSubMesh();
+            _translucentBuffer.FlushSubMesh();
+
+            if (_opaqueBuffer.HasGeometry)
             {
-                GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
+                Graphics.RenderMesh(_opaqueParams, _opaqueBuffer.Mesh, 0, Matrix4x4.identity);
             }
 
-            foreach (KeyValuePair<int3, ChunkMeshEntry> pair in _meshes)
+            if (_cutoutBuffer.HasGeometry)
             {
-                ChunkMeshEntry entry = pair.Value;
-                Mesh mesh = entry.Mesh;
-                int subMeshCount = mesh.subMeshCount;
+                Graphics.RenderMesh(_cutoutParams, _cutoutBuffer.Mesh, 0, Matrix4x4.identity);
+            }
 
-                if (subMeshCount == 0)
-                {
-                    continue;
-                }
-
-                // Frustum cull
-                if (camera != null && !GeometryUtility.TestPlanesAABB(_frustumPlanes, entry.WorldBounds))
-                {
-                    continue;
-                }
-
-                Matrix4x4 matrix = Matrix4x4.Translate(entry.WorldPosition);
-
-                // Draw opaque submesh
-                if (mesh.GetIndexCount(0) > 0)
-                {
-                    Graphics.RenderMesh(_opaqueParams, mesh, 0, matrix);
-                }
-
-                // Draw cutout submesh
-                if (subMeshCount >= 2 && mesh.GetIndexCount(1) > 0)
-                {
-                    Graphics.RenderMesh(_cutoutParams, mesh, 1, matrix);
-                }
-
-                // Draw translucent submesh
-                if (subMeshCount >= 3 && mesh.GetIndexCount(2) > 0)
-                {
-                    Graphics.RenderMesh(_translucentParams, mesh, 2, matrix);
-                }
+            if (_translucentBuffer.HasGeometry)
+            {
+                Graphics.RenderMesh(_translucentParams, _translucentBuffer.Mesh, 0, Matrix4x4.identity);
             }
         }
 
         public void DestroyRenderer(int3 coord)
         {
-            if (_meshes.TryGetValue(coord, out ChunkMeshEntry entry))
-            {
-                UnityEngine.Object.Destroy(entry.Mesh);
-                _meshes.Remove(coord);
-            }
+            _opaqueBuffer.Free(coord);
+            _cutoutBuffer.Free(coord);
+            _translucentBuffer.Free(coord);
+            _activeChunks.Remove(coord);
         }
 
         public void Dispose()
         {
-            foreach (KeyValuePair<int3, ChunkMeshEntry> pair in _meshes)
-            {
-                if (pair.Value.Mesh != null)
-                {
-                    UnityEngine.Object.Destroy(pair.Value.Mesh);
-                }
-            }
-
-            _meshes.Clear();
-        }
-
-        private Mesh GetOrCreateMesh(int3 coord)
-        {
-            if (_meshes.TryGetValue(coord, out ChunkMeshEntry existing))
-            {
-                return existing.Mesh;
-            }
-
-            Mesh mesh = new Mesh
-            {
-                name = $"Chunk_{coord.x}_{coord.y}_{coord.z}",
-            };
-            mesh.MarkDynamic();
-            return mesh;
-        }
-
-        private void StoreEntry(int3 coord, Mesh mesh)
-        {
-            int chunkSize = ChunkConstants.Size;
-            Vector3 worldPos = new Vector3(
-                coord.x * chunkSize,
-                coord.y * chunkSize,
-                coord.z * chunkSize);
-
-            Bounds bounds = new Bounds(
-                worldPos + new Vector3(chunkSize * 0.5f, chunkSize * 0.5f, chunkSize * 0.5f),
-                new Vector3(chunkSize, chunkSize, chunkSize));
-
-            _meshes[coord] = new ChunkMeshEntry
-            {
-                Mesh = mesh,
-                WorldBounds = bounds,
-                WorldPosition = worldPos,
-            };
-        }
-
-        private struct ChunkMeshEntry
-        {
-            public Mesh Mesh;
-            public Bounds WorldBounds;
-            public Vector3 WorldPosition;
+            _activeChunks.Clear();
+            _opaqueBuffer.Dispose();
+            _cutoutBuffer.Dispose();
+            _translucentBuffer.Dispose();
         }
     }
 }
