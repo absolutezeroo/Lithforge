@@ -31,6 +31,7 @@ namespace Lithforge.Runtime.Rendering
         private int _indexCapacity;
         private int _usedVertices;
         private int _usedIndices;
+        private int _wastedVertices;
         private int _wastedIndices;
         private bool _subMeshDirty;
 
@@ -92,6 +93,7 @@ namespace Lithforge.Runtime.Rendering
             if (_slots.TryGetValue(coord, out SlotInfo existingSlot))
             {
                 ZeroSlotIndices(existingSlot);
+                _wastedVertices += existingSlot.VertexCount;
                 _wastedIndices += existingSlot.IndexCount;
                 _slots.Remove(coord);
             }
@@ -160,6 +162,7 @@ namespace Lithforge.Runtime.Rendering
             }
 
             ZeroSlotIndices(slot);
+            _wastedVertices += slot.VertexCount;
             _wastedIndices += slot.IndexCount;
             _slots.Remove(coord);
             _subMeshDirty = true;
@@ -180,6 +183,19 @@ namespace Lithforge.Runtime.Rendering
                 _updateFlags);
 
             _subMeshDirty = false;
+        }
+
+        /// <summary>
+        /// Compacts the buffer if waste exceeds 25% of used space.
+        /// Should be called periodically (e.g. every few seconds) to reclaim
+        /// wasted space from freed chunks, reducing GPU work on degenerate triangles.
+        /// </summary>
+        public void TryCompact()
+        {
+            if (_wastedIndices > _usedIndices / 4 || _wastedVertices > _usedVertices / 4)
+            {
+                Compact();
+            }
         }
 
         public void Dispose()
@@ -219,8 +235,8 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            // Try compaction first if there is meaningful waste
-            if (_wastedIndices > _usedIndices / 4)
+            // Try compaction first if there is meaningful waste (vertex or index)
+            if (_wastedIndices > _usedIndices / 4 || _wastedVertices > _usedVertices / 4)
             {
                 Compact();
                 vertsFit = _usedVertices + extraVertices <= _vertexCapacity;
@@ -244,6 +260,7 @@ namespace Lithforge.Runtime.Rendering
             {
                 _usedVertices = 0;
                 _usedIndices = 0;
+                _wastedVertices = 0;
                 _wastedIndices = 0;
                 return;
             }
@@ -251,9 +268,23 @@ namespace Lithforge.Runtime.Rendering
             // Collect and sort slots by vertex offset for safe in-place compaction.
             // Processing lowest offsets first ensures we only move data leftward,
             // so source data is never overwritten before being read.
+            //
+            // INVARIANT: IndexOffset ordering matches VertexOffset ordering.
+            // This holds because AllocateOrUpdate always appends both vertex and index data
+            // atomically in the same call. If this ever changes, the index-move pass must
+            // be sorted independently by IndexOffset.
             List<KeyValuePair<int3, SlotInfo>> sortedSlots =
                 new List<KeyValuePair<int3, SlotInfo>>(_slots);
             sortedSlots.Sort(CompareSlotsByVertexOffset);
+
+#if UNITY_ASSERTIONS
+            for (int s = 1; s < sortedSlots.Count; s++)
+            {
+                UnityEngine.Debug.Assert(
+                    sortedSlots[s].Value.IndexOffset > sortedSlots[s - 1].Value.IndexOffset,
+                    "[MegaMeshBuffer] IndexOffset ordering violated — compaction will corrupt data.");
+            }
+#endif
 
             int newVertUsed = 0;
             int newIdxUsed = 0;
@@ -298,6 +329,7 @@ namespace Lithforge.Runtime.Rendering
 
             _usedVertices = newVertUsed;
             _usedIndices = newIdxUsed;
+            _wastedVertices = 0;
             _wastedIndices = 0;
 
             // Re-upload the entire active region to the GPU

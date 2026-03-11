@@ -33,6 +33,10 @@ namespace Lithforge.Runtime.Rendering
         private readonly MegaMeshBuffer _cutoutBuffer;
         private readonly MegaMeshBuffer _translucentBuffer;
 
+        /// <summary>Frames between proactive compaction checks (~2 seconds at 60fps).</summary>
+        private const int CompactInterval = 120;
+        private int _frameCounter;
+
         public int RendererCount
         {
             get { return _activeChunks.Count; }
@@ -115,6 +119,17 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void RenderAll(Camera camera)
         {
+            // Proactively compact buffers to reclaim wasted space from freed chunks.
+            // Prevents unbounded GPU work on degenerate triangles during chunk churn.
+            _frameCounter++;
+
+            if (_frameCounter % CompactInterval == 0)
+            {
+                _opaqueBuffer.TryCompact();
+                _cutoutBuffer.TryCompact();
+                _translucentBuffer.TryCompact();
+            }
+
             _opaqueBuffer.FlushSubMesh();
             _cutoutBuffer.FlushSubMesh();
             _translucentBuffer.FlushSubMesh();
