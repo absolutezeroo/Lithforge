@@ -118,7 +118,7 @@ namespace Lithforge.Runtime.Rendering
 
             // Cosine fallback: 1.0 at noon (time=0.5), 0.15 at midnight (time=0.0 or 1.0)
             float cosValue = Mathf.Cos(time * 2.0f * Mathf.PI);
-            float factor = 0.575f + 0.425f * cosValue;
+            float factor = 0.575f - 0.425f * cosValue;
 
             return Mathf.Clamp(factor, _minSunIntensity, 1.0f);
         }

@@ -72,17 +72,21 @@ namespace Lithforge.WorldGen.Stages
                 for (int x = 0; x < ChunkConstants.Size; x++)
                 {
                     int columnIndex = z * ChunkConstants.Size + x;
+                    bool foundAir = false;
                     int actualSurfaceY = int.MinValue;
 
                     for (int y = ChunkConstants.Size - 1; y >= 0; y--)
                     {
-                        int worldY = chunkWorldY + y;
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                         StateId blockState = ChunkData[index];
 
-                        if (!blockState.Equals(AirId) && !blockState.Equals(WaterId))
+                        if (blockState.Equals(AirId) || blockState.Equals(WaterId))
                         {
-                            actualSurfaceY = worldY;
+                            foundAir = true;
+                        }
+                        else if (foundAir)
+                        {
+                            actualSurfaceY = chunkWorldY + y;
                             break;
                         }
                     }

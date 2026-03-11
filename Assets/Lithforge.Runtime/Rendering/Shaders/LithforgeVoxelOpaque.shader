@@ -5,7 +5,7 @@ Shader "Lithforge/VoxelOpaque"
         _AtlasArray ("Texture Atlas Array", 2DArray) = "" {}
         _AOStrength ("AO Strength", Range(0, 1)) = 0.4
         _SunLightFactor ("Sun Light Factor", Range(0, 1)) = 1.0
-        _AmbientLight ("Ambient Light", Range(0, 1)) = 0.15
+        _AmbientLight ("Ambient Light", Range(0, 1)) = 0.2
     }
 
     SubShader
