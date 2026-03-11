@@ -83,9 +83,10 @@ namespace Lithforge.Runtime.Rendering
             // Copy translucent indices with offset applied to vertex references
             int vertexOffset = opaqueVerts.Length;
 
-            for (int i = 0; i < translucentIndices.Length; i++)
+            if (translucentIndices.Length > 0)
             {
-                indexBuffer[opaqueIndices.Length + i] = translucentIndices[i] + vertexOffset;
+                NativeArray<int>.Copy(translucentIndices.AsArray(), 0, indexBuffer, opaqueIndices.Length, translucentIndices.Length);
+                OffsetIndices(indexBuffer, opaqueIndices.Length, translucentIndices.Length, vertexOffset);
             }
 
             bool hasTranslucent = translucentVerts.Length > 0;
@@ -168,18 +169,20 @@ namespace Lithforge.Runtime.Rendering
 
             int cutoutVertexOffset = opaqueVerts.Length;
 
-            for (int i = 0; i < cutoutIndices.Length; i++)
+            if (cutoutIndices.Length > 0)
             {
-                indexBuffer[idxOffset + i] = cutoutIndices[i] + cutoutVertexOffset;
+                NativeArray<int>.Copy(cutoutIndices.AsArray(), 0, indexBuffer, idxOffset, cutoutIndices.Length);
+                OffsetIndices(indexBuffer, idxOffset, cutoutIndices.Length, cutoutVertexOffset);
             }
 
             idxOffset += cutoutIndices.Length;
 
             int translucentVertexOffset = opaqueVerts.Length + cutoutVerts.Length;
 
-            for (int i = 0; i < translucentIndices.Length; i++)
+            if (translucentIndices.Length > 0)
             {
-                indexBuffer[idxOffset + i] = translucentIndices[i] + translucentVertexOffset;
+                NativeArray<int>.Copy(translucentIndices.AsArray(), 0, indexBuffer, idxOffset, translucentIndices.Length);
+                OffsetIndices(indexBuffer, idxOffset, translucentIndices.Length, translucentVertexOffset);
             }
 
             // Determine submesh count based on what data is present
@@ -219,6 +222,14 @@ namespace Lithforge.Runtime.Rendering
             Mesh.ApplyAndDisposeWritableMeshData(meshDataArray, target, flags);
 
             target.RecalculateBounds();
+        }
+
+        private static void OffsetIndices(NativeArray<int> buffer, int start, int count, int offset)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                buffer[start + i] = buffer[start + i] + offset;
+            }
         }
     }
 }

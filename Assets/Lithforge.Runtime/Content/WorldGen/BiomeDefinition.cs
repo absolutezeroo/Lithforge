@@ -63,6 +63,10 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Tooltip("Height modifier for terrain generation")]
         [SerializeField] private float heightModifier;
 
+        [Tooltip("Tree shape variant for this biome (0=oak, 1=birch, 2=spruce)")]
+        [Range(0, 2)]
+        [SerializeField] private int treeType;
+
         [Header("Map")]
         [Tooltip("Color shown on the world map")]
         [SerializeField] private Color mapColor = Color.green;
@@ -140,6 +144,11 @@ namespace Lithforge.Runtime.Content.WorldGen
         public float HeightModifier
         {
             get { return heightModifier; }
+        }
+
+        public int TreeType
+        {
+            get { return treeType; }
         }
 
         public Color MapColor

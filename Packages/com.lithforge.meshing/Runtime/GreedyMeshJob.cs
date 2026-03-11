@@ -187,7 +187,7 @@ namespace Lithforge.Meshing
                             faceRenderLayer[idxW] != renderLayer ||
                             faceAO00[idxW] != ao00 || faceAO10[idxW] != ao10 ||
                             faceAO01[idxW] != ao01 || faceAO11[idxW] != ao11 ||
-                            faceLight[idxW] != light)
+                            (faceLight[idxW] >> 2) != (light >> 2))
                         {
                             break;
                         }
@@ -219,7 +219,7 @@ namespace Lithforge.Meshing
                                 faceRenderLayer[idxH] != renderLayer ||
                                 faceAO00[idxH] != ao00 || faceAO10[idxH] != ao10 ||
                                 faceAO01[idxH] != ao01 || faceAO11[idxH] != ao11 ||
-                                faceLight[idxH] != light)
+                                (faceLight[idxH] >> 2) != (light >> 2))
                             {
                                 canExtend = false;
 

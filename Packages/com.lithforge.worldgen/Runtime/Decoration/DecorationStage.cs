@@ -9,7 +9,7 @@ namespace Lithforge.WorldGen.Decoration
     public sealed class DecorationStage
     {
         private readonly NativeArray<NativeBiomeData> _biomeData;
-        private readonly TreeBlock[] _oakTreeTemplate;
+        private readonly TreeBlock[][] _treeTemplates;
         private readonly StateId _airId;
         private readonly PendingDecorationStore _pendingStore;
 
@@ -25,7 +25,12 @@ namespace Lithforge.WorldGen.Decoration
             StateId airId)
         {
             _biomeData = biomeData;
-            _oakTreeTemplate = TreeTemplate.OakTree(oakLogId, oakLeavesId);
+            _treeTemplates = new TreeBlock[][]
+            {
+                TreeTemplate.OakTree(oakLogId, oakLeavesId),     // index 0: oak (default)
+                TreeTemplate.BirchTree(oakLogId, oakLeavesId),   // index 1: birch (tall/narrow)
+                TreeTemplate.SpruceTree(oakLogId, oakLeavesId),  // index 2: spruce (conical)
+            };
             _airId = airId;
             _pendingStore = new PendingDecorationStore();
         }
@@ -90,7 +95,7 @@ namespace Lithforge.WorldGen.Decoration
                         continue;
                     }
 
-                    PlaceTree(chunkCoord, chunkData, x, localBaseY, z);
+                    PlaceTree(chunkCoord, chunkData, x, localBaseY, z, biome.TreeTemplateIndex);
                 }
             }
         }
@@ -100,11 +105,15 @@ namespace Lithforge.WorldGen.Decoration
             NativeArray<StateId> chunkData,
             int baseX,
             int baseY,
-            int baseZ)
+            int baseZ,
+            byte treeTemplateIndex)
         {
-            for (int i = 0; i < _oakTreeTemplate.Length; i++)
+            int templateIdx = treeTemplateIndex < _treeTemplates.Length ? treeTemplateIndex : 0;
+            TreeBlock[] template = _treeTemplates[templateIdx];
+
+            for (int i = 0; i < template.Length; i++)
             {
-                TreeBlock block = _oakTreeTemplate[i];
+                TreeBlock block = template[i];
                 int localX = baseX + block.Offset.x;
                 int localY = baseY + block.Offset.y;
                 int localZ = baseZ + block.Offset.z;

@@ -23,6 +23,8 @@ namespace Lithforge.Runtime
         private LODScheduler _lodScheduler;
         private ChunkCulling _culling;
         private SpawnManager _spawnManager;
+        private Camera _mainCamera;
+        private WorldStorage _worldStorage;
 
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
@@ -63,6 +65,7 @@ namespace Lithforge.Runtime
         {
             _chunkManager = chunkManager;
             _chunkRenderManager = chunkRenderManager;
+            _worldStorage = worldStorage;
 
             _culling = new ChunkCulling();
 
@@ -74,6 +77,9 @@ namespace Lithforge.Runtime
                 nativeStateRegistry,
                 seed,
                 chunkSettings.MaxGenerationsPerFrame);
+            _generationScheduler.SetCulling(_culling);
+
+            _mainCamera = Camera.main;
 
             _meshScheduler = new MeshScheduler(
                 chunkManager,
@@ -119,10 +125,10 @@ namespace Lithforge.Runtime
 
             int3 cameraChunkCoord = GetCameraChunkCoord();
 
-            _culling.UpdateFrustum(Camera.main);
+            _culling.UpdateFrustum(_mainCamera);
 
             _chunkManager.UpdateLoadingQueue(cameraChunkCoord);
-            _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords);
+            _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords, _worldStorage);
 
             // Advance spawn state machine until complete
             if (_spawnManager != null && !_spawnManager.IsComplete)
@@ -148,14 +154,13 @@ namespace Lithforge.Runtime
             // LOD scheduling only activates after spawn is complete
             if (SpawnReady)
             {
-                _lodScheduler.UpdateLODLevels(cameraChunkCoord);
-                _lodScheduler.ScheduleJobs();
+                _lodScheduler.UpdateAndSchedule(cameraChunkCoord);
             }
         }
 
         private int3 GetCameraChunkCoord()
         {
-            Vector3 camPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            Vector3 camPos = _mainCamera != null ? _mainCamera.transform.position : Vector3.zero;
 
             return new int3(
                 (int)math.floor(camPos.x / ChunkConstants.Size),

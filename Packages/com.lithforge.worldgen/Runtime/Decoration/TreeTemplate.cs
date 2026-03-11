@@ -72,5 +72,132 @@ namespace Lithforge.WorldGen.Decoration
 
             return blocks.ToArray();
         }
+
+        /// <summary>
+        /// Tall, narrow tree variant — 7-block trunk, 3x3x3 canopy + 1x1 top.
+        /// Uses the same log/leaves StateIds as oak but with a different shape.
+        /// TreeTemplateIndex = 1.
+        /// </summary>
+        public static TreeBlock[] BirchTree(StateId logId, StateId leavesId)
+        {
+            System.Collections.Generic.List<TreeBlock> blocks =
+                new System.Collections.Generic.List<TreeBlock>();
+
+            int trunkHeight = 7;
+
+            // Trunk
+            for (int y = 0; y < trunkHeight; y++)
+            {
+                blocks.Add(new TreeBlock
+                {
+                    Offset = new int3(0, y, 0),
+                    State = logId,
+                });
+            }
+
+            // Canopy (3x3 for 3 layers: y=5,6,7)
+            for (int y = 5; y <= 7; y++)
+            {
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int z = -1; z <= 1; z++)
+                    {
+                        if (x == 0 && z == 0 && y < trunkHeight)
+                        {
+                            continue;
+                        }
+
+                        blocks.Add(new TreeBlock
+                        {
+                            Offset = new int3(x, y, z),
+                            State = leavesId,
+                        });
+                    }
+                }
+            }
+
+            // Top (single block)
+            blocks.Add(new TreeBlock
+            {
+                Offset = new int3(0, 8, 0),
+                State = leavesId,
+            });
+
+            return blocks.ToArray();
+        }
+
+        /// <summary>
+        /// Conical tree variant — 6-block trunk, tapering canopy (5x5 → 3x3 → 1x1).
+        /// Uses the same log/leaves StateIds as oak but with a different shape.
+        /// TreeTemplateIndex = 2.
+        /// </summary>
+        public static TreeBlock[] SpruceTree(StateId logId, StateId leavesId)
+        {
+            System.Collections.Generic.List<TreeBlock> blocks =
+                new System.Collections.Generic.List<TreeBlock>();
+
+            int trunkHeight = 6;
+
+            // Trunk
+            for (int y = 0; y < trunkHeight; y++)
+            {
+                blocks.Add(new TreeBlock
+                {
+                    Offset = new int3(0, y, 0),
+                    State = logId,
+                });
+            }
+
+            // Wide canopy at y=2,3 (5x5)
+            for (int y = 2; y <= 3; y++)
+            {
+                for (int x = -2; x <= 2; x++)
+                {
+                    for (int z = -2; z <= 2; z++)
+                    {
+                        if (x == 0 && z == 0)
+                        {
+                            continue;
+                        }
+
+                        blocks.Add(new TreeBlock
+                        {
+                            Offset = new int3(x, y, z),
+                            State = leavesId,
+                        });
+                    }
+                }
+            }
+
+            // Mid canopy at y=4,5 (3x3)
+            for (int y = 4; y <= 5; y++)
+            {
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int z = -1; z <= 1; z++)
+                    {
+                        if (x == 0 && z == 0 && y < trunkHeight)
+                        {
+                            continue;
+                        }
+
+                        blocks.Add(new TreeBlock
+                        {
+                            Offset = new int3(x, y, z),
+                            State = leavesId,
+                        });
+                    }
+                }
+            }
+
+            // Top (single block at y=6)
+            blocks.Add(new TreeBlock
+            {
+                Offset = new int3(0, 6, 0),
+                State = leavesId,
+            });
+
+            return blocks.ToArray();
+        }
     }
 }

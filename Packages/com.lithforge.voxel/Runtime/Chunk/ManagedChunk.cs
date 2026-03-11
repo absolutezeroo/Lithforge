@@ -60,6 +60,12 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public bool NeedsLightUpdate { get; set; }
 
+        /// <summary>
+        /// True if voxel data has been modified (e.g. by SetBlock) since last save.
+        /// Used to trigger save-on-unload for modified chunks.
+        /// </summary>
+        public bool IsDirty { get; set; }
+
         public ManagedChunk(int3 coord, NativeArray<StateId> data)
         {
             Coord = coord;

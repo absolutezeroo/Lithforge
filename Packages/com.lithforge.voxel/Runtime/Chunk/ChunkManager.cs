@@ -21,6 +21,7 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
         private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
+        private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
 
         /// <summary>
         /// Cursor index into _loadQueue. Advanced instead of RemoveRange(0, count).
@@ -66,6 +67,13 @@ namespace Lithforge.Voxel.Chunk
 
         public void UpdateLoadingQueue(int3 cameraChunkCoord)
         {
+            // Skip rebuild if camera hasn't moved to a different chunk
+            if (cameraChunkCoord.Equals(_lastCameraChunkCoord) && _loadQueue.Count - _loadQueueIndex > 0)
+            {
+                return;
+            }
+
+            _lastCameraChunkCoord = cameraChunkCoord;
             _loadQueue.Clear();
             _loadQueueIndex = 0;
 
@@ -93,6 +101,16 @@ namespace Lithforge.Voxel.Chunk
                     }
                 }
             }
+
+            // Sort by squared Euclidean distance for smooth fill-in order
+            int3 center = cameraChunkCoord;
+            _loadQueue.Sort((int3 a, int3 b) =>
+            {
+                int distA = math.lengthsq(a - center);
+                int distB = math.lengthsq(b - center);
+
+                return distA.CompareTo(distB);
+            });
         }
 
         public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)
@@ -314,6 +332,7 @@ namespace Lithforge.Voxel.Chunk
 
             NativeArray<StateId> data = chunk.Data;
             data[index] = state;
+            chunk.IsDirty = true;
 
             // Complete any running mesh job before resetting state
             if (chunk.State == ChunkState.Meshing)
@@ -394,7 +413,7 @@ namespace Lithforge.Voxel.Chunk
             return a >= 0 ? a / b : (a - b + 1) / b;
         }
 
-        public void UnloadDistantChunks(int3 cameraChunkCoord, List<int3> unloaded)
+        public void UnloadDistantChunks(int3 cameraChunkCoord, List<int3> unloaded, WorldStorage worldStorage = null)
         {
             unloaded.Clear();
             _toRemoveCache.Clear();
@@ -408,6 +427,14 @@ namespace Lithforge.Voxel.Chunk
                 if (xzDist > _renderDistance + 1 || yOutOfRange)
                 {
                     kvp.Value.ActiveJobHandle.Complete();
+
+                    // Save modified chunks before unloading
+                    if (kvp.Value.IsDirty && worldStorage != null &&
+                        kvp.Value.Data.IsCreated)
+                    {
+                        worldStorage.SaveChunk(kvp.Value.Coord, kvp.Value.Data, kvp.Value.LightData);
+                        kvp.Value.IsDirty = false;
+                    }
 
                     if (kvp.Value.Data.IsCreated)
                     {

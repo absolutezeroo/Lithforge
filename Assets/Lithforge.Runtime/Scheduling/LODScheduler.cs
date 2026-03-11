@@ -87,10 +87,11 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
-        public void UpdateLODLevels(int3 cameraChunkCoord)
+        public void UpdateAndSchedule(int3 cameraChunkCoord)
         {
             _chunkManager.FillReadyChunks(_readyChunksCache);
 
+            // Pass 1: update LOD levels
             for (int i = 0; i < _readyChunksCache.Count; i++)
             {
                 ManagedChunk chunk = _readyChunksCache[i];
@@ -127,10 +128,8 @@ namespace Lithforge.Runtime.Scheduling
                     }
                 }
             }
-        }
 
-        public void ScheduleJobs()
-        {
+            // Pass 2: schedule LOD mesh jobs
             int slotsAvailable = _maxLODMeshesPerFrame - _pendingLODMeshes.Count;
 
             if (slotsAvailable <= 0)
@@ -138,7 +137,6 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            _chunkManager.FillReadyChunks(_readyChunksCache);
             int scheduled = 0;
 
             for (int i = 0; i < _readyChunksCache.Count && scheduled < slotsAvailable; i++)

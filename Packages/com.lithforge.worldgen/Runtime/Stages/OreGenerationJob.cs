@@ -24,6 +24,12 @@ namespace Lithforge.WorldGen.Stages
             int chunkWorldY = ChunkCoord.y * ChunkConstants.Size;
             int chunkWorldZ = ChunkCoord.z * ChunkConstants.Size;
 
+            // IMPORTANT: Ore processing order is significant.
+            // Ores are processed in OreConfigs array order. PlaceOreBlock only replaces
+            // StoneId (or the ore's ReplaceStateId), so an ore placed by an earlier index
+            // cannot be overwritten by a later ore (the replaced block is no longer stone).
+            // At intersection points, the first ore in the array "wins".
+            // Order the array from rarest/most-valuable to most-common to preserve rare ores.
             for (int oreIdx = 0; oreIdx < OreConfigs.Length; oreIdx++)
             {
                 NativeOreConfig config = OreConfigs[oreIdx];

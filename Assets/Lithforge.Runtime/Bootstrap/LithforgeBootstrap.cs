@@ -42,6 +42,7 @@ namespace Lithforge.Runtime.Bootstrap
         private NativeArray<NativeOreConfig> _nativeOreConfigs;
         private DecorationStage _decorationStage;
         private WorldStorage _worldStorage;
+        private Lithforge.Core.Logging.ILogger _logger;
         private TimeOfDayController _timeOfDayController;
         private SkyController _skyController;
 
@@ -61,7 +62,8 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeContent()
         {
-            UnityLogger logger = new UnityLogger();
+            _logger = new UnityLogger();
+            UnityLogger logger = (UnityLogger)_logger;
             ContentValidator validator = new ContentValidator();
 
             ContentPipeline pipeline = new ContentPipeline(
@@ -83,7 +85,7 @@ namespace Lithforge.Runtime.Bootstrap
         {
             string worldDir = System.IO.Path.Combine(
                 Application.persistentDataPath, "worlds", "default");
-            _worldStorage = new WorldStorage(worldDir);
+            _worldStorage = new WorldStorage(worldDir, _logger);
             _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
             UnityEngine.Debug.Log($"[Lithforge] World storage: {worldDir}");
         }
@@ -139,6 +141,7 @@ namespace Lithforge.Runtime.Bootstrap
                     FillerDepth = (byte)def.FillerDepth,
                     TreeDensity = def.TreeDensity,
                     HeightModifier = def.HeightModifier,
+                    TreeTemplateIndex = (byte)def.TreeType,
                 };
             }
 
@@ -438,7 +441,8 @@ namespace Lithforge.Runtime.Bootstrap
                 _skyController.Initialize(
                     _timeOfDayController,
                     _timeOfDayController.DirectionalLight,
-                    _settings.Rendering);
+                    _settings.Rendering,
+                    _chunkManager);
             }
 
             // Initialize SettingsScreen now that all systems are available

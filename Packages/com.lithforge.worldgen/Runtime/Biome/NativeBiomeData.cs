@@ -20,5 +20,6 @@ namespace Lithforge.WorldGen.Biome
         public byte FillerDepth;
         public float TreeDensity;
         public float HeightModifier;
+        public byte TreeTemplateIndex;
     }
 }

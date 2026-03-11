@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Lithforge.Core.Logging;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
@@ -13,12 +14,14 @@ namespace Lithforge.Voxel.Storage
         private readonly string _worldDir;
         private readonly string _regionDir;
         private readonly Dictionary<int3, RegionFile> _regionFiles = new Dictionary<int3, RegionFile>();
+        private readonly ILogger _logger;
         private bool _disposed;
 
-        public WorldStorage(string worldDir)
+        public WorldStorage(string worldDir, ILogger logger = null)
         {
             _worldDir = worldDir;
             _regionDir = Path.Combine(worldDir, "region");
+            _logger = logger;
 
             if (!Directory.Exists(_regionDir))
             {
@@ -28,10 +31,19 @@ namespace Lithforge.Voxel.Storage
 
         public bool HasChunk(int3 chunkCoord)
         {
-            GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
-            RegionFile region = GetOrOpenRegion(regionCoord);
+            try
+            {
+                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                RegionFile region = GetOrOpenRegion(regionCoord);
 
-            return region.HasChunk(localX, localZ);
+                return region.HasChunk(localX, localZ);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[WorldStorage] HasChunk failed for {chunkCoord}: {ex.Message}");
+
+                return false;
+            }
         }
 
         public bool LoadChunk(
@@ -39,17 +51,26 @@ namespace Lithforge.Voxel.Storage
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
         {
-            GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
-            RegionFile region = GetOrOpenRegion(regionCoord);
-
-            byte[] serialized = region.LoadChunk(localX, localZ);
-
-            if (serialized == null)
+            try
             {
+                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                RegionFile region = GetOrOpenRegion(regionCoord);
+
+                byte[] serialized = region.LoadChunk(localX, localZ);
+
+                if (serialized == null)
+                {
+                    return false;
+                }
+
+                return ChunkSerializer.Deserialize(serialized, chunkData, lightData);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[WorldStorage] LoadChunk failed for {chunkCoord}: {ex.Message}");
+
                 return false;
             }
-
-            return ChunkSerializer.Deserialize(serialized, chunkData, lightData);
         }
 
         public void SaveChunk(
@@ -57,18 +78,32 @@ namespace Lithforge.Voxel.Storage
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
         {
-            GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
-            RegionFile region = GetOrOpenRegion(regionCoord);
+            try
+            {
+                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                RegionFile region = GetOrOpenRegion(regionCoord);
 
-            byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData);
-            region.SaveChunk(localX, localZ, serialized);
+                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData);
+                region.SaveChunk(localX, localZ, serialized);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[WorldStorage] SaveChunk failed for {chunkCoord}: {ex.Message}");
+            }
         }
 
         public void FlushAll()
         {
             foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
             {
-                kvp.Value.Flush();
+                try
+                {
+                    kvp.Value.Flush();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError($"[WorldStorage] Flush failed for region {kvp.Key}: {ex.Message}");
+                }
             }
         }
 

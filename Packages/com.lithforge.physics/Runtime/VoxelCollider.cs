@@ -94,6 +94,7 @@ namespace Lithforge.Physics
             // Resolve X axis
             position.x += velocity.x;
             entityBox = BuildEntityBox(position, halfWidth, height);
+            bool hitWallX = false;
 
             for (int bx = minX; bx <= maxX; bx++)
             {
@@ -127,6 +128,7 @@ namespace Lithforge.Physics
                         }
 
                         velocity.x = 0f;
+                        hitWallX = true;
                         result.HitWall = true;
                         entityBox = BuildEntityBox(position, halfWidth, height);
                     }
@@ -136,6 +138,7 @@ namespace Lithforge.Physics
             // Resolve Z axis
             position.z += velocity.z;
             entityBox = BuildEntityBox(position, halfWidth, height);
+            bool hitWallZ = false;
 
             for (int bx = minX; bx <= maxX; bx++)
             {
@@ -169,9 +172,51 @@ namespace Lithforge.Physics
                         }
 
                         velocity.z = 0f;
+                        hitWallZ = true;
                         result.HitWall = true;
                         entityBox = BuildEntityBox(position, halfWidth, height);
                     }
+                }
+            }
+
+            // Step-up: if a horizontal collision occurred and the player is on the ground,
+            // check if stepping up by StepHeight would clear the obstruction.
+            if (result.OnGround && (hitWallX || hitWallZ))
+            {
+                float stepHeight = PhysicsConstants.StepHeight;
+                float3 testPos = position;
+                testPos.y += stepHeight;
+                Aabb testBox = BuildEntityBox(testPos, halfWidth, height);
+
+                bool blocked = false;
+
+                for (int bx = minX; bx <= maxX && !blocked; bx++)
+                {
+                    for (int by = minY; by <= maxY && !blocked; by++)
+                    {
+                        for (int bz = minZ; bz <= maxZ && !blocked; bz++)
+                        {
+                            int3 blockCoord = new int3(bx, by, bz);
+
+                            if (!isSolid(blockCoord))
+                            {
+                                continue;
+                            }
+
+                            Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                            if (testBox.Intersects(blockBox))
+                            {
+                                blocked = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!blocked)
+                {
+                    position.y += stepHeight;
+                    result.HitWall = false;
                 }
             }
 

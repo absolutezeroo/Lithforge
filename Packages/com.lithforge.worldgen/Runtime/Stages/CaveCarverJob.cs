@@ -58,7 +58,12 @@ namespace Lithforge.WorldGen.Stages
 
                         float caveValue = n1 * n1 + n2 * n2;
 
-                        if (caveValue < CaveThreshold)
+                        // Modulate threshold by depth: caves are larger deeper underground.
+                        // At surface (worldY == SeaLevel), factor is 1.0. At Y=0, factor is 1.5.
+                        float depthFactor = 1.0f + 0.5f * math.saturate((float)(SeaLevel - worldY) / SeaLevel);
+                        float adjustedThreshold = CaveThreshold * depthFactor;
+
+                        if (caveValue < adjustedThreshold)
                         {
                             // Don't carve within buffer of sea level to protect ocean floor
                             if (worldY >= SeaLevel - SeaLevelCarveBuffer && worldY <= SeaLevel)

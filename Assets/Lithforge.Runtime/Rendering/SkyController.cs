@@ -1,4 +1,5 @@
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Voxel.Chunk;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -18,7 +19,8 @@ namespace Lithforge.Runtime.Rendering
         private Gradient _skyZenithGradient;
         private Gradient _fogGradient;
         private Gradient _ambientGradient;
-        private float _fogDensity;
+        private float _baseFogDensity;
+        private ChunkManager _chunkManager;
 
         private float _dynamicGITimer;
         private const float _dynamicGIInterval = 2.0f;
@@ -31,15 +33,17 @@ namespace Lithforge.Runtime.Rendering
         public void Initialize(
             TimeOfDayController timeOfDayController,
             Light directionalLight,
-            RenderingSettings settings)
+            RenderingSettings settings,
+            ChunkManager chunkManager = null)
         {
             _timeOfDayController = timeOfDayController;
             _directionalLight = directionalLight;
+            _chunkManager = chunkManager;
             _skyGradient = settings.SkyGradient;
             _skyZenithGradient = settings.SkyZenithGradient;
             _fogGradient = settings.FogGradient;
             _ambientGradient = settings.AmbientGradient;
-            _fogDensity = settings.FogDensity;
+            _baseFogDensity = settings.FogDensity;
 
             Shader skyShader = Shader.Find("Lithforge/ProceduralSky");
 
@@ -52,7 +56,7 @@ namespace Lithforge.Runtime.Rendering
             _skyboxMaterial = new Material(skyShader);
             RenderSettings.skybox = _skyboxMaterial;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = _fogDensity;
+            RenderSettings.fogDensity = _baseFogDensity;
             RenderSettings.fog = true;
         }
 
@@ -79,6 +83,15 @@ namespace Lithforge.Runtime.Rendering
             {
                 _skyboxMaterial.SetVector(_sunDirectionId,
                     -_directionalLight.transform.forward);
+            }
+
+            // Scale fog density inversely with render distance so distant LOD chunks
+            // are not fully obscured by fog
+            if (_chunkManager != null)
+            {
+                int renderDistance = _chunkManager.RenderDistance;
+                float scaledDensity = _baseFogDensity * (8.0f / Mathf.Max(renderDistance, 1));
+                RenderSettings.fogDensity = scaledDensity;
             }
 
             RenderSettings.fogColor = fogColor;
