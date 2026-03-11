@@ -121,6 +121,11 @@ namespace Lithforge.WorldGen.Stages
             blockQueue.Dispose();
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // SHARED BFS LOGIC — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
+        // Any modification MUST be applied to all three files in the same commit.
+        // ═══════════════════════════════════════════════════════════════════════
+
         private void PropagateSun(ref NativeQueue<int> queue)
         {
             while (queue.Count > 0)
