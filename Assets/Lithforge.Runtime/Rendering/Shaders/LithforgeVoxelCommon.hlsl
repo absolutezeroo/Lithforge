@@ -1,0 +1,96 @@
+// LithforgeVoxelCommon.hlsl
+// Shared StructuredBuffer fetch logic for all Lithforge voxel shaders.
+// Must be included AFTER Core.hlsl (and Lighting.hlsl if needed by the pass).
+//
+// MeshVertex C# layout (40 bytes, StructLayout.Sequential):
+//   float3 Position  bytes  0-11
+//   float3 Normal    bytes 12-23
+//   half4  Color     bytes 24-31  (r=AO, g=blockLight, b=sunLight, a=texIndex)
+//   float2 UV        bytes 32-39
+//
+// HLSL StructuredBuffer<T> stride must match exactly. The 'half' type in HLSL
+// struct members is silently promoted to float by the compiler, making stride 48
+// instead of 40. Solution: pack Color as two uint words and unpack with f16tof32().
+
+#ifndef LITHFORGE_VOXEL_COMMON_INCLUDED
+#define LITHFORGE_VOXEL_COMMON_INCLUDED
+
+// ---------------------------------------------------------------------------
+// GPU-side vertex layout -- must produce stride == 40 bytes.
+// The two uint words at bytes 24-31 hold the four float16 Color components:
+//   colorWord0: bits 0-15 = Color.r (AO), bits 16-31 = Color.g (blockLight)
+//   colorWord1: bits 0-15 = Color.b (sunLight), bits 16-31 = Color.a (texIndex)
+// This matches the C# half4 memory layout on little-endian (x86/ARM).
+// ---------------------------------------------------------------------------
+struct GpuMeshVertex
+{
+    float3 position;   // 12 bytes (offset 0)
+    float3 normal;     // 12 bytes (offset 12)
+    uint   colorWord0; //  4 bytes (offset 24) -- packs Color.r and Color.g as float16
+    uint   colorWord1; //  4 bytes (offset 28) -- packs Color.b and Color.a as float16
+    float2 uv;         //  8 bytes (offset 32)
+};
+// Total: 40 bytes. Matches C# MeshVertex with StructLayout.Sequential.
+
+// ---------------------------------------------------------------------------
+// Buffer declaration. Bound per-draw from ChunkMeshStore via MaterialPropertyBlock.
+// The index buffer is hardware-bound via RenderPrimitivesIndexedIndirect,
+// so SV_VertexID gives the post-index vertex index directly.
+// ---------------------------------------------------------------------------
+StructuredBuffer<GpuMeshVertex> _VertexBuffer;
+
+// ---------------------------------------------------------------------------
+// Decoded working vertex -- plain floats, safe for URP transform helpers.
+// ---------------------------------------------------------------------------
+struct DecodedVertex
+{
+    float3 positionOS;
+    float3 normalOS;
+    half   ao;           // Color.r: 0=fully occluded, 1=unoccluded
+    half   blockLight;   // Color.g: [0,1] normalised
+    half   sunLight;     // Color.b: [0,1] normalised
+    int    texIndex;     // Color.a: texture array layer, integer
+    float2 uv;
+};
+
+// ---------------------------------------------------------------------------
+// Fetch and decode one vertex from the StructuredBuffer.
+// svVertexID comes from SV_VertexID. With RenderPrimitivesIndexedIndirect,
+// the hardware index buffer has already remapped the ID to the actual vertex
+// index, so we read directly from _VertexBuffer[svVertexID].
+// ---------------------------------------------------------------------------
+DecodedVertex FetchVertex(uint svVertexID)
+{
+    GpuMeshVertex raw = _VertexBuffer[svVertexID];
+
+    DecodedVertex dv;
+    dv.positionOS = raw.position;
+    dv.normalOS   = raw.normal;
+    dv.uv         = raw.uv;
+
+    // Unpack float16 pairs using f16tof32().
+    // f16tof32(x) extracts bits [0:15]; f16tof32(x >> 16) extracts bits [16:31].
+    dv.ao         = (half)f16tof32(raw.colorWord0);
+    dv.blockLight = (half)f16tof32(raw.colorWord0 >> 16u);
+    dv.sunLight   = (half)f16tof32(raw.colorWord1);
+    // texIndex must be a round integer stored losslessly in float16 (safe up to 2048).
+    dv.texIndex   = (int)round(f16tof32(raw.colorWord1 >> 16u));
+
+    return dv;
+}
+
+// ---------------------------------------------------------------------------
+// Shared Varyings -- used by ForwardLit in all three shader variants.
+// ---------------------------------------------------------------------------
+struct Varyings
+{
+    float4 positionCS                    : SV_POSITION;
+    float2 uv                           : TEXCOORD0;
+    nointerpolation int texIndex        : TEXCOORD1;
+    half   ao                           : TEXCOORD2;
+    half   light                        : TEXCOORD3;
+    float3 normalWS                     : TEXCOORD4;
+    float  fogFactor                    : TEXCOORD5;
+};
+
+#endif // LITHFORGE_VOXEL_COMMON_INCLUDED

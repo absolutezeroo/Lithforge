@@ -28,6 +28,7 @@ Shader "Lithforge/VoxelCutout"
             ZTest LEqual
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
@@ -35,6 +36,7 @@ Shader "Lithforge/VoxelCutout"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "LithforgeVoxelCommon.hlsl"
 
             TEXTURE2D_ARRAY(_AtlasArray);
             SAMPLER(sampler_AtlasArray);
@@ -46,42 +48,22 @@ Shader "Lithforge/VoxelCutout"
                 float _AlphaClipThreshold;
             CBUFFER_END
 
-            struct Attributes
+            Varyings vert(uint svVertexID : SV_VertexID)
             {
-                float4 positionOS : POSITION;
-                float3 normalOS   : NORMAL;
-                half4  color      : COLOR;
-                float2 uv         : TEXCOORD0;
-            };
+                DecodedVertex dv = FetchVertex(svVertexID);
 
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                float3 normalWS   : TEXCOORD0;
-                float2 uv         : TEXCOORD1;
-                half   ao         : TEXCOORD2;
-                half   light      : TEXCOORD3;
-                float  fogFactor  : TEXCOORD4;
-                nointerpolation int texIndex : TEXCOORD5;
-            };
-
-            Varyings vert(Attributes input)
-            {
                 Varyings output;
 
-                VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS.xyz);
+                VertexPositionInputs posInputs = GetVertexPositionInputs(dv.positionOS);
                 output.positionCS = posInputs.positionCS;
-                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
-                output.uv = input.uv;
+                output.normalWS = TransformObjectToWorldNormal(dv.normalOS);
+                output.uv = dv.uv;
+                output.texIndex = dv.texIndex;
 
-                output.texIndex = (int)round(input.color.a);
+                output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
 
-                half aoRaw = input.color.r;
-                output.ao = lerp(1.0h, aoRaw, (half)_AOStrength);
-
-                half blockLight = input.color.g;
-                half sunLight = input.color.b;
-                output.light = max(blockLight, sunLight * (half)_SunLightFactor);
+                half sunLight = dv.sunLight * (half)_SunLightFactor;
+                output.light = max(dv.blockLight, sunLight);
 
                 output.fogFactor = ComputeFogFactor(posInputs.positionCS.z);
 
@@ -120,46 +102,40 @@ Shader "Lithforge/VoxelCutout"
             Cull Off
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex DepthOnlyVert
             #pragma fragment DepthOnlyFrag
             #pragma require 2darray
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "LithforgeVoxelCommon.hlsl"
 
             TEXTURE2D_ARRAY(_AtlasArray);
             SAMPLER(sampler_AtlasArray);
 
             CBUFFER_START(UnityPerMaterial)
-                float _AOStrength;
-                float _SunLightFactor;
-                float _AmbientLight;
                 float _AlphaClipThreshold;
             CBUFFER_END
 
-            struct Attributes
-            {
-                float4 positionOS : POSITION;
-                float2 uv         : TEXCOORD0;
-                half4  color      : COLOR;
-            };
-
-            struct Varyings
+            struct CutoutDepthVaryings
             {
                 float4 positionCS : SV_POSITION;
-                float2 uv         : TEXCOORD0;
+                float2 uv : TEXCOORD0;
                 nointerpolation int texIndex : TEXCOORD1;
             };
 
-            Varyings DepthOnlyVert(Attributes input)
+            CutoutDepthVaryings DepthOnlyVert(uint svVertexID : SV_VertexID)
             {
-                Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
-                output.uv = input.uv;
-                output.texIndex = (int)round(input.color.a);
+                DecodedVertex dv = FetchVertex(svVertexID);
+
+                CutoutDepthVaryings output;
+                output.positionCS = TransformObjectToHClip(dv.positionOS);
+                output.uv = dv.uv;
+                output.texIndex = dv.texIndex;
                 return output;
             }
 
-            half4 DepthOnlyFrag(Varyings input) : SV_Target
+            half4 DepthOnlyFrag(CutoutDepthVaryings input) : SV_Target
             {
                 float2 tiledUV = frac(input.uv);
                 half4 texColor = SAMPLE_TEXTURE2D_ARRAY(

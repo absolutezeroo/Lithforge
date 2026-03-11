@@ -29,6 +29,7 @@ Shader "Lithforge/VoxelTranslucent"
             Blend SrcAlpha OneMinusSrcAlpha
 
             HLSLPROGRAM
+            #pragma target 4.5
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
@@ -36,6 +37,7 @@ Shader "Lithforge/VoxelTranslucent"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "LithforgeVoxelCommon.hlsl"
 
             TEXTURE2D_ARRAY(_AtlasArray);
             SAMPLER(sampler_AtlasArray);
@@ -47,48 +49,27 @@ Shader "Lithforge/VoxelTranslucent"
                 float _WaterAlpha;
             CBUFFER_END
 
-            struct Attributes
+            Varyings vert(uint svVertexID : SV_VertexID)
             {
-                float3 positionOS : POSITION;
-                float3 normalOS : NORMAL;
-                float2 uv : TEXCOORD0;
-                half4 color : COLOR;  // r=AO, g=blockLight, b=sunLight, a=texIndex
-            };
+                DecodedVertex dv = FetchVertex(svVertexID);
 
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                float2 uv : TEXCOORD0;
-                nointerpolation int texIndex : TEXCOORD1;
-                half ao : TEXCOORD2;
-                half light : TEXCOORD3;
-                float3 normalWS : TEXCOORD4;
-                float fogFactor : TEXCOORD5;
-            };
-
-            Varyings vert(Attributes input)
-            {
                 Varyings output;
 
-                VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS);
+                VertexPositionInputs vertexInput = GetVertexPositionInputs(dv.positionOS);
                 output.positionCS = vertexInput.positionCS;
 
-                VertexNormalInputs normalInput = GetVertexNormalInputs(input.normalOS);
+                VertexNormalInputs normalInput = GetVertexNormalInputs(dv.normalOS);
                 output.normalWS = normalInput.normalWS;
 
-                // Texture array index from color.a (stored as half, lossless up to 2048)
-                output.uv = input.uv;
-                output.texIndex = (int)round(input.color.a);
+                output.uv = dv.uv;
+                output.texIndex = dv.texIndex;
 
                 // AO: color.r is ao/3 (0=fully occluded, 1=unoccluded)
-                half aoNorm = input.color.r;
-                output.ao = lerp(1.0h, aoNorm, (half)_AOStrength);
+                output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
 
-                // Lighting: block light (g) and sun light (b)
-                // Ambient is applied separately in the fragment shader
-                half blockLight = input.color.g;
-                half sunLight = input.color.b * (half)_SunLightFactor;
-                output.light = max(blockLight, sunLight);
+                // Lighting: block light and sun light
+                half sunLight = dv.sunLight * (half)_SunLightFactor;
+                output.light = max(dv.blockLight, sunLight);
 
                 output.fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
 
