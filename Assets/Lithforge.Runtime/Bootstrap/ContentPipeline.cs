@@ -289,7 +289,8 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Assert texture count fits in half precision (exact integer range up to 2048)
             int texCount = atlasResult.TextureArray != null ? atlasResult.TextureArray.depth : 0;
-            Debug.Assert(texCount <= 1024,
+
+            UnityEngine.Debug.Assert(texCount <= 1024,
                 $"Texture array has {texCount} layers, exceeding the 1024 limit for half-precision texture indices in MeshVertex.Color.a.");
 
             // Phase 14: BakeNative + build NativeAtlasLookup
