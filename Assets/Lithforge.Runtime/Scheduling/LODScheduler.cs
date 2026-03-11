@@ -21,7 +21,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
-        private readonly ChunkRenderManager _chunkRenderManager;
+        private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
         private readonly int _maxLODMeshesPerFrame;
         private readonly int _lod1Distance;
@@ -42,7 +42,7 @@ namespace Lithforge.Runtime.Scheduling
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
             NativeAtlasLookup nativeAtlasLookup,
-            ChunkRenderManager chunkRenderManager,
+            ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
             int maxLODMeshesPerFrame,
             int lod1Distance,
@@ -52,7 +52,7 @@ namespace Lithforge.Runtime.Scheduling
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _nativeAtlasLookup = nativeAtlasLookup;
-            _chunkRenderManager = chunkRenderManager;
+            _chunkMeshStore = chunkMeshStore;
             _culling = culling;
             _maxLODMeshesPerFrame = maxLODMeshesPerFrame;
             _lod1Distance = lod1Distance;
@@ -71,7 +71,7 @@ namespace Lithforge.Runtime.Scheduling
                     pending.Handle.Complete();
 
                     // Upload as single-submesh opaque mesh
-                    _chunkRenderManager.UpdateRendererSingleMesh(
+                    _chunkMeshStore.UpdateRendererSingleMesh(
                         pending.Coord,
                         pending.Data.Vertices,
                         pending.Data.Indices);

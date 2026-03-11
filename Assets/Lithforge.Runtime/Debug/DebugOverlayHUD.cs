@@ -8,7 +8,7 @@ namespace Lithforge.Runtime.Debug
     {
         private GameLoop _gameLoop;
         private Voxel.Chunk.ChunkManager _chunkManager;
-        private Rendering.ChunkRenderManager _chunkRenderManager;
+        private Rendering.ChunkMeshStore _chunkMeshStore;
         private PlayerController _playerController;
 
         private Camera _mainCamera;
@@ -40,7 +40,7 @@ namespace Lithforge.Runtime.Debug
             GameLoop gameLoop,
             Voxel.Chunk.ChunkManager chunkManager,
             DebugSettings settings,
-            Rendering.ChunkRenderManager chunkRenderManager = null,
+            Rendering.ChunkMeshStore chunkMeshStore = null,
             PlayerController playerController = null)
         {
             _gameLoop = gameLoop;
@@ -52,7 +52,7 @@ namespace Lithforge.Runtime.Debug
             _overlayPanelWidth = settings.OverlayPanelWidth;
             _overlayPadding = settings.OverlayPadding;
             _overlayLineSpacing = settings.OverlayLineSpacing;
-            _chunkRenderManager = chunkRenderManager;
+            _chunkMeshStore = chunkMeshStore;
             _playerController = playerController;
             _visible = settings.ShowDebugOverlay;
             _mainCamera = Camera.main;
@@ -105,7 +105,7 @@ namespace Lithforge.Runtime.Debug
             int labelWidth = _overlayPanelWidth - padding * 2;
 
             if (_chunkManager != null) { lineCount++; }
-            if (_chunkRenderManager != null) { lineCount++; }
+            if (_chunkMeshStore != null) { lineCount++; }
             if (_gameLoop != null) { lineCount += 2; }
             if (_playerController != null && _playerController.IsFlying) { lineCount++; }
 
@@ -131,10 +131,10 @@ namespace Lithforge.Runtime.Debug
                 y += lineHeight;
             }
 
-            if (_chunkRenderManager != null)
+            if (_chunkMeshStore != null)
             {
                 GUI.Label(new Rect(x, y, labelWidth, lineHeight),
-                    $"Renderers: {_chunkRenderManager.RendererCount}", _style);
+                    $"Renderers: {_chunkMeshStore.RendererCount}", _style);
                 y += lineHeight;
             }
 

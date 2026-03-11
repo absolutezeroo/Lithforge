@@ -37,7 +37,7 @@ namespace Lithforge.Runtime.Bootstrap
         private ChunkPool _chunkPool;
         private ChunkManager _chunkManager;
         private GenerationPipeline _generationPipeline;
-        private ChunkRenderManager _chunkRenderManager;
+        private ChunkMeshStore _chunkMeshStore;
         private GameLoop _gameLoop;
         private NativeArray<NativeBiomeData> _nativeBiomeData;
         private NativeArray<NativeOreConfig> _nativeOreConfigs;
@@ -285,7 +285,7 @@ namespace Lithforge.Runtime.Bootstrap
                 cutoutMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
             }
 
-            _chunkRenderManager = new ChunkRenderManager(opaqueMaterial, cutoutMaterial, translucentMaterial);
+            _chunkMeshStore = new ChunkMeshStore(opaqueMaterial, cutoutMaterial, translucentMaterial);
         }
 
         private void InitializeGameLoop(LoadingScreen loadingScreen, UnityEngine.UIElements.PanelSettings panelSettings)
@@ -300,7 +300,7 @@ namespace Lithforge.Runtime.Bootstrap
                 _generationPipeline,
                 _contentResult.NativeStateRegistry,
                 _contentResult.NativeAtlasLookup,
-                _chunkRenderManager,
+                _chunkMeshStore,
                 _decorationStage,
                 _worldStorage,
                 _settings.WorldGen.Seed,
@@ -412,7 +412,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add debug HUD
                 DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
-                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug, _chunkRenderManager, playerController);
+                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug, _chunkMeshStore, playerController);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
@@ -440,15 +440,15 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Initialize day/night cycle
-            Material material = _chunkRenderManager.OpaqueMaterial;
+            Material material = _chunkMeshStore.OpaqueMaterial;
 
             if (material != null)
             {
                 _timeOfDayController = gameObject.AddComponent<TimeOfDayController>();
                 _timeOfDayController.Initialize(
                     material,
-                    _chunkRenderManager.CutoutMaterial,
-                    _chunkRenderManager.TranslucentMaterial,
+                    _chunkMeshStore.CutoutMaterial,
+                    _chunkMeshStore.TranslucentMaterial,
                     _settings.Rendering);
 
                 // Initialize procedural sky
@@ -467,7 +467,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkManager,
                     cameraControllerRef,
                     _timeOfDayController,
-                    _chunkRenderManager,
+                    _chunkMeshStore,
                     panelSettings);
             }
         }
@@ -526,9 +526,9 @@ namespace Lithforge.Runtime.Bootstrap
                 _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
             }
 
-            if (_chunkRenderManager != null)
+            if (_chunkMeshStore != null)
             {
-                _chunkRenderManager.Dispose();
+                _chunkMeshStore.Dispose();
             }
 
             if (_chunkManager != null)

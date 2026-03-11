@@ -23,7 +23,8 @@
       "Bash(mkdir:*)",
       "Bash(git mv:*)",
       "Bash(do ls:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

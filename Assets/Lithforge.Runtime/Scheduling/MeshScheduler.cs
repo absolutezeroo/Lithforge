@@ -13,7 +13,7 @@ namespace Lithforge.Runtime.Scheduling
 {
     /// <summary>
     /// Owns the mesh job queue: scheduling greedy mesh jobs for LOD0 chunks,
-    /// polling for completion, uploading to ChunkRenderManager, and disposing resources.
+    /// polling for completion, uploading to ChunkMeshStore, and disposing resources.
     /// Also processes RelightPending chunks before allowing meshing.
     /// </summary>
     public sealed class MeshScheduler
@@ -22,7 +22,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
-        private readonly ChunkRenderManager _chunkRenderManager;
+        private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
         private readonly int _maxMeshesPerFrame;
 
@@ -47,14 +47,14 @@ namespace Lithforge.Runtime.Scheduling
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
             NativeAtlasLookup nativeAtlasLookup,
-            ChunkRenderManager chunkRenderManager,
+            ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
             int maxMeshesPerFrame)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _nativeAtlasLookup = nativeAtlasLookup;
-            _chunkRenderManager = chunkRenderManager;
+            _chunkMeshStore = chunkMeshStore;
             _culling = culling;
             _maxMeshesPerFrame = maxMeshesPerFrame;
         }
@@ -69,7 +69,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     pending.Handle.Complete();
 
-                    _chunkRenderManager.UpdateRenderer(
+                    _chunkMeshStore.UpdateRenderer(
                         pending.Coord,
                         pending.Data.OpaqueVertices,
                         pending.Data.OpaqueIndices,

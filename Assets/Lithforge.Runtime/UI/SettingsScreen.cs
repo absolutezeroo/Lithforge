@@ -24,7 +24,7 @@ namespace Lithforge.Runtime.UI
         private ChunkManager _chunkManager;
         private CameraController _cameraController;
         private TimeOfDayController _timeOfDayController;
-        private ChunkRenderManager _chunkRenderManager;
+        private ChunkMeshStore _chunkMeshStore;
         private Camera _mainCamera;
 
         // Current values
@@ -47,13 +47,13 @@ namespace Lithforge.Runtime.UI
             ChunkManager chunkManager,
             CameraController cameraController,
             TimeOfDayController timeOfDayController,
-            ChunkRenderManager chunkRenderManager,
+            ChunkMeshStore chunkMeshStore,
             PanelSettings panelSettings)
         {
             _chunkManager = chunkManager;
             _cameraController = cameraController;
             _timeOfDayController = timeOfDayController;
-            _chunkRenderManager = chunkRenderManager;
+            _chunkMeshStore = chunkMeshStore;
             _mainCamera = Camera.main;
 
             // Read current values as defaults
@@ -159,21 +159,21 @@ namespace Lithforge.Runtime.UI
             {
                 _aoStrength = value;
 
-                if (_chunkRenderManager != null)
+                if (_chunkMeshStore != null)
                 {
-                    if (_chunkRenderManager.OpaqueMaterial != null)
+                    if (_chunkMeshStore.OpaqueMaterial != null)
                     {
-                        _chunkRenderManager.OpaqueMaterial.SetFloat(_aoStrengthId, value);
+                        _chunkMeshStore.OpaqueMaterial.SetFloat(_aoStrengthId, value);
                     }
 
-                    if (_chunkRenderManager.CutoutMaterial != null)
+                    if (_chunkMeshStore.CutoutMaterial != null)
                     {
-                        _chunkRenderManager.CutoutMaterial.SetFloat(_aoStrengthId, value);
+                        _chunkMeshStore.CutoutMaterial.SetFloat(_aoStrengthId, value);
                     }
 
-                    if (_chunkRenderManager.TranslucentMaterial != null)
+                    if (_chunkMeshStore.TranslucentMaterial != null)
                     {
-                        _chunkRenderManager.TranslucentMaterial.SetFloat(_aoStrengthId, value);
+                        _chunkMeshStore.TranslucentMaterial.SetFloat(_aoStrengthId, value);
                     }
                 }
 
@@ -441,21 +441,21 @@ namespace Lithforge.Runtime.UI
             {
                 _aoStrength = PlayerPrefs.GetFloat(_prefAOStrength);
 
-                if (_chunkRenderManager != null)
+                if (_chunkMeshStore != null)
                 {
-                    if (_chunkRenderManager.OpaqueMaterial != null)
+                    if (_chunkMeshStore.OpaqueMaterial != null)
                     {
-                        _chunkRenderManager.OpaqueMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                        _chunkMeshStore.OpaqueMaterial.SetFloat(_aoStrengthId, _aoStrength);
                     }
 
-                    if (_chunkRenderManager.CutoutMaterial != null)
+                    if (_chunkMeshStore.CutoutMaterial != null)
                     {
-                        _chunkRenderManager.CutoutMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                        _chunkMeshStore.CutoutMaterial.SetFloat(_aoStrengthId, _aoStrength);
                     }
 
-                    if (_chunkRenderManager.TranslucentMaterial != null)
+                    if (_chunkMeshStore.TranslucentMaterial != null)
                     {
-                        _chunkRenderManager.TranslucentMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                        _chunkMeshStore.TranslucentMaterial.SetFloat(_aoStrengthId, _aoStrength);
                     }
                 }
             }

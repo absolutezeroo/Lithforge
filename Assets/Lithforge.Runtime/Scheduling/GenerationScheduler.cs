@@ -245,6 +245,15 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
+                // Skip chunks with in-flight jobs that may read LightData or ChunkData.
+                // The light update will run on a subsequent frame after the job completes.
+                if (chunk.State == ChunkState.Meshing ||
+                    chunk.State == ChunkState.Generating ||
+                    !chunk.ActiveJobHandle.IsCompleted)
+                {
+                    continue;
+                }
+
                 // Build seed entries from all neighbor border light values
                 NativeList<NativeBorderLightEntry> seedEntries =
                     new NativeList<NativeBorderLightEntry>(128, Allocator.TempJob);

@@ -17,7 +17,7 @@ namespace Lithforge.Runtime
     public sealed class GameLoop : MonoBehaviour
     {
         private ChunkManager _chunkManager;
-        private ChunkRenderManager _chunkRenderManager;
+        private ChunkMeshStore _chunkMeshStore;
         private GenerationScheduler _generationScheduler;
         private MeshScheduler _meshScheduler;
         private LODScheduler _lodScheduler;
@@ -57,14 +57,14 @@ namespace Lithforge.Runtime
             GenerationPipeline generationPipeline,
             NativeStateRegistry nativeStateRegistry,
             NativeAtlasLookup nativeAtlasLookup,
-            ChunkRenderManager chunkRenderManager,
+            ChunkMeshStore chunkMeshStore,
             DecorationStage decorationStage,
             WorldStorage worldStorage,
             long seed,
             ChunkSettings chunkSettings)
         {
             _chunkManager = chunkManager;
-            _chunkRenderManager = chunkRenderManager;
+            _chunkMeshStore = chunkMeshStore;
             _worldStorage = worldStorage;
 
             _culling = new ChunkCulling();
@@ -83,7 +83,7 @@ namespace Lithforge.Runtime
                 chunkManager,
                 nativeStateRegistry,
                 nativeAtlasLookup,
-                chunkRenderManager,
+                chunkMeshStore,
                 _culling,
                 chunkSettings.MaxMeshesPerFrame);
 
@@ -91,7 +91,7 @@ namespace Lithforge.Runtime
                 chunkManager,
                 nativeStateRegistry,
                 nativeAtlasLookup,
-                chunkRenderManager,
+                chunkMeshStore,
                 _culling,
                 chunkSettings.MaxLODMeshesPerFrame,
                 chunkSettings.LOD1Distance,
@@ -138,7 +138,7 @@ namespace Lithforge.Runtime
             {
                 int3 coord = _unloadedCoords[i];
 
-                _chunkRenderManager.DestroyRenderer(coord);
+                _chunkMeshStore.DestroyRenderer(coord);
                 _generationScheduler.CleanupCoord(coord);
                 _meshScheduler.CleanupCoord(coord);
                 _lodScheduler.CleanupCoord(coord);
@@ -154,6 +154,16 @@ namespace Lithforge.Runtime
 
             _meshScheduler.ScheduleJobs(SpawnReady);
             _lodScheduler.ScheduleJobs();
+        }
+
+        private void LateUpdate()
+        {
+            if (!_initialized)
+            {
+                return;
+            }
+
+            _chunkMeshStore.RenderAll();
         }
 
         private int3 GetCameraChunkCoord()
