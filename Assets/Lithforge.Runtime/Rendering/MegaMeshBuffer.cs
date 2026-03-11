@@ -12,8 +12,9 @@ namespace Lithforge.Runtime.Rendering
     /// <summary>
     /// Owns a single large Mesh containing the merged geometry for one render layer
     /// (opaque, cutout, or translucent). Append-only allocation: new chunks are written
-    /// at the end of the buffer. Freed chunks have their indices zeroed to produce
-    /// degenerate triangles. Periodic compaction defragments when waste exceeds 25%.
+    /// at the end of the buffer. Freed chunks have their indices zeroed (batched per frame)
+    /// to produce degenerate triangles. Compaction (TryCompact) is available but never called
+    /// from the render path — invoke it only at safe moments (pause, render distance change).
     /// A CPU-side mirror of the vertex and index data enables compaction without GPU readback.
     /// Owner: ChunkMeshStore. Lifetime: application session.
     /// </summary>
@@ -24,6 +25,7 @@ namespace Lithforge.Runtime.Rendering
 
         private readonly Mesh _mesh;
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
+        private readonly List<SlotInfo> _pendingZeros = new List<SlotInfo>();
 
         private MeshVertex[] _vertexMirror;
         private int[] _indexMirror;
@@ -92,7 +94,8 @@ namespace Lithforge.Runtime.Rendering
             // Free existing slot if this chunk already has data
             if (_slots.TryGetValue(coord, out SlotInfo existingSlot))
             {
-                ZeroSlotIndices(existingSlot);
+                Array.Clear(_indexMirror, existingSlot.IndexOffset, existingSlot.IndexCount);
+                _pendingZeros.Add(existingSlot);
                 _wastedVertices += existingSlot.VertexCount;
                 _wastedIndices += existingSlot.IndexCount;
                 _slots.Remove(coord);
@@ -161,7 +164,10 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            ZeroSlotIndices(slot);
+            // Zero CPU mirror immediately but defer GPU upload to FlushSubMesh
+            Array.Clear(_indexMirror, slot.IndexOffset, slot.IndexCount);
+            _pendingZeros.Add(slot);
+
             _wastedVertices += slot.VertexCount;
             _wastedIndices += slot.IndexCount;
             _slots.Remove(coord);
@@ -173,6 +179,16 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void FlushSubMesh()
         {
+            // Batch upload deferred zero ranges from Free() calls
+            for (int i = 0; i < _pendingZeros.Count; i++)
+            {
+                SlotInfo slot = _pendingZeros[i];
+                _mesh.SetIndexBufferData(_indexMirror, slot.IndexOffset, slot.IndexOffset,
+                    slot.IndexCount, _updateFlags);
+            }
+
+            _pendingZeros.Clear();
+
             if (!_subMeshDirty)
             {
                 return;
@@ -206,24 +222,15 @@ namespace Lithforge.Runtime.Rendering
             }
 
             _slots.Clear();
+            _pendingZeros.Clear();
             _vertexMirror = null;
             _indexMirror = null;
         }
 
         /// <summary>
-        /// Zeroes the index range for a slot in both the CPU mirror and the GPU buffer.
-        /// This makes the freed triangles degenerate (all indices = 0, zero-area).
-        /// </summary>
-        private void ZeroSlotIndices(SlotInfo slot)
-        {
-            Array.Clear(_indexMirror, slot.IndexOffset, slot.IndexCount);
-            _mesh.SetIndexBufferData(_indexMirror, slot.IndexOffset, slot.IndexOffset,
-                slot.IndexCount, _updateFlags);
-        }
-
-        /// <summary>
         /// Ensures the buffer has room for the given number of additional vertices and indices.
-        /// Tries compaction first if waste exceeds 25%, then grows by doubling if still needed.
+        /// Grows by doubling if capacity is exceeded. Never compacts — compaction is deferred
+        /// to explicit TryCompact() calls outside the hot path.
         /// </summary>
         private void EnsureCapacity(int extraVertices, int extraIndices)
         {
@@ -235,18 +242,7 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            // Try compaction first if there is meaningful waste (vertex or index)
-            if (_wastedIndices > _usedIndices / 4 || _wastedVertices > _usedVertices / 4)
-            {
-                Compact();
-                vertsFit = _usedVertices + extraVertices <= _vertexCapacity;
-                idxFit = _usedIndices + extraIndices <= _indexCapacity;
-            }
-
-            if (!vertsFit || !idxFit)
-            {
-                Grow(extraVertices, extraIndices);
-            }
+            Grow(extraVertices, extraIndices);
         }
 
         /// <summary>

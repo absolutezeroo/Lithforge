@@ -18,12 +18,12 @@ namespace Lithforge.Runtime.Rendering
     public sealed class ChunkMeshStore : IDisposable
     {
         /// <summary>Initial vertex capacity for the opaque buffer (most geometry).</summary>
-        private const int OpaqueInitialVertices = 131072;
-        private const int OpaqueInitialIndices = 196608;
+        private const int OpaqueInitialVertices = 524288;
+        private const int OpaqueInitialIndices = 786432;
 
         /// <summary>Cutout and translucent buffers are much smaller.</summary>
-        private const int SmallInitialVertices = 16384;
-        private const int SmallInitialIndices = 24576;
+        private const int SmallInitialVertices = 65536;
+        private const int SmallInitialIndices = 98304;
 
         private readonly HashSet<int3> _activeChunks = new HashSet<int3>();
         private readonly RenderParams _opaqueParams;
@@ -32,10 +32,6 @@ namespace Lithforge.Runtime.Rendering
         private readonly MegaMeshBuffer _opaqueBuffer;
         private readonly MegaMeshBuffer _cutoutBuffer;
         private readonly MegaMeshBuffer _translucentBuffer;
-
-        /// <summary>Frames between proactive compaction checks (~2 seconds at 60fps).</summary>
-        private const int CompactInterval = 120;
-        private int _frameCounter;
 
         public int RendererCount
         {
@@ -119,17 +115,6 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void RenderAll(Camera camera)
         {
-            // Proactively compact buffers to reclaim wasted space from freed chunks.
-            // Prevents unbounded GPU work on degenerate triangles during chunk churn.
-            _frameCounter++;
-
-            if (_frameCounter % CompactInterval == 0)
-            {
-                _opaqueBuffer.TryCompact();
-                _cutoutBuffer.TryCompact();
-                _translucentBuffer.TryCompact();
-            }
-
             _opaqueBuffer.FlushSubMesh();
             _cutoutBuffer.FlushSubMesh();
             _translucentBuffer.FlushSubMesh();
