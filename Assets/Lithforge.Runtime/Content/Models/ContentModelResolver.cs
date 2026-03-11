@@ -11,12 +11,19 @@ namespace Lithforge.Runtime.Content.Models
     public sealed class ContentModelResolver
     {
         private const int _maxParentDepth = 16;
+        private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache =
+            new Dictionary<BlockModel, ResolvedFaceTextures2D>();
 
         public ResolvedFaceTextures2D Resolve(BlockModel model)
         {
             if (model == null)
             {
                 return CreateMissing();
+            }
+
+            if (_resolvedCache.TryGetValue(model, out ResolvedFaceTextures2D cached))
+            {
+                return cached;
             }
 
             List<BlockModel> chain = new List<BlockModel>();
@@ -90,6 +97,8 @@ namespace Lithforge.Runtime.Content.Models
             ResolvedModel result = new ResolvedModel();
             result.Textures = ResolveWithBuiltIn(terminalType, resolvedTextures);
             result.Elements = mergedElements;
+
+            _resolvedCache[model] = result.Textures;
 
             return result.Textures;
         }

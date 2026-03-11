@@ -45,6 +45,28 @@ namespace Lithforge.Runtime.UI
             BuildUI(_document.rootVisualElement);
         }
 
+        /// <summary>
+        /// Sets the SpawnManager after content loading is complete.
+        /// The loading screen transitions from content phase display to spawn progress display.
+        /// </summary>
+        public void SetSpawnManager(SpawnManager spawnManager, Action onFadeComplete)
+        {
+            _spawnManager = spawnManager;
+            _onFadeComplete = onFadeComplete;
+        }
+
+        /// <summary>
+        /// Updates the status text to show the current content loading phase.
+        /// Used before SpawnManager is available.
+        /// </summary>
+        public void SetContentPhase(string phase)
+        {
+            if (_statusLabel != null)
+            {
+                _statusLabel.text = phase;
+            }
+        }
+
         private void BuildUI(VisualElement root)
         {
             // Full-screen dirt background

@@ -106,8 +106,8 @@ namespace Lithforge.Voxel.Chunk
             int3 center = cameraChunkCoord;
             _loadQueue.Sort((int3 a, int3 b) =>
             {
-                int distA = math.lengthsq(a - center);
-                int distB = math.lengthsq(b - center);
+                float distA = math.lengthsq(a - center);
+                float distB = math.lengthsq(b - center);
 
                 return distA.CompareTo(distB);
             });
@@ -225,6 +225,40 @@ namespace Lithforge.Voxel.Chunk
         {
             return _chunks.TryGetValue(coord, out ManagedChunk neighbor)
                 && neighbor.State >= ChunkState.RelightPending;
+        }
+
+        /// <summary>
+        /// Fills with all chunks in Generated state.
+        /// Used by LODScheduler to assign LOD levels before meshing.
+        /// </summary>
+        public void FillGeneratedChunks(List<ManagedChunk> result)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                if (kvp.Value.State == ChunkState.Generated)
+                {
+                    result.Add(kvp.Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Fills with Generated chunks that have LODLevel > 0.
+        /// These need LOD meshing, not full-detail meshing.
+        /// </summary>
+        public void FillGeneratedChunksWithLOD(List<ManagedChunk> result)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                if (kvp.Value.State == ChunkState.Generated && kvp.Value.LODLevel > 0)
+                {
+                    result.Add(kvp.Value);
+                }
+            }
         }
 
         /// <summary>

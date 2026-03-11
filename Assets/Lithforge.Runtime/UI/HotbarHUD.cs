@@ -16,11 +16,16 @@ namespace Lithforge.Runtime.UI
         private const int _bottomOffset = 12;
         private const int _borderWidth = 2;
 
+        private const float _itemNameDuration = 2.0f;
+
         private UIDocument _document;
         private Inventory _inventory;
+        private ItemRegistry _itemRegistry;
         private VisualElement[] _slotElements;
         private Label[] _countLabels;
         private Label[] _nameLabels;
+        private Label _itemNameLabel;
+        private float _itemNameTimer;
         private int _lastSelectedSlot = -1;
 
         private static readonly Color _slotBackground = new Color(0.15f, 0.15f, 0.15f, 0.85f);
@@ -39,9 +44,10 @@ namespace Lithforge.Runtime.UI
             }
         }
 
-        public void Initialize(Inventory inventory, PanelSettings panelSettings)
+        public void Initialize(Inventory inventory, PanelSettings panelSettings, ItemRegistry itemRegistry = null)
         {
             _inventory = inventory;
+            _itemRegistry = itemRegistry;
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.panelSettings = panelSettings;
@@ -70,6 +76,21 @@ namespace Lithforge.Runtime.UI
             hotbar.style.marginLeft = -(totalWidth / 2);
             hotbar.style.flexDirection = FlexDirection.Row;
             root.Add(hotbar);
+
+            // Item name tooltip above hotbar
+            _itemNameLabel = new Label("");
+            _itemNameLabel.name = "item-name-tooltip";
+            _itemNameLabel.pickingMode = PickingMode.Ignore;
+            _itemNameLabel.style.position = Position.Absolute;
+            _itemNameLabel.style.bottom = _bottomOffset + _slotSize + _slotMargin * 2 + 8;
+            _itemNameLabel.style.left = new StyleLength(new Length(50, LengthUnit.Percent));
+            _itemNameLabel.style.marginLeft = -150;
+            _itemNameLabel.style.width = 300;
+            _itemNameLabel.style.fontSize = 16;
+            _itemNameLabel.style.color = Color.white;
+            _itemNameLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _itemNameLabel.style.opacity = 0f;
+            root.Add(_itemNameLabel);
 
             for (int i = 0; i < Inventory.HotbarSize; i++)
             {
@@ -132,12 +153,10 @@ namespace Lithforge.Runtime.UI
 
             int selectedSlot = _inventory.SelectedSlot;
 
-            for (int i = 0; i < Inventory.HotbarSize; i++)
+            // Show item name tooltip when selected slot changes
+            if (selectedSlot != _lastSelectedSlot)
             {
-                ItemStack stack = _inventory.GetSlot(i);
-
-                // Update selection highlight
-                if (selectedSlot != _lastSelectedSlot)
+                for (int i = 0; i < Inventory.HotbarSize; i++)
                 {
                     Color borderColor = (i == selectedSlot) ? _selectedBorder : _slotBorder;
                     _slotElements[i].style.borderTopColor = borderColor;
@@ -146,7 +165,40 @@ namespace Lithforge.Runtime.UI
                     _slotElements[i].style.borderRightColor = borderColor;
                 }
 
-                // Update item display
+                ItemStack selectedStack = _inventory.GetSlot(selectedSlot);
+
+                if (!selectedStack.IsEmpty)
+                {
+                    _itemNameLabel.text = FormatFullItemName(selectedStack.ItemId.Name);
+                    _itemNameLabel.style.opacity = 1f;
+                    _itemNameTimer = _itemNameDuration;
+                }
+                else
+                {
+                    _itemNameLabel.text = "";
+                    _itemNameLabel.style.opacity = 0f;
+                    _itemNameTimer = 0f;
+                }
+
+                _lastSelectedSlot = selectedSlot;
+            }
+
+            // Fade out item name tooltip
+            if (_itemNameTimer > 0f)
+            {
+                _itemNameTimer -= Time.deltaTime;
+
+                if (_itemNameTimer <= 0f)
+                {
+                    _itemNameLabel.style.opacity = 0f;
+                }
+            }
+
+            // Update item display
+            for (int i = 0; i < Inventory.HotbarSize; i++)
+            {
+                ItemStack stack = _inventory.GetSlot(i);
+
                 if (stack.IsEmpty)
                 {
                     _nameLabels[i].text = "";
@@ -158,9 +210,26 @@ namespace Lithforge.Runtime.UI
                     _countLabels[i].text = stack.Count > 1 ? stack.Count.ToString() : "";
                 }
             }
-
-            _lastSelectedSlot = selectedSlot;
         }
 
+        private static string FormatFullItemName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return "";
+            }
+
+            string[] parts = name.Split('_');
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 0)
+                {
+                    parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
+                }
+            }
+
+            return string.Join(" ", parts);
+        }
     }
 }

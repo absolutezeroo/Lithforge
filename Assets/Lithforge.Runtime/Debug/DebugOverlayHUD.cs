@@ -9,6 +9,7 @@ namespace Lithforge.Runtime.Debug
         private Voxel.Chunk.ChunkManager _chunkManager;
         private Rendering.ChunkRenderManager _chunkRenderManager;
 
+        private Camera _mainCamera;
         private float _fps;
         private float _fpsTimer;
         private int _frameCount;
@@ -50,6 +51,7 @@ namespace Lithforge.Runtime.Debug
             _overlayLineSpacing = settings.OverlayLineSpacing;
             _chunkRenderManager = chunkRenderManager;
             _visible = settings.ShowDebugOverlay;
+            _mainCamera = Camera.main;
         }
 
         private void Update()
@@ -106,9 +108,9 @@ namespace Lithforge.Runtime.Debug
             int panelHeight = lineCount * lineHeight + padding * 2;
             GUI.DrawTexture(new Rect(0, 0, _overlayPanelWidth, panelHeight), _bgTexture);
 
-            if (Camera.main != null)
+            if (_mainCamera != null)
             {
-                Vector3 pos = Camera.main.transform.position;
+                Vector3 pos = _mainCamera.transform.position;
                 GUI.Label(new Rect(x, y, labelWidth, lineHeight),
                     $"Pos: ({pos.x:F1}, {pos.y:F1}, {pos.z:F1})", _style);
                 y += lineHeight;

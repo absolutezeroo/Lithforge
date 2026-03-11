@@ -149,13 +149,13 @@ namespace Lithforge.Runtime
             _generationScheduler.ScheduleJobs();
             _generationScheduler.ProcessCrossChunkLightUpdates();
             _meshScheduler.ProcessRelightPending();
-            _meshScheduler.ScheduleJobs(SpawnReady);
 
-            // LOD scheduling only activates after spawn is complete
-            if (SpawnReady)
-            {
-                _lodScheduler.UpdateAndSchedule(cameraChunkCoord);
-            }
+            // LOD level assignment must run BEFORE mesh scheduling
+            // so chunks get their LOD level before MeshScheduler decides who to mesh
+            _lodScheduler.UpdateLODLevels(cameraChunkCoord);
+
+            _meshScheduler.ScheduleJobs(SpawnReady);
+            _lodScheduler.ScheduleJobs();
         }
 
         private int3 GetCameraChunkCoord()

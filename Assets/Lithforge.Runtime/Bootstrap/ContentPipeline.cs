@@ -46,6 +46,11 @@ namespace Lithforge.Runtime.Bootstrap
         private readonly ContentValidator _validator;
         private readonly int _atlasTileSize;
 
+        /// <summary>
+        /// The result of the content pipeline, available after Build() iteration completes.
+        /// </summary>
+        public ContentPipelineResult Result { get; private set; }
+
         public ContentPipeline(ILogger logger, ContentValidator validator, int atlasTileSize = 16)
         {
             _logger = logger;
@@ -53,13 +58,20 @@ namespace Lithforge.Runtime.Bootstrap
             _atlasTileSize = atlasTileSize;
         }
 
-        public ContentPipelineResult Build()
+        /// <summary>
+        /// Builds the content pipeline as an iterator, yielding a phase description string
+        /// between each processing phase. The final result is stored in the Result property.
+        /// Can be consumed from a coroutine to allow frame yields between phases.
+        /// </summary>
+        public IEnumerable<string> Build()
         {
             // Phase 1: Load block definitions
+            yield return "Loading blocks...";
             BlockDefinition[] blocks = Resources.LoadAll<BlockDefinition>("Content/Blocks");
             _logger.LogInfo($"Loaded {blocks.Length} block definitions.");
 
             // Phase 2: Register blocks in StateRegistry
+            yield return "Registering states...";
             StateRegistry stateRegistry = new StateRegistry();
             Dictionary<string, BlockDefinition> blockLookup =
                 new Dictionary<string, BlockDefinition>();
@@ -98,6 +110,7 @@ namespace Lithforge.Runtime.Bootstrap
                 $"Registered {blocks.Length} blocks, {stateRegistry.TotalStateCount} states.");
 
             // Phase 3: Resolve block models via ContentModelResolver
+            yield return "Resolving models...";
             ContentModelResolver modelResolver = new ContentModelResolver();
             Dictionary<BlockModel, ResolvedFaceTextures2D> resolvedModelCache =
                 new Dictionary<BlockModel, ResolvedFaceTextures2D>();
@@ -159,10 +172,12 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Resolved {resolvedFaces.Count} block state face textures.");
 
             // Phase 5: Build texture atlas
+            yield return "Building texture atlas...";
             AtlasBuilder atlasBuilder = new AtlasBuilder(_logger, _atlasTileSize);
             AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces);
 
             // Phase 6: Patch texture indices into StateRegistry
+            yield return "Patching texture indices...";
             foreach (KeyValuePair<StateId, ResolvedFaceTextures2D> kvp in resolvedFaces)
             {
                 StateId id = kvp.Key;
@@ -179,6 +194,7 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Phase 7: Load biome and ore definitions
+            yield return "Loading biomes and ores...";
             BiomeDefinition[] biomes = Resources.LoadAll<BiomeDefinition>("Content/Biomes");
             _logger.LogInfo($"Loaded {biomes.Length} biome definitions.");
 
@@ -186,10 +202,12 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {ores.Length} ore definitions.");
 
             // Phase 8: Load item definitions
+            yield return "Loading items...";
             ItemDefinition[] items = Resources.LoadAll<ItemDefinition>("Content/Items");
             _logger.LogInfo($"Loaded {items.Length} item definitions.");
 
             // Phase 9: Load loot tables and build lookup
+            yield return "Loading loot tables...";
             LootTable[] lootTableAssets = Resources.LoadAll<LootTable>("Content/LootTables");
             Dictionary<ResourceId, LootTableDefinition> lootTables =
                 new Dictionary<ResourceId, LootTableDefinition>();
@@ -205,6 +223,7 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {lootTables.Count} loot tables.");
 
             // Phase 10: Load tags and build TagRegistry
+            yield return "Loading tags...";
             Tag[] tagAssets = Resources.LoadAll<Tag>("Content/Tags");
             TagRegistry tagRegistry = new TagRegistry();
 
@@ -228,6 +247,7 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {tagAssets.Length} tags, {tagRegistry.TagCount} unique.");
 
             // Phase 11: Load recipes and build CraftingEngine
+            yield return "Loading recipes...";
             RecipeDefinition[] recipeAssets =
                 Resources.LoadAll<RecipeDefinition>("Content/Recipes");
             List<RecipeEntry> recipes = new List<RecipeEntry>();
@@ -242,6 +262,7 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
 
             // Phase 12: Build ItemRegistry
+            yield return "Building item registry...";
             List<ItemEntry> itemEntries = new List<ItemEntry>();
 
             for (int i = 0; i < items.Length; i++)
@@ -256,6 +277,7 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"ItemRegistry: {itemRegistry.Count} items total.");
 
             // Phase 13: Load mods
+            yield return "Loading mods...";
             ModLoader modLoader = new ModLoader();
             modLoader.LoadAllMods();
 
@@ -294,10 +316,11 @@ namespace Lithforge.Runtime.Bootstrap
                 $"Texture array has {texCount} layers, exceeding the 1024 limit for half-precision texture indices in MeshVertex.Color.a.");
 
             // Phase 14: BakeNative + build NativeAtlasLookup
+            yield return "Baking native data...";
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
             NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
 
-            return new ContentPipelineResult(
+            Result = new ContentPipelineResult(
                 stateRegistry,
                 nativeStateRegistry,
                 nativeAtlasLookup,

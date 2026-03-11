@@ -47,6 +47,9 @@ namespace Lithforge.Runtime.UI
         private Label _heldLabel;
         private VisualElement _heldElement;
 
+        // Cached slot state for dirty-checking (avoids updating unchanged slots)
+        private ItemStack[] _lastSlotState;
+
         private bool _isOpen;
 
         private static readonly Color _slotBackground = new Color(0.2f, 0.2f, 0.2f, 0.9f);
@@ -89,6 +92,7 @@ namespace Lithforge.Runtime.UI
             _document.sortingOrder = 200;
 
             _root = _document.rootVisualElement;
+            _lastSlotState = new ItemStack[Inventory.SlotCount];
 
             BuildInventoryUI(_root);
             _panel.style.display = DisplayStyle.None;
@@ -377,16 +381,10 @@ namespace Lithforge.Runtime.UI
                 return;
             }
 
-            // Update inventory slot displays
+            // Update only changed inventory slot displays
             for (int i = 0; i < Inventory.SlotCount; i++)
             {
-                if (_invSlotElements[i] == null)
-                {
-                    continue;
-                }
-
-                ItemStack stack = _inventory.GetSlot(i);
-                UpdateSlotDisplay(_invNameLabels[i], _invCountLabels[i], stack);
+                RefreshSlot(i);
             }
 
             // Update crafting grid displays
@@ -638,6 +636,29 @@ namespace Lithforge.Runtime.UI
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Refreshes a single inventory slot's visual content only if the item changed.
+        /// Avoids rebuilding VisualElements — just updates text labels.
+        /// </summary>
+        private void RefreshSlot(int index)
+        {
+            if (_invSlotElements[index] == null)
+            {
+                return;
+            }
+
+            ItemStack stack = _inventory.GetSlot(index);
+
+            if (stack.ItemId == _lastSlotState[index].ItemId &&
+                stack.Count == _lastSlotState[index].Count)
+            {
+                return;
+            }
+
+            _lastSlotState[index] = stack;
+            UpdateSlotDisplay(_invNameLabels[index], _invCountLabels[index], stack);
         }
 
         private void UpdateSlotDisplay(Label nameLabel, Label countLabel, ItemStack stack)

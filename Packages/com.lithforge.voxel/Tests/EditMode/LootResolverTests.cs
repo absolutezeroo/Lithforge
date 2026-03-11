@@ -281,6 +281,122 @@ namespace Lithforge.Voxel.Tests
             Assert.AreSame(first, second);
         }
 
+        /// <summary>
+        /// Same seed produces identical drops. This verifies LootResolver is deterministic:
+        /// given the same Random seed, Resolve returns the same sequence of drops.
+        /// Note: EvaluateConditions is always true (no condition evaluation implemented).
+        /// </summary>
+        [Test]
+        public void Resolve_SameSeed_ProducesSameDrops()
+        {
+            LootEntry entry = new LootEntry
+            {
+                Type = "item",
+                Name = "lithforge:cobblestone",
+                Weight = 1
+            };
+
+            LootPool pool = new LootPool
+            {
+                RollsMin = 3,
+                RollsMax = 3
+            };
+            pool.Entries.Add(entry);
+
+            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            table.Pools.Add(pool);
+
+            Dictionary<ResourceId, LootTableDefinition> tables =
+                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+
+            LootResolver resolver = new LootResolver(tables);
+
+            // First call with seed 12345
+            Random random1 = new Random(12345);
+            List<LootDrop> drops1 = resolver.Resolve(_stoneTableId, random1);
+            int count1 = drops1.Count;
+            ResourceId[] ids1 = new ResourceId[count1];
+            int[] counts1 = new int[count1];
+
+            for (int i = 0; i < count1; i++)
+            {
+                ids1[i] = drops1[i].ItemId;
+                counts1[i] = drops1[i].Count;
+            }
+
+            // Second call with same seed 12345
+            Random random2 = new Random(12345);
+            List<LootDrop> drops2 = resolver.Resolve(_stoneTableId, random2);
+
+            Assert.AreEqual(count1, drops2.Count, "Same seed should produce same number of drops");
+
+            for (int i = 0; i < count1; i++)
+            {
+                Assert.AreEqual(ids1[i], drops2[i].ItemId, $"Drop {i} item should match");
+                Assert.AreEqual(counts1[i], drops2[i].Count, $"Drop {i} count should match");
+            }
+        }
+
+        /// <summary>
+        /// Same seed determinism with weighted random selection across multiple entries.
+        /// Note: EvaluateConditions always returns true — no conditions are evaluated.
+        /// </summary>
+        [Test]
+        public void Resolve_SameSeed_WeightedEntries_Deterministic()
+        {
+            LootEntry gravelEntry = new LootEntry
+            {
+                Type = "item",
+                Name = "lithforge:gravel",
+                Weight = 50
+            };
+
+            LootEntry flintEntry = new LootEntry
+            {
+                Type = "item",
+                Name = "lithforge:flint",
+                Weight = 50
+            };
+
+            LootPool pool = new LootPool
+            {
+                RollsMin = 5,
+                RollsMax = 5
+            };
+            pool.Entries.Add(gravelEntry);
+            pool.Entries.Add(flintEntry);
+
+            LootTableDefinition table = new LootTableDefinition(_gravelTableId);
+            table.Pools.Add(pool);
+
+            Dictionary<ResourceId, LootTableDefinition> tables =
+                new Dictionary<ResourceId, LootTableDefinition> { { _gravelTableId, table } };
+
+            LootResolver resolver = new LootResolver(tables);
+
+            // First resolve
+            Random random1 = new Random(99999);
+            List<LootDrop> drops1 = resolver.Resolve(_gravelTableId, random1);
+            ResourceId[] ids1 = new ResourceId[drops1.Count];
+
+            for (int i = 0; i < drops1.Count; i++)
+            {
+                ids1[i] = drops1[i].ItemId;
+            }
+
+            // Second resolve with same seed
+            Random random2 = new Random(99999);
+            List<LootDrop> drops2 = resolver.Resolve(_gravelTableId, random2);
+
+            Assert.AreEqual(ids1.Length, drops2.Count);
+
+            for (int i = 0; i < ids1.Length; i++)
+            {
+                Assert.AreEqual(ids1[i], drops2[i].ItemId,
+                    $"Drop {i} should be deterministic with same seed");
+            }
+        }
+
         [Test]
         public void LootFunction_PreParseValues_ParsesAllFields()
         {

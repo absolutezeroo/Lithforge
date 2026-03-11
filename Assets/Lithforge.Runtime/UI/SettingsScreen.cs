@@ -37,6 +37,12 @@ namespace Lithforge.Runtime.UI
 
         private static readonly int _aoStrengthId = Shader.PropertyToID("_AOStrength");
 
+        // PlayerPrefs keys for persistent settings
+        private const string _prefRenderDistance = "LF_RenderDistance";
+        private const string _prefFOV = "LF_FOV";
+        private const string _prefMouseSensitivity = "LF_MouseSensitivity";
+        private const string _prefAOStrength = "LF_AOStrength";
+
         public void Initialize(
             ChunkManager chunkManager,
             CameraController cameraController,
@@ -50,13 +56,16 @@ namespace Lithforge.Runtime.UI
             _chunkRenderManager = chunkRenderManager;
             _mainCamera = Camera.main;
 
-            // Read current values
+            // Read current values as defaults
             _renderDistance = chunkManager.RenderDistance;
             _fov = _mainCamera != null ? _mainCamera.fieldOfView : 60f;
             _mouseSensitivity = cameraController != null ? cameraController.LookSensitivity : 0.1f;
             _aoStrength = 0.4f;
             _dayLength = timeOfDayController != null ? timeOfDayController.DayLengthSeconds : 600f;
             _audioVolume = 1.0f;
+
+            // Override with persisted PlayerPrefs values and apply to systems
+            LoadPersistedSettings();
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.sortingOrder = 300;
@@ -130,6 +139,9 @@ namespace Lithforge.Runtime.UI
                 {
                     _chunkManager.SetRenderDistance(value);
                 }
+
+                PlayerPrefs.SetInt(_prefRenderDistance, value);
+                PlayerPrefs.Save();
             });
 
             AddSliderFloat(scrollView, "Field of View", _fov, 60f, 120f, (float value) =>
@@ -140,6 +152,9 @@ namespace Lithforge.Runtime.UI
                 {
                     _mainCamera.fieldOfView = value;
                 }
+
+                PlayerPrefs.SetFloat(_prefFOV, value);
+                PlayerPrefs.Save();
             });
 
             AddSliderFloat(scrollView, "AO Strength", _aoStrength, 0f, 1f, (float value) =>
@@ -163,6 +178,9 @@ namespace Lithforge.Runtime.UI
                         _chunkRenderManager.TranslucentMaterial.SetFloat(_aoStrengthId, value);
                     }
                 }
+
+                PlayerPrefs.SetFloat(_prefAOStrength, value);
+                PlayerPrefs.Save();
             });
 
             // --- Gameplay Section ---
@@ -175,6 +193,9 @@ namespace Lithforge.Runtime.UI
                 {
                     _cameraController.SetLookSensitivity(value);
                 }
+
+                PlayerPrefs.SetFloat(_prefMouseSensitivity, value);
+                PlayerPrefs.Save();
             });
 
             AddSliderFloat(scrollView, "Day Length (seconds)", _dayLength, 60f, 3600f, (float value) =>
@@ -378,6 +399,66 @@ namespace Lithforge.Runtime.UI
             if (_document != null && _document.rootVisualElement != null)
             {
                 _document.rootVisualElement.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
+        /// <summary>
+        /// Loads persisted settings from PlayerPrefs and applies them to the live systems.
+        /// Called once during Initialize after reading default values.
+        /// </summary>
+        private void LoadPersistedSettings()
+        {
+            if (PlayerPrefs.HasKey(_prefRenderDistance))
+            {
+                _renderDistance = PlayerPrefs.GetInt(_prefRenderDistance);
+
+                if (_chunkManager != null)
+                {
+                    _chunkManager.SetRenderDistance(_renderDistance);
+                }
+            }
+
+            if (PlayerPrefs.HasKey(_prefFOV))
+            {
+                _fov = PlayerPrefs.GetFloat(_prefFOV);
+
+                if (_mainCamera != null)
+                {
+                    _mainCamera.fieldOfView = _fov;
+                }
+            }
+
+            if (PlayerPrefs.HasKey(_prefMouseSensitivity))
+            {
+                _mouseSensitivity = PlayerPrefs.GetFloat(_prefMouseSensitivity);
+
+                if (_cameraController != null)
+                {
+                    _cameraController.SetLookSensitivity(_mouseSensitivity);
+                }
+            }
+
+            if (PlayerPrefs.HasKey(_prefAOStrength))
+            {
+                _aoStrength = PlayerPrefs.GetFloat(_prefAOStrength);
+
+                if (_chunkRenderManager != null)
+                {
+                    if (_chunkRenderManager.OpaqueMaterial != null)
+                    {
+                        _chunkRenderManager.OpaqueMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                    }
+
+                    if (_chunkRenderManager.CutoutMaterial != null)
+                    {
+                        _chunkRenderManager.CutoutMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                    }
+
+                    if (_chunkRenderManager.TranslucentMaterial != null)
+                    {
+                        _chunkRenderManager.TranslucentMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                    }
+                }
             }
         }
     }

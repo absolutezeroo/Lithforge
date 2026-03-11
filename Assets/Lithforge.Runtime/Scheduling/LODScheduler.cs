@@ -13,6 +13,7 @@ namespace Lithforge.Runtime.Scheduling
     /// <summary>
     /// Owns the LOD mesh job queue: assigning LOD levels based on camera distance,
     /// scheduling downsample + mesh jobs, polling for completion, and disposing resources.
+    /// Handles both first-time LOD meshing (Generated chunks) and LOD transitions (Ready chunks).
     /// </summary>
     public sealed class LODScheduler
     {
@@ -27,8 +28,10 @@ namespace Lithforge.Runtime.Scheduling
         private readonly int _lod2Distance;
         private readonly int _lod3Distance;
 
-        // Reusable cache to avoid per-frame allocation
+        // Reusable caches to avoid per-frame allocation
         private readonly List<ManagedChunk> _readyChunksCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _generatedLODCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _generatedChunksCache = new List<ManagedChunk>();
 
         public int PendingCount
         {
@@ -79,6 +82,22 @@ namespace Lithforge.Runtime.Scheduling
 
                     if (chunk != null)
                     {
+                        // Transition Generated->Ready for first-time LOD mesh
+                        if (chunk.State == ChunkState.Meshing)
+                        {
+                            if (chunk.NeedsRemesh)
+                            {
+                                chunk.NeedsRemesh = false;
+                                chunk.State = ChunkState.Generated;
+                            }
+                            else
+                            {
+                                chunk.State = ChunkState.Ready;
+                            }
+
+                            chunk.ActiveJobHandle = default;
+                        }
+
                         chunk.RenderedLODLevel = pending.LODLevel;
                     }
 
@@ -87,49 +106,30 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
-        public void UpdateAndSchedule(int3 cameraChunkCoord)
+        /// <summary>
+        /// Assigns LOD levels to both Ready and Generated chunks based on camera distance.
+        /// Must be called before MeshScheduler.ScheduleJobs and LODScheduler.ScheduleJobs
+        /// so that chunks get their LOD level before the schedulers decide who to mesh.
+        /// </summary>
+        public void UpdateLODLevels(int3 cameraChunkCoord)
         {
+            // Assign LOD to Ready chunks (LOD transitions)
             _chunkManager.FillReadyChunks(_readyChunksCache);
+            AssignLODLevels(_readyChunksCache, cameraChunkCoord);
 
-            // Pass 1: update LOD levels
-            for (int i = 0; i < _readyChunksCache.Count; i++)
-            {
-                ManagedChunk chunk = _readyChunksCache[i];
-                int3 diff = chunk.Coord - cameraChunkCoord;
-                int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+            // Assign LOD to Generated chunks so distant ones go to LODScheduler
+            // instead of being skipped by MeshScheduler's LODLevel > 0 filter
+            _chunkManager.FillGeneratedChunks(_generatedChunksCache);
+            AssignLODLevels(_generatedChunksCache, cameraChunkCoord);
+        }
 
-                int desiredLOD;
-
-                if (xzDist >= _lod3Distance)
-                {
-                    desiredLOD = 3;
-                }
-                else if (xzDist >= _lod2Distance)
-                {
-                    desiredLOD = 2;
-                }
-                else if (xzDist >= _lod1Distance)
-                {
-                    desiredLOD = 1;
-                }
-                else
-                {
-                    desiredLOD = 0;
-                }
-
-                if (chunk.LODLevel != desiredLOD)
-                {
-                    chunk.LODLevel = desiredLOD;
-
-                    // If transitioning to LOD0, trigger full remesh
-                    if (desiredLOD == 0 && chunk.State == ChunkState.Ready)
-                    {
-                        chunk.State = ChunkState.Generated;
-                    }
-                }
-            }
-
-            // Pass 2: schedule LOD mesh jobs
+        /// <summary>
+        /// Schedules LOD mesh jobs from two sources:
+        /// 1. Generated chunks with LODLevel > 0 (first-time LOD mesh)
+        /// 2. Ready chunks with changed LOD level (LOD transition)
+        /// </summary>
+        public void ScheduleJobs()
+        {
             int slotsAvailable = _maxLODMeshesPerFrame - _pendingLODMeshes.Count;
 
             if (slotsAvailable <= 0)
@@ -139,34 +139,38 @@ namespace Lithforge.Runtime.Scheduling
 
             int scheduled = 0;
 
+            // Source 1: Generated chunks with LODLevel > 0 (first-time LOD mesh)
+            // These are chunks that were never meshed, or were invalidated back to Generated
+            // while they had a non-zero LOD level.
+            _chunkManager.FillGeneratedChunksWithLOD(_generatedLODCache);
+
+            for (int i = 0; i < _generatedLODCache.Count && scheduled < slotsAvailable; i++)
+            {
+                ManagedChunk chunk = _generatedLODCache[i];
+
+                if (IsLODPending(chunk.Coord))
+                {
+                    continue;
+                }
+
+                ScheduleLODMesh(chunk);
+                chunk.State = ChunkState.Meshing;
+                scheduled++;
+            }
+
+            // Source 2: Ready chunks with changed LOD level (LOD transition)
+            _chunkManager.FillReadyChunks(_readyChunksCache);
+
             for (int i = 0; i < _readyChunksCache.Count && scheduled < slotsAvailable; i++)
             {
                 ManagedChunk chunk = _readyChunksCache[i];
 
-                // Only schedule LOD mesh if LOD level changed and chunk is ready
                 if (chunk.LODLevel == 0 || chunk.LODLevel == chunk.RenderedLODLevel)
                 {
                     continue;
                 }
 
-                if (chunk.State != ChunkState.Ready)
-                {
-                    continue;
-                }
-
-                // Skip if a LOD job is already in flight for this chunk
-                bool lodPending = false;
-
-                for (int j = 0; j < _pendingLODMeshes.Count; j++)
-                {
-                    if (_pendingLODMeshes[j].Coord.Equals(chunk.Coord))
-                    {
-                        lodPending = true;
-                        break;
-                    }
-                }
-
-                if (lodPending)
+                if (IsLODPending(chunk.Coord))
                 {
                     continue;
                 }
@@ -176,44 +180,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                int lodLevel = chunk.LODLevel;
-                int scale = 1 << lodLevel; // 2, 4, or 8
-                int gridSize = ChunkConstants.Size / scale;
-                int gridVolume = gridSize * gridSize * gridSize;
-
-                LODMeshData lodData = new LODMeshData(gridVolume, Allocator.TempJob);
-
-                VoxelDownsampleJob downsampleJob = new VoxelDownsampleJob
-                {
-                    SourceData = chunk.Data,
-                    StateTable = _nativeStateRegistry.States,
-                    Scale = scale,
-                    OutputData = lodData.DownsampledData,
-                };
-
-                JobHandle downsampleHandle = downsampleJob.Schedule();
-
-                LODMeshJob meshJob = new LODMeshJob
-                {
-                    Data = lodData.DownsampledData,
-                    StateTable = _nativeStateRegistry.States,
-                    AtlasEntries = _nativeAtlasLookup.Entries,
-                    GridSize = gridSize,
-                    VoxelScale = scale,
-                    Vertices = lodData.Vertices,
-                    Indices = lodData.Indices,
-                };
-
-                JobHandle meshHandle = meshJob.Schedule(downsampleHandle);
-
-                _pendingLODMeshes.Add(new PendingLODMesh
-                {
-                    Coord = chunk.Coord,
-                    Handle = meshHandle,
-                    Data = lodData,
-                    LODLevel = lodLevel,
-                });
-
+                ScheduleLODMesh(chunk);
                 scheduled++;
             }
         }
@@ -240,6 +207,100 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingLODMeshes.Clear();
+        }
+
+        private void AssignLODLevels(List<ManagedChunk> chunks, int3 cameraChunkCoord)
+        {
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                ManagedChunk chunk = chunks[i];
+                int3 diff = chunk.Coord - cameraChunkCoord;
+                int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+
+                int desiredLOD;
+
+                if (xzDist >= _lod3Distance)
+                {
+                    desiredLOD = 3;
+                }
+                else if (xzDist >= _lod2Distance)
+                {
+                    desiredLOD = 2;
+                }
+                else if (xzDist >= _lod1Distance)
+                {
+                    desiredLOD = 1;
+                }
+                else
+                {
+                    desiredLOD = 0;
+                }
+
+                if (chunk.LODLevel != desiredLOD)
+                {
+                    chunk.LODLevel = desiredLOD;
+
+                    // If transitioning to LOD0 and chunk is Ready, trigger full remesh
+                    if (desiredLOD == 0 && chunk.State == ChunkState.Ready)
+                    {
+                        chunk.State = ChunkState.Generated;
+                    }
+                }
+            }
+        }
+
+        private bool IsLODPending(int3 coord)
+        {
+            for (int i = 0; i < _pendingLODMeshes.Count; i++)
+            {
+                if (_pendingLODMeshes[i].Coord.Equals(coord))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void ScheduleLODMesh(ManagedChunk chunk)
+        {
+            int lodLevel = chunk.LODLevel;
+            int scale = 1 << lodLevel; // 2, 4, or 8
+            int gridSize = ChunkConstants.Size / scale;
+            int gridVolume = gridSize * gridSize * gridSize;
+
+            LODMeshData lodData = new LODMeshData(gridVolume, Allocator.TempJob);
+
+            VoxelDownsampleJob downsampleJob = new VoxelDownsampleJob
+            {
+                SourceData = chunk.Data,
+                StateTable = _nativeStateRegistry.States,
+                Scale = scale,
+                OutputData = lodData.DownsampledData,
+            };
+
+            JobHandle downsampleHandle = downsampleJob.Schedule();
+
+            LODMeshJob meshJob = new LODMeshJob
+            {
+                Data = lodData.DownsampledData,
+                StateTable = _nativeStateRegistry.States,
+                AtlasEntries = _nativeAtlasLookup.Entries,
+                GridSize = gridSize,
+                VoxelScale = scale,
+                Vertices = lodData.Vertices,
+                Indices = lodData.Indices,
+            };
+
+            JobHandle meshHandle = meshJob.Schedule(downsampleHandle);
+
+            _pendingLODMeshes.Add(new PendingLODMesh
+            {
+                Coord = chunk.Coord,
+                Handle = meshHandle,
+                Data = lodData,
+                LODLevel = lodLevel,
+            });
         }
 
         private struct PendingLODMesh

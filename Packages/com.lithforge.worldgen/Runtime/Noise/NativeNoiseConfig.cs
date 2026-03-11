@@ -10,6 +10,6 @@ namespace Lithforge.WorldGen.Noise
         public float Persistence;
         public float HeightScale;
         public int Octaves;
-        public int SeedOffset;
+        public float SeedOffset;
     }
 }

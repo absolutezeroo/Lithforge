@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Core.Logging;
@@ -49,27 +50,31 @@ namespace Lithforge.Runtime.Bootstrap
         private void Awake()
         {
             _settings = SettingsLoader.Load();
-
-            InitializeContent();
-            InitializeStorage();
-            InitializeChunkSystem();
-            InitializeWorldGen();
-            InitializeRendering();
-            InitializeGameLoop();
-
-            UnityEngine.Debug.Log("[Lithforge] Bootstrap complete.");
+            _logger = new UnityLogger();
         }
 
-        private void InitializeContent()
+        private IEnumerator Start()
         {
-            _logger = new UnityLogger();
-            UnityLogger logger = (UnityLogger)_logger;
+            // Create loading screen early so content phases are visible
+            UnityEngine.UIElements.PanelSettings earlyPanelSettings =
+                Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
+
+            GameObject loadingObject = new GameObject("LoadingScreen");
+            LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
+            loadingScreen.Initialize(null, earlyPanelSettings, null);
+
+            // Run content pipeline as iterator, yielding frames between phases
             ContentValidator validator = new ContentValidator();
-
             ContentPipeline pipeline = new ContentPipeline(
-                logger, validator, _settings.Rendering.AtlasTileSize);
+                _logger, validator, _settings.Rendering.AtlasTileSize);
 
-            _contentResult = pipeline.Build();
+            foreach (string phase in pipeline.Build())
+            {
+                loadingScreen.SetContentPhase(phase);
+                yield return null;
+            }
+
+            _contentResult = pipeline.Result;
 
             UnityEngine.Debug.Log(
                 $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
@@ -79,6 +84,14 @@ namespace Lithforge.Runtime.Bootstrap
                 $"{_contentResult.ItemEntries.Count} items, " +
                 $"{_contentResult.LootTables.Count} loot tables, " +
                 $"{_contentResult.TagRegistry.TagCount} tags.");
+
+            InitializeStorage();
+            InitializeChunkSystem();
+            InitializeWorldGen();
+            InitializeRendering();
+            InitializeGameLoop(loadingScreen, earlyPanelSettings);
+
+            UnityEngine.Debug.Log("[Lithforge] Bootstrap complete.");
         }
 
         private void InitializeStorage()
@@ -269,11 +282,10 @@ namespace Lithforge.Runtime.Bootstrap
             _chunkRenderManager = new ChunkRenderManager(opaqueMaterial, cutoutMaterial, translucentMaterial);
         }
 
-        private void InitializeGameLoop()
+        private void InitializeGameLoop(LoadingScreen loadingScreen, UnityEngine.UIElements.PanelSettings panelSettings)
         {
             CameraController cameraControllerRef = null;
             SettingsScreen settingsScreenRef = null;
-            UnityEngine.UIElements.PanelSettings panelSettingsRef = null;
 
             // Create GameLoop first (needed by PlayerController for spawn readiness)
             _gameLoop = gameObject.AddComponent<GameLoop>();
@@ -361,11 +373,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.TagRegistry,
                     playerObject.transform,
                     _settings.Physics);
-                // Load shared PanelSettings asset for UI Toolkit
-                UnityEngine.UIElements.PanelSettings panelSettings =
-                    Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
-                panelSettingsRef = panelSettings;
-
+                // PanelSettings already loaded by Start() coroutine
                 if (panelSettings == null)
                 {
                     UnityEngine.Debug.LogError(
@@ -380,7 +388,7 @@ namespace Lithforge.Runtime.Bootstrap
                 // Add HotbarHUD
                 GameObject hotbarObject = new GameObject("HotbarHUD");
                 HotbarHUD hotbarHUD = hotbarObject.AddComponent<HotbarHUD>();
-                hotbarHUD.Initialize(playerInventory, panelSettings);
+                hotbarHUD.Initialize(playerInventory, panelSettings, _contentResult.ItemRegistry);
 
                 // Add InventoryScreen
                 GameObject inventoryObject = new GameObject("InventoryScreen");
@@ -405,6 +413,11 @@ namespace Lithforge.Runtime.Bootstrap
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement
+                UnityEngine.Debug.Assert(
+                    _settings.Chunk.SpawnLoadRadius <= _settings.Chunk.LOD1Distance,
+                    $"[Lithforge] Spawn radius ({_settings.Chunk.SpawnLoadRadius}) exceeds LOD1 distance ({_settings.Chunk.LOD1Distance}). " +
+                    "Spawn area chunks would be LOD-meshed, delaying spawn completion.");
+
                 SpawnManager spawnManager = new SpawnManager(
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
@@ -415,13 +428,8 @@ namespace Lithforge.Runtime.Bootstrap
                     _settings.Chunk.SpawnFallbackY);
                 _gameLoop.SetSpawnManager(spawnManager);
 
-                // Create loading screen overlay — HUD is shown after the fade completes
-                GameObject loadingObject = new GameObject("LoadingScreen");
-                LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
-                loadingScreen.Initialize(
-                    spawnManager,
-                    panelSettings,
-                    () => { hudVisibility.ShowGameplay(); });
+                // Connect the existing loading screen to the spawn manager
+                loadingScreen.SetSpawnManager(spawnManager, () => { hudVisibility.ShowGameplay(); });
             }
 
             // Initialize day/night cycle
@@ -453,7 +461,7 @@ namespace Lithforge.Runtime.Bootstrap
                     cameraControllerRef,
                     _timeOfDayController,
                     _chunkRenderManager,
-                    panelSettingsRef);
+                    panelSettings);
             }
         }
 
