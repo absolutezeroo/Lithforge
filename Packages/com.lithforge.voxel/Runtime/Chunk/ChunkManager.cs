@@ -22,6 +22,12 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
 
+        /// <summary>
+        /// Cursor index into _loadQueue. Advanced instead of RemoveRange(0, count).
+        /// Reset when UpdateLoadingQueue() rebuilds the queue.
+        /// </summary>
+        private int _loadQueueIndex;
+
         public int LoadedCount
         {
             get { return _chunks.Count; }
@@ -29,7 +35,7 @@ namespace Lithforge.Voxel.Chunk
 
         public int PendingLoadCount
         {
-            get { return _loadQueue.Count; }
+            get { return _loadQueue.Count - _loadQueueIndex; }
         }
 
         public int RenderDistance
@@ -61,6 +67,7 @@ namespace Lithforge.Voxel.Chunk
         public void UpdateLoadingQueue(int3 cameraChunkCoord)
         {
             _loadQueue.Clear();
+            _loadQueueIndex = 0;
 
             // Spiral order from center
             for (int d = 0; d <= _renderDistance; d++)
@@ -92,11 +99,12 @@ namespace Lithforge.Voxel.Chunk
         {
             result.Clear();
 
-            int count = math.min(maxCount, _loadQueue.Count);
+            int remaining = _loadQueue.Count - _loadQueueIndex;
+            int count = math.min(maxCount, remaining);
 
             for (int i = 0; i < count; i++)
             {
-                int3 coord = _loadQueue[i];
+                int3 coord = _loadQueue[_loadQueueIndex + i];
 
                 if (_chunks.ContainsKey(coord))
                 {
@@ -110,36 +118,75 @@ namespace Lithforge.Voxel.Chunk
                 result.Add(chunk);
             }
 
-            // Remove processed prefix — queue is rebuilt each frame by UpdateLoadingQueue
-            if (count > 0)
+            // Advance cursor instead of RemoveRange(0, count) — O(1) instead of O(n)
+            _loadQueueIndex += count;
+
+            // If cursor has consumed the entire queue, clear to free memory
+            if (_loadQueueIndex >= _loadQueue.Count)
             {
-                _loadQueue.RemoveRange(0, count);
+                _loadQueue.Clear();
+                _loadQueueIndex = 0;
             }
         }
 
-        public List<ManagedChunk> GetChunksToMesh(int maxCount)
+        /// <summary>
+        /// Fills the provided list with chunks in the Generated state, sorted by
+        /// ready neighbor count (descending). Uses cached lists to avoid per-frame
+        /// allocations. The caller must NOT store the result list reference beyond
+        /// the current frame.
+        /// </summary>
+        public void FillChunksToMesh(List<ManagedChunk> result, int maxCount)
         {
-            List<ManagedChunk> candidates = new List<ManagedChunk>();
+            result.Clear();
+            _meshCandidateCache.Clear();
+            _neighborCountCache.Clear();
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
                 if (kvp.Value.State == ChunkState.Generated)
                 {
-                    candidates.Add(kvp.Value);
+                    _meshCandidateCache.Add(kvp.Value);
+                    _neighborCountCache.Add(CountReadyNeighbors(kvp.Value.Coord));
                 }
             }
 
-            // Sort by ready neighbor count (descending) — chunks with more
-            // generated neighbors produce fewer ghost faces and less re-meshing.
-            candidates.Sort((a, b) =>
-                CountReadyNeighbors(b.Coord).CompareTo(CountReadyNeighbors(a.Coord)));
-
-            if (candidates.Count > maxCount)
+            // Schwartzian transform: sort by pre-computed neighbor count (descending)
+            // Simple insertion sort is fast for typical candidate counts (< 100)
+            for (int i = 1; i < _meshCandidateCache.Count; i++)
             {
-                candidates.RemoveRange(maxCount, candidates.Count - maxCount);
+                ManagedChunk tempChunk = _meshCandidateCache[i];
+                int tempCount = _neighborCountCache[i];
+                int j = i - 1;
+
+                while (j >= 0 && _neighborCountCache[j] < tempCount)
+                {
+                    _meshCandidateCache[j + 1] = _meshCandidateCache[j];
+                    _neighborCountCache[j + 1] = _neighborCountCache[j];
+                    j--;
+                }
+
+                _meshCandidateCache[j + 1] = tempChunk;
+                _neighborCountCache[j + 1] = tempCount;
             }
 
-            return candidates;
+            int resultCount = math.min(maxCount, _meshCandidateCache.Count);
+
+            for (int i = 0; i < resultCount; i++)
+            {
+                result.Add(_meshCandidateCache[i]);
+            }
+        }
+
+        /// <summary>
+        /// Backward-compatible wrapper. Callers that cannot be updated yet
+        /// may use this, but prefer FillChunksToMesh for zero-allocation usage.
+        /// </summary>
+        public List<ManagedChunk> GetChunksToMesh(int maxCount)
+        {
+            List<ManagedChunk> result = new List<ManagedChunk>();
+            FillChunksToMesh(result, maxCount);
+
+            return result;
         }
 
         private int CountReadyNeighbors(int3 coord)
@@ -173,6 +220,40 @@ namespace Lithforge.Voxel.Chunk
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
                 if (kvp.Value.State == ChunkState.Ready)
+                {
+                    result.Add(kvp.Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Fills the provided list with all chunks that need cross-chunk light updates.
+        /// Clears the list before filling.
+        /// </summary>
+        public void FillChunksNeedingLightUpdate(List<ManagedChunk> result)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                if (kvp.Value.NeedsLightUpdate)
+                {
+                    result.Add(kvp.Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Fills the provided list with all chunks in the RelightPending state.
+        /// Clears the list before filling.
+        /// </summary>
+        public void FillChunksNeedingRelight(List<ManagedChunk> result)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                if (kvp.Value.State == ChunkState.RelightPending)
                 {
                     result.Add(kvp.Value);
                 }
@@ -213,7 +294,7 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>
         /// Sets the StateId at a world-space block coordinate.
         /// Marks the chunk (and border-adjacent neighbors) for remeshing.
-        /// Returns the list of chunk coordinates that were dirtied.
+        /// Sets the chunk to RelightPending so light is recalculated before remesh.
         /// Does nothing if the chunk is not loaded or still generating.
         /// </summary>
         public void SetBlock(int3 worldCoord, StateId state, List<int3> dirtiedChunks)
@@ -240,7 +321,8 @@ namespace Lithforge.Voxel.Chunk
                 chunk.ActiveJobHandle.Complete();
             }
 
-            chunk.State = ChunkState.Generated;
+            // Set to RelightPending — light must be recalculated before remeshing
+            chunk.State = ChunkState.RelightPending;
             dirtiedChunks.Add(chunkCoord);
 
             // Border propagation: if local coord is 0 or 31, dirty the neighbor
@@ -315,7 +397,7 @@ namespace Lithforge.Voxel.Chunk
         public void UnloadDistantChunks(int3 cameraChunkCoord, List<int3> unloaded)
         {
             unloaded.Clear();
-            List<int3> toRemove = new List<int3>();
+            _toRemoveCache.Clear();
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
@@ -337,14 +419,14 @@ namespace Lithforge.Voxel.Chunk
                         kvp.Value.LightData.Dispose();
                     }
 
-                    toRemove.Add(kvp.Key);
+                    _toRemoveCache.Add(kvp.Key);
                     unloaded.Add(kvp.Key);
                 }
             }
 
-            for (int i = 0; i < toRemove.Count; i++)
+            for (int i = 0; i < _toRemoveCache.Count; i++)
             {
-                _chunks.Remove(toRemove[i]);
+                _chunks.Remove(_toRemoveCache[i]);
             }
         }
 

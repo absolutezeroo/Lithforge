@@ -287,6 +287,11 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.Register(modRegData);
             }
 
+            // Assert texture count fits in half precision (exact integer range up to 2048)
+            int texCount = atlasResult.TextureArray != null ? atlasResult.TextureArray.depth : 0;
+            Debug.Assert(texCount <= 1024,
+                $"Texture array has {texCount} layers, exceeding the 1024 limit for half-precision texture indices in MeshVertex.Color.a.");
+
             // Phase 14: BakeNative + build NativeAtlasLookup
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
             NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
@@ -377,6 +382,26 @@ namespace Lithforge.Runtime.Bootstrap
                     entry.Type = itemEntry.Type;
                     entry.Name = itemEntry.ItemName;
                     entry.Weight = itemEntry.Weight;
+
+                    IReadOnlyList<LootFunctionEntry> funcs = itemEntry.Functions;
+
+                    for (int f = 0; f < funcs.Count; f++)
+                    {
+                        LootFunctionEntry funcEntry = funcs[f];
+                        LootFunction func = new LootFunction();
+                        func.Type = funcEntry.FunctionType;
+
+                        IReadOnlyList<StringPair> pars = funcEntry.Parameters;
+
+                        for (int pi = 0; pi < pars.Count; pi++)
+                        {
+                            func.Parameters[pars[pi].Key] = pars[pi].Value;
+                        }
+
+                        func.PreParseValues();
+                        entry.Functions.Add(func);
+                    }
+
                     pool.Entries.Add(entry);
                 }
 

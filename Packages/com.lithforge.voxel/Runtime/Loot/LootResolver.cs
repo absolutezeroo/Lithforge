@@ -11,6 +11,8 @@ namespace Lithforge.Voxel.Loot
     public sealed class LootResolver
     {
         private readonly Dictionary<ResourceId, LootTableDefinition> _tables;
+        private readonly List<LootEntry> _validEntries = new List<LootEntry>();
+        private readonly List<LootDrop> _dropCache = new List<LootDrop>();
 
         public LootResolver(Dictionary<ResourceId, LootTableDefinition> tables)
         {
@@ -19,15 +21,17 @@ namespace Lithforge.Voxel.Loot
 
         /// <summary>
         /// Resolves a loot table by its resource id, returning a list of (itemId, count) drops.
+        /// WARNING: The returned list is reused between calls — the caller must NOT store
+        /// the reference. Copy the contents if needed beyond the current frame.
         /// Returns an empty list if the table is not found.
         /// </summary>
         public List<LootDrop> Resolve(ResourceId tableId, Random random)
         {
-            List<LootDrop> drops = new List<LootDrop>();
+            _dropCache.Clear();
 
             if (!_tables.TryGetValue(tableId, out LootTableDefinition table))
             {
-                return drops;
+                return _dropCache;
             }
 
             for (int p = 0; p < table.Pools.Count; p++)
@@ -70,13 +74,13 @@ namespace Lithforge.Voxel.Loot
                         if (count > 0 && !string.IsNullOrEmpty(selected.Name))
                         {
                             ResourceId itemId = ResourceId.Parse(selected.Name);
-                            drops.Add(new LootDrop(itemId, count));
+                            _dropCache.Add(new LootDrop(itemId, count));
                         }
                     }
                 }
             }
 
-            return drops;
+            return _dropCache;
         }
 
         private LootEntry SelectEntry(List<LootEntry> entries, Random random)
@@ -86,8 +90,8 @@ namespace Lithforge.Voxel.Loot
                 return null;
             }
 
-            // Filter by conditions
-            List<LootEntry> valid = new List<LootEntry>();
+            // Filter by conditions — reuse _validEntries
+            _validEntries.Clear();
             int totalWeight = 0;
 
             for (int i = 0; i < entries.Count; i++)
@@ -96,12 +100,12 @@ namespace Lithforge.Voxel.Loot
 
                 if (EvaluateConditions(entry.Conditions))
                 {
-                    valid.Add(entry);
+                    _validEntries.Add(entry);
                     totalWeight += entry.Weight;
                 }
             }
 
-            if (valid.Count == 0 || totalWeight <= 0)
+            if (_validEntries.Count == 0 || totalWeight <= 0)
             {
                 return null;
             }
@@ -110,17 +114,17 @@ namespace Lithforge.Voxel.Loot
             int roll = random.Next(totalWeight);
             int cumulative = 0;
 
-            for (int i = 0; i < valid.Count; i++)
+            for (int i = 0; i < _validEntries.Count; i++)
             {
-                cumulative += valid[i].Weight;
+                cumulative += _validEntries[i].Weight;
 
                 if (roll < cumulative)
                 {
-                    return valid[i];
+                    return _validEntries[i];
                 }
             }
 
-            return valid[valid.Count - 1];
+            return _validEntries[_validEntries.Count - 1];
         }
 
         private bool EvaluateConditions(List<LootCondition> conditions)
@@ -141,22 +145,16 @@ namespace Lithforge.Voxel.Loot
 
                 if (string.Equals(func.Type, "set_count", StringComparison.Ordinal))
                 {
-                    if (func.Parameters.TryGetValue("min", out string minStr) &&
-                        func.Parameters.TryGetValue("max", out string maxStr))
+                    if (func.MinValue != int.MinValue && func.MaxValue != int.MinValue)
                     {
-                        if (int.TryParse(minStr, out int min) &&
-                            int.TryParse(maxStr, out int max) &&
-                            max >= min)
+                        if (func.MaxValue >= func.MinValue)
                         {
-                            count = min + random.Next(max - min + 1);
+                            count = func.MinValue + random.Next(func.MaxValue - func.MinValue + 1);
                         }
                     }
-                    else if (func.Parameters.TryGetValue("count", out string countStr))
+                    else if (func.CountValue != int.MinValue)
                     {
-                        if (int.TryParse(countStr, out int parsed))
-                        {
-                            count = parsed;
-                        }
+                        count = func.CountValue;
                     }
                 }
             }

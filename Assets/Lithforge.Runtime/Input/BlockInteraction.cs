@@ -107,8 +107,7 @@ namespace Lithforge.Runtime.Input
             _playerHalfWidth = physics.PlayerHalfWidth;
             _playerHeight = physics.PlayerHeight;
             _lootRandom = new Random(Environment.TickCount);
-            _isSolidDelegate = (int3 coord) => SolidBlockQuery.IsSolid(
-                coord, _chunkManager, _nativeStateRegistry);
+            _isSolidDelegate = SolidBlockQuery.CreateDelegate(_chunkManager, _nativeStateRegistry);
         }
 
         private void Update()

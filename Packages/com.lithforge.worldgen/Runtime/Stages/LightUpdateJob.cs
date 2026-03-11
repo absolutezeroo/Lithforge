@@ -3,121 +3,125 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
     /// <summary>
-    /// Blittable struct for border light entries produced by the propagation job.
-    /// Stored in a NativeList and read back on the main thread.
+    /// Lightweight cross-chunk light update job. Seeds border voxels from neighbor
+    /// border light values and propagates only the delta (voxels where incoming light
+    /// exceeds existing light). Does NOT do a full re-propagation.
+    ///
+    /// Owner of SeedEntries: caller (GenerationScheduler). Dispose: caller after Complete().
+    /// Owner of LightData: ManagedChunk (Persistent). Not disposed by this job.
+    /// Owner of ChunkData: ManagedChunk (via ChunkPool, Persistent). Not disposed by this job.
+    /// Owner of StateTable: NativeStateRegistry (Persistent). Not disposed by this job.
     /// </summary>
-    public struct NativeBorderLightEntry
-    {
-        public int3 LocalPosition;
-        public byte PackedLight;
-        public byte Face;
-    }
-
     [BurstCompile]
-    public struct LightPropagationJob : IJob
+    public struct LightUpdateJob : IJob
     {
-        [ReadOnly] [NativeDisableContainerSafetyRestriction] public NativeArray<StateId> ChunkData;
-        [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
-
         public NativeArray<byte> LightData;
 
+        [ReadOnly] public NativeArray<StateId> ChunkData;
+        [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+
         /// <summary>
-        /// Output: border light entries for cross-chunk propagation.
-        /// Contains voxels at chunk faces with light > 1 that should propagate to neighbors.
-        /// Owner: caller (GenerationScheduler). Dispose: caller after reading.
+        /// Seed entries: border light values from neighboring chunks, mapped to local
+        /// coordinates in this chunk. Each entry's LocalPosition is the position in THIS
+        /// chunk where the neighbor's light should seed.
+        /// Owner: caller. Dispose: caller after Complete().
         /// </summary>
-        public NativeList<NativeBorderLightEntry> BorderLightOutput;
+        [ReadOnly] public NativeArray<NativeBorderLightEntry> SeedEntries;
 
         public void Execute()
         {
             NativeQueue<int> sunQueue = new NativeQueue<int>(Allocator.TempJob);
             NativeQueue<int> blockQueue = new NativeQueue<int>(Allocator.TempJob);
 
-            // Seed queues with all voxels that have light > 0
-            for (int i = 0; i < ChunkConstants.Volume; i++)
+            // Seed from neighbor border values
+            for (int i = 0; i < SeedEntries.Length; i++)
             {
-                byte packed = LightData[i];
-                byte sun = LightUtils.GetSunLight(packed);
-                byte block = LightUtils.GetBlockLight(packed);
+                NativeBorderLightEntry seed = SeedEntries[i];
+                int3 pos = seed.LocalPosition;
 
-                if (sun > 0)
+                if (pos.x < 0 || pos.x >= ChunkConstants.Size ||
+                    pos.y < 0 || pos.y >= ChunkConstants.Size ||
+                    pos.z < 0 || pos.z >= ChunkConstants.Size)
                 {
-                    sunQueue.Enqueue(i);
+                    continue;
                 }
 
-                if (block > 0)
+                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                StateId stateId = ChunkData[index];
+                BlockStateCompact blockState = StateTable[stateId.Value];
+
+                if (blockState.IsOpaque)
                 {
-                    blockQueue.Enqueue(i);
+                    continue;
+                }
+
+                byte incomingSun = LightUtils.GetSunLight(seed.PackedLight);
+                byte incomingBlock = LightUtils.GetBlockLight(seed.PackedLight);
+
+                // Attenuate by 1 (crossing chunk boundary counts as one step)
+                byte filter = blockState.LightFilter;
+                int sunAttenuation = filter > 0 ? filter : 1;
+                int blockAttenuation = filter > 0 ? filter : 1;
+
+                // Special case: sunlight going straight down (face 2 = +Y of neighbor = -Y into this chunk)
+                bool isSunDown = seed.Face == 2 && incomingSun == 15;
+                int newSun = isSunDown ? 15 : incomingSun - sunAttenuation;
+                int newBlock = incomingBlock - blockAttenuation;
+
+                if (newSun < 0) { newSun = 0; }
+                if (newBlock < 0) { newBlock = 0; }
+
+                byte currentPacked = LightData[index];
+                byte currentSun = LightUtils.GetSunLight(currentPacked);
+                byte currentBlock = LightUtils.GetBlockLight(currentPacked);
+
+                bool changed = false;
+
+                if ((byte)newSun > currentSun)
+                {
+                    currentSun = (byte)newSun;
+                    changed = true;
+                }
+
+                if ((byte)newBlock > currentBlock)
+                {
+                    currentBlock = (byte)newBlock;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    LightData[index] = LightUtils.Pack(currentSun, currentBlock);
+
+                    if (currentSun > 1)
+                    {
+                        sunQueue.Enqueue(index);
+                    }
+
+                    if (currentBlock > 1)
+                    {
+                        blockQueue.Enqueue(index);
+                    }
                 }
             }
 
-            // Propagate sunlight
-            PropagateSunlight(ref sunQueue);
+            // Propagate sunlight delta
+            PropagateSun(ref sunQueue);
 
-            // Propagate block light
-            PropagateBlockLight(ref blockQueue);
+            // Propagate block light delta
+            PropagateBlock(ref blockQueue);
 
             sunQueue.Dispose();
             blockQueue.Dispose();
-
-            // Collect border light leaks for cross-chunk propagation
-            CollectBorderLightLeaks();
         }
 
-        /// <summary>
-        /// After propagation completes, scan all 6 faces of the chunk for voxels
-        /// with light > 1. These are "leaks" that need to propagate to neighbors.
-        /// </summary>
-        private void CollectBorderLightLeaks()
-        {
-            int lastIdx = ChunkConstants.Size - 1;
-
-            for (int a = 0; a < ChunkConstants.Size; a++)
-            {
-                for (int b = 0; b < ChunkConstants.Size; b++)
-                {
-                    // +X face (x=31)
-                    CollectBorderVoxel(lastIdx, a, b, new int3(lastIdx, a, b), 0);
-                    // -X face (x=0)
-                    CollectBorderVoxel(0, a, b, new int3(0, a, b), 1);
-                    // +Y face (y=31)
-                    CollectBorderVoxel(a, lastIdx, b, new int3(a, lastIdx, b), 2);
-                    // -Y face (y=0)
-                    CollectBorderVoxel(a, 0, b, new int3(a, 0, b), 3);
-                    // +Z face (z=31)
-                    CollectBorderVoxel(a, b, lastIdx, new int3(a, b, lastIdx), 4);
-                    // -Z face (z=0)
-                    CollectBorderVoxel(a, b, 0, new int3(a, b, 0), 5);
-                }
-            }
-        }
-
-        private void CollectBorderVoxel(int x, int y, int z, int3 localPos, byte face)
-        {
-            int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
-            byte packed = LightData[index];
-            byte sun = LightUtils.GetSunLight(packed);
-            byte block = LightUtils.GetBlockLight(packed);
-
-            if (sun > 1 || block > 1)
-            {
-                BorderLightOutput.Add(new NativeBorderLightEntry
-                {
-                    LocalPosition = localPos,
-                    PackedLight = packed,
-                    Face = face,
-                });
-            }
-        }
-
-        private void PropagateSunlight(ref NativeQueue<int> queue)
+        private void PropagateSun(ref NativeQueue<int> queue)
         {
             while (queue.Count > 0)
             {
@@ -132,7 +136,6 @@ namespace Lithforge.WorldGen.Stages
 
                 IndexToXYZ(index, out int x, out int y, out int z);
 
-                // 6 neighbors
                 TryPropagateSun(x - 1, y, z, currentSun, false, ref queue);
                 TryPropagateSun(x + 1, y, z, currentSun, false, ref queue);
                 TryPropagateSun(x, y - 1, z, currentSun, true, ref queue);
@@ -153,19 +156,17 @@ namespace Lithforge.WorldGen.Stages
 
             int neighborIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
             StateId neighborState = ChunkData[neighborIndex];
-            BlockStateCompact neighborBlock = StateTable[neighborState.Value];
+            BlockStateCompact neighborBlockState = StateTable[neighborState.Value];
 
-            if (neighborBlock.IsOpaque)
+            if (neighborBlockState.IsOpaque)
             {
                 return;
             }
 
-            byte filter = neighborBlock.LightFilter;
-
-            // Sunlight going straight down through air/transparent maintains level 15
+            byte filter = neighborBlockState.LightFilter;
             byte newSun;
 
-            if (isDownward && sourceSun == 15 && !neighborBlock.IsOpaque)
+            if (isDownward && sourceSun == 15 && !neighborBlockState.IsOpaque)
             {
                 newSun = 15;
             }
@@ -186,13 +187,13 @@ namespace Lithforge.WorldGen.Stages
 
             if (newSun > neighborSun)
             {
-                byte neighborBlock2 = LightUtils.GetBlockLight(neighborPacked);
-                LightData[neighborIndex] = LightUtils.Pack(newSun, neighborBlock2);
+                byte neighborBlock = LightUtils.GetBlockLight(neighborPacked);
+                LightData[neighborIndex] = LightUtils.Pack(newSun, neighborBlock);
                 queue.Enqueue(neighborIndex);
             }
         }
 
-        private void PropagateBlockLight(ref NativeQueue<int> queue)
+        private void PropagateBlock(ref NativeQueue<int> queue)
         {
             while (queue.Count > 0)
             {
@@ -256,7 +257,6 @@ namespace Lithforge.WorldGen.Stages
 
         private static void IndexToXYZ(int index, out int x, out int y, out int z)
         {
-            // index = y * SizeSquared + z * Size + x
             x = index & ChunkConstants.SizeMask;
             z = (index >> ChunkConstants.SizeBits) & ChunkConstants.SizeMask;
             y = (index >> (ChunkConstants.SizeBits * 2)) & ChunkConstants.SizeMask;

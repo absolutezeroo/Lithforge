@@ -4,6 +4,7 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -13,6 +14,7 @@ namespace Lithforge.Runtime.Scheduling
     /// <summary>
     /// Owns the mesh job queue: scheduling greedy mesh jobs for LOD0 chunks,
     /// polling for completion, uploading to ChunkRenderManager, and disposing resources.
+    /// Also processes RelightPending chunks before allowing meshing.
     /// </summary>
     public sealed class MeshScheduler
     {
@@ -23,6 +25,18 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkRenderManager _chunkRenderManager;
         private readonly ChunkCulling _culling;
         private readonly int _maxMeshesPerFrame;
+
+        /// <summary>
+        /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
+        /// Owner: MeshScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
+
+        /// <summary>
+        /// Reusable list for FillChunksNeedingRelight — avoids per-frame allocation.
+        /// Owner: MeshScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<ManagedChunk> _relightCache = new List<ManagedChunk>();
 
         public int PendingCount
         {
@@ -91,6 +105,59 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
+        /// Processes RelightPending chunks by running LightRemovalJob synchronously.
+        /// After relighting, transitions the chunk to Generated so it can be meshed.
+        /// Should be called each frame before ScheduleJobs().
+        /// </summary>
+        public void ProcessRelightPending()
+        {
+            _chunkManager.FillChunksNeedingRelight(_relightCache);
+
+            for (int i = 0; i < _relightCache.Count; i++)
+            {
+                ManagedChunk chunk = _relightCache[i];
+
+                if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
+                {
+                    chunk.State = ChunkState.Generated;
+
+                    continue;
+                }
+
+                // For block edits, we need to know which voxels changed.
+                // Since SetBlock modifies one voxel and sets RelightPending,
+                // we do a full light recalculation using LightRemovalJob with
+                // all voxels that have non-zero light as seeds.
+                // This is simpler than tracking individual changed indices and
+                // still fast for single block edits within a chunk.
+                NativeList<int> changedList = new NativeList<int>(1, Allocator.TempJob);
+
+                // Scan for the changed voxel by looking for light-emitting blocks
+                // or recently modified positions. Since we don't track the exact
+                // changed index through SetBlock, we re-run full propagation.
+                // Create a fresh light pass instead:
+                // Clear all light data and re-run initial lighting + propagation
+                for (int idx = 0; idx < ChunkConstants.Volume; idx++)
+                {
+                    changedList.Add(idx);
+                }
+
+                LightRemovalJob removalJob = new LightRemovalJob
+                {
+                    LightData = chunk.LightData,
+                    ChunkData = chunk.Data,
+                    StateTable = _nativeStateRegistry.States,
+                    ChangedIndices = changedList.AsArray(),
+                };
+
+                removalJob.Schedule().Complete();
+                changedList.Dispose();
+
+                chunk.State = ChunkState.Generated;
+            }
+        }
+
+        /// <summary>
         /// Schedules greedy mesh jobs for Generated chunks.
         /// When applyFilters is true, frustum culling and LOD0-only filtering are applied.
         /// During spawn (applyFilters=false), all Generated chunks are meshed unconditionally.
@@ -104,11 +171,11 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            List<ManagedChunk> chunks = _chunkManager.GetChunksToMesh(slotsAvailable);
+            _chunkManager.FillChunksToMesh(_meshCandidateCache, slotsAvailable);
 
-            for (int i = 0; i < chunks.Count; i++)
+            for (int i = 0; i < _meshCandidateCache.Count; i++)
             {
-                ManagedChunk chunk = chunks[i];
+                ManagedChunk chunk = _meshCandidateCache[i];
 
                 if (applyFilters)
                 {

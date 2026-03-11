@@ -10,6 +10,8 @@ namespace Lithforge.Voxel.Crafting
     public sealed class CraftingEngine
     {
         private readonly List<RecipeEntry> _recipes;
+        private readonly List<ResourceId> _shapelessCache = new List<ResourceId>();
+        private bool[] _matchedCache;
 
         public CraftingEngine(List<RecipeEntry> recipes)
         {
@@ -112,8 +114,8 @@ namespace Lithforge.Voxel.Crafting
 
         private bool MatchesShapeless(CraftingGrid grid, RecipeEntry recipe)
         {
-            // Collect all non-empty items from grid
-            List<ResourceId> gridItems = new List<ResourceId>();
+            // Collect all non-empty items from grid — reuse cached list
+            _shapelessCache.Clear();
 
             for (int y = 0; y < grid.Height; y++)
             {
@@ -123,29 +125,39 @@ namespace Lithforge.Voxel.Crafting
 
                     if (item.Namespace != null)
                     {
-                        gridItems.Add(item);
+                        _shapelessCache.Add(item);
                     }
                 }
             }
 
             // Must have same count
-            if (gridItems.Count != recipe.Ingredients.Count)
+            if (_shapelessCache.Count != recipe.Ingredients.Count)
             {
                 return false;
             }
 
-            // Mark matched ingredients
-            bool[] matched = new bool[recipe.Ingredients.Count];
+            // Mark matched ingredients — reuse cached array, reallocate only if size changed
+            if (_matchedCache == null || _matchedCache.Length != recipe.Ingredients.Count)
+            {
+                _matchedCache = new bool[recipe.Ingredients.Count];
+            }
+            else
+            {
+                for (int i = 0; i < _matchedCache.Length; i++)
+                {
+                    _matchedCache[i] = false;
+                }
+            }
 
-            for (int g = 0; g < gridItems.Count; g++)
+            for (int g = 0; g < _shapelessCache.Count; g++)
             {
                 bool found = false;
 
                 for (int r = 0; r < recipe.Ingredients.Count; r++)
                 {
-                    if (!matched[r] && gridItems[g] == recipe.Ingredients[r])
+                    if (!_matchedCache[r] && _shapelessCache[g] == recipe.Ingredients[r])
                     {
-                        matched[r] = true;
+                        _matchedCache[r] = true;
                         found = true;
 
                         break;
