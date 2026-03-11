@@ -22,21 +22,11 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public StateId WaterId;
         [ReadOnly] public StateId AirId;
 
-        // Amplitude for 3D density perturbation that creates overhangs.
-        // Blended with the 2D heightmap: density = (surfaceY - worldY) + Sample3D * amplitude.
-        // Positive density = solid. Higher values produce more dramatic overhangs.
-        private const float _densityAmplitude = 8.0f;
-
         public void Execute()
         {
             int chunkWorldX = ChunkCoord.x * ChunkConstants.Size;
             int chunkWorldY = ChunkCoord.y * ChunkConstants.Size;
             int chunkWorldZ = ChunkCoord.z * ChunkConstants.Size;
-
-            // Create a separate noise config for 3D density sampling.
-            // Use a different seed offset so the 3D field is uncorrelated with the 2D heightmap.
-            NativeNoiseConfig densityConfig = NoiseConfig;
-            densityConfig.SeedOffset = NoiseConfig.SeedOffset + 1000.0f;
 
             for (int z = 0; z < ChunkConstants.Size; z++)
             {
@@ -56,12 +46,7 @@ namespace Lithforge.WorldGen.Stages
                         int worldY = chunkWorldY + y;
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
 
-                        // Blend 2D heightmap with 3D density field for overhangs
-                        float baseDensity = surfaceY - worldY;
-                        float noise3D = NativeNoise.Sample3D(worldX, worldY, worldZ, densityConfig, Seed);
-                        float density = baseDensity + noise3D * _densityAmplitude;
-
-                        if (density > 0.0f)
+                        if (worldY <= surfaceY)
                         {
                             ChunkData[index] = StoneId;
                         }

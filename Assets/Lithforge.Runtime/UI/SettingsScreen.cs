@@ -141,7 +141,6 @@ namespace Lithforge.Runtime.UI
                 }
 
                 PlayerPrefs.SetInt(_prefRenderDistance, value);
-                PlayerPrefs.Save();
             });
 
             AddSliderFloat(scrollView, "Field of View", _fov, 60f, 120f, (float value) =>
@@ -154,7 +153,6 @@ namespace Lithforge.Runtime.UI
                 }
 
                 PlayerPrefs.SetFloat(_prefFOV, value);
-                PlayerPrefs.Save();
             });
 
             AddSliderFloat(scrollView, "AO Strength", _aoStrength, 0f, 1f, (float value) =>
@@ -180,7 +178,6 @@ namespace Lithforge.Runtime.UI
                 }
 
                 PlayerPrefs.SetFloat(_prefAOStrength, value);
-                PlayerPrefs.Save();
             });
 
             // --- Gameplay Section ---
@@ -195,7 +192,6 @@ namespace Lithforge.Runtime.UI
                 }
 
                 PlayerPrefs.SetFloat(_prefMouseSensitivity, value);
-                PlayerPrefs.Save();
             });
 
             AddSliderFloat(scrollView, "Day Length (seconds)", _dayLength, 60f, 3600f, (float value) =>
@@ -384,6 +380,7 @@ namespace Lithforge.Runtime.UI
             _panel.style.display = DisplayStyle.None;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+            PlayerPrefs.Save();
         }
 
         public bool IsOpen

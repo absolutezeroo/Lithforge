@@ -652,7 +652,8 @@ namespace Lithforge.Runtime.UI
             ItemStack stack = _inventory.GetSlot(index);
 
             if (stack.ItemId == _lastSlotState[index].ItemId &&
-                stack.Count == _lastSlotState[index].Count)
+                stack.Count == _lastSlotState[index].Count &&
+                stack.Durability == _lastSlotState[index].Durability)
             {
                 return;
             }

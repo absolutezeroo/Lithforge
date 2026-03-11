@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
@@ -73,6 +74,11 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private readonly List<PendingLightUpdate> _pendingLightUpdates = new List<PendingLightUpdate>();
 
+        /// <summary>
+        /// Cached comparison delegate for frustum-first sorting — avoids per-frame allocation.
+        /// </summary>
+        private readonly Comparison<ManagedChunk> _frustumComparison;
+
         public int PendingCount
         {
             get { return _pendingGenerations.Count; }
@@ -94,6 +100,19 @@ namespace Lithforge.Runtime.Scheduling
             _nativeStateRegistry = nativeStateRegistry;
             _seed = seed;
             _maxGenerationsPerFrame = maxGenerationsPerFrame;
+
+            _frustumComparison = (ManagedChunk a, ManagedChunk b) =>
+            {
+                bool aInFrustum = _culling.IsInFrustum(a.Coord);
+                bool bInFrustum = _culling.IsInFrustum(b.Coord);
+
+                if (aInFrustum != bInFrustum)
+                {
+                    return aInFrustum ? -1 : 1;
+                }
+
+                return 0;
+            };
         }
 
         public void SetCulling(ChunkCulling culling)
@@ -394,18 +413,7 @@ namespace Lithforge.Runtime.Scheduling
             // Sort candidates so chunks inside the frustum are generated first
             if (_culling != null && _generateCandidateCache.Count > 1)
             {
-                _generateCandidateCache.Sort((ManagedChunk a, ManagedChunk b) =>
-                {
-                    bool aInFrustum = _culling.IsInFrustum(a.Coord);
-                    bool bInFrustum = _culling.IsInFrustum(b.Coord);
-
-                    if (aInFrustum != bInFrustum)
-                    {
-                        return aInFrustum ? -1 : 1;
-                    }
-
-                    return 0;
-                });
+                _generateCandidateCache.Sort(_frustumComparison);
             }
 
             for (int i = 0; i < _generateCandidateCache.Count; i++)

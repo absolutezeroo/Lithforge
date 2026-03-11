@@ -127,6 +127,8 @@ namespace Lithforge.Runtime.Scheduling
         /// Schedules LOD mesh jobs from two sources:
         /// 1. Generated chunks with LODLevel > 0 (first-time LOD mesh)
         /// 2. Ready chunks with changed LOD level (LOD transition)
+        /// MUST be called after UpdateLODLevels() in the same frame,
+        /// as it reuses _readyChunksCache populated there.
         /// </summary>
         public void ScheduleJobs()
         {
@@ -159,8 +161,7 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             // Source 2: Ready chunks with changed LOD level (LOD transition)
-            _chunkManager.FillReadyChunks(_readyChunksCache);
-
+            // _readyChunksCache was already populated by UpdateLODLevels()
             for (int i = 0; i < _readyChunksCache.Count && scheduled < slotsAvailable; i++)
             {
                 ManagedChunk chunk = _readyChunksCache[i];

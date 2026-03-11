@@ -76,6 +76,12 @@ namespace Lithforge.Runtime.Bootstrap
 
             _contentResult = pipeline.Result;
 
+            if (_contentResult == null)
+            {
+                UnityEngine.Debug.LogError("[Lithforge] Content pipeline failed — Result is null. Aborting bootstrap.");
+                yield break;
+            }
+
             UnityEngine.Debug.Log(
                 $"[Lithforge] Content pipeline: {_contentResult.StateRegistry.TotalStateCount} states, " +
                 $"{_contentResult.NativeAtlasLookup.TextureCount} textures, " +

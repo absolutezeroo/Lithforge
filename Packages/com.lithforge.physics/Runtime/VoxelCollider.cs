@@ -188,13 +188,23 @@ namespace Lithforge.Physics
                 testPos.y += stepHeight;
                 Aabb testBox = BuildEntityBox(testPos, halfWidth, height);
 
+                // Compute fresh broad-phase bounds from the stepped-up test position,
+                // since the original bounds were computed before X/Z corrections.
+                Aabb stepBroadPhase = testBox.Expand(new float3(0.01f));
+                int stepMinX = (int)math.floor(stepBroadPhase.Min.x);
+                int stepMinY = (int)math.floor(stepBroadPhase.Min.y);
+                int stepMinZ = (int)math.floor(stepBroadPhase.Min.z);
+                int stepMaxX = (int)math.floor(stepBroadPhase.Max.x);
+                int stepMaxY = (int)math.floor(stepBroadPhase.Max.y);
+                int stepMaxZ = (int)math.floor(stepBroadPhase.Max.z);
+
                 bool blocked = false;
 
-                for (int bx = minX; bx <= maxX && !blocked; bx++)
+                for (int bx = stepMinX; bx <= stepMaxX && !blocked; bx++)
                 {
-                    for (int by = minY; by <= maxY && !blocked; by++)
+                    for (int by = stepMinY; by <= stepMaxY && !blocked; by++)
                     {
-                        for (int bz = minZ; bz <= maxZ && !blocked; bz++)
+                        for (int bz = stepMinZ; bz <= stepMaxZ && !blocked; bz++)
                         {
                             int3 blockCoord = new int3(bx, by, bz);
 

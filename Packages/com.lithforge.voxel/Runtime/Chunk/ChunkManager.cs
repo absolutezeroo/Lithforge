@@ -22,6 +22,7 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
+        private ChunkDistanceComparer _distanceComparer;
 
         /// <summary>
         /// Cursor index into _loadQueue. Advanced instead of RemoveRange(0, count).
@@ -103,14 +104,8 @@ namespace Lithforge.Voxel.Chunk
             }
 
             // Sort by squared Euclidean distance for smooth fill-in order
-            int3 center = cameraChunkCoord;
-            _loadQueue.Sort((int3 a, int3 b) =>
-            {
-                float distA = math.lengthsq(a - center);
-                float distB = math.lengthsq(b - center);
-
-                return distA.CompareTo(distB);
-            });
+            _distanceComparer.Center = cameraChunkCoord;
+            _loadQueue.Sort(_distanceComparer);
         }
 
         public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)
@@ -497,7 +492,7 @@ namespace Lithforge.Voxel.Chunk
             {
                 ManagedChunk chunk = kvp.Value;
 
-                if (chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated)
+                if (chunk.IsDirty && chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated)
                 {
                     chunk.ActiveJobHandle.Complete();
                     storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData);
