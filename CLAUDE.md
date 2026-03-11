@@ -151,6 +151,43 @@ NOT for: chunks, meshing, worldgen, lighting, crafting, content loading, modding
 - **BiomeData[i].BiomeId == i**: biome lookup is O(1) by direct index. This invariant is asserted at startup in `LithforgeBootstrap`. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.
 - **ChunkPool uses HashSet for checked-out tracking**: `Return()` is O(1) amortized, not O(n).
 
+## Anti-Regression Rules
+
+### Per-Frame Allocation Ban
+Before committing, grep the diff for `new List`, `new Dictionary`, `new T[]` in methods
+called each frame (Update, Poll, Process, Tick, Schedule). If found outside constructors
+or `static readonly` fields, it's a bug. Convert to a private field with Clear()+reuse.
+
+### Schedule+Complete Ban
+Never call `job.Schedule().Complete()` in a loop. Batch-schedule all jobs, then call
+`JobHandle.CompleteAll()` or `combinedHandle.Complete()` once.
+
+### ChunkState Ordinal Invariant
+`ChunkState` values are compared with `>=` and `<`. When adding a new state:
+1. Decide where it falls in the lifecycle ordering
+2. Grep ALL `ChunkState.` comparisons and verify correctness
+3. Document the ordering invariant in the enum comment
+
+### Burst Duplication Protocol
+When duplicating code across IJob structs (unavoidable in Burst):
+1. Add `// SHARED BFS LOGIC` header with list of all copies
+2. Add entry in CLAUDE.md "Known Code Duplication" table
+3. Any edit to one copy MUST be applied to all copies in the same commit
+
+## Known Code Duplication (Burst constraint)
+
+The following BFS light propagation methods are duplicated across 3 IJob structs
+because Burst IJob structs cannot share instance methods or access shared NativeArrays.
+**Any change to one MUST be replicated to all three in the same commit.**
+
+| Method | LightPropagationJob | LightRemovalJob | LightUpdateJob |
+|--------|-------------------|-----------------|----------------|
+| PropagateSun / RepropagateSun | ✓ | ✓ | ✓ |
+| TryPropagateSun | ✓ | ✓ | ✓ |
+| PropagateBlockLight / RepropagateBlock | ✓ | ✓ | ✓ |
+| TryPropagateBlock | ✓ | ✓ | ✓ |
+| IndexToXYZ | ✓ | ✓ | ✓ |
+
 ## Reference Sources
 
 Local copies of reference implementations are available in `Sources/` (git-ignored):

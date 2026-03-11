@@ -7,6 +7,7 @@ using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Pipeline;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Scheduling
@@ -32,6 +33,43 @@ namespace Lithforge.Runtime.Scheduling
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
         private readonly List<ManagedChunk> _generateCandidateCache = new List<ManagedChunk>();
+
+        /// <summary>
+        /// Guards against double-scheduling the same chunk coord.
+        /// Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly HashSet<int3> _pendingCoords = new HashSet<int3>();
+
+        /// <summary>
+        /// Face-to-neighbor offset mapping (shared by InvalidateLightNeighbors and
+        /// ProcessCrossChunkLightUpdates). Avoids per-call int3[] allocation.
+        /// </summary>
+        private static readonly int3[] _faceOffsets = new int3[]
+        {
+            new int3(1, 0, 0),   // face 0: +X
+            new int3(-1, 0, 0),  // face 1: -X
+            new int3(0, 1, 0),   // face 2: +Y
+            new int3(0, -1, 0),  // face 3: -Y
+            new int3(0, 0, 1),   // face 4: +Z
+            new int3(0, 0, -1),  // face 5: -Z
+        };
+
+        /// <summary>
+        /// Opposite face index: face 0 &lt;-&gt; 1, 2 &lt;-&gt; 3, 4 &lt;-&gt; 5.
+        /// </summary>
+        private static readonly int[] _oppositeFace = new int[] { 1, 0, 3, 2, 5, 4 };
+
+        /// <summary>
+        /// Reusable list for chunks needing light updates — avoids per-frame allocation.
+        /// Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<ManagedChunk> _lightUpdateCache = new List<ManagedChunk>();
+
+        /// <summary>
+        /// Reusable list for pending light update results — avoids per-frame allocation.
+        /// Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<PendingLightUpdate> _pendingLightUpdates = new List<PendingLightUpdate>();
 
         public int PendingCount
         {
@@ -103,6 +141,7 @@ namespace Lithforge.Runtime.Scheduling
                         pending.Handle.DisposeAll();
                     }
 
+                    _pendingCoords.Remove(pending.Coord);
                     _pendingGenerations.RemoveAt(i);
                 }
             }
@@ -146,17 +185,6 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            // Face-to-neighbor offset mapping: face 0 (+X) -> neighbor at +X, etc.
-            int3[] faceOffsets = new int3[]
-            {
-                new int3(1, 0, 0),   // face 0: +X
-                new int3(-1, 0, 0),  // face 1: -X
-                new int3(0, 1, 0),   // face 2: +Y
-                new int3(0, -1, 0),  // face 3: -Y
-                new int3(0, 0, 1),   // face 4: +Z
-                new int3(0, 0, -1),  // face 5: -Z
-            };
-
             for (int f = 0; f < 6; f++)
             {
                 // Check if any border entries exist for this face
@@ -177,11 +205,11 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                int3 neighborCoord = coord + faceOffsets[f];
+                int3 neighborCoord = coord + _faceOffsets[f];
                 ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                 if (neighbor != null &&
-                    neighbor.State >= ChunkState.Generated &&
+                    neighbor.State >= ChunkState.RelightPending &&
                     neighbor.LightData.IsCreated)
                 {
                     neighbor.NeedsLightUpdate = true;
@@ -196,27 +224,19 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public void ProcessCrossChunkLightUpdates()
         {
-            // Face-to-neighbor offset and opposite face mapping
-            int3[] faceOffsets = new int3[]
+            _chunkManager.FillChunksNeedingLightUpdate(_lightUpdateCache);
+
+            if (_lightUpdateCache.Count == 0)
             {
-                new int3(1, 0, 0),   // face 0: +X
-                new int3(-1, 0, 0),  // face 1: -X
-                new int3(0, 1, 0),   // face 2: +Y
-                new int3(0, -1, 0),  // face 3: -Y
-                new int3(0, 0, 1),   // face 4: +Z
-                new int3(0, 0, -1),  // face 5: -Z
-            };
+                return;
+            }
 
-            // Opposite face index: face 0 <-> 1, 2 <-> 3, 4 <-> 5
-            int[] oppositeFace = new int[] { 1, 0, 3, 2, 5, 4 };
+            _pendingLightUpdates.Clear();
 
-            // Iterate all chunks that need light updates
-            List<ManagedChunk> chunksToUpdate = new List<ManagedChunk>();
-            _chunkManager.FillChunksNeedingLightUpdate(chunksToUpdate);
-
-            for (int c = 0; c < chunksToUpdate.Count; c++)
+            // Pass 1: batch-schedule all light update jobs
+            for (int c = 0; c < _lightUpdateCache.Count; c++)
             {
-                ManagedChunk chunk = chunksToUpdate[c];
+                ManagedChunk chunk = _lightUpdateCache[c];
 
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
                 {
@@ -231,7 +251,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 for (int f = 0; f < 6; f++)
                 {
-                    int3 neighborCoord = chunk.Coord + faceOffsets[f];
+                    int3 neighborCoord = chunk.Coord + _faceOffsets[f];
                     ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                     if (neighbor == null || neighbor.BorderLightEntries.Count == 0)
@@ -239,7 +259,7 @@ namespace Lithforge.Runtime.Scheduling
                         continue;
                     }
 
-                    int expectedFace = oppositeFace[f];
+                    int expectedFace = _oppositeFace[f];
 
                     for (int i = 0; i < neighbor.BorderLightEntries.Count; i++)
                     {
@@ -264,7 +284,6 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (seedEntries.Length > 0)
                 {
-                    // Run the light update job synchronously
                     LightUpdateJob updateJob = new LightUpdateJob
                     {
                         LightData = chunk.LightData,
@@ -273,7 +292,41 @@ namespace Lithforge.Runtime.Scheduling
                         SeedEntries = seedEntries.AsArray(),
                     };
 
-                    updateJob.Schedule().Complete();
+                    JobHandle handle = updateJob.Schedule();
+
+                    _pendingLightUpdates.Add(new PendingLightUpdate
+                    {
+                        Chunk = chunk,
+                        Handle = handle,
+                        SeedEntries = seedEntries,
+                    });
+                }
+                else
+                {
+                    seedEntries.Dispose();
+                    chunk.NeedsLightUpdate = false;
+                }
+            }
+
+            // Pass 2: single sync point — complete all jobs at once
+            if (_pendingLightUpdates.Count > 0)
+            {
+                NativeArray<JobHandle> handles = new NativeArray<JobHandle>(
+                    _pendingLightUpdates.Count, Allocator.Temp);
+
+                for (int i = 0; i < _pendingLightUpdates.Count; i++)
+                {
+                    handles[i] = _pendingLightUpdates[i].Handle;
+                }
+
+                JobHandle.CompleteAll(handles);
+                handles.Dispose();
+
+                // Post-completion cleanup
+                for (int i = 0; i < _pendingLightUpdates.Count; i++)
+                {
+                    PendingLightUpdate pending = _pendingLightUpdates[i];
+                    ManagedChunk chunk = pending.Chunk;
 
                     // Mark for remesh since light changed
                     if (chunk.State == ChunkState.Ready)
@@ -284,10 +337,12 @@ namespace Lithforge.Runtime.Scheduling
                     {
                         chunk.NeedsRemesh = true;
                     }
+
+                    pending.SeedEntries.Dispose();
+                    chunk.NeedsLightUpdate = false;
                 }
 
-                seedEntries.Dispose();
-                chunk.NeedsLightUpdate = false;
+                _pendingLightUpdates.Clear();
             }
         }
 
@@ -333,6 +388,11 @@ namespace Lithforge.Runtime.Scheduling
             {
                 ManagedChunk chunk = _generateCandidateCache[i];
 
+                if (_pendingCoords.Contains(chunk.Coord))
+                {
+                    continue;
+                }
+
                 // Try loading from storage first
                 if (_worldStorage != null && _worldStorage.HasChunk(chunk.Coord))
                 {
@@ -362,6 +422,8 @@ namespace Lithforge.Runtime.Scheduling
                     Coord = chunk.Coord,
                     Handle = handle,
                 });
+
+                _pendingCoords.Add(chunk.Coord);
             }
         }
 
@@ -373,6 +435,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     _pendingGenerations[i].Handle.FinalHandle.Complete();
                     _pendingGenerations[i].Handle.DisposeAll();
+                    _pendingCoords.Remove(coord);
                     _pendingGenerations.RemoveAt(i);
                 }
             }
@@ -387,12 +450,20 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingGenerations.Clear();
+            _pendingCoords.Clear();
         }
 
         private struct PendingGeneration
         {
             public int3 Coord;
             public GenerationHandle Handle;
+        }
+
+        private struct PendingLightUpdate
+        {
+            public ManagedChunk Chunk;
+            public JobHandle Handle;
+            public NativeList<NativeBorderLightEntry> SeedEntries;
         }
     }
 }

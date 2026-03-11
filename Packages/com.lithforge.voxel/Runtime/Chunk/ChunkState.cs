@@ -1,5 +1,10 @@
 namespace Lithforge.Voxel.Chunk
 {
+    /// <summary>
+    /// Chunk lifecycle states. The numeric order matters — code uses ordinal
+    /// comparisons (>=, &lt;) to check readiness. States from RelightPending onward
+    /// have valid voxel data. States from Generated onward are eligible for meshing.
+    /// </summary>
     public enum ChunkState
     {
         Unloaded,

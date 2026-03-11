@@ -275,7 +275,7 @@ namespace Lithforge.Runtime.Scheduling
         {
             ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
-            if (neighbor != null && neighbor.State >= ChunkState.Generated && neighbor.Data.IsCreated)
+            if (neighbor != null && neighbor.State >= ChunkState.RelightPending && neighbor.Data.IsCreated)
             {
                 ChunkBorderExtractor.ExtractBorder(neighbor.Data, faceDirection, output);
             }

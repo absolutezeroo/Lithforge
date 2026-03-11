@@ -117,6 +117,11 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // SHARED BFS LOGIC — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
+        // Any modification MUST be applied to all three files in the same commit.
+        // ═══════════════════════════════════════════════════════════════════════
+
         private void PropagateSunlight(ref NativeQueue<int> queue)
         {
             while (queue.Count > 0)

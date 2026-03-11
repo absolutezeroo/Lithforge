@@ -206,7 +206,7 @@ namespace Lithforge.Voxel.Chunk
         private bool HasGeneratedNeighbor(int3 coord)
         {
             return _chunks.TryGetValue(coord, out ManagedChunk neighbor)
-                && neighbor.State >= ChunkState.Generated;
+                && neighbor.State >= ChunkState.RelightPending;
         }
 
         /// <summary>
@@ -276,7 +276,7 @@ namespace Lithforge.Voxel.Chunk
             int3 chunkCoord = WorldToChunk(worldCoord);
             ManagedChunk chunk = GetChunk(chunkCoord);
 
-            if (chunk == null || chunk.State < ChunkState.Generated || !chunk.Data.IsCreated)
+            if (chunk == null || chunk.State < ChunkState.RelightPending || !chunk.Data.IsCreated)
             {
                 return StateId.Air;
             }
@@ -302,7 +302,7 @@ namespace Lithforge.Voxel.Chunk
             int3 chunkCoord = WorldToChunk(worldCoord);
             ManagedChunk chunk = GetChunk(chunkCoord);
 
-            if (chunk == null || chunk.State < ChunkState.Generated || !chunk.Data.IsCreated)
+            if (chunk == null || chunk.State < ChunkState.RelightPending || !chunk.Data.IsCreated)
             {
                 return;
             }
@@ -361,7 +361,7 @@ namespace Lithforge.Voxel.Chunk
         {
             ManagedChunk neighbor = GetChunk(neighborCoord);
 
-            if (neighbor == null || neighbor.State < ChunkState.Generated)
+            if (neighbor == null || neighbor.State < ChunkState.RelightPending)
             {
                 return;
             }
@@ -436,7 +436,7 @@ namespace Lithforge.Voxel.Chunk
             {
                 ManagedChunk chunk = kvp.Value;
 
-                if (chunk.State >= ChunkState.Generated && chunk.Data.IsCreated)
+                if (chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated)
                 {
                     chunk.ActiveJobHandle.Complete();
                     storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData);
