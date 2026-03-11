@@ -22,7 +22,8 @@
       "mcp__UnityMCP__manage_camera",
       "Bash(mkdir:*)",
       "Bash(git mv:*)",
-      "Bash(do ls:*)"
+      "Bash(do ls:*)",
+      "Bash(python:*)"
     ]
   }
 }
