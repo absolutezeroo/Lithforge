@@ -15,8 +15,8 @@ MonoBehaviour:
   poolSize: 256
   renderDistance: 4
   spawnLoadRadius: 3
-  maxGenerationsPerFrame: 6
-  maxMeshesPerFrame: 6
+  maxGenerationsPerFrame: 12
+  maxMeshesPerFrame: 12
   yLoadMin: -1
   yLoadMax: 3
   yUnloadMin: -2
@@ -24,6 +24,6 @@ MonoBehaviour:
   lod1Distance: 4
   lod2Distance: 8
   lod3Distance: 14
-  maxLODMeshesPerFrame: 2
+  maxLODMeshesPerFrame: 6
   spawnFallbackY: 62
   initialSpawnYOffset: 32

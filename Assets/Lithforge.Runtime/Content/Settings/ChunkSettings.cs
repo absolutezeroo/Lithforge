@@ -22,11 +22,11 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Frame Budget")]
         [Tooltip("Maximum chunk generation jobs scheduled per frame")]
         [Range(1, 16)]
-        [SerializeField] private int maxGenerationsPerFrame = 4;
+        [SerializeField] private int maxGenerationsPerFrame = 8;
 
         [Tooltip("Maximum chunk mesh jobs scheduled per frame")]
         [Range(1, 16)]
-        [SerializeField] private int maxMeshesPerFrame = 4;
+        [SerializeField] private int maxMeshesPerFrame = 8;
 
         [Header("Y Range — Loading")]
         [Tooltip("Minimum Y chunk offset from camera to load")]
@@ -57,7 +57,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         [Tooltip("Maximum LOD mesh jobs scheduled per frame")]
         [Range(1, 16)]
-        [SerializeField] private int maxLODMeshesPerFrame = 2;
+        [SerializeField] private int maxLODMeshesPerFrame = 4;
 
         [Header("Spawn")]
         [Tooltip("Fallback world Y for player if no solid block is found during spawn scan")]

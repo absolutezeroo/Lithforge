@@ -61,6 +61,38 @@ namespace Lithforge.WorldGen.Stages
                     }
                 }
             }
+
+            UpdateHeightMap(chunkWorldY);
+        }
+
+        private void UpdateHeightMap(int chunkWorldY)
+        {
+            for (int z = 0; z < ChunkConstants.Size; z++)
+            {
+                for (int x = 0; x < ChunkConstants.Size; x++)
+                {
+                    int columnIndex = z * ChunkConstants.Size + x;
+                    int actualSurfaceY = int.MinValue;
+
+                    for (int y = ChunkConstants.Size - 1; y >= 0; y--)
+                    {
+                        int worldY = chunkWorldY + y;
+                        int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                        StateId blockState = ChunkData[index];
+
+                        if (!blockState.Equals(AirId) && !blockState.Equals(WaterId))
+                        {
+                            actualSurfaceY = worldY;
+                            break;
+                        }
+                    }
+
+                    if (actualSurfaceY != int.MinValue)
+                    {
+                        HeightMap[columnIndex] = actualSurfaceY;
+                    }
+                }
+            }
         }
     }
 }

@@ -68,8 +68,13 @@ namespace Lithforge.Voxel.Chunk
 
         public void UpdateLoadingQueue(int3 cameraChunkCoord)
         {
-            // Skip rebuild if camera hasn't moved to a different chunk
-            if (cameraChunkCoord.Equals(_lastCameraChunkCoord) && _loadQueue.Count - _loadQueueIndex > 0)
+            int3 diff = cameraChunkCoord - _lastCameraChunkCoord;
+            int movedDist = math.max(math.abs(diff.x), math.max(math.abs(diff.y), math.abs(diff.z)));
+
+            // Only rebuild if camera moved far enough OR the queue is empty.
+            // Prevents constant queue thrashing in fly mode.
+            bool queueHasWork = _loadQueue.Count - _loadQueueIndex > 0;
+            if (queueHasWork && movedDist < 2)
             {
                 return;
             }
@@ -111,14 +116,14 @@ namespace Lithforge.Voxel.Chunk
         public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)
         {
             result.Clear();
+            int created = 0;
 
-            int remaining = _loadQueue.Count - _loadQueueIndex;
-            int count = math.min(maxCount, remaining);
-
-            for (int i = 0; i < count; i++)
+            while (_loadQueueIndex < _loadQueue.Count && created < maxCount)
             {
-                int3 coord = _loadQueue[_loadQueueIndex + i];
+                int3 coord = _loadQueue[_loadQueueIndex];
+                _loadQueueIndex++;
 
+                // Skip already-loaded chunks without consuming budget
                 if (_chunks.ContainsKey(coord))
                 {
                     continue;
@@ -129,10 +134,8 @@ namespace Lithforge.Voxel.Chunk
                 chunk.State = ChunkState.Generating;
                 _chunks[coord] = chunk;
                 result.Add(chunk);
+                created++;
             }
-
-            // Advance cursor instead of RemoveRange(0, count) — O(1) instead of O(n)
-            _loadQueueIndex += count;
 
             // If cursor has consumed the entire queue, clear to free memory
             if (_loadQueueIndex >= _loadQueue.Count)
@@ -163,16 +166,42 @@ namespace Lithforge.Voxel.Chunk
                 }
             }
 
-            // Schwartzian transform: sort by pre-computed neighbor count (descending)
-            // Simple insertion sort is fast for typical candidate counts (< 100)
+            // Sort: never-meshed chunks first (RenderedLODLevel == -1),
+            // then by neighbor count descending within each group.
+            // Simple insertion sort is fast for typical candidate counts (< 100).
             for (int i = 1; i < _meshCandidateCache.Count; i++)
             {
                 ManagedChunk tempChunk = _meshCandidateCache[i];
                 int tempCount = _neighborCountCache[i];
+                bool tempNeverMeshed = tempChunk.RenderedLODLevel < 0;
                 int j = i - 1;
 
-                while (j >= 0 && _neighborCountCache[j] < tempCount)
+                while (j >= 0)
                 {
+                    bool jNeverMeshed = _meshCandidateCache[j].RenderedLODLevel < 0;
+
+                    // Never-meshed chunks have higher priority than already-meshed
+                    if (tempNeverMeshed && !jNeverMeshed)
+                    {
+                        break;
+                    }
+
+                    // Within the same group, sort by neighbor count descending
+                    bool sameGroup = tempNeverMeshed == jNeverMeshed;
+                    if (sameGroup && _neighborCountCache[j] >= tempCount)
+                    {
+                        break;
+                    }
+
+                    // j has higher priority (never-meshed vs already-meshed) — shift right
+                    if (!sameGroup)
+                    {
+                        _meshCandidateCache[j + 1] = _meshCandidateCache[j];
+                        _neighborCountCache[j + 1] = _neighborCountCache[j];
+                        j--;
+                        continue;
+                    }
+
                     _meshCandidateCache[j + 1] = _meshCandidateCache[j];
                     _neighborCountCache[j + 1] = _neighborCountCache[j];
                     j--;

@@ -14,6 +14,9 @@ namespace Lithforge.WorldGen.Stages
     {
         [ReadOnly] public NativeArray<int> HeightMap;
         [ReadOnly] public int3 ChunkCoord;
+        // ChunkData is written by OreGenerationJob; InitialLightingJob chains after it
+        // via JobHandle. Safety restriction disabled because ChunkData NativeArray is
+        // aliased across the linear generation pipeline (TerrainShape → Cave → Surface → Ore → here).
         [ReadOnly] [NativeDisableContainerSafetyRestriction] public NativeArray<StateId> ChunkData;
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
@@ -24,45 +27,59 @@ namespace Lithforge.WorldGen.Stages
 
         public void Execute()
         {
-            int chunkWorldY = ChunkCoord.y * ChunkConstants.Size;
-
             for (int z = 0; z < ChunkConstants.Size; z++)
             {
                 for (int x = 0; x < ChunkConstants.Size; x++)
                 {
-                    int columnIndex = z * ChunkConstants.Size + x;
-                    int surfaceY = HeightMap[columnIndex];
+                    bool sunExposed = IsColumnExposedAbove(x, z);
 
                     for (int y = ChunkConstants.Size - 1; y >= 0; y--)
                     {
-                        int worldY = chunkWorldY + y;
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                        StateId stateId = ChunkData[index];
 
                         byte sun = _noLight;
                         byte block = _noLight;
 
-                        if (worldY >= surfaceY)
-                        {
-                            sun = _fullSunlight;
-                        }
-
-                        // Seed block light from emitting blocks
-                        StateId stateId = ChunkData[index];
-
                         if (stateId.Value < StateTable.Length)
                         {
                             BlockStateCompact state = StateTable[stateId.Value];
+
+                            if (sunExposed)
+                            {
+                                if (state.IsOpaque)
+                                {
+                                    sunExposed = false;
+                                }
+                                else
+                                {
+                                    sun = _fullSunlight;
+                                }
+                            }
 
                             if (state.EmitsLight)
                             {
                                 block = state.LightEmission;
                             }
                         }
+                        else if (sunExposed)
+                        {
+                            sunExposed = false;
+                        }
 
                         LightData[index] = LightUtils.Pack(sun, block);
                     }
                 }
             }
+        }
+
+        private bool IsColumnExposedAbove(int x, int z)
+        {
+            int columnIndex = z * ChunkConstants.Size + x;
+            int surfaceY = HeightMap[columnIndex];
+            int chunkTopWorldY = ChunkCoord.y * ChunkConstants.Size + ChunkConstants.Size - 1;
+
+            return chunkTopWorldY >= surfaceY;
         }
     }
 }
