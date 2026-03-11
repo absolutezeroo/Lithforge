@@ -43,10 +43,13 @@ namespace Lithforge.Runtime.Spawn
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _playerTransform = playerTransform;
-            _spawnRadius = spawnRadius;
             _yMin = yMin;
             _yMax = yMax;
             _fallbackY = fallbackY;
+
+            // Clamp spawn radius to render distance to prevent deadlock when
+            // persisted render distance is smaller than the configured spawn radius
+            _spawnRadius = math.min(spawnRadius, chunkManager.RenderDistance);
 
             // Compute spawn chunk coord from player's initial position
             Vector3 pos = _playerTransform.position;
@@ -111,9 +114,7 @@ namespace Lithforge.Runtime.Spawn
                             _spawnChunkCoord.z + z);
                         ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-                        if (chunk != null && (chunk.State == ChunkState.Ready ||
-                                              (chunk.State == ChunkState.Generated && chunk.RenderedLODLevel >= 0) ||
-                                              chunk.State == ChunkState.Meshing))
+                        if (chunk != null && chunk.State == ChunkState.Ready)
                         {
                             readyCount++;
                         }
