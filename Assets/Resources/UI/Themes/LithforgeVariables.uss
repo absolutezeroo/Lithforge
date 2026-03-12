@@ -1,0 +1,44 @@
+/* Lithforge UI CSS Custom Properties (Theme Variables)
+ * Override these in a custom theme USS to reskin the entire UI. */
+
+:root {
+    /* Slot */
+    --lf-slot-size: 60px;
+    --lf-slot-bg: rgba(32, 32, 32, 0.9);
+    --lf-slot-border: rgba(115, 115, 115, 0.9);
+    --lf-slot-border-width: 2px;
+    --lf-slot-radius: 2px;
+    --lf-slot-hover-bg: rgba(89, 89, 89, 0.9);
+    --lf-slot-selected-border: rgba(255, 255, 255, 1);
+
+    /* Panel */
+    --lf-panel-bg: rgba(30, 30, 30, 0.95);
+    --lf-panel-radius: 4px;
+    --lf-overlay-bg: rgba(0, 0, 0, 0.5);
+
+    /* Text */
+    --lf-text-primary: rgba(255, 255, 255, 1);
+    --lf-text-secondary: rgba(230, 230, 230, 1);
+    --lf-text-muted: rgba(179, 179, 179, 1);
+    --lf-text-count: rgba(255, 255, 255, 1);
+
+    /* Tooltip */
+    --lf-tooltip-bg: rgba(20, 20, 20, 0.95);
+    --lf-tooltip-border: rgba(80, 80, 80, 0.9);
+    --lf-tooltip-text: rgba(255, 255, 255, 1);
+    --lf-tooltip-name-color: rgba(255, 255, 255, 1);
+    --lf-tooltip-stat-color: rgba(170, 170, 170, 1);
+    --lf-tooltip-tool-color: rgba(100, 200, 100, 1);
+
+    /* Durability bar */
+    --lf-durability-bg: rgba(40, 40, 40, 0.8);
+    --lf-durability-full: rgba(0, 200, 0, 1);
+    --lf-durability-mid: rgba(200, 200, 0, 1);
+    --lf-durability-low: rgba(200, 0, 0, 1);
+
+    /* Drag ghost */
+    --lf-ghost-opacity: 0.85;
+
+    /* Separator */
+    --lf-separator-color: rgba(102, 102, 102, 0.5);
+}

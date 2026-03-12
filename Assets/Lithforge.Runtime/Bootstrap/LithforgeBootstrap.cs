@@ -13,6 +13,7 @@ using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
+using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
@@ -401,19 +402,23 @@ namespace Lithforge.Runtime.Bootstrap
                 CrosshairHUD crosshairHUD = crosshairObject.AddComponent<CrosshairHUD>();
                 crosshairHUD.Initialize(panelSettings);
 
-                // Add HotbarHUD
-                GameObject hotbarObject = new GameObject("HotbarHUD");
-                HotbarHUD hotbarHUD = hotbarObject.AddComponent<HotbarHUD>();
-                hotbarHUD.Initialize(playerInventory, panelSettings, _contentResult.ItemRegistry);
+                // Add HotbarDisplay
+                GameObject hotbarObject = new GameObject("HotbarDisplay");
+                HotbarDisplay hotbarDisplay = hotbarObject.AddComponent<HotbarDisplay>();
+                hotbarDisplay.Initialize(
+                    playerInventory, panelSettings,
+                    _contentResult.ItemRegistry,
+                    _contentResult.ItemSpriteAtlas);
 
-                // Add InventoryScreen
-                GameObject inventoryObject = new GameObject("InventoryScreen");
-                InventoryScreen inventoryScreen = inventoryObject.AddComponent<InventoryScreen>();
+                // Add PlayerInventoryScreen
+                GameObject inventoryObject = new GameObject("PlayerInventoryScreen");
+                PlayerInventoryScreen inventoryScreen = inventoryObject.AddComponent<PlayerInventoryScreen>();
                 inventoryScreen.Initialize(
                     playerInventory,
                     _contentResult.ItemRegistry,
                     _contentResult.CraftingEngine,
-                    panelSettings);
+                    panelSettings,
+                    _contentResult.ItemSpriteAtlas);
                 // Add SettingsScreen (initialized after TimeOfDayController is created below)
                 GameObject settingsObject = new GameObject("SettingsScreen");
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();
@@ -436,7 +441,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
-                    crosshairHUD, hotbarHUD, inventoryScreen, debugHud, settingsScreen);
+                    crosshairHUD, hotbarDisplay, inventoryScreen, debugHud, settingsScreen);
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement

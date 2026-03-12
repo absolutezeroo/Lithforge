@@ -1,4 +1,5 @@
 using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.UI.Screens;
 
 namespace Lithforge.Runtime.UI
 {
@@ -9,20 +10,20 @@ namespace Lithforge.Runtime.UI
     public sealed class HudVisibilityController
     {
         private readonly CrosshairHUD _crosshairHud;
-        private readonly HotbarHUD _hotbarHud;
-        private readonly InventoryScreen _inventoryScreen;
+        private readonly HotbarDisplay _hotbarDisplay;
+        private readonly PlayerInventoryScreen _inventoryScreen;
         private readonly DebugOverlayHUD _debugHud;
         private readonly SettingsScreen _settingsScreen;
 
         public HudVisibilityController(
             CrosshairHUD crosshairHud,
-            HotbarHUD hotbarHud,
-            InventoryScreen inventoryScreen,
+            HotbarDisplay hotbarDisplay,
+            PlayerInventoryScreen inventoryScreen,
             DebugOverlayHUD debugHud,
             SettingsScreen settingsScreen)
         {
             _crosshairHud = crosshairHud;
-            _hotbarHud = hotbarHud;
+            _hotbarDisplay = hotbarDisplay;
             _inventoryScreen = inventoryScreen;
             _debugHud = debugHud;
             _settingsScreen = settingsScreen;
@@ -38,9 +39,9 @@ namespace Lithforge.Runtime.UI
                 _crosshairHud.SetVisible(false);
             }
 
-            if (_hotbarHud != null)
+            if (_hotbarDisplay != null)
             {
-                _hotbarHud.SetVisible(false);
+                _hotbarDisplay.SetVisible(false);
             }
 
             if (_inventoryScreen != null)
@@ -70,9 +71,9 @@ namespace Lithforge.Runtime.UI
                 _crosshairHud.SetVisible(true);
             }
 
-            if (_hotbarHud != null)
+            if (_hotbarDisplay != null)
             {
-                _hotbarHud.SetVisible(true);
+                _hotbarDisplay.SetVisible(true);
             }
 
             if (_debugHud != null)

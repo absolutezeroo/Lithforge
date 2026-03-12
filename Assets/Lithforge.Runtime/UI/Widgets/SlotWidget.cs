@@ -1,0 +1,150 @@
+using Lithforge.Runtime.UI.Sprites;
+using Lithforge.Voxel.Item;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Lithforge.Runtime.UI.Widgets
+{
+    /// <summary>
+    /// Visual element representing a single inventory slot.
+    /// Displays an item icon sprite, stack count, and optional durability bar.
+    /// Uses USS class "lf-slot" for styling.
+    /// </summary>
+    public sealed class SlotWidget : VisualElement
+    {
+        private readonly Image _icon;
+        private readonly Label _count;
+        private readonly VisualElement _durabilityTrack;
+        private readonly VisualElement _durabilityFill;
+
+        private ItemStack _lastStack;
+
+        public SlotWidget()
+        {
+            AddToClassList("lf-slot");
+
+            _icon = new Image();
+            _icon.AddToClassList("lf-slot__icon");
+            _icon.pickingMode = PickingMode.Ignore;
+            Add(_icon);
+
+            _count = new Label("");
+            _count.AddToClassList("lf-slot__count");
+            _count.pickingMode = PickingMode.Ignore;
+            Add(_count);
+
+            _durabilityTrack = new VisualElement();
+            _durabilityTrack.AddToClassList("lf-slot__durability-track");
+            _durabilityTrack.pickingMode = PickingMode.Ignore;
+            _durabilityTrack.style.display = DisplayStyle.None;
+
+            _durabilityFill = new VisualElement();
+            _durabilityFill.AddToClassList("lf-slot__durability-fill");
+            _durabilityFill.pickingMode = PickingMode.Ignore;
+            _durabilityTrack.Add(_durabilityFill);
+            Add(_durabilityTrack);
+        }
+
+        /// <summary>
+        /// Updates the slot visual to reflect the given item stack.
+        /// Only updates if the stack has changed (dirty check).
+        /// </summary>
+        public void Refresh(ItemStack stack, ItemSpriteAtlas atlas, ItemRegistry itemRegistry)
+        {
+            if (stack.ItemId == _lastStack.ItemId &&
+                stack.Count == _lastStack.Count &&
+                stack.Durability == _lastStack.Durability)
+            {
+                return;
+            }
+
+            _lastStack = stack;
+
+            if (stack.IsEmpty)
+            {
+                _icon.sprite = null;
+                _icon.style.display = DisplayStyle.None;
+                _count.text = "";
+                _durabilityTrack.style.display = DisplayStyle.None;
+                return;
+            }
+
+            // Icon
+            if (atlas != null)
+            {
+                Sprite sprite = atlas.Get(stack.ItemId);
+                _icon.sprite = sprite;
+                _icon.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                _icon.style.display = DisplayStyle.None;
+            }
+
+            // Count
+            _count.text = stack.Count > 1 ? stack.Count.ToString() : "";
+
+            // Durability bar
+            if (itemRegistry != null && stack.Durability > 0)
+            {
+                ItemEntry entry = itemRegistry.Get(stack.ItemId);
+
+                if (entry != null && entry.Durability > 0)
+                {
+                    float ratio = (float)stack.Durability / entry.Durability;
+                    _durabilityTrack.style.display = DisplayStyle.Flex;
+                    _durabilityFill.style.width = new StyleLength(new Length(ratio * 100f, LengthUnit.Percent));
+
+                    // Color by ratio
+                    Color barColor;
+
+                    if (ratio > 0.5f)
+                    {
+                        barColor = new Color(0f, 0.78f, 0f, 1f);
+                    }
+                    else if (ratio > 0.25f)
+                    {
+                        barColor = new Color(0.78f, 0.78f, 0f, 1f);
+                    }
+                    else
+                    {
+                        barColor = new Color(0.78f, 0f, 0f, 1f);
+                    }
+
+                    _durabilityFill.style.backgroundColor = barColor;
+                }
+                else
+                {
+                    _durabilityTrack.style.display = DisplayStyle.None;
+                }
+            }
+            else
+            {
+                _durabilityTrack.style.display = DisplayStyle.None;
+            }
+        }
+
+        /// <summary>
+        /// Forces a full refresh by clearing the cached state.
+        /// </summary>
+        public void Invalidate()
+        {
+            _lastStack = default;
+        }
+
+        /// <summary>
+        /// Adds or removes the selected border highlight.
+        /// </summary>
+        public void SetSelected(bool selected)
+        {
+            if (selected)
+            {
+                AddToClassList("lf-slot--selected");
+            }
+            else
+            {
+                RemoveFromClassList("lf-slot--selected");
+            }
+        }
+    }
+}

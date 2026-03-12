@@ -1,0 +1,202 @@
+/* Lithforge Default UI Theme
+ * All classes use the lf- prefix to avoid collisions. */
+
+/* ─── Slot ─── */
+
+.lf-slot {
+    width: var(--lf-slot-size);
+    height: var(--lf-slot-size);
+    margin: 3px;
+    background-color: var(--lf-slot-bg);
+    border-width: var(--lf-slot-border-width);
+    border-color: var(--lf-slot-border);
+    border-radius: var(--lf-slot-radius);
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.lf-slot:hover {
+    background-color: var(--lf-slot-hover-bg);
+}
+
+.lf-slot--selected {
+    border-color: var(--lf-slot-selected-border);
+}
+
+.lf-slot__icon {
+    width: 80%;
+    height: 80%;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.lf-slot__count {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-size: 13px;
+    color: var(--lf-text-count);
+    -unity-text-align: lower-right;
+    -unity-font-style: bold;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+.lf-slot__durability-track {
+    position: absolute;
+    bottom: 3px;
+    left: 4px;
+    right: 4px;
+    height: 3px;
+    background-color: var(--lf-durability-bg);
+    border-radius: 1px;
+}
+
+.lf-slot__durability-fill {
+    height: 100%;
+    background-color: var(--lf-durability-full);
+    border-radius: 1px;
+}
+
+/* ─── Panel / Overlay ─── */
+
+.lf-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--lf-overlay-bg);
+}
+
+.lf-panel {
+    background-color: var(--lf-panel-bg);
+    padding: 12px 16px;
+    border-radius: var(--lf-panel-radius);
+}
+
+.lf-panel__title {
+    font-size: 20px;
+    color: var(--lf-text-primary);
+    -unity-text-align: middle-center;
+    margin-bottom: 8px;
+}
+
+.lf-section-label {
+    font-size: 14px;
+    color: var(--lf-text-muted);
+    margin-bottom: 4px;
+}
+
+.lf-separator {
+    height: 1px;
+    background-color: var(--lf-separator-color);
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+
+.lf-slot-row {
+    flex-direction: row;
+}
+
+/* ─── Craft section ─── */
+
+.lf-craft-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.lf-craft-arrow {
+    font-size: 24px;
+    color: var(--lf-text-primary);
+    -unity-text-align: middle-center;
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
+/* ─── Tooltip ─── */
+
+.lf-tooltip {
+    position: absolute;
+    background-color: var(--lf-tooltip-bg);
+    border-width: 1px;
+    border-color: var(--lf-tooltip-border);
+    border-radius: 3px;
+    padding: 6px 10px;
+    min-width: 120px;
+    max-width: 250px;
+}
+
+.lf-tooltip__name {
+    font-size: 14px;
+    color: var(--lf-tooltip-name-color);
+    -unity-font-style: bold;
+    margin-bottom: 2px;
+    white-space: normal;
+}
+
+.lf-tooltip__type {
+    font-size: 11px;
+    color: var(--lf-tooltip-tool-color);
+    margin-bottom: 4px;
+}
+
+.lf-tooltip__stat {
+    font-size: 11px;
+    color: var(--lf-tooltip-stat-color);
+}
+
+.lf-tooltip__durability {
+    font-size: 11px;
+    color: var(--lf-tooltip-stat-color);
+    margin-top: 2px;
+}
+
+/* ─── Drag Ghost ─── */
+
+.lf-drag-ghost {
+    position: absolute;
+    width: var(--lf-slot-size);
+    height: var(--lf-slot-size);
+    opacity: var(--lf-ghost-opacity);
+}
+
+.lf-drag-ghost__icon {
+    width: 100%;
+    height: 100%;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.lf-drag-ghost__count {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-size: 13px;
+    color: var(--lf-text-count);
+    -unity-text-align: lower-right;
+    -unity-font-style: bold;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* ─── Hotbar ─── */
+
+.lf-hotbar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    flex-direction: row;
+}
+
+.lf-item-name-banner {
+    position: absolute;
+    bottom: 84px;
+    left: 50%;
+    margin-left: -150px;
+    width: 300px;
+    font-size: 16px;
+    color: var(--lf-text-primary);
+    -unity-text-align: middle-center;
+}

@@ -13,6 +13,7 @@ using Lithforge.Runtime.Content.Recipes;
 using Lithforge.Runtime.Content.Tags;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Rendering.Atlas;
+using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
@@ -320,6 +321,12 @@ namespace Lithforge.Runtime.Bootstrap
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
             NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
 
+            // Phase 15: Build item sprite atlas for UI
+            yield return "Building item sprites...";
+            ItemSpriteAtlas itemSpriteAtlas = ItemSpriteAtlasBuilder.Build(
+                itemEntries, stateRegistry, resolvedFaces);
+            _logger.LogInfo($"Built item sprite atlas: {itemSpriteAtlas.Count} sprites.");
+
             Result = new ContentPipelineResult(
                 stateRegistry,
                 nativeStateRegistry,
@@ -331,7 +338,8 @@ namespace Lithforge.Runtime.Bootstrap
                 lootTables,
                 tagRegistry,
                 itemRegistry,
-                craftingEngine);
+                craftingEngine,
+                itemSpriteAtlas);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

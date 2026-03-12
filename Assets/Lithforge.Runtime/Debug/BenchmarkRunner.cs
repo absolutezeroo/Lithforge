@@ -54,6 +54,29 @@ namespace Lithforge.Runtime.Debug
         private float[] _pollMeshIterateMs;
         private float[] _pollMeshFirstIsCompletedMs;
 
+        // Previous-frame snapshot of PipelineStats (to align with FrameProfiler which reports N-1)
+        private int _prevGenScheduled;
+        private int _prevGenCompleted;
+        private int _prevMeshScheduled;
+        private int _prevMeshCompleted;
+        private int _prevLodScheduled;
+        private int _prevLodCompleted;
+        private long _prevGpuUploadBytes;
+        private int _prevGpuUploadCount;
+        private int _prevGrowEvents;
+        private int _prevGcGen0;
+        private int _prevGcGen1;
+        private int _prevGcGen2;
+        private float _prevMeshCompleteMaxMs;
+        private int _prevMeshCompleteStalls;
+        private float _prevGenCompleteMaxMs;
+        private int _prevGenCompleteStalls;
+        private float _prevPollMeshDisposalsMs;
+        private float _prevPollMeshRelightMs;
+        private float _prevPollMeshUploadMs;
+        private float _prevPollMeshIterateMs;
+        private float _prevPollMeshFirstIsCompletedMs;
+
         // Pre-allocated for summary generation
         private readonly StringBuilder _summaryBuilder = new StringBuilder(2048);
 
@@ -217,35 +240,60 @@ namespace Lithforge.Runtime.Debug
             {
                 _frameMs[f] = dt * 1000f;
 
+                // FrameProfiler sections: already frame N-1 (read via GetMs which was set in BeginFrame)
                 for (int i = 0; i < FrameProfiler.SectionCount; i++)
                 {
                     _sectionMs[i][f] = FrameProfiler.GetMs(i);
                 }
 
-                _genScheduled[f] = PipelineStats.GenScheduled;
-                _genCompleted[f] = PipelineStats.GenCompleted;
-                _meshScheduled[f] = PipelineStats.MeshScheduled;
-                _meshCompleted[f] = PipelineStats.MeshCompleted;
-                _lodScheduled[f] = PipelineStats.LODScheduled;
-                _lodCompleted[f] = PipelineStats.LODCompleted;
-                _gpuUploadBytes[f] = PipelineStats.GpuUploadBytes;
-                _gpuUploadCount[f] = PipelineStats.GpuUploadCount;
-                _growEvents[f] = PipelineStats.GrowEvents;
-                _gcGen0[f] = PipelineStats.GcGen0;
-                _gcGen1[f] = PipelineStats.GcGen1;
-                _gcGen2[f] = PipelineStats.GcGen2;
-                _meshCompleteMaxMs[f] = PipelineStats.MeshCompleteMaxMs;
-                _meshCompleteStalls[f] = PipelineStats.MeshCompleteStalls;
-                _genCompleteMaxMs[f] = PipelineStats.GenCompleteMaxMs;
-                _genCompleteStalls[f] = PipelineStats.GenCompleteStalls;
-                _pollMeshDisposalsMs[f] = PipelineStats.PollMeshDisposalsMs;
-                _pollMeshRelightMs[f] = PipelineStats.PollMeshRelightMs;
-                _pollMeshUploadMs[f] = PipelineStats.PollMeshUploadMs;
-                _pollMeshIterateMs[f] = PipelineStats.PollMeshIterateMs;
-                _pollMeshFirstIsCompletedMs[f] = PipelineStats.PollMeshFirstIsCompletedMs;
+                // PipelineStats: use PREVIOUS frame's snapshot (to align with FrameProfiler N-1)
+                _genScheduled[f] = _prevGenScheduled;
+                _genCompleted[f] = _prevGenCompleted;
+                _meshScheduled[f] = _prevMeshScheduled;
+                _meshCompleted[f] = _prevMeshCompleted;
+                _lodScheduled[f] = _prevLodScheduled;
+                _lodCompleted[f] = _prevLodCompleted;
+                _gpuUploadBytes[f] = _prevGpuUploadBytes;
+                _gpuUploadCount[f] = _prevGpuUploadCount;
+                _growEvents[f] = _prevGrowEvents;
+                _gcGen0[f] = _prevGcGen0;
+                _gcGen1[f] = _prevGcGen1;
+                _gcGen2[f] = _prevGcGen2;
+                _meshCompleteMaxMs[f] = _prevMeshCompleteMaxMs;
+                _meshCompleteStalls[f] = _prevMeshCompleteStalls;
+                _genCompleteMaxMs[f] = _prevGenCompleteMaxMs;
+                _genCompleteStalls[f] = _prevGenCompleteStalls;
+                _pollMeshDisposalsMs[f] = _prevPollMeshDisposalsMs;
+                _pollMeshRelightMs[f] = _prevPollMeshRelightMs;
+                _pollMeshUploadMs[f] = _prevPollMeshUploadMs;
+                _pollMeshIterateMs[f] = _prevPollMeshIterateMs;
+                _pollMeshFirstIsCompletedMs[f] = _prevPollMeshFirstIsCompletedMs;
 
                 _frameCount++;
             }
+
+            // Snapshot CURRENT frame's PipelineStats for next frame's recording
+            _prevGenScheduled = PipelineStats.GenScheduled;
+            _prevGenCompleted = PipelineStats.GenCompleted;
+            _prevMeshScheduled = PipelineStats.MeshScheduled;
+            _prevMeshCompleted = PipelineStats.MeshCompleted;
+            _prevLodScheduled = PipelineStats.LODScheduled;
+            _prevLodCompleted = PipelineStats.LODCompleted;
+            _prevGpuUploadBytes = PipelineStats.GpuUploadBytes;
+            _prevGpuUploadCount = PipelineStats.GpuUploadCount;
+            _prevGrowEvents = PipelineStats.GrowEvents;
+            _prevGcGen0 = PipelineStats.GcGen0;
+            _prevGcGen1 = PipelineStats.GcGen1;
+            _prevGcGen2 = PipelineStats.GcGen2;
+            _prevMeshCompleteMaxMs = PipelineStats.MeshCompleteMaxMs;
+            _prevMeshCompleteStalls = PipelineStats.MeshCompleteStalls;
+            _prevGenCompleteMaxMs = PipelineStats.GenCompleteMaxMs;
+            _prevGenCompleteStalls = PipelineStats.GenCompleteStalls;
+            _prevPollMeshDisposalsMs = PipelineStats.PollMeshDisposalsMs;
+            _prevPollMeshRelightMs = PipelineStats.PollMeshRelightMs;
+            _prevPollMeshUploadMs = PipelineStats.PollMeshUploadMs;
+            _prevPollMeshIterateMs = PipelineStats.PollMeshIterateMs;
+            _prevPollMeshFirstIsCompletedMs = PipelineStats.PollMeshFirstIsCompletedMs;
 
             // Check if benchmark is complete
             if (_elapsed >= _duration)
