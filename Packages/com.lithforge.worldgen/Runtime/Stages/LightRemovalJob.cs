@@ -3,6 +3,7 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 
 namespace Lithforge.WorldGen.Stages
@@ -30,9 +31,15 @@ namespace Lithforge.WorldGen.Stages
 
         /// <summary>
         /// Flat indices of changed voxels that triggered the relight.
+        /// Uses NativeDisableContainerSafetyRestriction because a single persistent
+        /// array may be shared across concurrent LightRemovalJob instances (each
+        /// reading the same full-chunk index list). This is safe because the field
+        /// is read-only and all jobs read identical data.
         /// Owner: caller. Dispose: caller after Complete().
         /// </summary>
-        [ReadOnly] public NativeArray<int> ChangedIndices;
+        [ReadOnly]
+        [NativeDisableContainerSafetyRestriction]
+        public NativeArray<int> ChangedIndices;
 
         public void Execute()
         {

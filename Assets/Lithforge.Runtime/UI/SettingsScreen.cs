@@ -17,6 +17,7 @@ namespace Lithforge.Runtime.UI
     public sealed class SettingsScreen : MonoBehaviour
     {
         private UIDocument _document;
+        private VisualElement _overlay;
         private VisualElement _panel;
         private bool _isOpen;
 
@@ -77,8 +78,8 @@ namespace Lithforge.Runtime.UI
 
             BuildUI();
 
-            // Start with panel hidden
-            _panel.style.display = DisplayStyle.None;
+            // Start with overlay hidden (hides panel too since it's a child)
+            _overlay.style.display = DisplayStyle.None;
         }
 
         private void BuildUI()
@@ -87,14 +88,14 @@ namespace Lithforge.Runtime.UI
             root.pickingMode = PickingMode.Ignore;
 
             // Semi-transparent overlay background
-            VisualElement overlay = new VisualElement();
-            overlay.style.position = Position.Absolute;
-            overlay.style.top = 0;
-            overlay.style.bottom = 0;
-            overlay.style.left = 0;
-            overlay.style.right = 0;
-            overlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
-            root.Add(overlay);
+            _overlay = new VisualElement();
+            _overlay.style.position = Position.Absolute;
+            _overlay.style.top = 0;
+            _overlay.style.bottom = 0;
+            _overlay.style.left = 0;
+            _overlay.style.right = 0;
+            _overlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+            root.Add(_overlay);
 
             // Panel container — centered
             _panel = new VisualElement();
@@ -113,7 +114,7 @@ namespace Lithforge.Runtime.UI
             _panel.style.paddingLeft = 30;
             _panel.style.paddingRight = 30;
             _panel.style.overflow = Overflow.Hidden;
-            overlay.Add(_panel);
+            _overlay.Add(_panel);
 
             // Title
             Label title = new Label("Settings");
@@ -371,7 +372,7 @@ namespace Lithforge.Runtime.UI
         public void Open()
         {
             _isOpen = true;
-            _panel.style.display = DisplayStyle.Flex;
+            _overlay.style.display = DisplayStyle.Flex;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
@@ -379,7 +380,7 @@ namespace Lithforge.Runtime.UI
         public void Close()
         {
             _isOpen = false;
-            _panel.style.display = DisplayStyle.None;
+            _overlay.style.display = DisplayStyle.None;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             PlayerPrefs.Save();

@@ -1,14 +1,15 @@
 using Lithforge.Core.Data;
+using Lithforge.Voxel.Item;
 
 namespace Lithforge.Voxel.Crafting
 {
     /// <summary>
     /// Represents a crafting grid (2x2 for player inventory or 3x3 for crafting table).
-    /// Stores ResourceId per slot (default = empty).
+    /// Stores ItemStack per slot (default = empty).
     /// </summary>
     public sealed class CraftingGrid
     {
-        private readonly ResourceId[] _slots;
+        private readonly ItemStack[] _slots;
         private readonly int _width;
         private readonly int _height;
 
@@ -26,24 +27,54 @@ namespace Lithforge.Voxel.Crafting
         {
             _width = width;
             _height = height;
-            _slots = new ResourceId[width * height];
+            _slots = new ItemStack[width * height];
         }
 
-        public ResourceId GetSlot(int x, int y)
+        /// <summary>
+        /// Returns the ItemStack at the given grid position.
+        /// </summary>
+        public ItemStack GetSlotStack(int x, int y)
         {
             if (x < 0 || x >= _width || y < 0 || y >= _height)
             {
-                return default;
+                return ItemStack.Empty;
             }
 
             return _slots[y * _width + x];
         }
 
-        public void SetSlot(int x, int y, ResourceId itemId)
+        /// <summary>
+        /// Sets the ItemStack at the given grid position.
+        /// </summary>
+        public void SetSlotStack(int x, int y, ItemStack stack)
         {
             if (x >= 0 && x < _width && y >= 0 && y < _height)
             {
-                _slots[y * _width + x] = itemId;
+                _slots[y * _width + x] = stack;
+            }
+        }
+
+        /// <summary>
+        /// Returns the ResourceId at the given grid position (backward compat for CraftingEngine).
+        /// </summary>
+        public ResourceId GetSlot(int x, int y)
+        {
+            ItemStack stack = GetSlotStack(x, y);
+            return stack.IsEmpty ? default : stack.ItemId;
+        }
+
+        /// <summary>
+        /// Sets a slot by ResourceId with count=1 (backward compat).
+        /// </summary>
+        public void SetSlot(int x, int y, ResourceId itemId)
+        {
+            if (itemId.Namespace != null)
+            {
+                SetSlotStack(x, y, new ItemStack(itemId, 1));
+            }
+            else
+            {
+                SetSlotStack(x, y, ItemStack.Empty);
             }
         }
 
@@ -51,18 +82,18 @@ namespace Lithforge.Voxel.Crafting
         {
             for (int i = 0; i < _slots.Length; i++)
             {
-                _slots[i] = default;
+                _slots[i] = ItemStack.Empty;
             }
         }
 
         /// <summary>
-        /// Returns true if all slots are empty (default ResourceId).
+        /// Returns true if all slots are empty.
         /// </summary>
         public bool IsEmpty()
         {
             for (int i = 0; i < _slots.Length; i++)
             {
-                if (_slots[i].Namespace != null)
+                if (!_slots[i].IsEmpty)
                 {
                     return false;
                 }
@@ -86,9 +117,9 @@ namespace Lithforge.Voxel.Crafting
             {
                 for (int x = 0; x < _width; x++)
                 {
-                    ResourceId id = _slots[y * _width + x];
+                    ItemStack stack = _slots[y * _width + x];
 
-                    if (id.Namespace != null)
+                    if (!stack.IsEmpty)
                     {
                         if (x < x0) { x0 = x; }
                         if (y < y0) { y0 = y; }

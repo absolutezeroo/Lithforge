@@ -26,6 +26,8 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
         private readonly int _maxLODMeshesPerFrame;
+        private readonly int _maxLODCompletionsPerFrame;
+        private readonly float _completionBudgetMs;
         private readonly int _lod1Distance;
         private readonly int _lod2Distance;
         private readonly int _lod3Distance;
@@ -47,6 +49,8 @@ namespace Lithforge.Runtime.Scheduling
             ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
             int maxLODMeshesPerFrame,
+            int maxLODCompletionsPerFrame,
+            float completionBudgetMs,
             int lod1Distance,
             int lod2Distance,
             int lod3Distance)
@@ -57,6 +61,8 @@ namespace Lithforge.Runtime.Scheduling
             _chunkMeshStore = chunkMeshStore;
             _culling = culling;
             _maxLODMeshesPerFrame = maxLODMeshesPerFrame;
+            _maxLODCompletionsPerFrame = maxLODCompletionsPerFrame;
+            _completionBudgetMs = completionBudgetMs;
             _lod1Distance = lod1Distance;
             _lod2Distance = lod2Distance;
             _lod3Distance = lod3Distance;
@@ -66,12 +72,21 @@ namespace Lithforge.Runtime.Scheduling
         {
             PollPendingLODDisposals();
 
+            FrameBudget budget = new FrameBudget(_completionBudgetMs);
+            int completedThisFrame = 0;
+
             for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
             {
+                if (completedThisFrame >= _maxLODCompletionsPerFrame || budget.IsExhausted())
+                {
+                    break;
+                }
+
                 PendingLODMesh pending = _pendingLODMeshes[i];
 
                 if (pending.Handle.IsCompleted)
                 {
+                    completedThisFrame++;
                     pending.Handle.Complete();
 
                     // Upload as single-submesh opaque mesh
@@ -188,6 +203,11 @@ namespace Lithforge.Runtime.Scheduling
 
                 ScheduleLODMesh(chunk);
                 scheduled++;
+            }
+
+            if (scheduled > 0)
+            {
+                JobHandle.ScheduleBatchedJobs();
             }
         }
 
@@ -324,6 +344,7 @@ namespace Lithforge.Runtime.Scheduling
             };
 
             JobHandle meshHandle = meshJob.Schedule(downsampleHandle);
+            chunk.ActiveJobHandle = meshHandle;
 
             _pendingLODMeshes.Add(new PendingLODMesh
             {

@@ -27,7 +27,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(rm:*)",
       "Skill(code-review:code-review)",
-      "Bash(where gh:*)"
+      "Bash(where gh:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

@@ -79,7 +79,8 @@ namespace Lithforge.Runtime
                 seed,
                 chunkSettings.MaxGenerationsPerFrame,
                 chunkSettings.MaxGenCompletionsPerFrame,
-                chunkSettings.MaxLightUpdatesPerFrame);
+                chunkSettings.MaxLightUpdatesPerFrame,
+                chunkSettings.GenCompletionBudgetMs);
             _mainCamera = Camera.main;
 
             _meshScheduler = new MeshScheduler(
@@ -89,7 +90,8 @@ namespace Lithforge.Runtime
                 chunkMeshStore,
                 _culling,
                 chunkSettings.MaxMeshesPerFrame,
-                chunkSettings.MaxMeshCompletionsPerFrame);
+                chunkSettings.MaxMeshCompletionsPerFrame,
+                chunkSettings.MeshCompletionBudgetMs);
 
             _lodScheduler = new LODScheduler(
                 chunkManager,
@@ -98,6 +100,8 @@ namespace Lithforge.Runtime
                 chunkMeshStore,
                 _culling,
                 chunkSettings.MaxLODMeshesPerFrame,
+                chunkSettings.MaxLODCompletionsPerFrame,
+                chunkSettings.LodCompletionBudgetMs,
                 chunkSettings.LOD1Distance,
                 chunkSettings.LOD2Distance,
                 chunkSettings.LOD3Distance);
@@ -178,7 +182,7 @@ namespace Lithforge.Runtime
             FrameProfiler.End(FrameProfiler.CrossLight);
 
             FrameProfiler.Begin(FrameProfiler.Relight);
-            _meshScheduler.ProcessRelightPending();
+            _meshScheduler.ScheduleRelightJobs();
             FrameProfiler.End(FrameProfiler.Relight);
 
             // LOD level assignment must run BEFORE mesh scheduling

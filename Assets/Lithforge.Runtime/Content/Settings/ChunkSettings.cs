@@ -40,6 +40,22 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(1, 32)]
         [SerializeField] private int maxLightUpdatesPerFrame = 6;
 
+        [Tooltip("Milliseconds of CPU budget for processing completed generation jobs per frame")]
+        [Range(0.1f, 8f)]
+        [SerializeField] private float genCompletionBudgetMs = 2f;
+
+        [Tooltip("Milliseconds of CPU budget for processing completed mesh jobs per frame")]
+        [Range(0.1f, 8f)]
+        [SerializeField] private float meshCompletionBudgetMs = 2f;
+
+        [Tooltip("Milliseconds of CPU budget for processing completed LOD mesh jobs per frame")]
+        [Range(0.1f, 8f)]
+        [SerializeField] private float lodCompletionBudgetMs = 1f;
+
+        [Tooltip("Maximum completed LOD mesh jobs processed per frame (secondary cap alongside ms budget)")]
+        [Range(1, 32)]
+        [SerializeField] private int maxLODCompletionsPerFrame = 4;
+
         [Header("Y Range — Loading")]
         [Tooltip("Minimum Y chunk offset from camera to load")]
         [SerializeField] private int yLoadMin = -1;
@@ -156,6 +172,26 @@ namespace Lithforge.Runtime.Content.Settings
         public int MaxLODMeshesPerFrame
         {
             get { return maxLODMeshesPerFrame; }
+        }
+
+        public int MaxLODCompletionsPerFrame
+        {
+            get { return maxLODCompletionsPerFrame; }
+        }
+
+        public float GenCompletionBudgetMs
+        {
+            get { return genCompletionBudgetMs; }
+        }
+
+        public float MeshCompletionBudgetMs
+        {
+            get { return meshCompletionBudgetMs; }
+        }
+
+        public float LodCompletionBudgetMs
+        {
+            get { return lodCompletionBudgetMs; }
         }
 
         public int SpawnFallbackY

@@ -15,7 +15,8 @@ namespace Lithforge.Runtime.Scheduling
     /// <summary>
     /// Owns the mesh job queue: scheduling greedy mesh jobs for LOD0 chunks,
     /// polling for completion, uploading to ChunkMeshStore, and disposing resources.
-    /// Also processes RelightPending chunks before allowing meshing.
+    /// Also schedules async relight jobs for RelightPending chunks (two-phase pattern:
+    /// schedule frame N, complete frame N+1).
     /// </summary>
     public sealed class MeshScheduler
     {
@@ -28,6 +29,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkCulling _culling;
         private readonly int _maxMeshesPerFrame;
         private readonly int _maxMeshCompletionsPerFrame;
+        private readonly float _completionBudgetMs;
 
         /// <summary>
         /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
@@ -41,6 +43,21 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private readonly List<ManagedChunk> _relightCache = new List<ManagedChunk>();
 
+        /// <summary>
+        /// Relight jobs in flight, awaiting completion next frame.
+        /// Two-phase pattern: schedule frame N, complete frame N+1.
+        /// Owner: MeshScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<PendingRelight> _inFlightRelights = new List<PendingRelight>();
+
+        /// <summary>
+        /// Shared index array for LightRemovalJob (all 32768 voxel indices).
+        /// Allocated once on first use with Allocator.Persistent because it is
+        /// shared across frames (TempJob would expire after 4 frames).
+        /// Owner: MeshScheduler. Disposed in Shutdown().
+        /// </summary>
+        private NativeArray<int> _relightAllIndices;
+
         public int PendingCount
         {
             get { return _pendingMeshes.Count; }
@@ -53,7 +70,8 @@ namespace Lithforge.Runtime.Scheduling
             ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
             int maxMeshesPerFrame,
-            int maxMeshCompletionsPerFrame)
+            int maxMeshCompletionsPerFrame,
+            float completionBudgetMs)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
@@ -62,18 +80,21 @@ namespace Lithforge.Runtime.Scheduling
             _culling = culling;
             _maxMeshesPerFrame = maxMeshesPerFrame;
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
+            _completionBudgetMs = completionBudgetMs;
         }
 
         public void PollCompleted()
         {
             PollPendingDisposals();
+            PollRelightCompleted();
 
+            FrameBudget budget = new FrameBudget(_completionBudgetMs);
             int completedThisFrame = 0;
             int i = 0;
 
             while (i < _pendingMeshes.Count)
             {
-                if (completedThisFrame >= _maxMeshCompletionsPerFrame)
+                if (completedThisFrame >= _maxMeshCompletionsPerFrame || budget.IsExhausted())
                 {
                     break;
                 }
@@ -103,7 +124,6 @@ namespace Lithforge.Runtime.Scheduling
                     {
                         if (chunk.NeedsRemesh)
                         {
-                            // Neighbor generated while we were meshing — redo with correct borders
                             chunk.NeedsRemesh = false;
                             chunk.State = ChunkState.Generated;
                         }
@@ -116,7 +136,16 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.RenderedLODLevel = 0;
                     }
 
-                    _pendingMeshes.RemoveAt(i);
+                    // Swap-back: O(1) removal instead of O(n) RemoveAt shift
+                    int last = _pendingMeshes.Count - 1;
+
+                    if (i < last)
+                    {
+                        _pendingMeshes[i] = _pendingMeshes[last];
+                    }
+
+                    _pendingMeshes.RemoveAt(last);
+                    // Do not increment i — recheck position (now holds old last element)
                 }
                 else
                 {
@@ -126,11 +155,14 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Processes RelightPending chunks by running LightRemovalJob synchronously.
-        /// After relighting, transitions the chunk to Generated so it can be meshed.
+        /// Schedules async relight jobs for RelightPending chunks.
+        /// Two-phase pattern: jobs are kicked to worker threads here and completed
+        /// in PollRelightCompleted() next frame. Chunks stay in RelightPending state
+        /// until the relight job completes, which gates meshing automatically (since
+        /// FillChunksToMesh only returns Generated chunks).
         /// Should be called each frame before ScheduleJobs().
         /// </summary>
-        public void ProcessRelightPending()
+        public void ScheduleRelightJobs()
         {
             _chunkManager.FillChunksNeedingRelight(_relightCache);
 
@@ -139,8 +171,18 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
-            // Transition invalid chunks immediately, pack valid ones to front
-            int validCount = 0;
+            // Lazy-allocate shared index array on first use
+            if (!_relightAllIndices.IsCreated)
+            {
+                _relightAllIndices = new NativeArray<int>(ChunkConstants.Volume, Allocator.Persistent);
+
+                for (int idx = 0; idx < ChunkConstants.Volume; idx++)
+                {
+                    _relightAllIndices[idx] = idx;
+                }
+            }
+
+            bool scheduled = false;
 
             for (int i = 0; i < _relightCache.Count; i++)
             {
@@ -149,55 +191,39 @@ namespace Lithforge.Runtime.Scheduling
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
                 {
                     chunk.State = ChunkState.Generated;
+                    continue;
                 }
-                else
+
+                if (IsRelightInFlight(chunk))
                 {
-                    _relightCache[validCount] = chunk;
-                    validCount++;
+                    continue;
                 }
-            }
-
-            if (validCount == 0)
-            {
-                return;
-            }
-
-            // All jobs use the same changed indices (full chunk rescan).
-            // Since SetBlock doesn't track the exact changed index, we pass all voxels.
-            NativeArray<int> allIndices = new NativeArray<int>(ChunkConstants.Volume, Allocator.TempJob);
-
-            for (int idx = 0; idx < ChunkConstants.Volume; idx++)
-            {
-                allIndices[idx] = idx;
-            }
-
-            // Batch-schedule all relight jobs then complete once
-            NativeArray<JobHandle> handles = new NativeArray<JobHandle>(validCount, Allocator.Temp);
-
-            for (int i = 0; i < validCount; i++)
-            {
-                ManagedChunk chunk = _relightCache[i];
 
                 LightRemovalJob removalJob = new LightRemovalJob
                 {
                     LightData = chunk.LightData,
                     ChunkData = chunk.Data,
                     StateTable = _nativeStateRegistry.States,
-                    ChangedIndices = allIndices,
+                    ChangedIndices = _relightAllIndices,
                 };
 
-                handles[i] = removalJob.Schedule();
+                JobHandle handle = removalJob.Schedule();
+
+                chunk.LightJobInFlight = true;
+
+                _inFlightRelights.Add(new PendingRelight
+                {
+                    Chunk = chunk,
+                    Handle = handle,
+                    FrameAge = 0,
+                });
+
+                scheduled = true;
             }
 
-            JobHandle combined = JobHandle.CombineDependencies(handles);
-            combined.Complete();
-
-            handles.Dispose();
-            allIndices.Dispose();
-
-            for (int i = 0; i < validCount; i++)
+            if (scheduled)
             {
-                _relightCache[i].State = ChunkState.Generated;
+                JobHandle.ScheduleBatchedJobs();
             }
         }
 
@@ -295,6 +321,11 @@ namespace Lithforge.Runtime.Scheduling
                 });
                 PipelineStats.IncrMeshScheduled();
             }
+
+            if (scheduleCount > 0)
+            {
+                JobHandle.ScheduleBatchedJobs();
+            }
         }
 
         public void CleanupCoord(int3 coord)
@@ -307,6 +338,16 @@ namespace Lithforge.Runtime.Scheduling
                     _pendingMeshes.RemoveAt(i);
                 }
             }
+
+            for (int i = _inFlightRelights.Count - 1; i >= 0; i--)
+            {
+                if (_inFlightRelights[i].Chunk.Coord.Equals(coord))
+                {
+                    _inFlightRelights[i].Handle.Complete();
+                    _inFlightRelights[i].Chunk.LightJobInFlight = false;
+                    _inFlightRelights.RemoveAt(i);
+                }
+            }
         }
 
         /// <summary>
@@ -314,6 +355,7 @@ namespace Lithforge.Runtime.Scheduling
         /// reads the given coord's chunk data. Must be called before the chunk's
         /// NativeArray is returned to the pool so that Unity's job safety locks are
         /// released. The jobs remain in their lists for normal processing.
+        /// Checks IsCompleted first to avoid work-stealing on unrelated jobs.
         /// </summary>
         public void ForceCompleteNeighborDeps(int3 neighborCoord)
         {
@@ -359,6 +401,58 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingDisposals.Clear();
+
+            for (int i = 0; i < _inFlightRelights.Count; i++)
+            {
+                _inFlightRelights[i].Handle.Complete();
+            }
+
+            _inFlightRelights.Clear();
+
+            if (_relightAllIndices.IsCreated)
+            {
+                _relightAllIndices.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Completes in-flight relight jobs from last frame. Jobs that completed on
+        /// worker threads transition their chunk from RelightPending to Generated.
+        /// FrameAge >= 3 forces completion as a TempJob safety fallback (matches
+        /// the pattern in GenerationScheduler.ProcessCrossChunkLightUpdates).
+        /// </summary>
+        private void PollRelightCompleted()
+        {
+            for (int i = _inFlightRelights.Count - 1; i >= 0; i--)
+            {
+                PendingRelight entry = _inFlightRelights[i];
+
+                if (entry.Handle.IsCompleted || entry.FrameAge >= 3)
+                {
+                    entry.Handle.Complete();
+                    entry.Chunk.State = ChunkState.Generated;
+                    entry.Chunk.LightJobInFlight = false;
+                    _inFlightRelights.RemoveAt(i);
+                }
+                else
+                {
+                    entry.FrameAge++;
+                    _inFlightRelights[i] = entry;
+                }
+            }
+        }
+
+        private bool IsRelightInFlight(ManagedChunk chunk)
+        {
+            for (int i = 0; i < _inFlightRelights.Count; i++)
+            {
+                if (_inFlightRelights[i].Chunk.Coord.Equals(chunk.Coord))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -442,15 +536,15 @@ namespace Lithforge.Runtime.Scheduling
 
         private static NativeArray<StateId> GetBorderOutput(GreedyMeshData meshData, int outputIndex)
         {
-            return outputIndex switch
+            switch (outputIndex)
             {
-                0 => meshData.NeighborPosX,
-                1 => meshData.NeighborNegX,
-                2 => meshData.NeighborPosY,
-                3 => meshData.NeighborNegY,
-                4 => meshData.NeighborPosZ,
-                _ => meshData.NeighborNegZ,
-            };
+                case 0: return meshData.NeighborPosX;
+                case 1: return meshData.NeighborNegX;
+                case 2: return meshData.NeighborPosY;
+                case 3: return meshData.NeighborNegY;
+                case 4: return meshData.NeighborPosZ;
+                default: return meshData.NeighborNegZ;
+            }
         }
 
         private struct PendingMesh
@@ -458,6 +552,13 @@ namespace Lithforge.Runtime.Scheduling
             public int3 Coord;
             public JobHandle Handle;
             public GreedyMeshData Data;
+        }
+
+        private struct PendingRelight
+        {
+            public ManagedChunk Chunk;
+            public JobHandle Handle;
+            public int FrameAge;
         }
     }
 }

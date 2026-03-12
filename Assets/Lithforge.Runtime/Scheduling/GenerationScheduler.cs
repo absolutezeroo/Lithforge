@@ -32,6 +32,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly int _maxGenerationsPerFrame;
         private readonly int _maxGenCompletionsPerFrame;
         private readonly int _maxLightUpdatesPerFrame;
+        private readonly float _completionBudgetMs;
 
         /// <summary>
         /// Reusable list for FillChunksToGenerate — avoids per-frame allocation.
@@ -98,7 +99,8 @@ namespace Lithforge.Runtime.Scheduling
             long seed,
             int maxGenerationsPerFrame,
             int maxGenCompletionsPerFrame,
-            int maxLightUpdatesPerFrame)
+            int maxLightUpdatesPerFrame,
+            float completionBudgetMs)
         {
             _chunkManager = chunkManager;
             _generationPipeline = generationPipeline;
@@ -109,18 +111,20 @@ namespace Lithforge.Runtime.Scheduling
             _maxGenerationsPerFrame = maxGenerationsPerFrame;
             _maxGenCompletionsPerFrame = maxGenCompletionsPerFrame;
             _maxLightUpdatesPerFrame = maxLightUpdatesPerFrame;
+            _completionBudgetMs = completionBudgetMs;
         }
 
         public void PollCompleted()
         {
             PollPendingGenDisposals();
 
+            FrameBudget budget = new FrameBudget(_completionBudgetMs);
             int completedThisFrame = 0;
             int i = 0;
 
             while (i < _pendingGenerations.Count)
             {
-                if (completedThisFrame >= _maxGenCompletionsPerFrame)
+                if (completedThisFrame >= _maxGenCompletionsPerFrame || budget.IsExhausted())
                 {
                     break;
                 }
@@ -176,7 +180,17 @@ namespace Lithforge.Runtime.Scheduling
                     }
 
                     _pendingCoords.Remove(pending.Coord);
-                    _pendingGenerations.RemoveAt(i);
+
+                    // Swap-back: O(1) removal instead of O(n) RemoveAt shift
+                    int last = _pendingGenerations.Count - 1;
+
+                    if (i < last)
+                    {
+                        _pendingGenerations[i] = _pendingGenerations[last];
+                    }
+
+                    _pendingGenerations.RemoveAt(last);
+                    // Do not increment i — recheck position (now holds old last element)
                 }
                 else
                 {
@@ -444,6 +458,8 @@ namespace Lithforge.Runtime.Scheduling
 
             _chunkManager.FillChunksToGenerate(_generateCandidateCache, slotsAvailable);
 
+            bool scheduled = false;
+
             for (int i = 0; i < _generateCandidateCache.Count; i++)
             {
                 ManagedChunk chunk = _generateCandidateCache[i];
@@ -487,6 +503,12 @@ namespace Lithforge.Runtime.Scheduling
 
                 _pendingCoords.Add(chunk.Coord);
                 PipelineStats.IncrGenScheduled();
+                scheduled = true;
+            }
+
+            if (scheduled)
+            {
+                JobHandle.ScheduleBatchedJobs();
             }
         }
 

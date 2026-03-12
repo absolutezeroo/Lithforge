@@ -582,14 +582,21 @@ namespace Lithforge.Runtime.Rendering
                 newIdxCap,
                 sizeof(int));
 
-            // Re-upload current data to the new GPU buffers via mapped memory
+            // Re-upload current data to the new GPU buffers via bulk memcpy.
+            // The vertex mirror stores world-offset vertices (applied during WriteData),
+            // so no per-element transform is needed here — straight copy is correct.
             if (_usedVertices > 0)
             {
                 NativeArray<MeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<MeshVertex>(0, _usedVertices);
 
-                for (int i = 0; i < _usedVertices; i++)
+                unsafe
                 {
-                    gpuVerts[i] = _vertexMirror[i];
+                    void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuVerts);
+
+                    fixed (MeshVertex* srcPtr = &_vertexMirror[0])
+                    {
+                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedVertices * _vertexStride);
+                    }
                 }
 
                 _vertexBuffer.UnlockBufferAfterWrite<MeshVertex>(_usedVertices);
@@ -599,9 +606,14 @@ namespace Lithforge.Runtime.Rendering
             {
                 NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(0, _usedIndices);
 
-                for (int i = 0; i < _usedIndices; i++)
+                unsafe
                 {
-                    gpuIdx[i] = _indexMirror[i];
+                    void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuIdx);
+
+                    fixed (int* srcPtr = &_indexMirror[0])
+                    {
+                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedIndices * sizeof(int));
+                    }
                 }
 
                 _indexBuffer.UnlockBufferAfterWrite<int>(_usedIndices);
