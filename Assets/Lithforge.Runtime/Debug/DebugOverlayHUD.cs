@@ -3,6 +3,7 @@ using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Chunk;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -53,6 +54,29 @@ namespace Lithforge.Runtime.Debug
         private static readonly Color32 ColorBg = new Color32(0, 0, 0, 160);
         private static readonly Color32 ColorLine60 = new Color32(0, 180, 0, 80);
         private static readonly Color32 ColorLine30 = new Color32(220, 40, 40, 80);
+
+        // Chunk minimap
+        private Texture2D _minimapTexture;
+        private Color32[] _minimapPixels;
+        private int _minimapSize;
+        private int _minimapPixelScale;
+
+        private static readonly Color32[] _stateColors = new Color32[]
+        {
+            new Color32(20, 20, 20, 255),       // Unloaded
+            new Color32(80, 80, 80, 255),        // Loading
+            new Color32(200, 120, 0, 255),       // Generating
+            new Color32(180, 100, 0, 255),       // Decorating
+            new Color32(180, 0, 180, 255),       // RelightPending
+            new Color32(0, 120, 200, 255),       // Generated
+            new Color32(200, 200, 0, 255),       // Meshing
+            new Color32(0, 180, 0, 255),         // Ready
+        };
+
+        private static readonly string[] _stateNames = new string[]
+        {
+            "Empty", "Load", "Gen", "Deco", "Relit", "Done", "Mesh", "Ready",
+        };
 
         // Pre-allocated StringBuilders for zero-alloc text building
         private readonly StringBuilder _timingBuilder = new StringBuilder(1024);
@@ -170,7 +194,7 @@ namespace Lithforge.Runtime.Debug
                 }
             }
 
-            // Update chunk histogram when benchmark mode is active
+            // Update chunk histogram and minimap when benchmark mode is active
             if (_benchmarkMode && PipelineStats.Enabled && _chunkManager != null && _chunkPool != null)
             {
                 PipelineStats.UpdateChunkHistogram(_chunkManager, _chunkPool);
@@ -180,6 +204,9 @@ namespace Lithforge.Runtime.Debug
                 {
                     PipelineStats.FreeListSize = _chunkMeshStore.OpaqueBuffer.FreeRegionCount;
                 }
+
+                EnsureMinimapTexture();
+                UpdateMinimap();
             }
         }
 
@@ -234,6 +261,11 @@ namespace Lithforge.Runtime.Debug
             if (_frameTimeFilled >= 2 && _graphTexture != null)
             {
                 DrawFrameTimeGraph();
+            }
+
+            if (_benchmarkMode && _minimapTexture != null)
+            {
+                DrawMinimap();
             }
         }
 
@@ -800,6 +832,135 @@ namespace Lithforge.Runtime.Debug
                 _leftBuilder.ToString(), _smallStyle);
         }
 
+        private void EnsureMinimapTexture()
+        {
+            int rd = _chunkManager.RenderDistance;
+            int neededSize = rd * 2 + 1;
+
+            if (_minimapTexture != null && _minimapSize == neededSize)
+            {
+                return;
+            }
+
+            if (_minimapTexture != null)
+            {
+                DestroyImmediate(_minimapTexture);
+            }
+
+            _minimapSize = neededSize;
+            _minimapPixelScale = Mathf.Max(2, 150 / _minimapSize);
+            _minimapTexture = new Texture2D(_minimapSize, _minimapSize, TextureFormat.RGBA32, false);
+            _minimapTexture.filterMode = FilterMode.Point;
+            _minimapTexture.wrapMode = TextureWrapMode.Clamp;
+            _minimapPixels = new Color32[_minimapSize * _minimapSize];
+        }
+
+        private void UpdateMinimap()
+        {
+            if (_chunkManager == null || _minimapTexture == null || _mainCamera == null)
+            {
+                return;
+            }
+
+            int rd = _chunkManager.RenderDistance;
+            Vector3 camPos = _mainCamera.transform.position;
+            int camChunkX = Mathf.FloorToInt(camPos.x / ChunkConstants.Size);
+            int camChunkY = Mathf.FloorToInt(camPos.y / ChunkConstants.Size);
+            int camChunkZ = Mathf.FloorToInt(camPos.z / ChunkConstants.Size);
+
+            for (int dx = -rd; dx <= rd; dx++)
+            {
+                for (int dz = -rd; dz <= rd; dz++)
+                {
+                    int3 coord = new int3(camChunkX + dx, camChunkY, camChunkZ + dz);
+                    ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+                    Color32 color;
+
+                    if (chunk == null)
+                    {
+                        color = _stateColors[0];
+                    }
+                    else
+                    {
+                        int stateIdx = (int)chunk.State;
+
+                        if (stateIdx >= 0 && stateIdx < _stateColors.Length)
+                        {
+                            color = _stateColors[stateIdx];
+                        }
+                        else
+                        {
+                            color = _stateColors[0];
+                        }
+
+                        if (chunk.NeedsRemesh)
+                        {
+                            color.r = (byte)Mathf.Min(255, color.r + 100);
+                            color.g = (byte)(color.g / 2);
+                            color.b = (byte)(color.b / 2);
+                        }
+                    }
+
+                    int px = dx + rd;
+                    int py = dz + rd;
+                    _minimapPixels[py * _minimapSize + px] = color;
+                }
+            }
+
+            // Camera center marker
+            _minimapPixels[rd * _minimapSize + rd] = new Color32(255, 255, 255, 255);
+
+            _minimapTexture.SetPixels32(_minimapPixels);
+            _minimapTexture.Apply(false);
+        }
+
+        private void DrawMinimap()
+        {
+            int drawSize = _minimapSize * _minimapPixelScale;
+            int padding = _overlayPadding;
+
+            // Position: bottom-right, above the label
+            float x = Screen.width - drawSize - padding;
+            float y = Screen.height - drawSize - padding - 20;
+
+            // Background for contrast
+            GUI.DrawTexture(new Rect(x - 1, y - 1, drawSize + 2, drawSize + 2), _bgTexture);
+
+            // Minimap texture scaled up with FilterMode.Point
+            GUI.DrawTexture(new Rect(x, y, drawSize, drawSize), _minimapTexture);
+
+            // Label
+            _leftBuilder.Clear();
+            _leftBuilder.Append("Chunks XZ (Y=");
+            _leftBuilder.Append(Mathf.FloorToInt(_mainCamera.transform.position.y / ChunkConstants.Size));
+            _leftBuilder.Append(") [");
+            _leftBuilder.Append(_minimapSize);
+            _leftBuilder.Append('x');
+            _leftBuilder.Append(_minimapSize);
+            _leftBuilder.Append(']');
+            GUI.Label(new Rect(x, y + drawSize + 2, drawSize + 50, 20), _leftBuilder.ToString(), _smallStyle);
+
+            // Legend: to the left of the minimap
+            DrawMinimapLegend(x - 80, y);
+        }
+
+        private void DrawMinimapLegend(float baseX, float baseY)
+        {
+            int boxSize = 8;
+            int lineH = 12;
+
+            for (int i = 0; i < _stateColors.Length; i++)
+            {
+                float ly = baseY + i * lineH;
+                Color prev = GUI.color;
+                GUI.color = _stateColors[i];
+                GUI.DrawTexture(new Rect(baseX, ly, boxSize, boxSize), _barTexture);
+                GUI.color = prev;
+                GUI.Label(new Rect(baseX + boxSize + 4, ly - 2, 80, lineH), _stateNames[i], _smallStyle);
+            }
+        }
+
         private void OnDestroy()
         {
             if (_bgTexture != null)
@@ -815,6 +976,11 @@ namespace Lithforge.Runtime.Debug
             if (_barTexture != null)
             {
                 DestroyImmediate(_barTexture);
+            }
+
+            if (_minimapTexture != null)
+            {
+                DestroyImmediate(_minimapTexture);
             }
         }
     }
