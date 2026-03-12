@@ -17,7 +17,7 @@ MonoBehaviour:
   verboseContentLoading: 1
   enableProfiling: 1
   fpsSampleInterval: 0.5
-  benchmarkFlySpeed: 150
+  benchmarkFlySpeed: 50
   benchmarkDuration: 30
   overlayBackgroundAlpha: 0.6
   overlayMinFontSize: 18

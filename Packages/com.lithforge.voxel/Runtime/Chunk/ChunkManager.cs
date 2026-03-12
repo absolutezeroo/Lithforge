@@ -367,7 +367,7 @@ namespace Lithforge.Voxel.Chunk
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                if (kvp.Value.State == ChunkState.RelightPending)
+                if (kvp.Value.State == ChunkState.RelightPending && !kvp.Value.LightJobInFlight)
                 {
                     result.Add(kvp.Value);
                 }

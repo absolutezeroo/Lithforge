@@ -44,6 +44,12 @@ namespace Lithforge.Runtime.Rendering
         private GraphicsBuffer _indexBuffer;
         private GraphicsBuffer _argsBuffer;
 
+        /// <summary>
+        /// Cached single-element array for indirect args upload, avoiding per-frame allocation.
+        /// </summary>
+        private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _argsUploadBuffer =
+            new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+
         public GraphicsBuffer VertexBuffer
         {
             get { return _vertexBuffer; }
@@ -109,9 +115,7 @@ namespace Lithforge.Runtime.Rendering
                 GraphicsBuffer.IndirectDrawIndexedArgs.size);
 
             // Initialize indirect args to zero draws
-            GraphicsBuffer.IndirectDrawIndexedArgs[] args =
-                new GraphicsBuffer.IndirectDrawIndexedArgs[1];
-            args[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
+            _argsUploadBuffer[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
                 indexCountPerInstance = 0,
                 instanceCount = 1,
@@ -119,7 +123,7 @@ namespace Lithforge.Runtime.Rendering
                 baseVertexIndex = 0,
                 startInstance = 0,
             };
-            _argsBuffer.SetData(args);
+            _argsBuffer.SetData(_argsUploadBuffer);
 
             _argsDirty = false;
         }
@@ -325,9 +329,7 @@ namespace Lithforge.Runtime.Rendering
             // Update indirect args if anything changed
             if (_argsDirty)
             {
-                GraphicsBuffer.IndirectDrawIndexedArgs[] args =
-                    new GraphicsBuffer.IndirectDrawIndexedArgs[1];
-                args[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
+                _argsUploadBuffer[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
                 {
                     indexCountPerInstance = (uint)_usedIndices,
                     instanceCount = 1,
@@ -335,7 +337,7 @@ namespace Lithforge.Runtime.Rendering
                     baseVertexIndex = 0,
                     startInstance = 0,
                 };
-                _argsBuffer.SetData(args);
+                _argsBuffer.SetData(_argsUploadBuffer);
                 _argsDirty = false;
             }
         }

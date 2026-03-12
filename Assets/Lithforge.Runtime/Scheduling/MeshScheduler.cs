@@ -367,16 +367,6 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private JobHandle ScheduleBorderExtractionJobs(int3 coord, GreedyMeshData meshData)
         {
-            NativeArray<StateId>[] outputs = new NativeArray<StateId>[]
-            {
-                meshData.NeighborPosX,
-                meshData.NeighborNegX,
-                meshData.NeighborPosY,
-                meshData.NeighborNegY,
-                meshData.NeighborPosZ,
-                meshData.NeighborNegZ,
-            };
-
             int handleCount = 0;
             NativeArray<JobHandle> handles = new NativeArray<JobHandle>(6, Allocator.Temp, NativeArrayOptions.ClearMemory);
 
@@ -394,7 +384,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     ChunkData = neighbor.Data,
                     FaceDirection = _borderExtractions[i].Face,
-                    Output = outputs[_borderExtractions[i].OutputIndex],
+                    Output = GetBorderOutput(meshData, _borderExtractions[i].OutputIndex),
                 };
 
                 handles[handleCount] = borderJob.Schedule();
@@ -415,6 +405,19 @@ namespace Lithforge.Runtime.Scheduling
             handles.Dispose();
 
             return combined;
+        }
+
+        private static NativeArray<StateId> GetBorderOutput(GreedyMeshData meshData, int outputIndex)
+        {
+            return outputIndex switch
+            {
+                0 => meshData.NeighborPosX,
+                1 => meshData.NeighborNegX,
+                2 => meshData.NeighborPosY,
+                3 => meshData.NeighborNegY,
+                4 => meshData.NeighborPosZ,
+                _ => meshData.NeighborNegZ,
+            };
         }
 
         private struct PendingMesh
