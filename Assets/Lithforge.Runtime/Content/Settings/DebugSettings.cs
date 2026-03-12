@@ -24,6 +24,15 @@ namespace Lithforge.Runtime.Content.Settings
         [Min(0.05f)]
         [SerializeField] private float fpsSampleInterval = 0.5f;
 
+        [Header("Benchmark")]
+        [Tooltip("Fly speed during automated benchmark (blocks/sec)")]
+        [Min(1f)]
+        [SerializeField] private float benchmarkFlySpeed = 50f;
+
+        [Tooltip("Duration of automated benchmark in seconds")]
+        [Min(1f)]
+        [SerializeField] private float benchmarkDuration = 10f;
+
         [Header("Overlay Appearance")]
         [Tooltip("Background panel alpha (0=transparent, 1=opaque)")]
         [Range(0f, 1f)]
@@ -102,6 +111,16 @@ namespace Lithforge.Runtime.Content.Settings
         public int OverlayLineSpacing
         {
             get { return overlayLineSpacing; }
+        }
+
+        public float BenchmarkFlySpeed
+        {
+            get { return benchmarkFlySpeed; }
+        }
+
+        public float BenchmarkDuration
+        {
+            get { return benchmarkDuration; }
         }
     }
 }

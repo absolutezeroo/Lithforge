@@ -581,6 +581,43 @@ namespace Lithforge.Voxel.Chunk
         /// and flags any Meshing neighbors for re-mesh after their current job completes.
         /// Called after a chunk finishes generation or is loaded from storage.
         /// </summary>
+        /// <summary>
+        /// Fills the given array with chunk counts per state. The array must have
+        /// length >= ChunkState enum count (8). Also outputs NeedsRemesh and
+        /// NeedsLightUpdate totals. Single iteration over _chunks.
+        /// </summary>
+        public void FillStateHistogram(int[] countsByState, out int needsRemesh, out int needsLightUpdate)
+        {
+            for (int i = 0; i < countsByState.Length; i++)
+            {
+                countsByState[i] = 0;
+            }
+
+            needsRemesh = 0;
+            needsLightUpdate = 0;
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                ManagedChunk chunk = kvp.Value;
+                int stateIdx = (int)chunk.State;
+
+                if (stateIdx >= 0 && stateIdx < countsByState.Length)
+                {
+                    countsByState[stateIdx]++;
+                }
+
+                if (chunk.NeedsRemesh)
+                {
+                    needsRemesh++;
+                }
+
+                if (chunk.NeedsLightUpdate)
+                {
+                    needsLightUpdate++;
+                }
+            }
+        }
+
         public void InvalidateReadyNeighbors(int3 coord)
         {
             for (int i = 0; i < _neighborOffsets.Length; i++)

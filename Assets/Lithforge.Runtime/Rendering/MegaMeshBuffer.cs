@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Lithforge.Meshing;
+using Lithforge.Runtime.Debug;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -61,6 +62,21 @@ namespace Lithforge.Runtime.Rendering
         public bool HasGeometry
         {
             get { return _slots.Count > 0; }
+        }
+
+        public int UsedVertices
+        {
+            get { return _usedVertices; }
+        }
+
+        public int VertexCapacity
+        {
+            get { return _vertexCapacity; }
+        }
+
+        public int FreeRegionCount
+        {
+            get { return _freeRegions.Count; }
         }
 
         /// <summary>
@@ -337,6 +353,7 @@ namespace Lithforge.Runtime.Rendering
 
             _vertexBuffer.SetData(_vertexMirror, vOff, vOff, vertCount);
             _indexBuffer.SetData(_indexMirror, iOff, iOff, idxCount);
+            PipelineStats.AddGpuUpload(vertCount * _vertexStride + idxCount * sizeof(int));
         }
 
         /// <summary>
@@ -516,6 +533,7 @@ namespace Lithforge.Runtime.Rendering
             _vertexCapacity = newVertCap;
             _indexCapacity = newIdxCap;
             _argsDirty = true;
+            PipelineStats.IncrGrow();
 
             UnityEngine.Debug.Log(
                 $"[MegaMeshBuffer] {_name}: grew to " +

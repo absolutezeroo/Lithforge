@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Meshing;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
@@ -79,6 +80,7 @@ namespace Lithforge.Runtime.Scheduling
                         pending.Data.TranslucentIndices);
 
                     pending.Data.Dispose();
+                    PipelineStats.IncrMeshCompleted();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 
@@ -272,6 +274,7 @@ namespace Lithforge.Runtime.Scheduling
                     Handle = meshHandle,
                     Data = meshData,
                 });
+                PipelineStats.IncrMeshScheduled();
             }
         }
 

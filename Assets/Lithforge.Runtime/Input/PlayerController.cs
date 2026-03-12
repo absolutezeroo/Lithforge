@@ -75,6 +75,23 @@ namespace Lithforge.Runtime.Input
             get { return _flySpeed; }
         }
 
+        /// <summary>
+        /// Programmatically sets fly mode, noclip, and fly speed.
+        /// Used by BenchmarkRunner for automated fly benchmarks.
+        /// </summary>
+        public void SetFlyMode(bool fly, bool noclip, float speed)
+        {
+            _flyMode = fly;
+            _noclip = fly && noclip;
+            _flySpeed = Mathf.Clamp(speed, _minFlySpeed, _maxFlySpeed);
+            _verticalSpeed = 0f;
+
+            if (fly)
+            {
+                _onGround = false;
+            }
+        }
+
         public void Initialize(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,

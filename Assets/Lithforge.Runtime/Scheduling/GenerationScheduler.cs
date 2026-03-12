@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Diagnostics;
+using Lithforge.Runtime.Debug;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Storage;
@@ -113,18 +115,23 @@ namespace Lithforge.Runtime.Scheduling
                             pending.Handle.BiomeMap.IsCreated &&
                             pending.Handle.HeightMap.IsCreated)
                         {
+                            long decorStart = Stopwatch.GetTimestamp();
                             _decorationStage.Decorate(
                                 pending.Coord,
                                 chunk.Data,
                                 pending.Handle.HeightMap,
                                 pending.Handle.BiomeMap,
                                 _seed);
+                            long decorEnd = Stopwatch.GetTimestamp();
+                            float decorMs = (float)((decorEnd - decorStart) * 1000.0 / Stopwatch.Frequency);
+                            PipelineStats.AddDecorate(decorMs);
                         }
 
                         // Transfer LightData ownership to chunk
                         chunk.LightData = pending.Handle.LightData;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
+                        PipelineStats.IncrGenCompleted();
 
                         // Collect border light leaks for cross-chunk propagation
                         CollectBorderLightEntries(chunk, pending.Handle.BorderLightOutput);
@@ -133,6 +140,7 @@ namespace Lithforge.Runtime.Scheduling
 
                         // Invalidate neighbors for remeshing and cross-chunk light
                         _chunkManager.InvalidateReadyNeighbors(pending.Coord);
+                        PipelineStats.IncrInvalidate();
                         InvalidateLightNeighbors(pending.Coord, chunk);
                     }
                     else
@@ -414,8 +422,10 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.LightData = lightData;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
+                        PipelineStats.IncrGenCompleted();
 
                         _chunkManager.InvalidateReadyNeighbors(chunk.Coord);
+                        PipelineStats.IncrInvalidate();
 
                         continue;
                     }
@@ -433,6 +443,7 @@ namespace Lithforge.Runtime.Scheduling
                 });
 
                 _pendingCoords.Add(chunk.Coord);
+                PipelineStats.IncrGenScheduled();
             }
         }
 

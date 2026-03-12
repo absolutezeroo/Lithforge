@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Meshing;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
@@ -77,6 +78,7 @@ namespace Lithforge.Runtime.Scheduling
                         pending.Data.Indices);
 
                     pending.Data.Dispose();
+                    PipelineStats.IncrLODCompleted();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 
@@ -302,6 +304,7 @@ namespace Lithforge.Runtime.Scheduling
                 Data = lodData,
                 LODLevel = lodLevel,
             });
+            PipelineStats.IncrLODScheduled();
         }
 
         private struct PendingLODMesh

@@ -51,6 +51,11 @@ namespace Lithforge.Runtime.Bootstrap
         {
             _settings = SettingsLoader.Load();
             _logger = new UnityLogger();
+
+            // Initialize profiling systems
+            FrameProfiler.Init();
+            FrameProfiler.Enabled = _settings.Debug.EnableProfiling;
+            PipelineStats.Enabled = _settings.Debug.EnableProfiling;
         }
 
         private IEnumerator Start()
@@ -416,7 +421,18 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add debug HUD
                 DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
-                debugHud.Initialize(_gameLoop, _chunkManager, _settings.Debug, _chunkMeshStore, playerController);
+                debugHud.Initialize(
+                    _gameLoop, _chunkManager, _settings.Debug, _chunkMeshStore,
+                    playerController, _chunkPool);
+
+                // Add benchmark runner
+                BenchmarkRunner benchmarkRunner = gameObject.AddComponent<BenchmarkRunner>();
+                benchmarkRunner.Initialize(
+                    playerController,
+                    playerObject.transform,
+                    _gameLoop,
+                    _settings.Debug.BenchmarkFlySpeed,
+                    _settings.Debug.BenchmarkDuration);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(

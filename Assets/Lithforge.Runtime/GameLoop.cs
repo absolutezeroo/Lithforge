@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
@@ -117,15 +118,31 @@ namespace Lithforge.Runtime
                 return;
             }
 
+            FrameProfiler.BeginFrame();
+            PipelineStats.BeginFrame();
+            FrameProfiler.Begin(FrameProfiler.UpdateTotal);
+
+            FrameProfiler.Begin(FrameProfiler.PollGen);
             _generationScheduler.PollCompleted();
+            FrameProfiler.End(FrameProfiler.PollGen);
+
+            FrameProfiler.Begin(FrameProfiler.PollMesh);
             _meshScheduler.PollCompleted();
+            FrameProfiler.End(FrameProfiler.PollMesh);
+
+            FrameProfiler.Begin(FrameProfiler.PollLOD);
             _lodScheduler.PollCompleted();
+            FrameProfiler.End(FrameProfiler.PollLOD);
 
             int3 cameraChunkCoord = GetCameraChunkCoord();
 
             _culling.UpdateFrustum(_mainCamera);
 
+            FrameProfiler.Begin(FrameProfiler.LoadQueue);
             _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
+            FrameProfiler.End(FrameProfiler.LoadQueue);
+
+            FrameProfiler.Begin(FrameProfiler.Unload);
             _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords, _worldStorage);
 
             // Advance spawn state machine until complete
@@ -143,17 +160,35 @@ namespace Lithforge.Runtime
                 _meshScheduler.CleanupCoord(coord);
                 _lodScheduler.CleanupCoord(coord);
             }
+            FrameProfiler.End(FrameProfiler.Unload);
 
+            FrameProfiler.Begin(FrameProfiler.SchedGen);
             _generationScheduler.ScheduleJobs();
+            FrameProfiler.End(FrameProfiler.SchedGen);
+
+            FrameProfiler.Begin(FrameProfiler.CrossLight);
             _generationScheduler.ProcessCrossChunkLightUpdates();
+            FrameProfiler.End(FrameProfiler.CrossLight);
+
+            FrameProfiler.Begin(FrameProfiler.Relight);
             _meshScheduler.ProcessRelightPending();
+            FrameProfiler.End(FrameProfiler.Relight);
 
             // LOD level assignment must run BEFORE mesh scheduling
             // so chunks get their LOD level before MeshScheduler decides who to mesh
+            FrameProfiler.Begin(FrameProfiler.LODLevels);
             _lodScheduler.UpdateLODLevels(cameraChunkCoord);
+            FrameProfiler.End(FrameProfiler.LODLevels);
 
+            FrameProfiler.Begin(FrameProfiler.SchedMesh);
             _meshScheduler.ScheduleJobs(SpawnReady);
+            FrameProfiler.End(FrameProfiler.SchedMesh);
+
+            FrameProfiler.Begin(FrameProfiler.SchedLOD);
             _lodScheduler.ScheduleJobs();
+            FrameProfiler.End(FrameProfiler.SchedLOD);
+
+            FrameProfiler.End(FrameProfiler.UpdateTotal);
         }
 
         private void LateUpdate()
@@ -163,7 +198,9 @@ namespace Lithforge.Runtime
                 return;
             }
 
+            FrameProfiler.Begin(FrameProfiler.Render);
             _chunkMeshStore.RenderAll(_mainCamera);
+            FrameProfiler.End(FrameProfiler.Render);
         }
 
         private int3 GetCameraChunkCoord()

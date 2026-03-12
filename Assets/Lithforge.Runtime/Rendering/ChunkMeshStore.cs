@@ -37,6 +37,21 @@ namespace Lithforge.Runtime.Rendering
             get { return _activeChunks.Count; }
         }
 
+        public MegaMeshBuffer OpaqueBuffer
+        {
+            get { return _opaqueBuffer; }
+        }
+
+        public MegaMeshBuffer CutoutBuffer
+        {
+            get { return _cutoutBuffer; }
+        }
+
+        public MegaMeshBuffer TranslucentBuffer
+        {
+            get { return _translucentBuffer; }
+        }
+
         public Material OpaqueMaterial { get; }
 
         public Material CutoutMaterial { get; }
