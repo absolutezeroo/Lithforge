@@ -362,7 +362,7 @@ namespace Lithforge.Runtime.Debug
 
         private void DrawBenchmarkPanel()
         {
-            int lineHeight = _smallStyle.fontSize + 2;
+            int lineHeight = _smallStyle.fontSize + 6;
             int padding = _overlayPadding;
             int panelX = _overlayPanelWidth + padding;
             int colWidth = 340;
@@ -919,10 +919,13 @@ namespace Lithforge.Runtime.Debug
         {
             int drawSize = _minimapSize * _minimapPixelScale;
             int padding = _overlayPadding;
+            int labelHeight = 24;
+            int legendHeight = _stateColors.Length * 18;
+            int totalHeight = Mathf.Max(drawSize, legendHeight) + labelHeight;
 
-            // Position: bottom-right, above the label
+            // Position: bottom-right, with enough room for label below
             float x = Screen.width - drawSize - padding;
-            float y = Screen.height - drawSize - padding - 20;
+            float y = Screen.height - totalHeight - padding;
 
             // Background for contrast
             GUI.DrawTexture(new Rect(x - 1, y - 1, drawSize + 2, drawSize + 2), _bgTexture);
@@ -930,7 +933,7 @@ namespace Lithforge.Runtime.Debug
             // Minimap texture scaled up with FilterMode.Point
             GUI.DrawTexture(new Rect(x, y, drawSize, drawSize), _minimapTexture);
 
-            // Label
+            // Label below minimap
             _leftBuilder.Clear();
             _leftBuilder.Append("Chunks XZ (Y=");
             _leftBuilder.Append(Mathf.FloorToInt(_mainCamera.transform.position.y / ChunkConstants.Size));
@@ -939,7 +942,7 @@ namespace Lithforge.Runtime.Debug
             _leftBuilder.Append('x');
             _leftBuilder.Append(_minimapSize);
             _leftBuilder.Append(']');
-            GUI.Label(new Rect(x, y + drawSize + 2, drawSize + 50, 20), _leftBuilder.ToString(), _smallStyle);
+            GUI.Label(new Rect(x, y + drawSize + 4, drawSize + 50, labelHeight), _leftBuilder.ToString(), _smallStyle);
 
             // Legend: to the left of the minimap
             DrawMinimapLegend(x - 80, y);
@@ -948,16 +951,17 @@ namespace Lithforge.Runtime.Debug
         private void DrawMinimapLegend(float baseX, float baseY)
         {
             int boxSize = 8;
-            int lineH = 12;
+            int lineH = 18;
+            int labelH = 20;
 
             for (int i = 0; i < _stateColors.Length; i++)
             {
                 float ly = baseY + i * lineH;
                 Color prev = GUI.color;
                 GUI.color = _stateColors[i];
-                GUI.DrawTexture(new Rect(baseX, ly, boxSize, boxSize), _barTexture);
+                GUI.DrawTexture(new Rect(baseX, ly + 4, boxSize, boxSize), _barTexture);
                 GUI.color = prev;
-                GUI.Label(new Rect(baseX + boxSize + 4, ly - 2, 80, lineH), _stateNames[i], _smallStyle);
+                GUI.Label(new Rect(baseX + boxSize + 4, ly, 80, labelH), _stateNames[i], _smallStyle);
             }
         }
 
