@@ -25,6 +25,7 @@ namespace Lithforge.Runtime.Debug
         private bool _running;
         private float _elapsed;
         private Vector3 _flyDirection;
+        private Camera _benchmarkCamera;
         private int _frameCount;
         private int _capacity;
 
@@ -47,6 +48,11 @@ namespace Lithforge.Runtime.Debug
         private int[] _meshCompleteStalls;
         private float[] _genCompleteMaxMs;
         private int[] _genCompleteStalls;
+        private float[] _pollMeshDisposalsMs;
+        private float[] _pollMeshRelightMs;
+        private float[] _pollMeshUploadMs;
+        private float[] _pollMeshIterateMs;
+        private float[] _pollMeshFirstIsCompletedMs;
 
         // Pre-allocated for summary generation
         private readonly StringBuilder _summaryBuilder = new StringBuilder(2048);
@@ -110,6 +116,11 @@ namespace Lithforge.Runtime.Debug
             _meshCompleteStalls = new int[_capacity];
             _genCompleteMaxMs = new float[_capacity];
             _genCompleteStalls = new int[_capacity];
+            _pollMeshDisposalsMs = new float[_capacity];
+            _pollMeshRelightMs = new float[_capacity];
+            _pollMeshUploadMs = new float[_capacity];
+            _pollMeshIterateMs = new float[_capacity];
+            _pollMeshFirstIsCompletedMs = new float[_capacity];
         }
 
         private void Update()
@@ -154,12 +165,22 @@ namespace Lithforge.Runtime.Debug
                 _playerController.enabled = false;
             }
 
-            // Capture current forward direction for the fly path
-            Camera mainCamera = Camera.main;
+            // Use camera's horizontal forward direction (Y=0) for reproducible benchmark paths.
+            // This prevents vertical drift from camera pitch affecting chunk load patterns.
+            _benchmarkCamera = Camera.main;
 
-            if (mainCamera != null)
+            if (_benchmarkCamera != null)
             {
-                _flyDirection = mainCamera.transform.forward;
+                Vector3 fwd = _benchmarkCamera.transform.forward;
+                fwd.y = 0f;
+
+                if (fwd.sqrMagnitude < 0.001f)
+                {
+                    // Camera looking straight up/down — fallback to transform forward projected
+                    fwd = _benchmarkCamera.transform.up.y > 0 ? Vector3.forward : Vector3.back;
+                }
+
+                _flyDirection = fwd.normalized;
             }
             else
             {
@@ -181,6 +202,12 @@ namespace Lithforge.Runtime.Debug
             if (_playerTransform != null)
             {
                 _playerTransform.position += _flyDirection * (_flySpeed * dt);
+            }
+
+            // Lock camera orientation to prevent pitch drift during benchmark
+            if (_benchmarkCamera != null)
+            {
+                _benchmarkCamera.transform.forward = _flyDirection;
             }
 
             // Record frame data into pre-allocated parallel arrays
@@ -211,6 +238,11 @@ namespace Lithforge.Runtime.Debug
                 _meshCompleteStalls[f] = PipelineStats.MeshCompleteStalls;
                 _genCompleteMaxMs[f] = PipelineStats.GenCompleteMaxMs;
                 _genCompleteStalls[f] = PipelineStats.GenCompleteStalls;
+                _pollMeshDisposalsMs[f] = PipelineStats.PollMeshDisposalsMs;
+                _pollMeshRelightMs[f] = PipelineStats.PollMeshRelightMs;
+                _pollMeshUploadMs[f] = PipelineStats.PollMeshUploadMs;
+                _pollMeshIterateMs[f] = PipelineStats.PollMeshIterateMs;
+                _pollMeshFirstIsCompletedMs[f] = PipelineStats.PollMeshFirstIsCompletedMs;
 
                 _frameCount++;
             }
@@ -225,6 +257,7 @@ namespace Lithforge.Runtime.Debug
         private void FinishBenchmark()
         {
             _running = false;
+            _benchmarkCamera = null;
 
             // Re-enable PlayerController
             if (_playerController != null)
@@ -262,6 +295,7 @@ namespace Lithforge.Runtime.Debug
             csv.Append(",gen_scheduled,gen_completed,mesh_scheduled,mesh_completed");
             csv.Append(",lod_scheduled,lod_completed,gpu_upload_bytes,gpu_upload_count,grow_events");
             csv.Append(",gc_gen0,gc_gen1,gc_gen2,mesh_complete_max_ms,mesh_complete_stalls,gen_complete_max_ms,gen_complete_stalls");
+            csv.Append(",pm_disposals_ms,pm_relight_ms,pm_upload_ms,pm_iterate_ms,pm_first_iscompleted_ms");
             csv.AppendLine();
 
             // Data rows
@@ -309,6 +343,16 @@ namespace Lithforge.Runtime.Debug
                 csv.Append(_genCompleteMaxMs[f].ToString("F3", CultureInfo.InvariantCulture));
                 csv.Append(',');
                 csv.Append(_genCompleteStalls[f]);
+                csv.Append(',');
+                csv.Append(_pollMeshDisposalsMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(_pollMeshRelightMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(_pollMeshUploadMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(_pollMeshIterateMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(_pollMeshFirstIsCompletedMs[f].ToString("F3", CultureInfo.InvariantCulture));
                 csv.AppendLine();
             }
 

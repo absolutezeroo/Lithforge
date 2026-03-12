@@ -35,6 +35,11 @@ namespace Lithforge.Runtime.Debug
         public static int MeshCompleteStalls;
         public static float GenCompleteMaxMs;
         public static int GenCompleteStalls;
+        public static float PollMeshDisposalsMs;
+        public static float PollMeshRelightMs;
+        public static float PollMeshUploadMs;
+        public static float PollMeshIterateMs;
+        public static float PollMeshFirstIsCompletedMs;
 
         // --- Previous-frame GC counts for delta computation ---
 
@@ -105,6 +110,11 @@ namespace Lithforge.Runtime.Debug
             MeshCompleteStalls = 0;
             GenCompleteMaxMs = 0f;
             GenCompleteStalls = 0;
+            PollMeshDisposalsMs = 0f;
+            PollMeshRelightMs = 0f;
+            PollMeshUploadMs = 0f;
+            PollMeshIterateMs = 0f;
+            PollMeshFirstIsCompletedMs = 0f;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

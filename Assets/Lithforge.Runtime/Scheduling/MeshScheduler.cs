@@ -85,12 +85,23 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            long freq = System.Diagnostics.Stopwatch.Frequency;
+
+            long td0 = System.Diagnostics.Stopwatch.GetTimestamp();
             PollPendingDisposals();
+            long td1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PipelineStats.PollMeshDisposalsMs = (float)((td1 - td0) * 1000.0 / freq);
+
+            long tr0 = System.Diagnostics.Stopwatch.GetTimestamp();
             PollRelightCompleted();
+            long tr1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PipelineStats.PollMeshRelightMs = (float)((tr1 - tr0) * 1000.0 / freq);
 
             FrameBudget budget = new FrameBudget(_completionBudgetMs);
             int completedThisFrame = 0;
             int i = 0;
+            float uploadAccum = 0f;
+            bool firstCheck = true;
 
             while (i < _pendingMeshes.Count)
             {
@@ -101,15 +112,31 @@ namespace Lithforge.Runtime.Scheduling
 
                 PendingMesh pending = _pendingMeshes[i];
 
-                if (pending.Handle.IsCompleted)
+                bool isCompleted;
+
+                if (firstCheck)
+                {
+                    long tf0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    isCompleted = pending.Handle.IsCompleted;
+                    long tf1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    PipelineStats.PollMeshFirstIsCompletedMs = (float)((tf1 - tf0) * 1000.0 / freq);
+                    firstCheck = false;
+                }
+                else
+                {
+                    isCompleted = pending.Handle.IsCompleted;
+                }
+
+                if (isCompleted)
                 {
                     completedThisFrame++;
-                    long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    long tc0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     pending.Handle.Complete();
-                    long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    float completeMs = (float)((t1 - t0) * (1000.0 / System.Diagnostics.Stopwatch.Frequency));
+                    long tc1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    float completeMs = (float)((tc1 - tc0) * 1000.0 / freq);
                     PipelineStats.RecordMeshComplete(completeMs);
 
+                    long tu0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     _chunkMeshStore.UpdateRenderer(
                         pending.Coord,
                         pending.Data.OpaqueVertices,
@@ -118,6 +145,8 @@ namespace Lithforge.Runtime.Scheduling
                         pending.Data.CutoutIndices,
                         pending.Data.TranslucentVertices,
                         pending.Data.TranslucentIndices);
+                    long tu1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    uploadAccum += (float)((tu1 - tu0) * 1000.0 / freq);
 
                     pending.Data.Dispose();
                     PipelineStats.IncrMeshCompleted();
@@ -156,6 +185,18 @@ namespace Lithforge.Runtime.Scheduling
                     i++;
                 }
             }
+
+            PipelineStats.PollMeshUploadMs = uploadAccum;
+
+            // Iterate time = residual (total method time minus all measured sub-parts)
+            long tEnd = System.Diagnostics.Stopwatch.GetTimestamp();
+            float totalMethodMs = (float)((tEnd - td0) * 1000.0 / freq);
+            PipelineStats.PollMeshIterateMs = totalMethodMs
+                - PipelineStats.PollMeshDisposalsMs
+                - PipelineStats.PollMeshRelightMs
+                - uploadAccum;
+            // Note: Complete() time and FirstIsCompleted time are included in IterateMs.
+            // This is intentional — IterateMs captures "everything else in the while loop".
         }
 
         /// <summary>
