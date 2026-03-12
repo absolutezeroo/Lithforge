@@ -25,7 +25,9 @@
       "Bash(do ls:*)",
       "Bash(python:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Skill(code-review:code-review)",
+      "Bash(where gh:*)"
     ]
   }
 }

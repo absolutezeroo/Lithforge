@@ -263,24 +263,15 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public void ProcessCrossChunkLightUpdates()
         {
-            // Phase 1: complete jobs scheduled last frame
-            if (_inFlightLightUpdates.Count > 0)
+            // Phase 1: finalize completed jobs, defer incomplete ones (max 3 frames for TempJob safety)
+            for (int i = _inFlightLightUpdates.Count - 1; i >= 0; i--)
             {
-                NativeArray<JobHandle> handles = new NativeArray<JobHandle>(
-                    _inFlightLightUpdates.Count, Allocator.Temp);
+                PendingLightUpdate entry = _inFlightLightUpdates[i];
 
-                for (int i = 0; i < _inFlightLightUpdates.Count; i++)
+                if (entry.Handle.IsCompleted || entry.FrameAge >= 3)
                 {
-                    handles[i] = _inFlightLightUpdates[i].Handle;
-                }
-
-                JobHandle.CompleteAll(handles);
-                handles.Dispose();
-
-                for (int i = 0; i < _inFlightLightUpdates.Count; i++)
-                {
-                    PendingLightUpdate pending = _inFlightLightUpdates[i];
-                    ManagedChunk chunk = pending.Chunk;
+                    entry.Handle.Complete();
+                    ManagedChunk chunk = entry.Chunk;
 
                     if (chunk.State == ChunkState.Ready)
                     {
@@ -291,13 +282,18 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.NeedsRemesh = true;
                     }
 
-                    pending.SeedEntries.Dispose();
+                    entry.SeedEntries.Dispose();
                     chunk.NeedsLightUpdate = false;
                     chunk.LightJobInFlight = false;
                     chunk.ActiveJobHandle = default;
-                }
 
-                _inFlightLightUpdates.Clear();
+                    _inFlightLightUpdates.RemoveAt(i);
+                }
+                else
+                {
+                    entry.FrameAge++;
+                    _inFlightLightUpdates[i] = entry;
+                }
             }
 
             // Phase 2: schedule new light update jobs (completed next frame)
@@ -389,6 +385,7 @@ namespace Lithforge.Runtime.Scheduling
                         Chunk = chunk,
                         Handle = handle,
                         SeedEntries = seedEntries,
+                        FrameAge = 0,
                     });
 
                     processedCount++;
@@ -576,6 +573,7 @@ namespace Lithforge.Runtime.Scheduling
             public ManagedChunk Chunk;
             public JobHandle Handle;
             public NativeList<NativeBorderLightEntry> SeedEntries;
+            public int FrameAge;
         }
     }
 }

@@ -5,6 +5,7 @@ using Lithforge.Meshing;
 using Lithforge.Runtime.Debug;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -310,21 +311,46 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void FlushArgs()
         {
-            // Upload pending index zeros (degenerate triangles for freed slots)
-            for (int i = 0; i < _pendingZeros.Count; i++)
+            // Upload pending index zeros in a single Lock/Unlock covering the full range.
+            // The mirror already has zeros (applied by FreeSlot) and valid data between gaps,
+            // so bulk-copying the entire [min..max) range rewrites everything correctly.
+            if (_pendingZeros.Count > 0)
             {
-                PendingZero pz = _pendingZeros[i];
-                NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(pz.IndexOffset, pz.IndexCount);
+                int minOffset = _pendingZeros[0].IndexOffset;
+                int maxEnd = _pendingZeros[0].IndexOffset + _pendingZeros[0].IndexCount;
 
-                for (int j = 0; j < pz.IndexCount; j++)
+                for (int i = 1; i < _pendingZeros.Count; i++)
                 {
-                    gpuIdx[j] = _indexMirror[pz.IndexOffset + j];
+                    PendingZero pz = _pendingZeros[i];
+                    int pzEnd = pz.IndexOffset + pz.IndexCount;
+
+                    if (pz.IndexOffset < minOffset)
+                    {
+                        minOffset = pz.IndexOffset;
+                    }
+
+                    if (pzEnd > maxEnd)
+                    {
+                        maxEnd = pzEnd;
+                    }
                 }
 
-                _indexBuffer.UnlockBufferAfterWrite<int>(pz.IndexCount);
-            }
+                int rangeLength = maxEnd - minOffset;
+                NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(minOffset, rangeLength);
 
-            _pendingZeros.Clear();
+                unsafe
+                {
+                    void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuIdx);
+
+                    fixed (int* srcPtr = &_indexMirror[minOffset])
+                    {
+                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)rangeLength * sizeof(int));
+                    }
+                }
+
+                _indexBuffer.UnlockBufferAfterWrite<int>(rangeLength);
+                _pendingZeros.Clear();
+            }
 
             // Update indirect args if anything changed
             if (_argsDirty)
@@ -360,34 +386,30 @@ namespace Lithforge.Runtime.Rendering
                 coord.y * ChunkConstants.Size,
                 coord.z * ChunkConstants.Size);
 
-            // Write to CPU mirror (kept for Grow re-upload and FreeSlot zeroing)
-            for (int i = 0; i < vertCount; i++)
-            {
-                MeshVertex v = vertices[i];
-                v.Position = v.Position + worldOffset;
-                _vertexMirror[vOff + i] = v;
-            }
-
-            for (int i = 0; i < idxCount; i++)
-            {
-                _indexMirror[iOff + i] = indices[i] + vOff;
-            }
-
-            // Write to GPU via mapped memory (write-only, sequential)
+            // Write world-offset vertices to GPU and CPU mirror in one loop (was two separate loops).
+            // Cannot bulk-memcpy because the world offset transform requires per-element work.
+            // Cannot read back from GPU NativeArray because LockBufferForWrite uses write-combined
+            // memory — reads are unreliable and slow. Dual-write is the correct pattern.
             NativeArray<MeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<MeshVertex>(vOff, vertCount);
 
             for (int i = 0; i < vertCount; i++)
             {
-                gpuVerts[i] = _vertexMirror[vOff + i];
+                MeshVertex v = vertices[i];
+                v.Position = v.Position + worldOffset;
+                gpuVerts[i] = v;
+                _vertexMirror[vOff + i] = v;
             }
 
             _vertexBuffer.UnlockBufferAfterWrite<MeshVertex>(vertCount);
 
+            // Write offset indices to GPU and CPU mirror in one loop (was two separate loops).
             NativeArray<int> gpuIndices = _indexBuffer.LockBufferForWrite<int>(iOff, idxCount);
 
             for (int i = 0; i < idxCount; i++)
             {
-                gpuIndices[i] = _indexMirror[iOff + i];
+                int idx = indices[i] + vOff;
+                gpuIndices[i] = idx;
+                _indexMirror[iOff + i] = idx;
             }
 
             _indexBuffer.UnlockBufferAfterWrite<int>(idxCount);
