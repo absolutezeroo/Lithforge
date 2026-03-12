@@ -16,6 +16,13 @@ namespace Lithforge.Runtime.Input
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry)
         {
+            // Treat unloaded/non-ready chunks as solid walls.
+            // This prevents the player from walking or falling into unloaded terrain.
+            if (!chunkManager.IsBlockLoaded(worldCoord))
+            {
+                return true;
+            }
+
             StateId stateId = chunkManager.GetBlock(worldCoord);
             BlockStateCompact compact = nativeStateRegistry.States[stateId.Value];
 

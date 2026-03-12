@@ -382,6 +382,19 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
+        /// Returns true if the block at the given world coordinate is in a loaded,
+        /// sufficiently-generated chunk. Returns false if the chunk is missing,
+        /// still generating, or has no data.
+        /// </summary>
+        public bool IsBlockLoaded(int3 worldCoord)
+        {
+            int3 chunkCoord = WorldToChunk(worldCoord);
+            ManagedChunk chunk = GetChunk(chunkCoord);
+
+            return chunk != null && chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated;
+        }
+
+        /// <summary>
         /// Gets the StateId at a world-space block coordinate.
         /// Returns StateId.Air if the chunk is not loaded or not yet generated.
         /// </summary>

@@ -158,6 +158,10 @@ namespace Lithforge.Runtime
             {
                 int3 coord = _unloadedCoords[i];
 
+                // Force-complete any in-flight border extraction jobs that read this
+                // chunk's NativeArray, so the pool can safely recycle it.
+                _meshScheduler.ForceCompleteNeighborDeps(coord);
+
                 _chunkMeshStore.DestroyRenderer(coord);
                 _generationScheduler.CleanupCoord(coord);
                 _meshScheduler.CleanupCoord(coord);

@@ -194,11 +194,14 @@ namespace Lithforge.Runtime.Input
 
         private void UpdateWalkMode(Keyboard keyboard, float dt)
         {
+            // Clamp dt to prevent physics explosion during lag spikes
+            float clampedDt = math.min(dt, 0.05f);
+
             // Compute horizontal displacement from input
-            float3 displacement = ComputeHorizontalDisplacement(keyboard, dt, _walkSpeed, _sprintSpeed);
+            float3 displacement = ComputeHorizontalDisplacement(keyboard, clampedDt, _walkSpeed, _sprintSpeed);
 
             // Apply gravity to vertical speed (blocks/sec, persistent across frames)
-            _verticalSpeed += _gravity * dt;
+            _verticalSpeed += _gravity * clampedDt;
 
             if (_verticalSpeed < _maxFallSpeed)
             {
@@ -213,7 +216,7 @@ namespace Lithforge.Runtime.Input
             }
 
             // Vertical displacement from accumulated vertical speed
-            displacement.y = _verticalSpeed * dt;
+            displacement.y = _verticalSpeed * clampedDt;
 
             // Resolve collision
             float3 position = new float3(
@@ -246,18 +249,21 @@ namespace Lithforge.Runtime.Input
 
         private void UpdateFlyMode(Keyboard keyboard, float dt)
         {
+            // Clamp dt to prevent physics explosion during lag spikes
+            float clampedDt = math.min(dt, 0.05f);
+
             // Horizontal movement (yaw-relative, same as walk)
-            float3 displacement = ComputeHorizontalDisplacement(keyboard, dt, _flySpeed, _flySpeed);
+            float3 displacement = ComputeHorizontalDisplacement(keyboard, clampedDt, _flySpeed, _flySpeed);
 
             // Vertical: Space = ascend, Shift = descend
             if (keyboard.spaceKey.isPressed)
             {
-                displacement.y += _flySpeed * dt;
+                displacement.y += _flySpeed * clampedDt;
             }
 
             if (keyboard.leftShiftKey.isPressed)
             {
-                displacement.y -= _flySpeed * dt;
+                displacement.y -= _flySpeed * clampedDt;
             }
 
             float3 position = new float3(

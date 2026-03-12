@@ -294,6 +294,7 @@ namespace Lithforge.Runtime.Scheduling
                     pending.SeedEntries.Dispose();
                     chunk.NeedsLightUpdate = false;
                     chunk.LightJobInFlight = false;
+                    chunk.ActiveJobHandle = default;
                 }
 
                 _inFlightLightUpdates.Clear();
@@ -380,6 +381,7 @@ namespace Lithforge.Runtime.Scheduling
                     };
 
                     JobHandle handle = updateJob.Schedule();
+                    chunk.ActiveJobHandle = handle;
                     chunk.LightJobInFlight = true;
 
                     _pendingLightUpdates.Add(new PendingLightUpdate

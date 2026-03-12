@@ -46,47 +46,73 @@ namespace Lithforge.Physics
             int maxY = (int)math.floor(broadPhase.Max.y);
             int maxZ = (int)math.floor(broadPhase.Max.z);
 
-            // Resolve Y axis first (most important for ground detection)
+            // Resolve Y axis first (most important for ground detection).
+            // Iterate in direction opposite to movement so the first collision
+            // found is the closest surface, preventing embedding in deeper blocks.
             position.y += velocity.y;
             entityBox = BuildEntityBox(position, halfWidth, height);
 
-            for (int bx = minX; bx <= maxX; bx++)
+            if (velocity.y <= 0f)
             {
-                for (int by = minY; by <= maxY; by++)
+                // Descending: iterate top-to-bottom to find the highest solid surface
+                for (int bx = minX; bx <= maxX; bx++)
                 {
-                    for (int bz = minZ; bz <= maxZ; bz++)
+                    for (int by = maxY; by >= minY; by--)
                     {
-                        int3 blockCoord = new int3(bx, by, bz);
-
-                        if (!isSolid(blockCoord))
+                        for (int bz = minZ; bz <= maxZ; bz++)
                         {
-                            continue;
-                        }
+                            int3 blockCoord = new int3(bx, by, bz);
 
-                        Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+                            if (!isSolid(blockCoord))
+                            {
+                                continue;
+                            }
 
-                        if (!entityBox.Intersects(blockBox))
-                        {
-                            continue;
-                        }
+                            Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
 
-                        if (velocity.y < 0f)
-                        {
-                            // Moving down — push up to top of block
+                            if (!entityBox.Intersects(blockBox))
+                            {
+                                continue;
+                            }
+
                             float correction = blockBox.Max.y - entityBox.Min.y;
                             position.y += correction;
                             result.OnGround = true;
+                            velocity.y = 0f;
+                            entityBox = BuildEntityBox(position, halfWidth, height);
                         }
-                        else if (velocity.y > 0f)
+                    }
+                }
+            }
+            else
+            {
+                // Ascending: iterate bottom-to-top to find the lowest ceiling
+                for (int bx = minX; bx <= maxX; bx++)
+                {
+                    for (int by = minY; by <= maxY; by++)
+                    {
+                        for (int bz = minZ; bz <= maxZ; bz++)
                         {
-                            // Moving up — push down to bottom of block
+                            int3 blockCoord = new int3(bx, by, bz);
+
+                            if (!isSolid(blockCoord))
+                            {
+                                continue;
+                            }
+
+                            Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                            if (!entityBox.Intersects(blockBox))
+                            {
+                                continue;
+                            }
+
                             float correction = blockBox.Min.y - entityBox.Max.y;
                             position.y += correction;
                             result.HitCeiling = true;
+                            velocity.y = 0f;
+                            entityBox = BuildEntityBox(position, halfWidth, height);
                         }
-
-                        velocity.y = 0f;
-                        entityBox = BuildEntityBox(position, halfWidth, height);
                     }
                 }
             }
@@ -97,12 +123,16 @@ namespace Lithforge.Physics
             float savedVelocityZ = velocity.z;
             float3 posAfterY = position;
 
-            // Resolve X axis
+            // Resolve X axis — iterate opposite to movement direction
             position.x += velocity.x;
             entityBox = BuildEntityBox(position, halfWidth, height);
             bool hitWallX = false;
 
-            for (int bx = minX; bx <= maxX; bx++)
+            int bxStart = velocity.x > 0f ? maxX : minX;
+            int bxEnd = velocity.x > 0f ? minX : maxX;
+            int bxStep = velocity.x > 0f ? -1 : 1;
+
+            for (int bx = bxStart; bx != bxEnd + bxStep; bx += bxStep)
             {
                 for (int by = minY; by <= maxY; by++)
                 {
@@ -141,16 +171,20 @@ namespace Lithforge.Physics
                 }
             }
 
-            // Resolve Z axis
+            // Resolve Z axis — iterate opposite to movement direction
             position.z += velocity.z;
             entityBox = BuildEntityBox(position, halfWidth, height);
             bool hitWallZ = false;
+
+            int bzStart = velocity.z > 0f ? maxZ : minZ;
+            int bzEnd = velocity.z > 0f ? minZ : maxZ;
+            int bzStep = velocity.z > 0f ? -1 : 1;
 
             for (int bx = minX; bx <= maxX; bx++)
             {
                 for (int by = minY; by <= maxY; by++)
                 {
-                    for (int bz = minZ; bz <= maxZ; bz++)
+                    for (int bz = bzStart; bz != bzEnd + bzStep; bz += bzStep)
                     {
                         int3 blockCoord = new int3(bx, by, bz);
 
@@ -233,8 +267,19 @@ namespace Lithforge.Physics
 
                 if (!blocked)
                 {
-                    position = testPos;
-                    result.HitWall = false;
+                    // Verify there is ground under the step-up position.
+                    // Check the block directly under testPos feet to prevent
+                    // stepping up over a void (cliff edge, chunk boundary).
+                    int3 underBlock = new int3(
+                        (int)math.floor(testPos.x),
+                        (int)math.floor(testPos.y - 0.01f),
+                        (int)math.floor(testPos.z));
+
+                    if (isSolid(underBlock))
+                    {
+                        position = testPos;
+                        result.HitWall = false;
+                    }
                 }
             }
 

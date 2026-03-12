@@ -309,6 +309,39 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>
+        /// Force-completes any pending mesh or disposal jobs whose border extraction
+        /// reads the given coord's chunk data. Must be called before the chunk's
+        /// NativeArray is returned to the pool so that Unity's job safety locks are
+        /// released. The jobs remain in their lists for normal processing.
+        /// </summary>
+        public void ForceCompleteNeighborDeps(int3 neighborCoord)
+        {
+            for (int i = 0; i < _pendingMeshes.Count; i++)
+            {
+                if (IsAdjacentCoord(_pendingMeshes[i].Coord, neighborCoord))
+                {
+                    _pendingMeshes[i].Handle.Complete();
+                }
+            }
+
+            for (int i = 0; i < _pendingDisposals.Count; i++)
+            {
+                if (IsAdjacentCoord(_pendingDisposals[i].Coord, neighborCoord))
+                {
+                    _pendingDisposals[i].Handle.Complete();
+                }
+            }
+        }
+
+        private static bool IsAdjacentCoord(int3 a, int3 b)
+        {
+            int3 d = a - b;
+            int manhattan = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
+
+            return manhattan == 1;
+        }
+
         public void Shutdown()
         {
             for (int i = 0; i < _pendingMeshes.Count; i++)
