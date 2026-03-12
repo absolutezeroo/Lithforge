@@ -61,6 +61,13 @@ namespace Lithforge.Voxel.Chunk
         public bool NeedsLightUpdate { get; set; }
 
         /// <summary>
+        /// True while a LightUpdateJob is in-flight for this chunk (scheduled last frame,
+        /// not yet completed). Guards against double-scheduling and prevents meshing
+        /// while light data is being written by a worker thread.
+        /// </summary>
+        public bool LightJobInFlight { get; set; }
+
+        /// <summary>
         /// True if voxel data has been modified (e.g. by SetBlock) since last save.
         /// Used to trigger save-on-unload for modified chunks.
         /// </summary>

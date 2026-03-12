@@ -19,6 +19,7 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class LODScheduler
     {
         private readonly List<PendingLODMesh> _pendingLODMeshes = new List<PendingLODMesh>();
+        private readonly List<PendingLODMesh> _pendingLODDisposals = new List<PendingLODMesh>();
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
@@ -63,6 +64,8 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            PollPendingLODDisposals();
+
             for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
             {
                 PendingLODMesh pending = _pendingLODMeshes[i];
@@ -194,8 +197,7 @@ namespace Lithforge.Runtime.Scheduling
             {
                 if (_pendingLODMeshes[i].Coord.Equals(coord))
                 {
-                    _pendingLODMeshes[i].Handle.Complete();
-                    _pendingLODMeshes[i].Data.Dispose();
+                    _pendingLODDisposals.Add(_pendingLODMeshes[i]);
                     _pendingLODMeshes.RemoveAt(i);
                 }
             }
@@ -210,6 +212,32 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingLODMeshes.Clear();
+
+            for (int i = 0; i < _pendingLODDisposals.Count; i++)
+            {
+                _pendingLODDisposals[i].Handle.Complete();
+                _pendingLODDisposals[i].Data.Dispose();
+            }
+
+            _pendingLODDisposals.Clear();
+        }
+
+        /// <summary>
+        /// Drains the lazy disposal queue for LOD mesh jobs. Jobs that were in-flight
+        /// when their chunk was unloaded are polled here — once complete, their TempJob
+        /// data is disposed. Called at the start of PollCompleted each frame.
+        /// </summary>
+        private void PollPendingLODDisposals()
+        {
+            for (int i = _pendingLODDisposals.Count - 1; i >= 0; i--)
+            {
+                if (_pendingLODDisposals[i].Handle.IsCompleted)
+                {
+                    _pendingLODDisposals[i].Handle.Complete();
+                    _pendingLODDisposals[i].Data.Dispose();
+                    _pendingLODDisposals.RemoveAt(i);
+                }
+            }
         }
 
         private void AssignLODLevels(List<ManagedChunk> chunks, int3 cameraChunkCoord)

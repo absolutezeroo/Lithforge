@@ -22,6 +22,7 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class GenerationScheduler
     {
         private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
+        private readonly List<PendingGeneration> _pendingGenDisposals = new List<PendingGeneration>();
         private readonly ChunkManager _chunkManager;
         private readonly GenerationPipeline _generationPipeline;
         private readonly DecorationStage _decorationStage;
@@ -70,10 +71,18 @@ namespace Lithforge.Runtime.Scheduling
         private readonly List<ManagedChunk> _lightUpdateCache = new List<ManagedChunk>();
 
         /// <summary>
-        /// Reusable list for pending light update results — avoids per-frame allocation.
+        /// Reusable list for scheduling light update jobs within ProcessCrossChunkLightUpdates.
+        /// Drained into _inFlightLightUpdates at the end of each scheduling pass.
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
         private readonly List<PendingLightUpdate> _pendingLightUpdates = new List<PendingLightUpdate>();
+
+        /// <summary>
+        /// Light update jobs scheduled last frame, awaiting completion this frame.
+        /// Pattern: schedule frame N, complete frame N+1.
+        /// Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<PendingLightUpdate> _inFlightLightUpdates = new List<PendingLightUpdate>();
 
         public int PendingCount
         {
@@ -104,6 +113,8 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            PollPendingGenDisposals();
+
             int completedThisFrame = 0;
             int i = 0;
 
@@ -246,11 +257,49 @@ namespace Lithforge.Runtime.Scheduling
 
         /// <summary>
         /// Processes cross-chunk light updates for chunks flagged with NeedsLightUpdate.
-        /// Runs synchronously on the main thread for simplicity. Should be called each
-        /// frame after PollCompleted().
+        /// Uses a two-phase pattern: complete last frame's jobs, then schedule new ones.
+        /// This gives worker threads a full frame (~5-16ms) to finish before the sync point.
+        /// Should be called each frame after PollCompleted().
         /// </summary>
         public void ProcessCrossChunkLightUpdates()
         {
+            // Phase 1: complete jobs scheduled last frame
+            if (_inFlightLightUpdates.Count > 0)
+            {
+                NativeArray<JobHandle> handles = new NativeArray<JobHandle>(
+                    _inFlightLightUpdates.Count, Allocator.Temp);
+
+                for (int i = 0; i < _inFlightLightUpdates.Count; i++)
+                {
+                    handles[i] = _inFlightLightUpdates[i].Handle;
+                }
+
+                JobHandle.CompleteAll(handles);
+                handles.Dispose();
+
+                for (int i = 0; i < _inFlightLightUpdates.Count; i++)
+                {
+                    PendingLightUpdate pending = _inFlightLightUpdates[i];
+                    ManagedChunk chunk = pending.Chunk;
+
+                    if (chunk.State == ChunkState.Ready)
+                    {
+                        chunk.State = ChunkState.Generated;
+                    }
+                    else if (chunk.State == ChunkState.Meshing)
+                    {
+                        chunk.NeedsRemesh = true;
+                    }
+
+                    pending.SeedEntries.Dispose();
+                    chunk.NeedsLightUpdate = false;
+                    chunk.LightJobInFlight = false;
+                }
+
+                _inFlightLightUpdates.Clear();
+            }
+
+            // Phase 2: schedule new light update jobs (completed next frame)
             _chunkManager.FillChunksNeedingLightUpdate(_lightUpdateCache);
 
             if (_lightUpdateCache.Count == 0)
@@ -261,7 +310,6 @@ namespace Lithforge.Runtime.Scheduling
             _pendingLightUpdates.Clear();
             int processedCount = 0;
 
-            // Pass 1: batch-schedule up to budget light update jobs
             for (int c = 0; c < _lightUpdateCache.Count; c++)
             {
                 if (processedCount >= _maxLightUpdatesPerFrame)
@@ -279,7 +327,6 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 // Skip chunks with in-flight jobs that may read LightData or ChunkData.
-                // The light update will run on a subsequent frame after the job completes.
                 if (chunk.State == ChunkState.Meshing ||
                     chunk.State == ChunkState.Generating ||
                     !chunk.ActiveJobHandle.IsCompleted)
@@ -287,7 +334,6 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                // Build seed entries from all neighbor border light values
                 NativeList<NativeBorderLightEntry> seedEntries =
                     new NativeList<NativeBorderLightEntry>(128, Allocator.TempJob);
 
@@ -312,7 +358,6 @@ namespace Lithforge.Runtime.Scheduling
                             continue;
                         }
 
-                        // Map neighbor's border position to this chunk's local coords
                         int3 localPos = MapBorderToNeighborLocal(entry.LocalPosition, expectedFace);
 
                         seedEntries.Add(new NativeBorderLightEntry
@@ -335,6 +380,7 @@ namespace Lithforge.Runtime.Scheduling
                     };
 
                     JobHandle handle = updateJob.Schedule();
+                    chunk.LightJobInFlight = true;
 
                     _pendingLightUpdates.Add(new PendingLightUpdate
                     {
@@ -352,42 +398,13 @@ namespace Lithforge.Runtime.Scheduling
                 }
             }
 
-            // Pass 2: single sync point — complete all jobs at once
-            if (_pendingLightUpdates.Count > 0)
+            // Move scheduled jobs to in-flight list (completed next frame)
+            for (int i = 0; i < _pendingLightUpdates.Count; i++)
             {
-                NativeArray<JobHandle> handles = new NativeArray<JobHandle>(
-                    _pendingLightUpdates.Count, Allocator.Temp);
-
-                for (int i = 0; i < _pendingLightUpdates.Count; i++)
-                {
-                    handles[i] = _pendingLightUpdates[i].Handle;
-                }
-
-                JobHandle.CompleteAll(handles);
-                handles.Dispose();
-
-                // Post-completion cleanup
-                for (int i = 0; i < _pendingLightUpdates.Count; i++)
-                {
-                    PendingLightUpdate pending = _pendingLightUpdates[i];
-                    ManagedChunk chunk = pending.Chunk;
-
-                    // Mark for remesh since light changed
-                    if (chunk.State == ChunkState.Ready)
-                    {
-                        chunk.State = ChunkState.Generated;
-                    }
-                    else if (chunk.State == ChunkState.Meshing)
-                    {
-                        chunk.NeedsRemesh = true;
-                    }
-
-                    pending.SeedEntries.Dispose();
-                    chunk.NeedsLightUpdate = false;
-                }
-
-                _pendingLightUpdates.Clear();
+                _inFlightLightUpdates.Add(_pendingLightUpdates[i]);
             }
+
+            _pendingLightUpdates.Clear();
         }
 
         /// <summary>
@@ -480,10 +497,22 @@ namespace Lithforge.Runtime.Scheduling
             {
                 if (_pendingGenerations[i].Coord.Equals(coord))
                 {
-                    _pendingGenerations[i].Handle.FinalHandle.Complete();
-                    _pendingGenerations[i].Handle.DisposeAll();
                     _pendingCoords.Remove(coord);
+                    _pendingGenDisposals.Add(_pendingGenerations[i]);
                     _pendingGenerations.RemoveAt(i);
+                }
+            }
+
+            // Force-complete in-flight light updates for this coord since the chunk
+            // is being unloaded and its LightData/Data will be disposed immediately.
+            for (int i = _inFlightLightUpdates.Count - 1; i >= 0; i--)
+            {
+                if (_inFlightLightUpdates[i].Chunk.Coord.Equals(coord))
+                {
+                    _inFlightLightUpdates[i].Handle.Complete();
+                    _inFlightLightUpdates[i].SeedEntries.Dispose();
+                    _inFlightLightUpdates[i].Chunk.LightJobInFlight = false;
+                    _inFlightLightUpdates.RemoveAt(i);
                 }
             }
         }
@@ -498,6 +527,40 @@ namespace Lithforge.Runtime.Scheduling
 
             _pendingGenerations.Clear();
             _pendingCoords.Clear();
+
+            for (int i = 0; i < _pendingGenDisposals.Count; i++)
+            {
+                _pendingGenDisposals[i].Handle.FinalHandle.Complete();
+                _pendingGenDisposals[i].Handle.DisposeAll();
+            }
+
+            _pendingGenDisposals.Clear();
+
+            for (int i = 0; i < _inFlightLightUpdates.Count; i++)
+            {
+                _inFlightLightUpdates[i].Handle.Complete();
+                _inFlightLightUpdates[i].SeedEntries.Dispose();
+            }
+
+            _inFlightLightUpdates.Clear();
+        }
+
+        /// <summary>
+        /// Drains the lazy disposal queue for generation jobs. Jobs that were in-flight
+        /// when their chunk was unloaded are polled here — once complete, all NativeContainers
+        /// (including LightData) are disposed. Called at the start of PollCompleted each frame.
+        /// </summary>
+        private void PollPendingGenDisposals()
+        {
+            for (int i = _pendingGenDisposals.Count - 1; i >= 0; i--)
+            {
+                if (_pendingGenDisposals[i].Handle.FinalHandle.IsCompleted)
+                {
+                    _pendingGenDisposals[i].Handle.FinalHandle.Complete();
+                    _pendingGenDisposals[i].Handle.DisposeAll();
+                    _pendingGenDisposals.RemoveAt(i);
+                }
+            }
         }
 
         private struct PendingGeneration

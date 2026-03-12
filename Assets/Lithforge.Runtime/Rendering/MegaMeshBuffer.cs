@@ -93,11 +93,13 @@ namespace Lithforge.Runtime.Rendering
 
             _vertexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Structured,
+                GraphicsBuffer.UsageFlags.LockBufferForWrite,
                 initialVertexCapacity,
                 _vertexStride);
 
             _indexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
+                GraphicsBuffer.UsageFlags.LockBufferForWrite,
                 initialIndexCapacity,
                 sizeof(int));
 
@@ -177,7 +179,15 @@ namespace Lithforge.Runtime.Rendering
                         int tailOffset = slot.IndexOffset + idxCount;
                         int tailCount = slot.IndexCount - idxCount;
                         Array.Clear(_indexMirror, tailOffset, tailCount);
-                        _indexBuffer.SetData(_indexMirror, tailOffset, tailOffset, tailCount);
+
+                        NativeArray<int> gpuTail = _indexBuffer.LockBufferForWrite<int>(tailOffset, tailCount);
+
+                        for (int j = 0; j < tailCount; j++)
+                        {
+                            gpuTail[j] = 0;
+                        }
+
+                        _indexBuffer.UnlockBufferAfterWrite<int>(tailCount);
                     }
 
                     WriteData(slot.VertexOffset, slot.IndexOffset, coord, vertices, indices);
@@ -300,7 +310,14 @@ namespace Lithforge.Runtime.Rendering
             for (int i = 0; i < _pendingZeros.Count; i++)
             {
                 PendingZero pz = _pendingZeros[i];
-                _indexBuffer.SetData(_indexMirror, pz.IndexOffset, pz.IndexOffset, pz.IndexCount);
+                NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(pz.IndexOffset, pz.IndexCount);
+
+                for (int j = 0; j < pz.IndexCount; j++)
+                {
+                    gpuIdx[j] = _indexMirror[pz.IndexOffset + j];
+                }
+
+                _indexBuffer.UnlockBufferAfterWrite<int>(pz.IndexCount);
             }
 
             _pendingZeros.Clear();
@@ -325,7 +342,9 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Transforms vertices to world-space and writes vertex + index data to the
-        /// CPU mirror and GPU buffer at the given offsets.
+        /// CPU mirror and GPU buffer at the given offsets. Uses LockBufferForWrite
+        /// to write directly to GPU-mapped memory, avoiding the staging buffer copy
+        /// that SetData would require.
         /// </summary>
         private void WriteData(
             int vOff, int iOff, int3 coord,
@@ -339,6 +358,7 @@ namespace Lithforge.Runtime.Rendering
                 coord.y * ChunkConstants.Size,
                 coord.z * ChunkConstants.Size);
 
+            // Write to CPU mirror (kept for Grow re-upload and FreeSlot zeroing)
             for (int i = 0; i < vertCount; i++)
             {
                 MeshVertex v = vertices[i];
@@ -351,8 +371,25 @@ namespace Lithforge.Runtime.Rendering
                 _indexMirror[iOff + i] = indices[i] + vOff;
             }
 
-            _vertexBuffer.SetData(_vertexMirror, vOff, vOff, vertCount);
-            _indexBuffer.SetData(_indexMirror, iOff, iOff, idxCount);
+            // Write to GPU via mapped memory (write-only, sequential)
+            NativeArray<MeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<MeshVertex>(vOff, vertCount);
+
+            for (int i = 0; i < vertCount; i++)
+            {
+                gpuVerts[i] = _vertexMirror[vOff + i];
+            }
+
+            _vertexBuffer.UnlockBufferAfterWrite<MeshVertex>(vertCount);
+
+            NativeArray<int> gpuIndices = _indexBuffer.LockBufferForWrite<int>(iOff, idxCount);
+
+            for (int i = 0; i < idxCount; i++)
+            {
+                gpuIndices[i] = _indexMirror[iOff + i];
+            }
+
+            _indexBuffer.UnlockBufferAfterWrite<int>(idxCount);
+
             PipelineStats.AddGpuUpload(vertCount * _vertexStride + idxCount * sizeof(int));
         }
 
@@ -511,23 +548,39 @@ namespace Lithforge.Runtime.Rendering
 
             _vertexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Structured,
+                GraphicsBuffer.UsageFlags.LockBufferForWrite,
                 newVertCap,
                 _vertexStride);
 
             _indexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
+                GraphicsBuffer.UsageFlags.LockBufferForWrite,
                 newIdxCap,
                 sizeof(int));
 
-            // Re-upload current data to the new GPU buffers
+            // Re-upload current data to the new GPU buffers via mapped memory
             if (_usedVertices > 0)
             {
-                _vertexBuffer.SetData(_vertexMirror, 0, 0, _usedVertices);
+                NativeArray<MeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<MeshVertex>(0, _usedVertices);
+
+                for (int i = 0; i < _usedVertices; i++)
+                {
+                    gpuVerts[i] = _vertexMirror[i];
+                }
+
+                _vertexBuffer.UnlockBufferAfterWrite<MeshVertex>(_usedVertices);
             }
 
             if (_usedIndices > 0)
             {
-                _indexBuffer.SetData(_indexMirror, 0, 0, _usedIndices);
+                NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(0, _usedIndices);
+
+                for (int i = 0; i < _usedIndices; i++)
+                {
+                    gpuIdx[i] = _indexMirror[i];
+                }
+
+                _indexBuffer.UnlockBufferAfterWrite<int>(_usedIndices);
             }
 
             _vertexCapacity = newVertCap;

@@ -196,7 +196,7 @@ namespace Lithforge.Voxel.Chunk
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                if (kvp.Value.State == ChunkState.Generated)
+                if (kvp.Value.State == ChunkState.Generated && !kvp.Value.LightJobInFlight)
                 {
                     _meshCandidateCache.Add(kvp.Value);
                     _neighborCountCache.Add(CountReadyNeighbors(kvp.Value.Coord));
@@ -298,7 +298,7 @@ namespace Lithforge.Voxel.Chunk
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                if (kvp.Value.State == ChunkState.Generated)
+                if (kvp.Value.State == ChunkState.Generated && !kvp.Value.LightJobInFlight)
                 {
                     result.Add(kvp.Value);
                 }
@@ -315,7 +315,8 @@ namespace Lithforge.Voxel.Chunk
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                if (kvp.Value.State == ChunkState.Generated && kvp.Value.LODLevel > 0)
+                if (kvp.Value.State == ChunkState.Generated && kvp.Value.LODLevel > 0
+                    && !kvp.Value.LightJobInFlight)
                 {
                     result.Add(kvp.Value);
                 }
@@ -349,7 +350,7 @@ namespace Lithforge.Voxel.Chunk
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                if (kvp.Value.NeedsLightUpdate)
+                if (kvp.Value.NeedsLightUpdate && !kvp.Value.LightJobInFlight)
                 {
                     result.Add(kvp.Value);
                 }

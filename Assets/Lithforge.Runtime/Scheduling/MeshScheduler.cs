@@ -20,6 +20,7 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class MeshScheduler
     {
         private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+        private readonly List<PendingMesh> _pendingDisposals = new List<PendingMesh>();
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
@@ -65,6 +66,8 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            PollPendingDisposals();
+
             int completedThisFrame = 0;
             int i = 0;
 
@@ -258,8 +261,8 @@ namespace Lithforge.Runtime.Scheduling
 
                 GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
 
-                // Extract neighbor border slices for cross-chunk culling
-                ExtractNeighborBorders(chunk.Coord, meshData);
+                // Schedule border extraction jobs on worker threads (Burst-compiled)
+                JobHandle borderDependency = ScheduleBorderExtractionJobs(chunk.Coord, meshData);
 
                 GreedyMeshJob meshJob = new GreedyMeshJob
                 {
@@ -281,7 +284,7 @@ namespace Lithforge.Runtime.Scheduling
                     TranslucentIndices = meshData.TranslucentIndices,
                 };
 
-                JobHandle meshHandle = meshJob.Schedule();
+                JobHandle meshHandle = meshJob.Schedule(borderDependency);
                 chunk.ActiveJobHandle = meshHandle;
 
                 _pendingMeshes.Add(new PendingMesh
@@ -300,8 +303,7 @@ namespace Lithforge.Runtime.Scheduling
             {
                 if (_pendingMeshes[i].Coord.Equals(coord))
                 {
-                    _pendingMeshes[i].Handle.Complete();
-                    _pendingMeshes[i].Data.Dispose();
+                    _pendingDisposals.Add(_pendingMeshes[i]);
                     _pendingMeshes.RemoveAt(i);
                 }
             }
@@ -316,33 +318,103 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingMeshes.Clear();
-        }
 
-        private void ExtractNeighborBorders(int3 coord, GreedyMeshData meshData)
-        {
-            // +X neighbor: chunk at (x+1), extract its -X face (face 1)
-            ExtractBorderFromNeighbor(coord + new int3(1, 0, 0), 1, meshData.NeighborPosX);
-            // -X neighbor: chunk at (x-1), extract its +X face (face 0)
-            ExtractBorderFromNeighbor(coord + new int3(-1, 0, 0), 0, meshData.NeighborNegX);
-            // +Y neighbor: chunk at (y+1), extract its -Y face (face 3)
-            ExtractBorderFromNeighbor(coord + new int3(0, 1, 0), 3, meshData.NeighborPosY);
-            // -Y neighbor: chunk at (y-1), extract its +Y face (face 2)
-            ExtractBorderFromNeighbor(coord + new int3(0, -1, 0), 2, meshData.NeighborNegY);
-            // +Z neighbor: chunk at (z+1), extract its -Z face (face 5)
-            ExtractBorderFromNeighbor(coord + new int3(0, 0, 1), 5, meshData.NeighborPosZ);
-            // -Z neighbor: chunk at (z-1), extract its +Z face (face 4)
-            ExtractBorderFromNeighbor(coord + new int3(0, 0, -1), 4, meshData.NeighborNegZ);
-        }
-
-        private void ExtractBorderFromNeighbor(int3 neighborCoord, int faceDirection, NativeArray<StateId> output)
-        {
-            ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
-
-            if (neighbor != null && neighbor.State >= ChunkState.RelightPending && neighbor.Data.IsCreated)
+            for (int i = 0; i < _pendingDisposals.Count; i++)
             {
-                ChunkBorderExtractor.ExtractBorder(neighbor.Data, faceDirection, output);
+                _pendingDisposals[i].Handle.Complete();
+                _pendingDisposals[i].Data.Dispose();
             }
-            // If neighbor doesn't exist, output stays zero-initialized (air)
+
+            _pendingDisposals.Clear();
+        }
+
+        /// <summary>
+        /// Drains the lazy disposal queue. Jobs that were in-flight when their chunk was
+        /// unloaded are polled here — once complete, their TempJob data is disposed.
+        /// Called at the start of PollCompleted each frame.
+        /// </summary>
+        private void PollPendingDisposals()
+        {
+            for (int i = _pendingDisposals.Count - 1; i >= 0; i--)
+            {
+                if (_pendingDisposals[i].Handle.IsCompleted)
+                {
+                    _pendingDisposals[i].Handle.Complete();
+                    _pendingDisposals[i].Data.Dispose();
+                    _pendingDisposals.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Neighbor offset + face direction pairs for border extraction.
+        /// Each entry: (offset to neighbor chunk, face direction to extract from that neighbor).
+        /// </summary>
+        private static readonly (int3 Offset, int Face, int OutputIndex)[] _borderExtractions =
+        {
+            (new int3(1, 0, 0),  1, 0), // +X neighbor: extract its -X face
+            (new int3(-1, 0, 0), 0, 1), // -X neighbor: extract its +X face
+            (new int3(0, 1, 0),  3, 2), // +Y neighbor: extract its -Y face
+            (new int3(0, -1, 0), 2, 3), // -Y neighbor: extract its +Y face
+            (new int3(0, 0, 1),  5, 4), // +Z neighbor: extract its -Z face
+            (new int3(0, 0, -1), 4, 5), // -Z neighbor: extract its +Z face
+        };
+
+        /// <summary>
+        /// Schedules up to 6 Burst-compiled ExtractSingleBorderJob jobs on worker threads.
+        /// Returns a combined JobHandle that the GreedyMeshJob must depend on.
+        /// Neighbors that don't exist or aren't generated leave the output zero-initialized (air).
+        /// </summary>
+        private JobHandle ScheduleBorderExtractionJobs(int3 coord, GreedyMeshData meshData)
+        {
+            NativeArray<StateId>[] outputs = new NativeArray<StateId>[]
+            {
+                meshData.NeighborPosX,
+                meshData.NeighborNegX,
+                meshData.NeighborPosY,
+                meshData.NeighborNegY,
+                meshData.NeighborPosZ,
+                meshData.NeighborNegZ,
+            };
+
+            int handleCount = 0;
+            NativeArray<JobHandle> handles = new NativeArray<JobHandle>(6, Allocator.Temp, NativeArrayOptions.ClearMemory);
+
+            for (int i = 0; i < _borderExtractions.Length; i++)
+            {
+                int3 neighborCoord = coord + _borderExtractions[i].Offset;
+                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+
+                if (neighbor == null || neighbor.State < ChunkState.RelightPending || !neighbor.Data.IsCreated)
+                {
+                    continue;
+                }
+
+                ExtractSingleBorderJob borderJob = new ExtractSingleBorderJob
+                {
+                    ChunkData = neighbor.Data,
+                    FaceDirection = _borderExtractions[i].Face,
+                    Output = outputs[_borderExtractions[i].OutputIndex],
+                };
+
+                handles[handleCount] = borderJob.Schedule();
+                handleCount++;
+            }
+
+            JobHandle combined;
+
+            if (handleCount == 0)
+            {
+                combined = default;
+            }
+            else
+            {
+                combined = JobHandle.CombineDependencies(handles);
+            }
+
+            handles.Dispose();
+
+            return combined;
         }
 
         private struct PendingMesh
