@@ -104,7 +104,11 @@ namespace Lithforge.Runtime.Scheduling
                 if (pending.Handle.IsCompleted)
                 {
                     completedThisFrame++;
+                    long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     pending.Handle.Complete();
+                    long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    float completeMs = (float)((t1 - t0) * (1000.0 / System.Diagnostics.Stopwatch.Frequency));
+                    PipelineStats.RecordMeshComplete(completeMs);
 
                     _chunkMeshStore.UpdateRenderer(
                         pending.Coord,

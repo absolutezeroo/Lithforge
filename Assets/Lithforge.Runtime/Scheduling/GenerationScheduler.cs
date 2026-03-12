@@ -134,7 +134,11 @@ namespace Lithforge.Runtime.Scheduling
                 if (pending.Handle.FinalHandle.IsCompleted)
                 {
                     completedThisFrame++;
+                    long t0 = Stopwatch.GetTimestamp();
                     pending.Handle.FinalHandle.Complete();
+                    long t1 = Stopwatch.GetTimestamp();
+                    float completeMs = (float)((t1 - t0) * (1000.0 / Stopwatch.Frequency));
+                    PipelineStats.RecordGenComplete(completeMs);
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 

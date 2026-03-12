@@ -28,6 +28,19 @@ namespace Lithforge.Runtime.Debug
         public static int FreeListSize;
         public static int GrowEvents;
         public static int InvalidateCount;
+        public static int GcGen0;
+        public static int GcGen1;
+        public static int GcGen2;
+        public static float MeshCompleteMaxMs;
+        public static int MeshCompleteStalls;
+        public static float GenCompleteMaxMs;
+        public static int GenCompleteStalls;
+
+        // --- Previous-frame GC counts for delta computation ---
+
+        private static int _prevGc0;
+        private static int _prevGc1;
+        private static int _prevGc2;
 
         // --- Cumulative counters (never reset) ---
 
@@ -77,6 +90,21 @@ namespace Lithforge.Runtime.Debug
             FreeListSize = 0;
             GrowEvents = 0;
             InvalidateCount = 0;
+
+            int gc0 = System.GC.CollectionCount(0);
+            int gc1 = System.GC.CollectionCount(1);
+            int gc2 = System.GC.CollectionCount(2);
+            GcGen0 = gc0 - _prevGc0;
+            GcGen1 = gc1 - _prevGc1;
+            GcGen2 = gc2 - _prevGc2;
+            _prevGc0 = gc0;
+            _prevGc1 = gc1;
+            _prevGc2 = gc2;
+
+            MeshCompleteMaxMs = 0f;
+            MeshCompleteStalls = 0;
+            GenCompleteMaxMs = 0f;
+            GenCompleteStalls = 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -182,6 +210,44 @@ namespace Lithforge.Runtime.Debug
             }
 
             GrowEvents++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void RecordMeshComplete(float ms)
+        {
+            if (!Enabled)
+            {
+                return;
+            }
+
+            if (ms > MeshCompleteMaxMs)
+            {
+                MeshCompleteMaxMs = ms;
+            }
+
+            if (ms > 1f)
+            {
+                MeshCompleteStalls++;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void RecordGenComplete(float ms)
+        {
+            if (!Enabled)
+            {
+                return;
+            }
+
+            if (ms > GenCompleteMaxMs)
+            {
+                GenCompleteMaxMs = ms;
+            }
+
+            if (ms > 1f)
+            {
+                GenCompleteStalls++;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

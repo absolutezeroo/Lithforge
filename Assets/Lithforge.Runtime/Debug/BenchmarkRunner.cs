@@ -40,6 +40,13 @@ namespace Lithforge.Runtime.Debug
         private long[] _gpuUploadBytes;
         private int[] _gpuUploadCount;
         private int[] _growEvents;
+        private int[] _gcGen0;
+        private int[] _gcGen1;
+        private int[] _gcGen2;
+        private float[] _meshCompleteMaxMs;
+        private int[] _meshCompleteStalls;
+        private float[] _genCompleteMaxMs;
+        private int[] _genCompleteStalls;
 
         // Pre-allocated for summary generation
         private readonly StringBuilder _summaryBuilder = new StringBuilder(2048);
@@ -96,6 +103,13 @@ namespace Lithforge.Runtime.Debug
             _gpuUploadBytes = new long[_capacity];
             _gpuUploadCount = new int[_capacity];
             _growEvents = new int[_capacity];
+            _gcGen0 = new int[_capacity];
+            _gcGen1 = new int[_capacity];
+            _gcGen2 = new int[_capacity];
+            _meshCompleteMaxMs = new float[_capacity];
+            _meshCompleteStalls = new int[_capacity];
+            _genCompleteMaxMs = new float[_capacity];
+            _genCompleteStalls = new int[_capacity];
         }
 
         private void Update()
@@ -190,6 +204,13 @@ namespace Lithforge.Runtime.Debug
                 _gpuUploadBytes[f] = PipelineStats.GpuUploadBytes;
                 _gpuUploadCount[f] = PipelineStats.GpuUploadCount;
                 _growEvents[f] = PipelineStats.GrowEvents;
+                _gcGen0[f] = PipelineStats.GcGen0;
+                _gcGen1[f] = PipelineStats.GcGen1;
+                _gcGen2[f] = PipelineStats.GcGen2;
+                _meshCompleteMaxMs[f] = PipelineStats.MeshCompleteMaxMs;
+                _meshCompleteStalls[f] = PipelineStats.MeshCompleteStalls;
+                _genCompleteMaxMs[f] = PipelineStats.GenCompleteMaxMs;
+                _genCompleteStalls[f] = PipelineStats.GenCompleteStalls;
 
                 _frameCount++;
             }
@@ -240,6 +261,7 @@ namespace Lithforge.Runtime.Debug
 
             csv.Append(",gen_scheduled,gen_completed,mesh_scheduled,mesh_completed");
             csv.Append(",lod_scheduled,lod_completed,gpu_upload_bytes,gpu_upload_count,grow_events");
+            csv.Append(",gc_gen0,gc_gen1,gc_gen2,mesh_complete_max_ms,mesh_complete_stalls,gen_complete_max_ms,gen_complete_stalls");
             csv.AppendLine();
 
             // Data rows
@@ -273,6 +295,20 @@ namespace Lithforge.Runtime.Debug
                 csv.Append(_gpuUploadCount[f]);
                 csv.Append(',');
                 csv.Append(_growEvents[f]);
+                csv.Append(',');
+                csv.Append(_gcGen0[f]);
+                csv.Append(',');
+                csv.Append(_gcGen1[f]);
+                csv.Append(',');
+                csv.Append(_gcGen2[f]);
+                csv.Append(',');
+                csv.Append(_meshCompleteMaxMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(_meshCompleteStalls[f]);
+                csv.Append(',');
+                csv.Append(_genCompleteMaxMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(_genCompleteStalls[f]);
                 csv.AppendLine();
             }
 
