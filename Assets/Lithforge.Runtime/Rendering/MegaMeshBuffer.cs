@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Lithforge.Meshing;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
@@ -10,7 +11,7 @@ using UnityEngine.Rendering;
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Owns a single large Mesh containing the merged geometry for one render layer
+    /// Owns persistent GPU buffers (vertex + index + indirect args) for one render layer
     /// (opaque, cutout, or translucent). Freed slots are recycled via a coalescing
     /// free-list so the buffer stays bounded during player movement. When a chunk is
     /// re-meshed and the new data fits in the existing slot, it is rewritten in-place
@@ -21,10 +22,9 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class MegaMeshBuffer : IDisposable
     {
-        private static readonly MeshUpdateFlags _updateFlags =
-            MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices;
+        private static readonly int _vertexStride = Marshal.SizeOf<MeshVertex>();
 
-        private readonly Mesh _mesh;
+        private readonly string _name;
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
 
         /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
@@ -37,11 +37,25 @@ namespace Lithforge.Runtime.Rendering
         private int _indexCapacity;
         private int _usedVertices;
         private int _usedIndices;
-        private bool _subMeshDirty;
+        private bool _argsDirty;
 
-        public Mesh Mesh
+        private GraphicsBuffer _vertexBuffer;
+        private GraphicsBuffer _indexBuffer;
+        private GraphicsBuffer _argsBuffer;
+
+        public GraphicsBuffer VertexBuffer
         {
-            get { return _mesh; }
+            get { return _vertexBuffer; }
+        }
+
+        public GraphicsBuffer IndexBuffer
+        {
+            get { return _indexBuffer; }
+        }
+
+        public GraphicsBuffer ArgsBuffer
+        {
+            get { return _argsBuffer; }
         }
 
         public bool HasGeometry
@@ -55,141 +69,180 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity)
         {
+            _name = bufferName;
             _vertexCapacity = initialVertexCapacity;
             _indexCapacity = initialIndexCapacity;
             _vertexMirror = new MeshVertex[initialVertexCapacity];
             _indexMirror = new int[initialIndexCapacity];
 
-            _mesh = new Mesh
+            _vertexBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.Structured,
+                initialVertexCapacity,
+                _vertexStride);
+
+            _indexBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
+                initialIndexCapacity,
+                sizeof(int));
+
+            _argsBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.IndirectArguments,
+                1,
+                GraphicsBuffer.IndirectDrawIndexedArgs.size);
+
+            // Initialize indirect args to zero draws
+            GraphicsBuffer.IndirectDrawIndexedArgs[] args =
+                new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+            args[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                name = bufferName,
+                indexCountPerInstance = 0,
+                instanceCount = 1,
+                startIndex = 0,
+                baseVertexIndex = 0,
+                startInstance = 0,
             };
-            _mesh.MarkDynamic();
-            _mesh.SetVertexBufferParams(initialVertexCapacity, MeshVertex.VertexAttributes);
-            _mesh.SetIndexBufferParams(initialIndexCapacity, IndexFormat.UInt32);
+            _argsBuffer.SetData(args);
 
-            _mesh.subMeshCount = 1;
-            _mesh.SetSubMesh(0,
-                new SubMeshDescriptor(0, 0, MeshTopology.Triangles),
-                _updateFlags);
+            _argsDirty = false;
+        }
 
-            // Set very large bounds so Unity never frustum-culls the mega-mesh
-            _mesh.bounds = new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+        public void Dispose()
+        {
+            _vertexBuffer?.Dispose();
+            _indexBuffer?.Dispose();
+            _argsBuffer?.Dispose();
+
+            _vertexBuffer = null;
+            _indexBuffer = null;
+            _argsBuffer = null;
+
+            _slots.Clear();
+            _freeRegions.Clear();
+            _pendingZeros.Clear();
+            _vertexMirror = null;
+            _indexMirror = null;
         }
 
         /// <summary>
-        /// Writes chunk mesh data into the buffer. Three paths:
-        /// 1. Existing slot fits new data → rewrite in-place (fastest).
-        /// 2. Free region found → reuse recycled space (no buffer growth).
-        /// 3. Neither → append at end (may trigger Grow).
-        /// Vertices are transformed to world-space using the chunk coordinate.
+        /// Allocates a new slot or updates an existing one for the given chunk coordinate.
+        /// Three allocation paths in priority order:
+        /// 1. In-place reuse — if the chunk already has a slot and the new data fits, overwrite it.
+        /// 2. Free-list first-fit — search the coalescing free-list for a region that fits.
+        /// 3. Append — add at the end, growing the buffer if necessary.
+        /// Empty meshes (zero vertices) free any existing slot and return immediately.
         /// </summary>
         public void AllocateOrUpdate(
             int3 coord,
-            NativeList<MeshVertex> vertices,
-            NativeList<int> indices)
+            NativeList<MeshVertex> vertices, NativeList<int> indices)
         {
             int vertCount = vertices.Length;
             int idxCount = indices.Length;
 
-            // Path 1: existing slot — try in-place reuse
-            if (_slots.TryGetValue(coord, out SlotInfo existing))
+            // Empty mesh — free existing slot if any, nothing to draw
+            if (vertCount == 0)
             {
-                if (vertCount <= existing.VertexCapacity && idxCount <= existing.IndexCapacity)
+                if (_slots.TryGetValue(coord, out SlotInfo existing))
                 {
-                    if (vertCount == 0 || idxCount == 0)
-                    {
-                        FreeSlot(coord, existing);
-                        _subMeshDirty = true;
-                        return;
-                    }
-
-                    WriteData(existing.VertexOffset, existing.IndexOffset, coord, vertices, indices);
-
-                    // Zero leftover indices if new data is smaller
-                    int leftoverIdx = existing.IndexCount - idxCount;
-
-                    if (leftoverIdx > 0)
-                    {
-                        int clearOffset = existing.IndexOffset + idxCount;
-                        Array.Clear(_indexMirror, clearOffset, leftoverIdx);
-                        _pendingZeros.Add(new PendingZero
-                        {
-                            IndexOffset = clearOffset,
-                            IndexCount = leftoverIdx,
-                        });
-                    }
-
-                    _slots[coord] = new SlotInfo
-                    {
-                        VertexOffset = existing.VertexOffset,
-                        VertexCount = vertCount,
-                        VertexCapacity = existing.VertexCapacity,
-                        IndexOffset = existing.IndexOffset,
-                        IndexCount = idxCount,
-                        IndexCapacity = existing.IndexCapacity,
-                    };
-                    _subMeshDirty = true;
-                    return;
+                    FreeSlot(coord, existing);
+                    _argsDirty = true;
                 }
 
-                // Doesn't fit — free and allocate new
-                FreeSlot(coord, existing);
-            }
-
-            if (vertCount == 0 || idxCount == 0)
-            {
-                _subMeshDirty = true;
                 return;
             }
 
-            // Path 2: try to find a free region (first-fit)
-            int regionIdx = FindFreeRegion(vertCount, idxCount);
-            int vOff;
-            int iOff;
-            int vCap;
-            int iCap;
-
-            if (regionIdx >= 0)
+            // Path 1: In-place reuse — chunk already has a slot and new data fits
+            if (_slots.TryGetValue(coord, out SlotInfo slot))
             {
-                FreeRegion region = _freeRegions[regionIdx];
-                vOff = region.VertexOffset;
-                iOff = region.IndexOffset;
-                vCap = region.VertexCapacity;
-                iCap = region.IndexCapacity;
-
-                // Split if remainder is meaningful (> 256 verts / 384 indices)
-                int remainVerts = vCap - vertCount;
-                int remainIdx = iCap - idxCount;
-
-                if (remainVerts > 256 && remainIdx > 384)
+                if (vertCount <= slot.VertexCapacity && idxCount <= slot.IndexCapacity)
                 {
-                    _freeRegions[regionIdx] = new FreeRegion
+                    // Clear old index tail if the new mesh is shorter
+                    if (idxCount < slot.IndexCount)
                     {
-                        VertexOffset = vOff + vertCount,
-                        VertexCapacity = remainVerts,
-                        IndexOffset = iOff + idxCount,
-                        IndexCapacity = remainIdx,
+                        int tailOffset = slot.IndexOffset + idxCount;
+                        int tailCount = slot.IndexCount - idxCount;
+                        Array.Clear(_indexMirror, tailOffset, tailCount);
+                        _indexBuffer.SetData(_indexMirror, tailOffset, tailOffset, tailCount);
+                    }
+
+                    WriteData(slot.VertexOffset, slot.IndexOffset, coord, vertices, indices);
+
+                    _slots[coord] = new SlotInfo
+                    {
+                        VertexOffset = slot.VertexOffset,
+                        VertexCount = vertCount,
+                        VertexCapacity = slot.VertexCapacity,
+                        IndexOffset = slot.IndexOffset,
+                        IndexCount = idxCount,
+                        IndexCapacity = slot.IndexCapacity,
                     };
-                    vCap = vertCount;
-                    iCap = idxCount;
+
+                    _argsDirty = true;
+                    return;
                 }
-                else
-                {
-                    _freeRegions.RemoveAt(regionIdx);
-                }
+
+                // Old slot too small — free it and fall through to allocate a new one
+                FreeSlot(coord, slot);
             }
-            else
+
+            // Path 2: Free-list first-fit
+            int freeIdx = FindFreeRegion(vertCount, idxCount);
+
+            if (freeIdx >= 0)
             {
-                // Path 3: append at end
-                EnsureCapacity(vertCount, idxCount);
-                vOff = _usedVertices;
-                iOff = _usedIndices;
-                vCap = vertCount;
-                iCap = idxCount;
-                _usedVertices += vertCount;
-                _usedIndices += idxCount;
+                FreeRegion region = _freeRegions[freeIdx];
+                _freeRegions.RemoveAt(freeIdx);
+
+                WriteData(region.VertexOffset, region.IndexOffset, coord, vertices, indices);
+
+                // Split remainder back into free-list if significant leftover
+                int leftoverVerts = region.VertexCapacity - vertCount;
+                int leftoverIdx = region.IndexCapacity - idxCount;
+
+                if (leftoverVerts > 0 && leftoverIdx > 0)
+                {
+                    FreeRegion remainder = new FreeRegion
+                    {
+                        VertexOffset = region.VertexOffset + vertCount,
+                        VertexCapacity = leftoverVerts,
+                        IndexOffset = region.IndexOffset + idxCount,
+                        IndexCapacity = leftoverIdx,
+                    };
+
+                    // Insert sorted by VertexOffset
+                    int insertIdx = 0;
+
+                    for (int i = 0; i < _freeRegions.Count; i++)
+                    {
+                        if (_freeRegions[i].VertexOffset > remainder.VertexOffset)
+                        {
+                            break;
+                        }
+
+                        insertIdx = i + 1;
+                    }
+
+                    _freeRegions.Insert(insertIdx, remainder);
+                }
+
+                _slots[coord] = new SlotInfo
+                {
+                    VertexOffset = region.VertexOffset,
+                    VertexCount = vertCount,
+                    VertexCapacity = vertCount,
+                    IndexOffset = region.IndexOffset,
+                    IndexCount = idxCount,
+                    IndexCapacity = idxCount,
+                };
+
+                _argsDirty = true;
+                return;
             }
+
+            // Path 3: Append at end
+            EnsureCapacity(vertCount, idxCount);
+
+            int vOff = _usedVertices;
+            int iOff = _usedIndices;
 
             WriteData(vOff, iOff, coord, vertices, indices);
 
@@ -197,69 +250,61 @@ namespace Lithforge.Runtime.Rendering
             {
                 VertexOffset = vOff,
                 VertexCount = vertCount,
-                VertexCapacity = vCap,
+                VertexCapacity = vertCount,
                 IndexOffset = iOff,
                 IndexCount = idxCount,
-                IndexCapacity = iCap,
+                IndexCapacity = idxCount,
             };
-            _subMeshDirty = true;
+
+            _usedVertices += vertCount;
+            _usedIndices += idxCount;
+            _argsDirty = true;
         }
 
         /// <summary>
-        /// Frees the slot occupied by a chunk. Zeroes the index data in the CPU mirror
-        /// (GPU upload deferred to FlushSubMesh) and returns the region to the free-list.
+        /// Frees the slot for the given chunk coordinate, returning it to the free-list.
+        /// No-op if the chunk has no slot.
         /// </summary>
         public void Free(int3 coord)
         {
-            if (!_slots.TryGetValue(coord, out SlotInfo slot))
+            if (_slots.TryGetValue(coord, out SlotInfo slot))
             {
-                return;
+                FreeSlot(coord, slot);
+                _argsDirty = true;
             }
-
-            FreeSlot(coord, slot);
-            _subMeshDirty = true;
         }
 
         /// <summary>
-        /// Uploads deferred index-zero ranges and updates the submesh descriptor.
-        /// Must be called before rendering.
+        /// Uploads any pending index zeros to the GPU and updates the indirect args buffer
+        /// if dirty. Call once per frame before issuing draw calls.
         /// </summary>
-        public void FlushSubMesh()
+        public void FlushArgs()
         {
-            // Batch upload deferred zero ranges
+            // Upload pending index zeros (degenerate triangles for freed slots)
             for (int i = 0; i < _pendingZeros.Count; i++)
             {
                 PendingZero pz = _pendingZeros[i];
-                _mesh.SetIndexBufferData(_indexMirror, pz.IndexOffset, pz.IndexOffset,
-                    pz.IndexCount, _updateFlags);
+                _indexBuffer.SetData(_indexMirror, pz.IndexOffset, pz.IndexOffset, pz.IndexCount);
             }
 
             _pendingZeros.Clear();
 
-            if (!_subMeshDirty)
+            // Update indirect args if anything changed
+            if (_argsDirty)
             {
-                return;
+                GraphicsBuffer.IndirectDrawIndexedArgs[] args =
+                    new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+                args[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
+                {
+                    indexCountPerInstance = (uint)_usedIndices,
+                    instanceCount = 1,
+                    startIndex = 0,
+                    baseVertexIndex = 0,
+                    startInstance = 0,
+                };
+                _argsBuffer.SetData(args);
+                _argsDirty = false;
             }
-
-            _mesh.SetSubMesh(0,
-                new SubMeshDescriptor(0, _usedIndices, MeshTopology.Triangles),
-                _updateFlags);
-
-            _subMeshDirty = false;
-        }
-
-        public void Dispose()
-        {
-            if (_mesh != null)
-            {
-                UnityEngine.Object.Destroy(_mesh);
-            }
-
-            _slots.Clear();
-            _freeRegions.Clear();
-            _pendingZeros.Clear();
-            _vertexMirror = null;
-            _indexMirror = null;
         }
 
         /// <summary>
@@ -290,8 +335,8 @@ namespace Lithforge.Runtime.Rendering
                 _indexMirror[iOff + i] = indices[i] + vOff;
             }
 
-            _mesh.SetVertexBufferData(_vertexMirror, vOff, vOff, vertCount, 0, _updateFlags);
-            _mesh.SetIndexBufferData(_indexMirror, iOff, iOff, idxCount, _updateFlags);
+            _vertexBuffer.SetData(_vertexMirror, vOff, vOff, vertCount);
+            _indexBuffer.SetData(_indexMirror, iOff, iOff, idxCount);
         }
 
         /// <summary>
@@ -345,7 +390,7 @@ namespace Lithforge.Runtime.Rendering
                     _usedVertices = last.VertexOffset;
                     _usedIndices = last.IndexOffset;
                     _freeRegions.RemoveAt(_freeRegions.Count - 1);
-                    _subMeshDirty = true;
+                    _argsDirty = true;
                 }
             }
         }
@@ -443,25 +488,37 @@ namespace Lithforge.Runtime.Rendering
             Array.Resize(ref _vertexMirror, newVertCap);
             Array.Resize(ref _indexMirror, newIdxCap);
 
-            _mesh.SetVertexBufferParams(newVertCap, MeshVertex.VertexAttributes);
-            _mesh.SetIndexBufferParams(newIdxCap, IndexFormat.UInt32);
+            // Dispose old GPU buffers and create new ones with larger capacity
+            _vertexBuffer?.Dispose();
+            _indexBuffer?.Dispose();
 
+            _vertexBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.Structured,
+                newVertCap,
+                _vertexStride);
+
+            _indexBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
+                newIdxCap,
+                sizeof(int));
+
+            // Re-upload current data to the new GPU buffers
             if (_usedVertices > 0)
             {
-                _mesh.SetVertexBufferData(_vertexMirror, 0, 0, _usedVertices, 0, _updateFlags);
+                _vertexBuffer.SetData(_vertexMirror, 0, 0, _usedVertices);
             }
 
             if (_usedIndices > 0)
             {
-                _mesh.SetIndexBufferData(_indexMirror, 0, 0, _usedIndices, _updateFlags);
+                _indexBuffer.SetData(_indexMirror, 0, 0, _usedIndices);
             }
 
             _vertexCapacity = newVertCap;
             _indexCapacity = newIdxCap;
-            _subMeshDirty = true;
+            _argsDirty = true;
 
             UnityEngine.Debug.Log(
-                $"[MegaMeshBuffer] {_mesh.name}: grew to " +
+                $"[MegaMeshBuffer] {_name}: grew to " +
                 $"{newVertCap} vertices, {newIdxCap} indices capacity");
         }
 
