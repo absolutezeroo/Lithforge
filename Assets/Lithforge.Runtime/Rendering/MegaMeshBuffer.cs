@@ -624,9 +624,11 @@ namespace Lithforge.Runtime.Rendering
             _argsDirty = true;
             PipelineStats.IncrGrow();
 
+#if LITHFORGE_DEBUG
             UnityEngine.Debug.Log(
                 $"[MegaMeshBuffer] {_name}: grew to " +
                 $"{newVertCap} vertices, {newIdxCap} indices capacity");
+#endif
         }
 
         private struct SlotInfo

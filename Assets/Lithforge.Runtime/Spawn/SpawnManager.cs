@@ -151,8 +151,10 @@ namespace Lithforge.Runtime.Spawn
                     _progress.SpawnY,
                     _progress.SpawnZ + 0.5f);
 
+#if LITHFORGE_DEBUG
                 UnityEngine.Debug.Log(
                     $"[SpawnManager] Spawn complete at ({_progress.SpawnX}, {_progress.SpawnY}, {_progress.SpawnZ})");
+#endif
             }
 
             _progress.Phase = SpawnState.Done;
