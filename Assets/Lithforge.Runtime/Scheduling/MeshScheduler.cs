@@ -501,19 +501,41 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Drains the lazy disposal queue. Jobs that were in-flight when their chunk was
-        /// unloaded are polled here — once complete, their TempJob data is disposed.
-        /// Called at the start of PollCompleted each frame.
+        /// Disposes completed mesh jobs that were deferred by CleanupCoord.
+        /// Budgeted: disposes at most 2 items per frame to avoid burst spikes
+        /// when many chunks are unloaded simultaneously.
         /// </summary>
         private void PollPendingDisposals()
         {
-            for (int i = _pendingDisposals.Count - 1; i >= 0; i--)
+            int disposed = 0;
+            int i = 0;
+
+            while (i < _pendingDisposals.Count)
             {
+                if (disposed >= 2)
+                {
+                    break;
+                }
+
                 if (_pendingDisposals[i].Handle.IsCompleted)
                 {
                     _pendingDisposals[i].Handle.Complete();
                     _pendingDisposals[i].Data.Dispose();
-                    _pendingDisposals.RemoveAt(i);
+                    disposed++;
+
+                    // Swap-back O(1) removal
+                    int last = _pendingDisposals.Count - 1;
+
+                    if (i < last)
+                    {
+                        _pendingDisposals[i] = _pendingDisposals[last];
+                    }
+
+                    _pendingDisposals.RemoveAt(last);
+                }
+                else
+                {
+                    i++;
                 }
             }
         }
