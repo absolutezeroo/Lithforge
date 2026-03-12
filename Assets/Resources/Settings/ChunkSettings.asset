@@ -16,7 +16,10 @@ MonoBehaviour:
   renderDistance: 4
   spawnLoadRadius: 3
   maxGenerationsPerFrame: 24
-  maxMeshesPerFrame: 24
+  maxMeshesPerFrame: 12
+  maxGenCompletionsPerFrame: 8
+  maxMeshCompletionsPerFrame: 8
+  maxLightUpdatesPerFrame: 6
   yLoadMin: -2
   yLoadMax: 3
   yUnloadMin: -3

@@ -28,6 +28,18 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(1, 16)]
         [SerializeField] private int maxMeshesPerFrame = 8;
 
+        [Tooltip("Maximum completed generation jobs processed per frame (spreads decoration + light work)")]
+        [Range(1, 32)]
+        [SerializeField] private int maxGenCompletionsPerFrame = 8;
+
+        [Tooltip("Maximum completed mesh jobs processed per frame (spreads GPU uploads)")]
+        [Range(1, 32)]
+        [SerializeField] private int maxMeshCompletionsPerFrame = 8;
+
+        [Tooltip("Maximum cross-chunk light update jobs processed per frame")]
+        [Range(1, 32)]
+        [SerializeField] private int maxLightUpdatesPerFrame = 6;
+
         [Header("Y Range — Loading")]
         [Tooltip("Minimum Y chunk offset from camera to load")]
         [SerializeField] private int yLoadMin = -1;
@@ -89,6 +101,21 @@ namespace Lithforge.Runtime.Content.Settings
         public int MaxMeshesPerFrame
         {
             get { return maxMeshesPerFrame; }
+        }
+
+        public int MaxGenCompletionsPerFrame
+        {
+            get { return maxGenCompletionsPerFrame; }
+        }
+
+        public int MaxMeshCompletionsPerFrame
+        {
+            get { return maxMeshCompletionsPerFrame; }
+        }
+
+        public int MaxLightUpdatesPerFrame
+        {
+            get { return maxLightUpdatesPerFrame; }
         }
 
         public int YLoadMin

@@ -26,6 +26,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
         private readonly int _maxMeshesPerFrame;
+        private readonly int _maxMeshCompletionsPerFrame;
 
         /// <summary>
         /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
@@ -50,7 +51,8 @@ namespace Lithforge.Runtime.Scheduling
             NativeAtlasLookup nativeAtlasLookup,
             ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
-            int maxMeshesPerFrame)
+            int maxMeshesPerFrame,
+            int maxMeshCompletionsPerFrame)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
@@ -58,16 +60,26 @@ namespace Lithforge.Runtime.Scheduling
             _chunkMeshStore = chunkMeshStore;
             _culling = culling;
             _maxMeshesPerFrame = maxMeshesPerFrame;
+            _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
         }
 
         public void PollCompleted()
         {
-            for (int i = _pendingMeshes.Count - 1; i >= 0; i--)
+            int completedThisFrame = 0;
+            int i = 0;
+
+            while (i < _pendingMeshes.Count)
             {
+                if (completedThisFrame >= _maxMeshCompletionsPerFrame)
+                {
+                    break;
+                }
+
                 PendingMesh pending = _pendingMeshes[i];
 
                 if (pending.Handle.IsCompleted)
                 {
+                    completedThisFrame++;
                     pending.Handle.Complete();
 
                     _chunkMeshStore.UpdateRenderer(
@@ -102,6 +114,10 @@ namespace Lithforge.Runtime.Scheduling
                     }
 
                     _pendingMeshes.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
                 }
             }
         }

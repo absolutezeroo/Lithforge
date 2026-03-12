@@ -29,6 +29,8 @@ namespace Lithforge.Runtime.Scheduling
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly long _seed;
         private readonly int _maxGenerationsPerFrame;
+        private readonly int _maxGenCompletionsPerFrame;
+        private readonly int _maxLightUpdatesPerFrame;
 
         /// <summary>
         /// Reusable list for FillChunksToGenerate — avoids per-frame allocation.
@@ -85,7 +87,9 @@ namespace Lithforge.Runtime.Scheduling
             WorldStorage worldStorage,
             NativeStateRegistry nativeStateRegistry,
             long seed,
-            int maxGenerationsPerFrame)
+            int maxGenerationsPerFrame,
+            int maxGenCompletionsPerFrame,
+            int maxLightUpdatesPerFrame)
         {
             _chunkManager = chunkManager;
             _generationPipeline = generationPipeline;
@@ -94,16 +98,27 @@ namespace Lithforge.Runtime.Scheduling
             _nativeStateRegistry = nativeStateRegistry;
             _seed = seed;
             _maxGenerationsPerFrame = maxGenerationsPerFrame;
+            _maxGenCompletionsPerFrame = maxGenCompletionsPerFrame;
+            _maxLightUpdatesPerFrame = maxLightUpdatesPerFrame;
         }
 
         public void PollCompleted()
         {
-            for (int i = _pendingGenerations.Count - 1; i >= 0; i--)
+            int completedThisFrame = 0;
+            int i = 0;
+
+            while (i < _pendingGenerations.Count)
             {
+                if (completedThisFrame >= _maxGenCompletionsPerFrame)
+                {
+                    break;
+                }
+
                 PendingGeneration pending = _pendingGenerations[i];
 
                 if (pending.Handle.FinalHandle.IsCompleted)
                 {
+                    completedThisFrame++;
                     pending.Handle.FinalHandle.Complete();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
@@ -151,6 +166,10 @@ namespace Lithforge.Runtime.Scheduling
 
                     _pendingCoords.Remove(pending.Coord);
                     _pendingGenerations.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
                 }
             }
         }
@@ -240,10 +259,16 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingLightUpdates.Clear();
+            int processedCount = 0;
 
-            // Pass 1: batch-schedule all light update jobs
+            // Pass 1: batch-schedule up to budget light update jobs
             for (int c = 0; c < _lightUpdateCache.Count; c++)
             {
+                if (processedCount >= _maxLightUpdatesPerFrame)
+                {
+                    break;
+                }
+
                 ManagedChunk chunk = _lightUpdateCache[c];
 
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
@@ -317,6 +342,8 @@ namespace Lithforge.Runtime.Scheduling
                         Handle = handle,
                         SeedEntries = seedEntries,
                     });
+
+                    processedCount++;
                 }
                 else
                 {

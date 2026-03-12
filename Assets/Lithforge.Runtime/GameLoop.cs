@@ -77,7 +77,9 @@ namespace Lithforge.Runtime
                 worldStorage,
                 nativeStateRegistry,
                 seed,
-                chunkSettings.MaxGenerationsPerFrame);
+                chunkSettings.MaxGenerationsPerFrame,
+                chunkSettings.MaxGenCompletionsPerFrame,
+                chunkSettings.MaxLightUpdatesPerFrame);
             _mainCamera = Camera.main;
 
             _meshScheduler = new MeshScheduler(
@@ -86,7 +88,8 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
-                chunkSettings.MaxMeshesPerFrame);
+                chunkSettings.MaxMeshesPerFrame,
+                chunkSettings.MaxMeshCompletionsPerFrame);
 
             _lodScheduler = new LODScheduler(
                 chunkManager,
