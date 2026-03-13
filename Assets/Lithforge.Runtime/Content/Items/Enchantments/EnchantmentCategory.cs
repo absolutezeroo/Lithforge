@@ -1,4 +1,4 @@
-namespace Lithforge.Runtime.Content.Items
+namespace Lithforge.Runtime.Content.Items.Enchantments
 {
     /// <summary>
     /// Category of an enchantment, used for grouping and conflict resolution.

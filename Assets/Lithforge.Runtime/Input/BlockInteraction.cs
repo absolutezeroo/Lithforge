@@ -268,6 +268,7 @@ namespace Lithforge.Runtime.Input
                 ctx.RequiredToolLevel = entry.RequiredToolLevel;
 
                 ItemStack heldItem = _inventory.GetSelectedItem();
+                IMiningModifier[] mods = null;
 
                 if (!heldItem.IsEmpty)
                 {
@@ -283,7 +284,7 @@ namespace Lithforge.Runtime.Input
                             ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, requiredTag);
                         }
 
-                        if (itemDef.ToolSpeedProfile is ToolSpeedProfileSO profile)
+                        if (itemDef.ToolSpeedProfile is ToolSpeedProfile profile)
                         {
                             ctx.ToolSpeed = profile.GetSpeed(ctx.Material);
                         }
@@ -292,16 +293,11 @@ namespace Lithforge.Runtime.Input
                             ctx.ToolSpeed = itemDef.MiningSpeed;
                         }
 
-                        IMiningModifier[] mods = itemDef.Modifiers;
-                        Array.Sort(mods, (a, b) => a.Priority.CompareTo(b.Priority));
-
-                        for (int i = 0; i < mods.Length; i++)
-                        {
-                            ctx = mods[i].Apply(ctx);
-                        }
+                        mods = itemDef.Modifiers;
                     }
                 }
 
+                // Apply default harvest denial rules first
                 if (entry.RequiredToolLevel > 0 && ctx.ToolLevel < entry.RequiredToolLevel)
                 {
                     ctx.CanHarvest = false;
@@ -312,11 +308,25 @@ namespace Lithforge.Runtime.Input
                     ctx.CanHarvest = false;
                 }
 
+                // Apply modifiers after denial checks (GrantHarvest can override)
+                if (mods != null)
+                {
+                    for (int i = 0; i < mods.Length; i++)
+                    {
+                        ctx = mods[i].Apply(ctx);
+                    }
+                }
+
                 float effectiveSpeed = (ctx.ToolSpeed + ctx.FlatSpeedBonus) * ctx.SpeedMultiplier;
                 float effectiveHardness = Mathf.Max(0f, ctx.Hardness - ctx.HardnessReduction);
 
                 if (ctx.IsCorrectTool)
                 {
+                    if (effectiveSpeed <= 0f)
+                    {
+                        effectiveSpeed = 0.01f;
+                    }
+
                     _miningRequiredTime = effectiveHardness * _toolMiningMultiplier / effectiveSpeed;
                 }
                 else

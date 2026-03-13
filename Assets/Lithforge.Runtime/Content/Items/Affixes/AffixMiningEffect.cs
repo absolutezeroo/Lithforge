@@ -1,7 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Item;
 
-namespace Lithforge.Runtime.Content.Items
+namespace Lithforge.Runtime.Content.Items.Affixes
 {
     /// <summary>
     /// A single mining effect applied by an affix or enchantment level.

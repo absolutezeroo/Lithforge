@@ -25,7 +25,7 @@ namespace Lithforge.Voxel.Item
 
         /// <summary>
         /// Tool speed profile (stored as object to avoid Tier 3 dependency).
-        /// Cast to ToolSpeedProfileSO in Tier 3 consuming code.
+        /// Cast to ToolSpeedProfile in Tier 3 consuming code.
         /// </summary>
         public object ToolSpeedProfile { get; set; }
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
@@ -8,6 +7,7 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items;
+using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Runtime.Content.Loot;
 using Lithforge.Runtime.Content.Models;
 using Lithforge.Runtime.Content.Mods;
@@ -514,8 +514,21 @@ namespace Lithforge.Runtime.Bootstrap
             def.MiningSpeed = item.MiningSpeed;
 
             def.ToolSpeedProfile = item.ToolSpeedProfile;
-            def.Modifiers = (item.Affixes ?? Array.Empty<AffixDefinitionSO>())
-                .Cast<IMiningModifier>().ToArray();
+
+            AffixDefinition[] sourceAffixes = item.Affixes ?? Array.Empty<AffixDefinition>();
+            List<IMiningModifier> modList = new List<IMiningModifier>(sourceAffixes.Length);
+
+            for (int a = 0; a < sourceAffixes.Length; a++)
+            {
+                if (sourceAffixes[a] != null)
+                {
+                    modList.Add(sourceAffixes[a]);
+                }
+            }
+
+            IMiningModifier[] mods = modList.ToArray();
+            Array.Sort(mods, (x, y) => x.Priority.CompareTo(y.Priority));
+            def.Modifiers = mods;
 
             if (item.PlacesBlock != null)
             {

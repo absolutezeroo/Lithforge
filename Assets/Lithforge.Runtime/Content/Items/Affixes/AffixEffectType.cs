@@ -1,4 +1,4 @@
-namespace Lithforge.Runtime.Content.Items
+namespace Lithforge.Runtime.Content.Items.Affixes
 {
     /// <summary>
     /// Types of effects an affix can apply to mining calculations.

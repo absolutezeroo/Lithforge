@@ -1,7 +1,7 @@
 using Lithforge.Voxel.Item;
 using UnityEngine;
 
-namespace Lithforge.Runtime.Content.Items
+namespace Lithforge.Runtime.Content.Items.Affixes
 {
     /// <summary>
     /// Data-driven affix that modifies mining calculations via the IMiningModifier pipeline.
@@ -9,16 +9,20 @@ namespace Lithforge.Runtime.Content.Items
     /// </summary>
     [CreateAssetMenu(fileName = "NewAffix",
         menuName = "Lithforge/Content/Affix Definition")]
-    public sealed class AffixDefinitionSO : ScriptableObject, IMiningModifier
+    public sealed class AffixDefinition : ScriptableObject, IMiningModifier
     {
         [Header("Identity")]
         public string AffixId;
         public string DisplayName;
         public int Tier;
 
+        [Header("Priority")]
+        [Tooltip("Application order: Additive=0-9, Multiplicative=10-19, Override=20+")]
+        [SerializeField] private int _priority = 10;
+
         public int Priority
         {
-            get { return 10; }
+            get { return _priority; }
         }
 
         [Header("Mining Effects")]

@@ -5,7 +5,7 @@ namespace Lithforge.Runtime.Content.Tools
 {
     [CreateAssetMenu(fileName = "NewToolSpeedProfile",
         menuName = "Lithforge/Content/Tool Speed Profile")]
-    public sealed class ToolSpeedProfileSO : ScriptableObject
+    public sealed class ToolSpeedProfile : ScriptableObject
     {
         [System.Serializable]
         public struct MaterialSpeedEntry

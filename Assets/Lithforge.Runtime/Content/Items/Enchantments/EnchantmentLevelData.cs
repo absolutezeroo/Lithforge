@@ -1,6 +1,7 @@
+using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Voxel.Item;
 
-namespace Lithforge.Runtime.Content.Items
+namespace Lithforge.Runtime.Content.Items.Enchantments
 {
     /// <summary>
     /// Per-level data for an enchantment, containing display info and mining effects.

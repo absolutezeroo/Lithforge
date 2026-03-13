@@ -1,7 +1,8 @@
+using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Voxel.Item;
 using UnityEngine;
 
-namespace Lithforge.Runtime.Content.Items
+namespace Lithforge.Runtime.Content.Items.Enchantments
 {
     /// <summary>
     /// Data-driven enchantment with multiple levels, each providing mining effects.
@@ -9,7 +10,7 @@ namespace Lithforge.Runtime.Content.Items
     /// </summary>
     [CreateAssetMenu(fileName = "NewEnchantment",
         menuName = "Lithforge/Content/Enchantment Definition")]
-    public sealed class EnchantmentDefinitionSO : ScriptableObject
+    public sealed class EnchantmentDefinition : ScriptableObject
     {
         [Header("Identity")]
         public string EnchantmentId;
