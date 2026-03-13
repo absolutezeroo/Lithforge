@@ -172,12 +172,17 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Resolved {resolvedFaces.Count} block state face textures.");
 
-            // Phase 5: Build texture atlas
+            // Phase 5: Resolve per-face tint types and overlay textures from model elements.
+            // Must run BEFORE atlas building so overlay textures are included in the atlas.
+            yield return "Resolving overlays and tints...";
+            ResolveOverlaysAndTints(modelResolver, stateRegistry, blockLookup, resolvedFaces);
+
+            // Phase 6: Build texture atlas (includes both base and overlay textures)
             yield return "Building texture atlas...";
             AtlasBuilder atlasBuilder = new AtlasBuilder(_logger, _atlasTileSize);
             AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces);
 
-            // Phase 6: Patch texture indices into StateRegistry
+            // Phase 6.5: Patch texture indices into StateRegistry
             yield return "Patching texture indices...";
             foreach (KeyValuePair<StateId, ResolvedFaceTextures2D> kvp in resolvedFaces)
             {
@@ -193,10 +198,6 @@ namespace Lithforge.Runtime.Bootstrap
 
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
-
-            // Phase 6.5: Resolve per-face tint types and overlay textures from model elements
-            yield return "Resolving overlays and tints...";
-            ResolveOverlaysAndTints(modelResolver, stateRegistry, blockLookup, resolvedFaces);
 
             // Phase 7: Load biome and ore definitions
             yield return "Loading biomes and ores...";
@@ -314,9 +315,9 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.Register(modRegData);
             }
 
-            // Assert texture count fits in half precision (exact integer range up to 2048).
-            // Color.a is now a pure texIndex (no tintType encoding), so the limit is 2048.
-            // TintOverlay.overlayTexIndex uses 10 bits, limiting overlay indices to 0-1023.
+            // TintOverlay.overlayTexIndex uses 10 bits (max index 1023), which is the binding
+            // constraint. Color.a (pure texIndex in half) can represent up to 2048, but the
+            // overlay path limits the atlas to 1024 layers total.
             int texCount = atlasResult.TextureArray != null ? atlasResult.TextureArray.depth : 0;
 
             UnityEngine.Debug.Assert(texCount <= 1024,
@@ -590,6 +591,26 @@ namespace Lithforge.Runtime.Bootstrap
                         {
                             tintedStates++;
                         }
+                    }
+
+                    // Fallback: if no elements produced tint data AND block has a
+                    // defaultTintType, apply it uniformly to all faces. This handles
+                    // blocks like oak_leaves and water that use builtInParent with no
+                    // model elements (Minecraft applies their tint via BlockColors.register()
+                    // in code, not via model tintIndex).
+                    if (faceData.TintNorth == 0 && faceData.TintSouth == 0 &&
+                        faceData.TintEast == 0 && faceData.TintWest == 0 &&
+                        faceData.TintUp == 0 && faceData.TintDown == 0 &&
+                        block.DefaultTintType > 0)
+                    {
+                        byte dt = (byte)block.DefaultTintType;
+                        faceData.TintNorth = dt;
+                        faceData.TintSouth = dt;
+                        faceData.TintEast = dt;
+                        faceData.TintWest = dt;
+                        faceData.TintUp = dt;
+                        faceData.TintDown = dt;
+                        tintedStates++;
                     }
 
                     // Resolve overlay from element 1 (if present)

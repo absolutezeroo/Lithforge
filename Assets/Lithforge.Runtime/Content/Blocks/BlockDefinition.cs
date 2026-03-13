@@ -40,6 +40,12 @@ namespace Lithforge.Runtime.Content.Blocks
         [Tooltip("Whether this block is a fluid (water, lava) — affects top-face height")]
         [SerializeField] private bool isFluid;
 
+        [Tooltip("Default biome tint type applied to all faces when the model has no per-face tintIndex. " +
+                 "-1 = use model tintIndex only (default), 0 = no tint, 1 = grass colormap, " +
+                 "2 = foliage colormap, 3 = water (per-biome color)")]
+        [Range(-1, 3)]
+        [SerializeField] private int defaultTintType = -1;
+
         [Tooltip("Light emitted by this block (0-15)")]
         [Range(0, 15)]
         [SerializeField] private int lightEmission;
@@ -109,6 +115,11 @@ namespace Lithforge.Runtime.Content.Blocks
         public bool IsFluid
         {
             get { return isFluid; }
+        }
+
+        public int DefaultTintType
+        {
+            get { return defaultTintType; }
         }
 
         public int LightEmission

@@ -104,7 +104,7 @@ namespace Lithforge.Meshing
             // LOD uses full brightness: AO=1, blockLight=1, sunLight=1, a=pure baseTexIndex
             half4 color = new half4((half)1.0f, (half)1.0f, (half)1.0f, (half)texIndex);
 
-            // Pack per-face tint + overlay into TintOverlay uint
+            // SHARED TINT OVERLAY PACKING — GreedyMeshJob, LODMeshJob
             byte baseTintType = atlasEntry.GetBaseTintType(face);
             ushort overlayTexIdx = atlasEntry.GetOverlayTextureIndex(face);
             byte overlayTintType = atlasEntry.GetOverlayTintType(face);

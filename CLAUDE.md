@@ -249,6 +249,13 @@ because Burst IJob structs cannot share instance methods or access shared Native
 | IndexToXYZ | ✓ | ✓ | ✓ |
 | CollectBorderLightLeaks / CollectBorderVoxel | ✓ | ✓ | |
 
+The following tint overlay packing logic is duplicated across 2 IJob structs.
+**Any change to one MUST be replicated to the other in the same commit.**
+
+| Method | GreedyMeshJob | LODMeshJob |
+|--------|---------------|------------|
+| Tint overlay packing (baseTintType, overlayTintType, hasOverlay, overlayTexIdx bit packing) | ✓ | ✓ |
+
 ## Reference Sources
 
 Local copies of reference implementations are available in `Sources/` (git-ignored):

@@ -60,6 +60,16 @@ namespace Lithforge.Runtime.Scheduling
         private readonly Stack<List<BorderLightEntry>> _borderEntryListPool = new Stack<List<BorderLightEntry>>();
 
         /// <summary>
+        /// Reusable flat array for O(1) old-border-entry lookup in ProcessRelightBorderCascade.
+        /// Index: flat voxel index (0..SizeCubed-1). Value: packed light byte (0 = not present).
+        /// PackedLight is never 0 for border entries (filtered by sun > 1 || block > 1),
+        /// so 0 is a safe sentinel for "no old entry at this position".
+        /// Cleared and rebuilt each call — no stale data risk.
+        /// Owner: MeshScheduler. Lifetime: application.
+        /// </summary>
+        private readonly byte[] _oldBorderLookup = new byte[ChunkConstants.SizeCubed];
+
+        /// <summary>
         /// Face offsets for 6 cardinal directions: +X, -X, +Y, -Y, +Z, -Z.
         /// </summary>
         private static readonly int3[] _faceOffsets =
@@ -673,6 +683,8 @@ namespace Lithforge.Runtime.Scheduling
         /// for LightUpdateJob (NeedsLightUpdate). Also checks if THIS chunk should
         /// receive incoming light from neighbors (e.g., sunlight column restoration
         /// from the chunk above after block removal).
+        /// Uses a flat byte[SizeCubed] lookup for O(1) old→new comparison instead
+        /// of O(N²) nested List scans.
         /// </summary>
         private void ProcessRelightBorderCascade(PendingRelight entry)
         {
@@ -694,6 +706,18 @@ namespace Lithforge.Runtime.Scheduling
                 });
             }
 
+            // Build O(1) lookup: flat voxel index → old packed light (0 = absent).
+            // PackedLight is never 0 for border entries (filtered by sun > 1 || block > 1
+            // in CollectBorderLightLeaks), so 0 is a safe sentinel.
+            System.Array.Clear(_oldBorderLookup, 0, _oldBorderLookup.Length);
+
+            for (int i = 0; i < oldEntries.Count; i++)
+            {
+                int3 pos = oldEntries[i].LocalPosition;
+                int flatIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                _oldBorderLookup[flatIdx] = oldEntries[i].PackedLight;
+            }
+
             // For each face, compare old vs new border entries and cascade to neighbors
             for (int f = 0; f < 6; f++)
             {
@@ -710,7 +734,7 @@ namespace Lithforge.Runtime.Scheduling
                 bool hasDecreased = false;
                 bool hasIncreased = false;
 
-                // Check for decreases: old entries whose light is now lower at the same position
+                // Check for decreases: old entries on this face whose light has dropped
                 for (int oi = 0; oi < oldEntries.Count; oi++)
                 {
                     if (oldEntries[oi].Face != f)
@@ -741,7 +765,8 @@ namespace Lithforge.Runtime.Scheduling
                     }
                 }
 
-                // Check for increases: new entries with higher light than old at the same position
+                // Check for increases: new entries on this face with higher light than old.
+                // O(N) with flat array lookup instead of O(N²) nested scan.
                 for (int ni = 0; ni < chunk.BorderLightEntries.Count; ni++)
                 {
                     if (chunk.BorderLightEntries[ni].Face != f)
@@ -751,37 +776,23 @@ namespace Lithforge.Runtime.Scheduling
 
                     byte newPacked = chunk.BorderLightEntries[ni].PackedLight;
                     int3 pos = chunk.BorderLightEntries[ni].LocalPosition;
+                    int flatIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                    byte oldPacked = _oldBorderLookup[flatIdx];
 
-                    // Find corresponding old entry
-                    bool foundOld = false;
-
-                    for (int oj = 0; oj < oldEntries.Count; oj++)
+                    if (oldPacked != 0)
                     {
-                        if (oldEntries[oj].Face == f &&
-                            oldEntries[oj].LocalPosition.x == pos.x &&
-                            oldEntries[oj].LocalPosition.y == pos.y &&
-                            oldEntries[oj].LocalPosition.z == pos.z)
+                        // Old entry existed at this position — compare
+                        if (LightUtils.GetSunLight(newPacked) > LightUtils.GetSunLight(oldPacked) ||
+                            LightUtils.GetBlockLight(newPacked) > LightUtils.GetBlockLight(oldPacked))
                         {
-                            foundOld = true;
-                            byte oldPacked = oldEntries[oj].PackedLight;
-
-                            if (LightUtils.GetSunLight(newPacked) > LightUtils.GetSunLight(oldPacked) ||
-                                LightUtils.GetBlockLight(newPacked) > LightUtils.GetBlockLight(oldPacked))
-                            {
-                                hasIncreased = true;
-                            }
-
+                            hasIncreased = true;
                             break;
                         }
                     }
-
-                    if (!foundOld)
+                    else
                     {
+                        // New entry with no old counterpart — light appeared
                         hasIncreased = true;
-                    }
-
-                    if (hasIncreased)
-                    {
                         break;
                     }
                 }

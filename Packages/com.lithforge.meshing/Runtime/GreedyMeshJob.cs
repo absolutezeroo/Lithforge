@@ -297,7 +297,7 @@ namespace Lithforge.Meshing
             half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
             half4 color11 = new half4((half)(ao11 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
 
-            // Pack per-face tint + overlay into TintOverlay uint
+            // SHARED TINT OVERLAY PACKING — GreedyMeshJob, LODMeshJob
             byte baseTintType = atlasEntry.GetBaseTintType(face);
             ushort overlayTexIdx = atlasEntry.GetOverlayTextureIndex(face);
             byte overlayTintType = atlasEntry.GetOverlayTintType(face);

@@ -20,6 +20,8 @@ MonoBehaviour:
   soundGroup: grass
   collisionShape: 0
   renderLayer: 1
+  isFluid: 0
+  defaultTintType: 2
   lightEmission: 0
   lightFilter: 1
   mapColor: '#4A7A32'

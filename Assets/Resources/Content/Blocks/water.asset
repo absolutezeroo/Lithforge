@@ -20,6 +20,8 @@ MonoBehaviour:
   soundGroup: none
   collisionShape: 1
   renderLayer: 2
+  isFluid: 1
+  defaultTintType: 3
   lightEmission: 0
   lightFilter: 2
   mapColor: '#3F76E4'
