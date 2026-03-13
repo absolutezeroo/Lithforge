@@ -52,6 +52,13 @@ namespace Lithforge.Runtime.Scheduling
         private readonly List<PendingRelight> _inFlightRelights = new List<PendingRelight>();
 
         /// <summary>
+        /// Pool for List&lt;BorderLightEntry&gt; snapshots used during relight.
+        /// Avoids per-relight allocation of the old border entry snapshot list.
+        /// Owner: MeshScheduler. Lifetime: application.
+        /// </summary>
+        private readonly Stack<List<BorderLightEntry>> _borderEntryListPool = new Stack<List<BorderLightEntry>>();
+
+        /// <summary>
         /// Face offsets for 6 cardinal directions: +X, -X, +Y, -Y, +Z, -Z.
         /// </summary>
         private static readonly int3[] _faceOffsets =
@@ -280,7 +287,19 @@ namespace Lithforge.Runtime.Scheduling
                     new NativeList<NativeBorderLightEntry>(256, Allocator.TempJob);
 
                 // Snapshot old border entries for diffing after job completes
-                List<BorderLightEntry> oldBorderEntries = new List<BorderLightEntry>(chunk.BorderLightEntries);
+                List<BorderLightEntry> oldBorderEntries;
+
+                if (_borderEntryListPool.Count > 0)
+                {
+                    oldBorderEntries = _borderEntryListPool.Pop();
+                    oldBorderEntries.Clear();
+                }
+                else
+                {
+                    oldBorderEntries = new List<BorderLightEntry>();
+                }
+
+                oldBorderEntries.AddRange(chunk.BorderLightEntries);
 
                 LightRemovalJob removalJob = new LightRemovalJob
                 {
@@ -294,6 +313,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 JobHandle handle = removalJob.Schedule();
 
+                chunk.ActiveJobHandle = handle;
                 chunk.LightJobInFlight = true;
 
                 _inFlightRelights.Add(new PendingRelight
@@ -526,13 +546,29 @@ namespace Lithforge.Runtime.Scheduling
                     // Process border cascade before transitioning state
                     ProcessRelightBorderCascade(entry);
 
-                    entry.Chunk.State = ChunkState.Generated;
                     entry.Chunk.LightJobInFlight = false;
+                    entry.Chunk.ActiveJobHandle = default;
+
+                    // If border removal seeds were accumulated while this job was in
+                    // flight (from a neighbor's cascade), immediately re-enter
+                    // RelightPending so they are processed next frame.
+                    if (entry.Chunk.PendingBorderRemovals.Count > 0 ||
+                        entry.Chunk.PendingEditIndices.Count > 0)
+                    {
+                        entry.Chunk.State = ChunkState.RelightPending;
+                    }
+                    else
+                    {
+                        entry.Chunk.State = ChunkState.Generated;
+                    }
 
                     // Dispose native containers from this relight
                     entry.ChangedIndices.Dispose();
                     entry.BorderRemovalSeeds.Dispose();
                     entry.BorderLightOutput.Dispose();
+
+                    // Return pooled list for reuse
+                    _borderEntryListPool.Push(entry.OldBorderEntries);
 
                     _inFlightRelights.RemoveAt(i);
                 }

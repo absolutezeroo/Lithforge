@@ -190,10 +190,35 @@ namespace Lithforge.WorldGen.Stages
                 }
                 else
                 {
-                    // Block was removed (now air/transparent) — remove old light
-                    // and let it be re-seeded from neighbors
-                    if (sun > 0)
+                    // Sunlight column restoration check: if the voxel above has sun == 15
+                    // and this block is transparent, restore to sun=15 directly instead of
+                    // enqueueing removal. This prevents a stale removal entry from cascading
+                    // downward through the column before RepropagateSun corrects it.
+                    IndexToXYZ(index, out int ax, out int ay, out int az);
+                    bool sunColumnRestore = false;
+
+                    if (ay < ChunkConstants.Size - 1)
                     {
+                        int aboveIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, ay + 1, az);
+                        byte aboveSun = LightUtils.GetSunLight(LightData[aboveIndex]);
+
+                        if (aboveSun == 15)
+                        {
+                            sunColumnRestore = true;
+                        }
+                    }
+
+                    if (sunColumnRestore)
+                    {
+                        // Column restoration: set sun=15 directly and reseed. Skip removal
+                        // to avoid a stale removal entry cascading downward at max light.
+                        byte currentBlockLight = LightUtils.GetBlockLight(LightData[index]);
+                        LightData[index] = LightUtils.Pack(15, currentBlockLight);
+                        sunReseedQueue.Enqueue(index);
+                    }
+                    else if (sun > 0)
+                    {
+                        // No column above — remove old sun and let it re-seed from neighbors
                         LightData[index] = LightUtils.Pack(0, LightUtils.GetBlockLight(LightData[index]));
                         sunRemovalQueue.Enqueue((index << 8) | sun);
                     }
@@ -217,27 +242,14 @@ namespace Lithforge.WorldGen.Stages
 
                         blockReseedQueue.Enqueue(index);
                     }
-
-                    // Sunlight column restoration: if the voxel above has sun == 15,
-                    // this newly-transparent block should receive full sunlight.
-                    // The reseed BFS will propagate it downward with the no-decrement rule.
-                    IndexToXYZ(index, out int ax, out int ay, out int az);
-
-                    if (ay < ChunkConstants.Size - 1)
-                    {
-                        int aboveIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, ay + 1, az);
-                        byte aboveSun = LightUtils.GetSunLight(LightData[aboveIndex]);
-
-                        if (aboveSun == 15)
-                        {
-                            byte currentBlockLight = LightUtils.GetBlockLight(LightData[index]);
-                            LightData[index] = LightUtils.Pack(15, currentBlockLight);
-                            sunReseedQueue.Enqueue(index);
-                        }
-                    }
                 }
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SHARED BORDER COLLECTION LOGIC — duplicated in: LightPropagationJob, LightRemovalJob
+        // Any modification MUST be applied to both files in the same commit.
+        // ═══════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// After removal+reseed completes, scan all 6 faces for voxels with light > 1.
