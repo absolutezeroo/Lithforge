@@ -283,7 +283,10 @@ namespace Lithforge.WorldGen.Stages
                         blockReseedQueue.Enqueue(index);
                     }
 
-                    // Lower heightmap if removing a block at or above the surface
+                    // Lower heightmap if removing a block at or above the surface.
+                    // Note: scan is chunk-local only. If no opaque block is found in this
+                    // chunk, newSurface = ChunkWorldY - 1. The actual surface may be in a
+                    // lower chunk, but the heightmap is per-chunk so this is the best we can do.
                     if (HeightMap.IsCreated)
                     {
                         int colIdx = az * ChunkConstants.Size + ax;

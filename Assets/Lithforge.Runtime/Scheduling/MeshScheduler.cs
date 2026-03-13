@@ -459,6 +459,7 @@ namespace Lithforge.Runtime.Scheduling
                     _inFlightRelights[i].ChangedIndices.Dispose();
                     _inFlightRelights[i].BorderRemovalSeeds.Dispose();
                     _inFlightRelights[i].BorderLightOutput.Dispose();
+                    _borderEntryListPool.Push(_inFlightRelights[i].OldBorderEntries);
                     _inFlightRelights.RemoveAt(i);
                 }
             }

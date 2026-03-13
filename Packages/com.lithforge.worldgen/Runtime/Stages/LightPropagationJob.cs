@@ -40,7 +40,9 @@ namespace Lithforge.WorldGen.Stages
             NativeQueue<int> sunQueue = new NativeQueue<int>(Allocator.TempJob);
             NativeQueue<int> blockQueue = new NativeQueue<int>(Allocator.TempJob);
 
-            // Seed queues with all voxels that have light > 0
+            // Seed queues with all voxels that have light > 0.
+            // Seeds use bare index (no skip mask): i < Volume = 1 << _indexBits,
+            // so upper bits are 0 and skipMask decodes as 0 (all directions propagated).
             for (int i = 0; i < ChunkConstants.Volume; i++)
             {
                 byte packed = LightData[i];
