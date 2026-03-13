@@ -181,6 +181,25 @@ namespace Lithforge.Voxel.Block
             _states[id.Value] = state;
         }
 
+        /// <summary>
+        /// Patches the tint type bits (5-6) in the Flags byte of a state before BakeNative().
+        /// Must be called after Register() and before BakeNative().
+        /// tintType: 0=none, 1=grass, 2=foliage, 3=water.
+        /// </summary>
+        public void PatchTintType(StateId id, byte tintType)
+        {
+            if (_frozen)
+            {
+                throw new InvalidOperationException(
+                    "Cannot patch tint type — state registry has been frozen.");
+            }
+
+            BlockStateCompact state = _states[id.Value];
+            state.Flags = (byte)((state.Flags & ~BlockStateCompact.FlagTintMask) |
+                ((tintType << BlockStateCompact.FlagTintShift) & BlockStateCompact.FlagTintMask));
+            _states[id.Value] = state;
+        }
+
         private static byte ComputeFlagsFromData(BlockRegistrationData data)
         {
             byte flags = 0;

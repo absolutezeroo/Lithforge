@@ -47,6 +47,7 @@ namespace Lithforge.Runtime.Bootstrap
         private Lithforge.Core.Logging.ILogger _logger;
         private TimeOfDayController _timeOfDayController;
         private SkyController _skyController;
+        private BiomeTintManager _biomeTintManager;
 
         private void Awake()
         {
@@ -172,6 +173,7 @@ namespace Lithforge.Runtime.Bootstrap
                     ErosionCenter = def.ErosionCenter,
                     BaseHeight = def.BaseHeight,
                     HeightAmplitude = def.HeightAmplitude,
+                    WaterColorPacked = PackColor(def.WaterColor),
                 };
             }
 
@@ -303,6 +305,13 @@ namespace Lithforge.Runtime.Bootstrap
                 _settings.Chunk.RenderDistance,
                 _settings.Chunk.YLoadMin,
                 _settings.Chunk.YLoadMax);
+
+            // Initialize biome tinting system
+            _biomeTintManager = new BiomeTintManager(
+                _settings.Rendering.BiomeMapSize,
+                Lithforge.Voxel.Chunk.ChunkConstants.Size,
+                _settings.Rendering.GrassColormap,
+                _settings.Rendering.FoliageColormap);
         }
 
         private void InitializeGameLoop(LoadingScreen loadingScreen, UnityEngine.UIElements.PanelSettings panelSettings)
@@ -322,6 +331,12 @@ namespace Lithforge.Runtime.Bootstrap
                 _worldStorage,
                 _settings.WorldGen.Seed,
                 _settings.Chunk);
+
+            // Wire biome tint manager to generation scheduler
+            if (_biomeTintManager != null)
+            {
+                _gameLoop.SetBiomeTintManager(_biomeTintManager);
+            }
 
             // Create player object with camera as child
             Camera mainCamera = Camera.main;
@@ -504,6 +519,15 @@ namespace Lithforge.Runtime.Bootstrap
             }
         }
 
+        private static uint PackColor(Color c)
+        {
+            byte r = (byte)(Mathf.Clamp01(c.r) * 255f);
+            byte g = (byte)(Mathf.Clamp01(c.g) * 255f);
+            byte b = (byte)(Mathf.Clamp01(c.b) * 255f);
+            byte a = (byte)(Mathf.Clamp01(c.a) * 255f);
+            return ((uint)r << 24) | ((uint)g << 16) | ((uint)b << 8) | a;
+        }
+
         private StateId FindStateIdForBlock(BlockDefinition blockDef)
         {
             if (blockDef == null)
@@ -556,6 +580,11 @@ namespace Lithforge.Runtime.Bootstrap
                 _chunkManager.SaveAllChunks(_worldStorage);
                 _worldStorage.FlushAll();
                 _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
+            }
+
+            if (_biomeTintManager != null)
+            {
+                _biomeTintManager.Dispose();
             }
 
             if (_chunkMeshStore != null)

@@ -52,13 +52,19 @@ Shader "Lithforge/VoxelCutout"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
+                // Decode tintType from packed texIndex
+                int realTexIndex, tintType;
+                DecodeTintedTexIndex(dv.texIndex, realTexIndex, tintType);
+
                 Varyings output;
 
                 VertexPositionInputs posInputs = GetVertexPositionInputs(dv.positionOS);
                 output.positionCS = posInputs.positionCS;
+                output.positionWS = posInputs.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(dv.normalOS);
                 output.uv = dv.uv;
-                output.texIndex = dv.texIndex;
+                output.texIndex = realTexIndex;
+                output.tintType = tintType;
 
                 output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
 
@@ -77,6 +83,10 @@ Shader "Lithforge/VoxelCutout"
                     _AtlasArray, sampler_AtlasArray, tiledUV, input.texIndex);
 
                 clip(texColor.a - _AlphaClipThreshold);
+
+                // Apply biome tint
+                half3 biomeTint = SampleBiomeTint(input.positionWS, input.tintType);
+                texColor.rgb *= biomeTint;
 
                 Light mainLight = GetMainLight();
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
@@ -128,10 +138,14 @@ Shader "Lithforge/VoxelCutout"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
+                // Decode real texIndex (strip tintType bits for alpha test)
+                int realTexIndex, tintType;
+                DecodeTintedTexIndex(dv.texIndex, realTexIndex, tintType);
+
                 CutoutDepthVaryings output;
                 output.positionCS = TransformObjectToHClip(dv.positionOS);
                 output.uv = dv.uv;
-                output.texIndex = dv.texIndex;
+                output.texIndex = realTexIndex;
                 return output;
             }
 

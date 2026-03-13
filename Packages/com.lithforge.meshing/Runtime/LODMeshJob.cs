@@ -101,8 +101,12 @@ namespace Lithforge.Meshing
             AtlasEntry atlasEntry = AtlasEntries[state.Value];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
+            // Encode tintType into upper bits of texIndex (bits 10-11)
+            byte tintType = StateTable[state.Value].TintType;
+            ushort encodedTexIndex = (ushort)(texIndex + tintType * 1024);
+
             // LOD uses full brightness: AO=1, blockLight=1, sunLight=1
-            half4 color = new half4((half)1.0f, (half)1.0f, (half)1.0f, (half)texIndex);
+            half4 color = new half4((half)1.0f, (half)1.0f, (half)1.0f, (half)encodedTexIndex);
 
             float3 pos00;
             float3 pos10;

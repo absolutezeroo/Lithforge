@@ -82,6 +82,17 @@ namespace Lithforge.Runtime.Content.Settings
         [Min(1)]
         [SerializeField] private int atlasTileSize = 16;
 
+        [Header("Biome Tinting")]
+        [Tooltip("Grass colormap (256x256 PNG, Minecraft format). X=temperature, Y=humidity*temperature")]
+        [SerializeField] private Texture2D grassColormap;
+
+        [Tooltip("Foliage colormap (256x256 PNG, Minecraft format)")]
+        [SerializeField] private Texture2D foliageColormap;
+
+        [Tooltip("Size of the global biome parameter texture in texels (must be power of 2)")]
+        [Min(256)]
+        [SerializeField] private int biomeMapSize = 2048;
+
         public Material OpaqueMaterial
         {
             get { return opaqueMaterial; }
@@ -180,6 +191,21 @@ namespace Lithforge.Runtime.Content.Settings
         public int AtlasTileSize
         {
             get { return atlasTileSize; }
+        }
+
+        public Texture2D GrassColormap
+        {
+            get { return grassColormap; }
+        }
+
+        public Texture2D FoliageColormap
+        {
+            get { return foliageColormap; }
+        }
+
+        public int BiomeMapSize
+        {
+            get { return biomeMapSize; }
         }
     }
 }

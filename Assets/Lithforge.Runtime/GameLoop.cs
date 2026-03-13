@@ -28,6 +28,7 @@ namespace Lithforge.Runtime
         private Camera _mainCamera;
         private WorldStorage _worldStorage;
 
+        private BiomeTintManager _biomeTintManager;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
 
@@ -119,6 +120,16 @@ namespace Lithforge.Runtime
             _spawnManager = spawnManager;
         }
 
+        /// <summary>
+        /// Sets the BiomeTintManager for climate data streaming.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetBiomeTintManager(BiomeTintManager biomeTintManager)
+        {
+            _biomeTintManager = biomeTintManager;
+            _generationScheduler.SetBiomeTintManager(biomeTintManager);
+        }
+
         private void Update()
         {
             if (!_initialized)
@@ -177,6 +188,7 @@ namespace Lithforge.Runtime
                 _meshScheduler.ForceCompleteNeighborDeps(coord);
 
                 _chunkMeshStore.DestroyRenderer(coord);
+                _biomeTintManager?.OnChunkUnloaded(coord);
                 _generationScheduler.CleanupCoord(coord);
                 _meshScheduler.CleanupCoord(coord);
                 _lodScheduler.CleanupCoord(coord);

@@ -56,9 +56,20 @@ namespace Lithforge.Voxel.Block
 
         public const byte FlagFluid = 16;
 
+        /// <summary>Bits 5-6 of Flags encode the tint type (0=none, 1=grass, 2=foliage, 3=water).</summary>
+        public const byte FlagTintShift = 5;
+
+        /// <summary>Mask for bits 5-6: 0x60 = 0b0110_0000.</summary>
+        public const byte FlagTintMask = 0x60;
+
         public bool IsFluid
         {
             get { return (Flags & FlagFluid) != 0; }
+        }
+
+        public byte TintType
+        {
+            get { return (byte)((Flags & FlagTintMask) >> FlagTintShift); }
         }
     }
 }

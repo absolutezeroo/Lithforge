@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Storage;
@@ -85,9 +86,20 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private readonly List<PendingLightUpdate> _inFlightLightUpdates = new List<PendingLightUpdate>();
 
+        /// <summary>
+        /// Optional biome tint manager for writing climate data to the global GPU texture.
+        /// Set via SetBiomeTintManager after construction.
+        /// </summary>
+        private BiomeTintManager _biomeTintManager;
+
         public int PendingCount
         {
             get { return _pendingGenerations.Count; }
+        }
+
+        public void SetBiomeTintManager(BiomeTintManager manager)
+        {
+            _biomeTintManager = manager;
         }
 
         public GenerationScheduler(
@@ -170,6 +182,12 @@ namespace Lithforge.Runtime.Scheduling
 
                         // Collect border light leaks for cross-chunk propagation
                         CollectBorderLightEntries(chunk, pending.Handle.BorderLightOutput);
+
+                        // Write climate data to biome tint texture before disposal
+                        if (_biomeTintManager != null && pending.Handle.ClimateMap.IsCreated)
+                        {
+                            _biomeTintManager.WriteChunkClimate(pending.Coord, pending.Handle.ClimateMap);
+                        }
 
                         pending.Handle.Dispose();
 

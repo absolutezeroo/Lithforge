@@ -194,6 +194,10 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
 
+            // Phase 6.5: Resolve tint types from model face tintIndex
+            yield return "Resolving tint types...";
+            ResolveTintTypes(stateRegistry, blockLookup);
+
             // Phase 7: Load biome and ore definitions
             yield return "Loading biomes and ores...";
             BiomeDefinition[] biomes = Resources.LoadAll<BiomeDefinition>("Content/Biomes");
@@ -514,6 +518,131 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             return def;
+        }
+
+        /// <summary>
+        /// Resolves the biome tint type for each block state by inspecting the
+        /// tintIndex on model face entries. The maximum tintIndex across all faces
+        /// of the resolved model determines the per-state tint type:
+        ///   tintIndex  0 → TintType 1 (grass colormap)
+        ///   tintIndex  1 → TintType 2 (foliage colormap)
+        ///   tintIndex ≥2 → TintType 3 (water / per-biome color)
+        ///   tintIndex -1 → TintType 0 (no tint)
+        /// </summary>
+        private void ResolveTintTypes(
+            StateRegistry stateRegistry,
+            Dictionary<string, BlockDefinition> blockLookup)
+        {
+            IReadOnlyList<StateRegistryEntry> entries = stateRegistry.Entries;
+            int patched = 0;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                StateRegistryEntry entry = entries[i];
+
+                if (!blockLookup.TryGetValue(entry.Id.ToString(), out BlockDefinition block))
+                {
+                    continue;
+                }
+
+                BlockStateMapping mapping = block.BlockStateMapping;
+
+                if (mapping == null)
+                {
+                    continue;
+                }
+
+                for (int offset = 0; offset < entry.StateCount; offset++)
+                {
+                    StateId stateId = new StateId((ushort)(entry.BaseStateId + offset));
+                    string variantKey = BuildVariantKey(block, offset);
+                    BlockStateVariantEntry variant = FindVariant(mapping, variantKey);
+
+                    if (variant == null || variant.Model == null)
+                    {
+                        continue;
+                    }
+
+                    int maxTint = GetMaxTintIndex(variant.Model);
+
+                    byte tintType = 0;
+
+                    if (maxTint == 0)
+                    {
+                        tintType = 1; // grass
+                    }
+                    else if (maxTint == 1)
+                    {
+                        tintType = 2; // foliage
+                    }
+                    else if (maxTint >= 2)
+                    {
+                        tintType = 3; // water
+                    }
+
+                    if (tintType > 0)
+                    {
+                        stateRegistry.PatchTintType(stateId, tintType);
+                        patched++;
+                    }
+                }
+            }
+
+            _logger.LogInfo($"Resolved tint types: {patched} states patched.");
+        }
+
+        /// <summary>
+        /// Walks a BlockModel's element tree and returns the maximum tintIndex
+        /// found across all faces of all elements. Returns -1 if no tinting.
+        /// </summary>
+        private static int GetMaxTintIndex(BlockModel model)
+        {
+            int maxTint = -1;
+
+            IReadOnlyList<ModelElement> elements = model.Elements;
+
+            for (int e = 0; e < elements.Count; e++)
+            {
+                ModelElement elem = elements[e];
+
+                if (elem.North != null && elem.North.TintIndex > maxTint)
+                {
+                    maxTint = elem.North.TintIndex;
+                }
+
+                if (elem.South != null && elem.South.TintIndex > maxTint)
+                {
+                    maxTint = elem.South.TintIndex;
+                }
+
+                if (elem.East != null && elem.East.TintIndex > maxTint)
+                {
+                    maxTint = elem.East.TintIndex;
+                }
+
+                if (elem.West != null && elem.West.TintIndex > maxTint)
+                {
+                    maxTint = elem.West.TintIndex;
+                }
+
+                if (elem.Up != null && elem.Up.TintIndex > maxTint)
+                {
+                    maxTint = elem.Up.TintIndex;
+                }
+
+                if (elem.Down != null && elem.Down.TintIndex > maxTint)
+                {
+                    maxTint = elem.Down.TintIndex;
+                }
+            }
+
+            // Walk parent chain if no tint found in this model's elements
+            if (maxTint == -1 && model.Parent != null)
+            {
+                maxTint = GetMaxTintIndex(model.Parent);
+            }
+
+            return maxTint;
         }
 
         private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)

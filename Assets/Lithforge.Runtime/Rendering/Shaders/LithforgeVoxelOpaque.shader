@@ -50,16 +50,22 @@ Shader "Lithforge/VoxelOpaque"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
+                // Decode tintType from packed texIndex
+                int realTexIndex, tintType;
+                DecodeTintedTexIndex(dv.texIndex, realTexIndex, tintType);
+
                 Varyings output;
 
                 VertexPositionInputs vertexInput = GetVertexPositionInputs(dv.positionOS);
                 output.positionCS = vertexInput.positionCS;
+                output.positionWS = vertexInput.positionWS;
 
                 VertexNormalInputs normalInput = GetVertexNormalInputs(dv.normalOS);
                 output.normalWS = normalInput.normalWS;
 
                 output.uv = dv.uv;
-                output.texIndex = dv.texIndex;
+                output.texIndex = realTexIndex;
+                output.tintType = tintType;
 
                 // AO: color.r is ao/3 (0=fully occluded, 1=unoccluded)
                 output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
@@ -80,6 +86,10 @@ Shader "Lithforge/VoxelOpaque"
 
                 half4 texColor = SAMPLE_TEXTURE2D_ARRAY(
                     _AtlasArray, sampler_AtlasArray, tiledUV, input.texIndex);
+
+                // Apply biome tint
+                half3 biomeTint = SampleBiomeTint(input.positionWS, input.tintType);
+                texColor.rgb *= biomeTint;
 
                 // Directional lighting with ambient
                 Light mainLight = GetMainLight();

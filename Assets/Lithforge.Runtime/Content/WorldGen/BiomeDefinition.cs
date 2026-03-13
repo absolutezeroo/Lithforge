@@ -79,6 +79,10 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Tooltip("Terrain noise amplitude scale for this biome")]
         [SerializeField] private float heightAmplitude = 12f;
 
+        [Header("Tinting")]
+        [Tooltip("Water tint color for this biome")]
+        [SerializeField] private Color waterColor = new Color(0.247f, 0.463f, 0.894f, 1f);
+
         [Header("Map")]
         [Tooltip("Color shown on the world map")]
         [SerializeField] private Color mapColor = Color.green;
@@ -176,6 +180,11 @@ namespace Lithforge.Runtime.Content.WorldGen
         public float HeightAmplitude
         {
             get { return heightAmplitude; }
+        }
+
+        public Color WaterColor
+        {
+            get { return waterColor; }
         }
 
         public Color MapColor

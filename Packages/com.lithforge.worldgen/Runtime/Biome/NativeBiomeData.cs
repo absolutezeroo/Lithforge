@@ -24,5 +24,6 @@ namespace Lithforge.WorldGen.Biome
         public float ErosionCenter;
         public float BaseHeight;
         public float HeightAmplitude;
+        public uint WaterColorPacked;
     }
 }
