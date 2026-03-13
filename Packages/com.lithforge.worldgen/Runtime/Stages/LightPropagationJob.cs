@@ -41,8 +41,8 @@ namespace Lithforge.WorldGen.Stages
             NativeQueue<int> blockQueue = new NativeQueue<int>(Allocator.TempJob);
 
             // Seed queues with all voxels that have light > 0.
-            // Seeds use bare index (no skip mask): i < Volume = 1 << _indexBits,
-            // so upper bits are 0 and skipMask decodes as 0 (all directions propagated).
+            // Encode level in the queue entry for stale-entry detection.
+            // skipMask bits are 0 (all directions propagated) for initial seeds.
             for (int i = 0; i < ChunkConstants.Volume; i++)
             {
                 byte packed = LightData[i];
@@ -51,12 +51,12 @@ namespace Lithforge.WorldGen.Stages
 
                 if (sun > 0)
                 {
-                    sunQueue.Enqueue(i);
+                    sunQueue.Enqueue(i | ((int)sun << _levelShift));
                 }
 
                 if (block > 0)
                 {
-                    blockQueue.Enqueue(i);
+                    blockQueue.Enqueue(i | ((int)block << _levelShift));
                 }
             }
 
@@ -119,15 +119,11 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════════════
-        // SHARED BFS LOGIC — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
-        // Any modification MUST be applied to all three files in the same commit.
-        // ═══════════════════════════════════════════════════════════════════════
-
         // Direction flag constants for skip-back-propagation optimization.
-        // Queue entry packing: int packed = index | (skipMask << _skipShift)
-        // index: 15 bits (0..32767), skipMask: 6 bits (one per direction).
-        // When bit N is set, direction N is skipped (it was the source direction).
+        // Queue entry packing (25-bit unified encoding, same for propagation + removal):
+        //   [24..19: skipMask (6)] [18..15: level (4)] [14..0: index (15)]
+        // When bit N of skipMask is set, direction N is skipped (source direction).
+        // Level carries the light value at time of enqueue for stale-entry detection.
         // SHARED CONSTANTS — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
         private const int _dirNegX = 0;
         private const int _dirPosX = 1;
@@ -137,7 +133,9 @@ namespace Lithforge.WorldGen.Stages
         private const int _dirPosZ = 5;
         private const int _indexBits = 15;
         private const int _indexMask = (1 << _indexBits) - 1;
-        private const int _skipShift = _indexBits;
+        private const int _levelShift = 15;
+        private const int _levelMask = 0xF;
+        private const int _skipShift = 19;
 
         private void PropagateSunlight(ref NativeQueue<int> queue)
         {
@@ -145,11 +143,12 @@ namespace Lithforge.WorldGen.Stages
             {
                 int packed = queue.Dequeue();
                 int index = packed & _indexMask;
+                int carriedLevel = (packed >> _levelShift) & _levelMask;
                 int skipMask = (packed >> _skipShift) & 0x3F;
                 byte packedLight = LightData[index];
                 byte currentSun = LightUtils.GetSunLight(packedLight);
 
-                if (currentSun <= 1)
+                if (currentSun <= 1 || carriedLevel != currentSun)
                 {
                     continue;
                 }
@@ -235,7 +234,7 @@ namespace Lithforge.WorldGen.Stages
             {
                 byte neighborBlock2 = LightUtils.GetBlockLight(neighborPacked);
                 LightData[neighborIndex] = LightUtils.Pack(newSun, neighborBlock2);
-                queue.Enqueue(neighborIndex | (neighborSkipMask << _skipShift));
+                queue.Enqueue(neighborIndex | ((int)newSun << _levelShift) | (neighborSkipMask << _skipShift));
             }
         }
 
@@ -245,11 +244,12 @@ namespace Lithforge.WorldGen.Stages
             {
                 int packed = queue.Dequeue();
                 int index = packed & _indexMask;
+                int carriedLevel = (packed >> _levelShift) & _levelMask;
                 int skipMask = (packed >> _skipShift) & 0x3F;
                 byte packedLight = LightData[index];
                 byte currentBlock = LightUtils.GetBlockLight(packedLight);
 
-                if (currentBlock <= 1)
+                if (currentBlock <= 1 || carriedLevel != currentBlock)
                 {
                     continue;
                 }
@@ -323,7 +323,7 @@ namespace Lithforge.WorldGen.Stages
             {
                 byte neighborSun = LightUtils.GetSunLight(neighborPacked);
                 LightData[neighborIndex] = LightUtils.Pack(neighborSun, (byte)newBlock);
-                queue.Enqueue(neighborIndex | (neighborSkipMask << _skipShift));
+                queue.Enqueue(neighborIndex | (newBlock << _levelShift) | (neighborSkipMask << _skipShift));
             }
         }
 
