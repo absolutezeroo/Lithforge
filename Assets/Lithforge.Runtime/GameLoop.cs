@@ -22,6 +22,7 @@ namespace Lithforge.Runtime
         private ChunkMeshStore _chunkMeshStore;
         private GenerationScheduler _generationScheduler;
         private MeshScheduler _meshScheduler;
+        private RelightScheduler _relightScheduler;
         private LODScheduler _lodScheduler;
         private ChunkCulling _culling;
         private SpawnManager _spawnManager;
@@ -95,6 +96,10 @@ namespace Lithforge.Runtime
                 chunkSettings.MaxMeshCompletionsPerFrame,
                 chunkSettings.MeshCompletionBudgetMs);
 
+            _relightScheduler = new RelightScheduler(
+                chunkManager,
+                nativeStateRegistry);
+
             _lodScheduler = new LODScheduler(
                 chunkManager,
                 nativeStateRegistry,
@@ -156,6 +161,10 @@ namespace Lithforge.Runtime
             FrameProfiler.End(FrameProfiler.PollGen);
             Profiler.EndSample();
 
+            Profiler.BeginSample("GL.PollRelight");
+            _relightScheduler.PollCompleted();
+            Profiler.EndSample();
+
             Profiler.BeginSample("GL.PollMesh");
             FrameProfiler.Begin(FrameProfiler.PollMesh);
             _meshScheduler.PollCompleted();
@@ -199,6 +208,7 @@ namespace Lithforge.Runtime
                 _chunkMeshStore.DestroyRenderer(coord);
                 _biomeTintManager?.OnChunkUnloaded(coord);
                 _generationScheduler.CleanupCoord(coord);
+                _relightScheduler.CleanupCoord(coord);
                 _meshScheduler.CleanupCoord(coord);
                 _lodScheduler.CleanupCoord(coord);
             }
@@ -219,7 +229,7 @@ namespace Lithforge.Runtime
 
             Profiler.BeginSample("GL.Relight");
             FrameProfiler.Begin(FrameProfiler.Relight);
-            _meshScheduler.ScheduleRelightJobs();
+            _relightScheduler.ScheduleJobs();
             FrameProfiler.End(FrameProfiler.Relight);
             Profiler.EndSample();
 
@@ -271,6 +281,7 @@ namespace Lithforge.Runtime
         public void Shutdown()
         {
             _generationScheduler?.Shutdown();
+            _relightScheduler?.Shutdown();
             _meshScheduler?.Shutdown();
             _lodScheduler?.Shutdown();
         }

@@ -1,5 +1,6 @@
 using System;
 using Lithforge.WorldGen.Climate;
+using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;

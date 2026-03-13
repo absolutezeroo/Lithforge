@@ -36,7 +36,6 @@ namespace Lithforge.Runtime.Debug
         public static float GenCompleteMaxMs;
         public static int GenCompleteStalls;
         public static float PollMeshDisposalsMs;
-        public static float PollMeshRelightMs;
         public static float PollMeshUploadMs;
         public static float PollMeshIterateMs;
         public static float PollMeshFirstIsCompletedMs;
@@ -111,7 +110,6 @@ namespace Lithforge.Runtime.Debug
             GenCompleteMaxMs = 0f;
             GenCompleteStalls = 0;
             PollMeshDisposalsMs = 0f;
-            PollMeshRelightMs = 0f;
             PollMeshUploadMs = 0f;
             PollMeshIterateMs = 0f;
             PollMeshFirstIsCompletedMs = 0f;

@@ -5,7 +5,6 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
@@ -82,19 +81,8 @@ namespace Lithforge.WorldGen.Stages
         /// </summary>
         public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
-        /// <summary>Debug counters — written by job, read by caller after Complete().</summary>
-        public NativeReference<int> DbgSunRemovalCount;
-        public NativeReference<int> DbgSunReseedCount;
-        public NativeReference<int> DbgBlockRemovalCount;
-        public NativeReference<int> DbgPropagationCount;
-
         public void Execute()
         {
-            if (DbgSunRemovalCount.IsCreated) DbgSunRemovalCount.Value = 0;
-            if (DbgSunReseedCount.IsCreated) DbgSunReseedCount.Value = 0;
-            if (DbgBlockRemovalCount.IsCreated) DbgBlockRemovalCount.Value = 0;
-            if (DbgPropagationCount.IsCreated) DbgPropagationCount.Value = 0;
-
             // Queue entries use unified 25-bit encoding:
             //   [24..19: skipMask] [18..15: level] [14..0: index]
             NativeQueue<int> sunRemovalQueue = new NativeQueue<int>(Allocator.TempJob);
@@ -117,11 +105,11 @@ namespace Lithforge.WorldGen.Stages
             RemoveLight(ref blockRemovalQueue, ref blockReseedQueue, false);
 
             // Step 4: Re-propagate from re-seed points
-            RepropagateSun(ref sunReseedQueue);
-            RepropagateBlock(ref blockReseedQueue);
+            LightBfs.PropagateSun(ref sunReseedQueue, ref LightData, ref ChunkData, ref StateTable);
+            LightBfs.PropagateBlock(ref blockReseedQueue, ref LightData, ref ChunkData, ref StateTable);
 
             // Step 5: Scan borders for cross-chunk cascade
-            CollectBorderLightLeaks();
+            LightBfs.CollectBorderLightLeaks(ref LightData, ref BorderLightOutput);
 
             sunRemovalQueue.Dispose();
             blockRemovalQueue.Dispose();
@@ -136,16 +124,18 @@ namespace Lithforge.WorldGen.Stages
             for (int i = 0; i < BorderRemovalSeeds.Length; i++)
             {
                 NativeBorderLightEntry seed = BorderRemovalSeeds[i];
-                int3 pos = seed.LocalPosition;
+                int px = seed.LocalPosition.x;
+                int py = seed.LocalPosition.y;
+                int pz = seed.LocalPosition.z;
 
-                if (pos.x < 0 || pos.x >= ChunkConstants.Size ||
-                    pos.y < 0 || pos.y >= ChunkConstants.Size ||
-                    pos.z < 0 || pos.z >= ChunkConstants.Size)
+                if (px < 0 || px >= ChunkConstants.Size ||
+                    py < 0 || py >= ChunkConstants.Size ||
+                    pz < 0 || pz >= ChunkConstants.Size)
                 {
                     continue;
                 }
 
-                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(px, py, pz);
                 StateId stateId = ChunkData[index];
                 BlockStateCompact blockState = StateTable[stateId.Value];
 
@@ -171,8 +161,8 @@ namespace Lithforge.WorldGen.Stages
                     // cascade down the entire column via the sun=15 downward special case.
                     if (currentSun == 15 && HeightMap.IsCreated)
                     {
-                        int colIdx = pos.z * ChunkConstants.Size + pos.x;
-                        int worldY = ChunkWorldY + pos.y;
+                        int colIdx = pz * ChunkConstants.Size + px;
+                        int worldY = ChunkWorldY + py;
 
                         if (worldY >= HeightMap[colIdx])
                         {
@@ -186,10 +176,10 @@ namespace Lithforge.WorldGen.Stages
                             }
 
                             // Phase 1: Direct column zero
-                            for (int scanY = pos.y - 1; scanY >= minLocalY; scanY--)
+                            for (int scanY = py - 1; scanY >= minLocalY; scanY--)
                             {
                                 int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
-                                    pos.x, scanY, pos.z);
+                                    px, scanY, pz);
 
                                 if (StateTable[ChunkData[scanIdx].Value].IsOpaque)
                                 {
@@ -208,44 +198,44 @@ namespace Lithforge.WorldGen.Stages
                             }
 
                             // Phase 2: Horizontal reseeds for the zeroed column
-                            for (int scanY = pos.y; scanY >= minLocalY; scanY--)
+                            for (int scanY = py; scanY >= minLocalY; scanY--)
                             {
                                 int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
-                                    pos.x, scanY, pos.z);
+                                    px, scanY, pz);
 
-                                if (scanY < pos.y &&
+                                if (scanY < py &&
                                     StateTable[ChunkData[scanIdx].Value].IsOpaque)
                                 {
                                     break;
                                 }
 
                                 TryReseedHorizontalNeighbor(
-                                    pos.x - 1, scanY, pos.z, ref sunReseedQueue);
+                                    px - 1, scanY, pz, ref sunReseedQueue);
                                 TryReseedHorizontalNeighbor(
-                                    pos.x + 1, scanY, pos.z, ref sunReseedQueue);
+                                    px + 1, scanY, pz, ref sunReseedQueue);
                                 TryReseedHorizontalNeighbor(
-                                    pos.x, scanY, pos.z - 1, ref sunReseedQueue);
+                                    px, scanY, pz - 1, ref sunReseedQueue);
                                 TryReseedHorizontalNeighbor(
-                                    pos.x, scanY, pos.z + 1, ref sunReseedQueue);
+                                    px, scanY, pz + 1, ref sunReseedQueue);
                             }
 
                             // Seed the border voxel itself with horizontal-only skip
-                            int seedSkip = (1 << _dirNegY) | (1 << _dirPosY);
-                            sunRemovalQueue.Enqueue(index | ((int)currentSun << _levelShift)
-                                | (seedSkip << _skipShift));
+                            int seedSkip = (1 << LightBfs.DirNegY) | (1 << LightBfs.DirPosY);
+                            sunRemovalQueue.Enqueue(index | ((int)currentSun << LightBfs.LevelShift)
+                                | (seedSkip << LightBfs.SkipShift));
                         }
                     }
 
                     if (!borderColumnWrite)
                     {
-                        sunRemovalQueue.Enqueue(index | ((int)currentSun << _levelShift));
+                        sunRemovalQueue.Enqueue(index | ((int)currentSun << LightBfs.LevelShift));
                     }
                 }
 
                 if (currentBlock > 0 && blockState.LightEmission == 0)
                 {
                     LightData[index] = LightUtils.Pack(LightUtils.GetSunLight(LightData[index]), 0);
-                    blockRemovalQueue.Enqueue(index | ((int)currentBlock << _levelShift));
+                    blockRemovalQueue.Enqueue(index | ((int)currentBlock << LightBfs.LevelShift));
                 }
 
                 // If this block emits light, its emission survives as a reseed
@@ -260,7 +250,7 @@ namespace Lithforge.WorldGen.Stages
                     }
 
                     byte reseedLevel = LightUtils.GetBlockLight(LightData[index]);
-                    blockReseedQueue.Enqueue(index | ((int)reseedLevel << _levelShift));
+                    blockReseedQueue.Enqueue(index | ((int)reseedLevel << LightBfs.LevelShift));
                 }
             }
         }
@@ -291,7 +281,7 @@ namespace Lithforge.WorldGen.Stages
                     // column itself — the direct write handles it.
                     if (sun > 0 && HeightMap.IsCreated)
                     {
-                        IndexToXYZ(index, out int hx, out int hy, out int hz);
+                        LightBfs.IndexToXYZ(index, out int hx, out int hy, out int hz);
                         int colIdx = hz * ChunkConstants.Size + hx;
                         int blockWorldY = ChunkWorldY + hy;
                         int oldHeight = HeightMap[colIdx];
@@ -365,34 +355,34 @@ namespace Lithforge.WorldGen.Stages
 
                                 if (aboveSun > 0)
                                 {
-                                    sunReseedQueue.Enqueue(aboveIdx | ((int)aboveSun << _levelShift));
+                                    sunReseedQueue.Enqueue(aboveIdx | ((int)aboveSun << LightBfs.LevelShift));
                                 }
                             }
 
                             // The placed block itself: seed for horizontal-only removal BFS
                             // with skip ±Y to avoid vertical cascade. This handles horizontal
                             // light that was coming FROM this block's position into neighbors.
-                            int seedSkip = (1 << _dirNegY) | (1 << _dirPosY);
-                            sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift)
-                                | (seedSkip << _skipShift));
+                            int seedSkip = (1 << LightBfs.DirNegY) | (1 << LightBfs.DirPosY);
+                            sunRemovalQueue.Enqueue(index | ((int)sun << LightBfs.LevelShift)
+                                | (seedSkip << LightBfs.SkipShift));
                         }
                     }
 
                     // Non-column-write path: standard removal seed
                     if (!columnWriteDone && sun > 0)
                     {
-                        sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift));
+                        sunRemovalQueue.Enqueue(index | ((int)sun << LightBfs.LevelShift));
                     }
 
                     if (block > 0)
                     {
-                        blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
+                        blockRemovalQueue.Enqueue(index | ((int)block << LightBfs.LevelShift));
                     }
 
                     // Heightmap update for non-column-write case (block below surface)
                     if (!columnWriteDone && HeightMap.IsCreated)
                     {
-                        IndexToXYZ(index, out int hx2, out int hy2, out int hz2);
+                        LightBfs.IndexToXYZ(index, out int hx2, out int hy2, out int hz2);
                         int colIdx2 = hz2 * ChunkConstants.Size + hx2;
                         int blockWorldY2 = ChunkWorldY + hy2;
 
@@ -404,7 +394,7 @@ namespace Lithforge.WorldGen.Stages
                 }
                 else
                 {
-                    IndexToXYZ(index, out int ax, out int ay, out int az);
+                    LightBfs.IndexToXYZ(index, out int ax, out int ay, out int az);
                     bool columnWriteApplied = false;
 
                     // Column-write shortcut: when breaking a block at/above the heightmap
@@ -438,7 +428,7 @@ namespace Lithforge.WorldGen.Stages
                             HeightMap[colIdx] = newSurface;
 
                             // Restore sun=15 from new surface up to broken block position
-                            int horizOnlySkip = (1 << _dirNegY) | (1 << _dirPosY);
+                            int horizOnlySkip = (1 << LightBfs.DirNegY) | (1 << LightBfs.DirPosY);
                             int minLocalY = newSurface - ChunkWorldY;
 
                             if (minLocalY < 0)
@@ -464,8 +454,8 @@ namespace Lithforge.WorldGen.Stages
 
                                 byte scanBlockLight = LightUtils.GetBlockLight(LightData[scanIdx]);
                                 LightData[scanIdx] = LightUtils.Pack(15, scanBlockLight);
-                                sunReseedQueue.Enqueue(scanIdx | (15 << _levelShift)
-                                    | (horizOnlySkip << _skipShift));
+                                sunReseedQueue.Enqueue(scanIdx | (15 << LightBfs.LevelShift)
+                                    | (horizOnlySkip << LightBfs.SkipShift));
                             }
                         }
                     }
@@ -502,12 +492,12 @@ namespace Lithforge.WorldGen.Stages
                         {
                             byte currentBlockLight = LightUtils.GetBlockLight(LightData[index]);
                             LightData[index] = LightUtils.Pack(15, currentBlockLight);
-                            sunReseedQueue.Enqueue(index | (15 << _levelShift));
+                            sunReseedQueue.Enqueue(index | (15 << LightBfs.LevelShift));
                         }
                         else if (sun > 0)
                         {
                             LightData[index] = LightUtils.Pack(0, LightUtils.GetBlockLight(LightData[index]));
-                            sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift));
+                            sunRemovalQueue.Enqueue(index | ((int)sun << LightBfs.LevelShift));
                         }
 
                         // Lower heightmap if removing a block at or above the surface
@@ -541,7 +531,7 @@ namespace Lithforge.WorldGen.Stages
                     if (block > 0 && blockState.LightEmission == 0)
                     {
                         LightData[index] = LightUtils.Pack(LightUtils.GetSunLight(LightData[index]), 0);
-                        blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
+                        blockRemovalQueue.Enqueue(index | ((int)block << LightBfs.LevelShift));
                     }
 
                     // Light emitter re-seeding — always applies
@@ -556,60 +546,9 @@ namespace Lithforge.WorldGen.Stages
                         }
 
                         byte reseedLevel = LightUtils.GetBlockLight(LightData[index]);
-                        blockReseedQueue.Enqueue(index | ((int)reseedLevel << _levelShift));
+                        blockReseedQueue.Enqueue(index | ((int)reseedLevel << LightBfs.LevelShift));
                     }
                 }
-            }
-        }
-
-        /// <summary>
-        /// After removal+reseed completes, scan all 6 faces for voxels with light > 1.
-        /// These represent the chunk's new border light state for cross-chunk propagation.
-        /// </summary>
-        private void CollectBorderLightLeaks()
-        {
-            if (!BorderLightOutput.IsCreated)
-            {
-                return;
-            }
-
-            int lastIdx = ChunkConstants.Size - 1;
-
-            for (int a = 0; a < ChunkConstants.Size; a++)
-            {
-                for (int b = 0; b < ChunkConstants.Size; b++)
-                {
-                    // +X face (x=31)
-                    CollectBorderVoxel(lastIdx, a, b, new int3(lastIdx, a, b), 0);
-                    // -X face (x=0)
-                    CollectBorderVoxel(0, a, b, new int3(0, a, b), 1);
-                    // +Y face (y=31)
-                    CollectBorderVoxel(a, lastIdx, b, new int3(a, lastIdx, b), 2);
-                    // -Y face (y=0)
-                    CollectBorderVoxel(a, 0, b, new int3(a, 0, b), 3);
-                    // +Z face (z=31)
-                    CollectBorderVoxel(a, b, lastIdx, new int3(a, b, lastIdx), 4);
-                    // -Z face (z=0)
-                    CollectBorderVoxel(a, b, 0, new int3(a, b, 0), 5);
-                }
-            }
-        }
-
-        private void CollectBorderVoxel(int x, int y, int z, int3 localPos, byte face)
-        {
-            int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
-            byte packed = LightData[index];
-            byte sun = LightUtils.GetSunLight(packed);
-            byte block = LightUtils.GetBlockLight(packed);
-
-            if (sun > 1 || block > 1)
-            {
-                BorderLightOutput.Add(new NativeBorderLightEntry
-                {
-                    LocalPosition = localPos,
-                    PackedLight = packed,
-                    Face = face,
-                });
             }
         }
 
@@ -618,50 +557,46 @@ namespace Lithforge.WorldGen.Stages
             while (removalQueue.Count > 0)
             {
                 int packed = removalQueue.Dequeue();
+                int index = packed & LightBfs.IndexMask;
+                byte oldLight = (byte)((packed >> LightBfs.LevelShift) & LightBfs.LevelMask);
+                int skipMask = (packed >> LightBfs.SkipShift) & 0x3F;
 
-                if (isSun && DbgSunRemovalCount.IsCreated) DbgSunRemovalCount.Value++;
-                if (!isSun && DbgBlockRemovalCount.IsCreated) DbgBlockRemovalCount.Value++;
+                LightBfs.IndexToXYZ(index, out int x, out int y, out int z);
 
-                int index = packed & _indexMask;
-                byte oldLight = (byte)((packed >> _levelShift) & _levelMask);
-                int skipMask = (packed >> _skipShift) & 0x3F;
-
-                IndexToXYZ(index, out int x, out int y, out int z);
-
-                if ((skipMask & (1 << _dirNegX)) == 0)
+                if ((skipMask & (1 << LightBfs.DirNegX)) == 0)
                 {
                     TryRemoveNeighbor(x - 1, y, z, oldLight, isSun, false,
-                        1 << _dirPosX, ref removalQueue, ref reseedQueue);
+                        1 << LightBfs.DirPosX, ref removalQueue, ref reseedQueue);
                 }
 
-                if ((skipMask & (1 << _dirPosX)) == 0)
+                if ((skipMask & (1 << LightBfs.DirPosX)) == 0)
                 {
                     TryRemoveNeighbor(x + 1, y, z, oldLight, isSun, false,
-                        1 << _dirNegX, ref removalQueue, ref reseedQueue);
+                        1 << LightBfs.DirNegX, ref removalQueue, ref reseedQueue);
                 }
 
-                if ((skipMask & (1 << _dirNegY)) == 0)
+                if ((skipMask & (1 << LightBfs.DirNegY)) == 0)
                 {
                     TryRemoveNeighbor(x, y - 1, z, oldLight, isSun, true,
-                        1 << _dirPosY, ref removalQueue, ref reseedQueue);
+                        1 << LightBfs.DirPosY, ref removalQueue, ref reseedQueue);
                 }
 
-                if ((skipMask & (1 << _dirPosY)) == 0)
+                if ((skipMask & (1 << LightBfs.DirPosY)) == 0)
                 {
                     TryRemoveNeighbor(x, y + 1, z, oldLight, isSun, false,
-                        1 << _dirNegY, ref removalQueue, ref reseedQueue);
+                        1 << LightBfs.DirNegY, ref removalQueue, ref reseedQueue);
                 }
 
-                if ((skipMask & (1 << _dirNegZ)) == 0)
+                if ((skipMask & (1 << LightBfs.DirNegZ)) == 0)
                 {
                     TryRemoveNeighbor(x, y, z - 1, oldLight, isSun, false,
-                        1 << _dirPosZ, ref removalQueue, ref reseedQueue);
+                        1 << LightBfs.DirPosZ, ref removalQueue, ref reseedQueue);
                 }
 
-                if ((skipMask & (1 << _dirPosZ)) == 0)
+                if ((skipMask & (1 << LightBfs.DirPosZ)) == 0)
                 {
                     TryRemoveNeighbor(x, y, z + 1, oldLight, isSun, false,
-                        1 << _dirNegZ, ref removalQueue, ref reseedQueue);
+                        1 << LightBfs.DirNegZ, ref removalQueue, ref reseedQueue);
                 }
             }
         }
@@ -692,8 +627,8 @@ namespace Lithforge.WorldGen.Stages
             {
                 byte blockLight = LightUtils.GetBlockLight(neighborPacked);
                 LightData[neighborIndex] = LightUtils.Pack(0, blockLight);
-                removalQueue.Enqueue(neighborIndex | ((int)neighborLight << _levelShift)
-                    | (neighborSkipMask << _skipShift));
+                removalQueue.Enqueue(neighborIndex | ((int)neighborLight << LightBfs.LevelShift)
+                    | (neighborSkipMask << LightBfs.SkipShift));
             }
             else if (neighborLight > 0 && neighborLight < oldLight)
             {
@@ -709,8 +644,8 @@ namespace Lithforge.WorldGen.Stages
                     LightData[neighborIndex] = LightUtils.Pack(sunLight, 0);
                 }
 
-                removalQueue.Enqueue(neighborIndex | ((int)neighborLight << _levelShift)
-                    | (neighborSkipMask << _skipShift));
+                removalQueue.Enqueue(neighborIndex | ((int)neighborLight << LightBfs.LevelShift)
+                    | (neighborSkipMask << LightBfs.SkipShift));
             }
             else if (neighborLight >= oldLight)
             {
@@ -718,9 +653,7 @@ namespace Lithforge.WorldGen.Stages
                 byte reseedLevel = isSun
                     ? LightUtils.GetSunLight(LightData[neighborIndex])
                     : LightUtils.GetBlockLight(LightData[neighborIndex]);
-                reseedQueue.Enqueue(neighborIndex | ((int)reseedLevel << _levelShift));
-
-                if (isSun && DbgSunReseedCount.IsCreated) DbgSunReseedCount.Value++;
+                reseedQueue.Enqueue(neighborIndex | ((int)reseedLevel << LightBfs.LevelShift));
             }
         }
 
@@ -752,229 +685,8 @@ namespace Lithforge.WorldGen.Stages
 
             if (neighborSun > 0)
             {
-                sunReseedQueue.Enqueue(neighborIndex | ((int)neighborSun << _levelShift));
+                sunReseedQueue.Enqueue(neighborIndex | ((int)neighborSun << LightBfs.LevelShift));
             }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // SHARED BFS LOGIC — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
-        // Any modification MUST be applied to all three files in the same commit.
-        // ═══════════════════════════════════════════════════════════════════════
-
-        // Direction flag constants for skip-back-propagation optimization.
-        // Queue entry packing (25-bit unified encoding, same for propagation + removal):
-        //   [24..19: skipMask (6)] [18..15: level (4)] [14..0: index (15)]
-        // When bit N of skipMask is set, direction N is skipped (source direction).
-        // Level carries the light value at time of enqueue for stale-entry detection.
-        // SHARED CONSTANTS — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
-        private const int _dirNegX = 0;
-        private const int _dirPosX = 1;
-        private const int _dirNegY = 2;
-        private const int _dirPosY = 3;
-        private const int _dirNegZ = 4;
-        private const int _dirPosZ = 5;
-        private const int _indexBits = 15;
-        private const int _indexMask = (1 << _indexBits) - 1;
-        private const int _levelShift = 15;
-        private const int _levelMask = 0xF;
-        private const int _skipShift = 19;
-
-        private void RepropagateSun(ref NativeQueue<int> queue)
-        {
-            while (queue.Count > 0)
-            {
-                int packed = queue.Dequeue();
-
-                if (DbgPropagationCount.IsCreated) DbgPropagationCount.Value++;
-
-                int index = packed & _indexMask;
-                int carriedLevel = (packed >> _levelShift) & _levelMask;
-                int skipMask = (packed >> _skipShift) & 0x3F;
-                byte packedLight = LightData[index];
-                byte currentSun = LightUtils.GetSunLight(packedLight);
-
-                if (currentSun <= 1 || carriedLevel != currentSun)
-                {
-                    continue;
-                }
-
-                IndexToXYZ(index, out int x, out int y, out int z);
-
-                if ((skipMask & (1 << _dirNegX)) == 0)
-                {
-                    TryPropagateSun(x - 1, y, z, currentSun, false, 1 << _dirPosX, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirPosX)) == 0)
-                {
-                    TryPropagateSun(x + 1, y, z, currentSun, false, 1 << _dirNegX, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirNegY)) == 0)
-                {
-                    TryPropagateSun(x, y - 1, z, currentSun, true, 1 << _dirPosY, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirPosY)) == 0)
-                {
-                    TryPropagateSun(x, y + 1, z, currentSun, false, 1 << _dirNegY, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirNegZ)) == 0)
-                {
-                    TryPropagateSun(x, y, z - 1, currentSun, false, 1 << _dirPosZ, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirPosZ)) == 0)
-                {
-                    TryPropagateSun(x, y, z + 1, currentSun, false, 1 << _dirNegZ, ref queue);
-                }
-            }
-        }
-
-        private void TryPropagateSun(int nx, int ny, int nz, byte sourceSun, bool isDownward,
-            int neighborSkipMask, ref NativeQueue<int> queue)
-        {
-            if (nx < 0 || nx >= ChunkConstants.Size ||
-                ny < 0 || ny >= ChunkConstants.Size ||
-                nz < 0 || nz >= ChunkConstants.Size)
-            {
-                return;
-            }
-
-            int neighborIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
-            StateId neighborState = ChunkData[neighborIndex];
-            BlockStateCompact neighborBlockState = StateTable[neighborState.Value];
-
-            if (neighborBlockState.IsOpaque)
-            {
-                return;
-            }
-
-            byte filter = neighborBlockState.LightFilter;
-            byte newSun;
-
-            if (isDownward && sourceSun == 15 && !neighborBlockState.IsOpaque)
-            {
-                newSun = 15;
-            }
-            else
-            {
-                int attenuation = filter > 0 ? filter : 1;
-                int reduced = sourceSun - attenuation;
-                newSun = (byte)(reduced > 0 ? reduced : 0);
-            }
-
-            if (newSun == 0)
-            {
-                return;
-            }
-
-            byte neighborPacked = LightData[neighborIndex];
-            byte neighborSun = LightUtils.GetSunLight(neighborPacked);
-
-            if (newSun > neighborSun)
-            {
-                byte neighborBlock = LightUtils.GetBlockLight(neighborPacked);
-                LightData[neighborIndex] = LightUtils.Pack(newSun, neighborBlock);
-                queue.Enqueue(neighborIndex | ((int)newSun << _levelShift) | (neighborSkipMask << _skipShift));
-            }
-        }
-
-        private void RepropagateBlock(ref NativeQueue<int> queue)
-        {
-            while (queue.Count > 0)
-            {
-                int packed = queue.Dequeue();
-                int index = packed & _indexMask;
-                int carriedLevel = (packed >> _levelShift) & _levelMask;
-                int skipMask = (packed >> _skipShift) & 0x3F;
-                byte packedLight = LightData[index];
-                byte currentBlock = LightUtils.GetBlockLight(packedLight);
-
-                if (currentBlock <= 1 || carriedLevel != currentBlock)
-                {
-                    continue;
-                }
-
-                IndexToXYZ(index, out int x, out int y, out int z);
-
-                if ((skipMask & (1 << _dirNegX)) == 0)
-                {
-                    TryPropagateBlock(x - 1, y, z, currentBlock, 1 << _dirPosX, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirPosX)) == 0)
-                {
-                    TryPropagateBlock(x + 1, y, z, currentBlock, 1 << _dirNegX, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirNegY)) == 0)
-                {
-                    TryPropagateBlock(x, y - 1, z, currentBlock, 1 << _dirPosY, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirPosY)) == 0)
-                {
-                    TryPropagateBlock(x, y + 1, z, currentBlock, 1 << _dirNegY, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirNegZ)) == 0)
-                {
-                    TryPropagateBlock(x, y, z - 1, currentBlock, 1 << _dirPosZ, ref queue);
-                }
-
-                if ((skipMask & (1 << _dirPosZ)) == 0)
-                {
-                    TryPropagateBlock(x, y, z + 1, currentBlock, 1 << _dirNegZ, ref queue);
-                }
-            }
-        }
-
-        private void TryPropagateBlock(int nx, int ny, int nz, byte sourceBlock,
-            int neighborSkipMask, ref NativeQueue<int> queue)
-        {
-            if (nx < 0 || nx >= ChunkConstants.Size ||
-                ny < 0 || ny >= ChunkConstants.Size ||
-                nz < 0 || nz >= ChunkConstants.Size)
-            {
-                return;
-            }
-
-            int neighborIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
-            StateId neighborState = ChunkData[neighborIndex];
-            BlockStateCompact neighborBlockState = StateTable[neighborState.Value];
-
-            if (neighborBlockState.IsOpaque)
-            {
-                return;
-            }
-
-            byte filter = neighborBlockState.LightFilter;
-            int attenuation = filter > 0 ? filter : 1;
-            int newBlock = sourceBlock - attenuation;
-
-            if (newBlock <= 0)
-            {
-                return;
-            }
-
-            byte neighborPacked = LightData[neighborIndex];
-            byte neighborBlockLight = LightUtils.GetBlockLight(neighborPacked);
-
-            if ((byte)newBlock > neighborBlockLight)
-            {
-                byte neighborSun = LightUtils.GetSunLight(neighborPacked);
-                LightData[neighborIndex] = LightUtils.Pack(neighborSun, (byte)newBlock);
-                queue.Enqueue(neighborIndex | (newBlock << _levelShift) | (neighborSkipMask << _skipShift));
-            }
-        }
-
-        private static void IndexToXYZ(int index, out int x, out int y, out int z)
-        {
-            x = index & ChunkConstants.SizeMask;
-            z = (index >> ChunkConstants.SizeBits) & ChunkConstants.SizeMask;
-            y = (index >> (ChunkConstants.SizeBits * 2)) & ChunkConstants.SizeMask;
         }
     }
 }

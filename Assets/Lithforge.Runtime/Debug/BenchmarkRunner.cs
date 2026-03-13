@@ -49,7 +49,6 @@ namespace Lithforge.Runtime.Debug
         private float[] _genCompleteMaxMs;
         private int[] _genCompleteStalls;
         private float[] _pollMeshDisposalsMs;
-        private float[] _pollMeshRelightMs;
         private float[] _pollMeshUploadMs;
         private float[] _pollMeshIterateMs;
         private float[] _pollMeshFirstIsCompletedMs;
@@ -72,7 +71,6 @@ namespace Lithforge.Runtime.Debug
         private float _prevGenCompleteMaxMs;
         private int _prevGenCompleteStalls;
         private float _prevPollMeshDisposalsMs;
-        private float _prevPollMeshRelightMs;
         private float _prevPollMeshUploadMs;
         private float _prevPollMeshIterateMs;
         private float _prevPollMeshFirstIsCompletedMs;
@@ -140,7 +138,6 @@ namespace Lithforge.Runtime.Debug
             _genCompleteMaxMs = new float[_capacity];
             _genCompleteStalls = new int[_capacity];
             _pollMeshDisposalsMs = new float[_capacity];
-            _pollMeshRelightMs = new float[_capacity];
             _pollMeshUploadMs = new float[_capacity];
             _pollMeshIterateMs = new float[_capacity];
             _pollMeshFirstIsCompletedMs = new float[_capacity];
@@ -264,7 +261,6 @@ namespace Lithforge.Runtime.Debug
                 _genCompleteMaxMs[f] = _prevGenCompleteMaxMs;
                 _genCompleteStalls[f] = _prevGenCompleteStalls;
                 _pollMeshDisposalsMs[f] = _prevPollMeshDisposalsMs;
-                _pollMeshRelightMs[f] = _prevPollMeshRelightMs;
                 _pollMeshUploadMs[f] = _prevPollMeshUploadMs;
                 _pollMeshIterateMs[f] = _prevPollMeshIterateMs;
                 _pollMeshFirstIsCompletedMs[f] = _prevPollMeshFirstIsCompletedMs;
@@ -290,7 +286,6 @@ namespace Lithforge.Runtime.Debug
             _prevGenCompleteMaxMs = PipelineStats.GenCompleteMaxMs;
             _prevGenCompleteStalls = PipelineStats.GenCompleteStalls;
             _prevPollMeshDisposalsMs = PipelineStats.PollMeshDisposalsMs;
-            _prevPollMeshRelightMs = PipelineStats.PollMeshRelightMs;
             _prevPollMeshUploadMs = PipelineStats.PollMeshUploadMs;
             _prevPollMeshIterateMs = PipelineStats.PollMeshIterateMs;
             _prevPollMeshFirstIsCompletedMs = PipelineStats.PollMeshFirstIsCompletedMs;
@@ -343,7 +338,7 @@ namespace Lithforge.Runtime.Debug
             csv.Append(",gen_scheduled,gen_completed,mesh_scheduled,mesh_completed");
             csv.Append(",lod_scheduled,lod_completed,gpu_upload_bytes,gpu_upload_count,grow_events");
             csv.Append(",gc_gen0,gc_gen1,gc_gen2,mesh_complete_max_ms,mesh_complete_stalls,gen_complete_max_ms,gen_complete_stalls");
-            csv.Append(",pm_disposals_ms,pm_relight_ms,pm_upload_ms,pm_iterate_ms,pm_first_iscompleted_ms");
+            csv.Append(",pm_disposals_ms,pm_upload_ms,pm_iterate_ms,pm_first_iscompleted_ms");
             csv.AppendLine();
 
             // Data rows
@@ -393,8 +388,6 @@ namespace Lithforge.Runtime.Debug
                 csv.Append(_genCompleteStalls[f]);
                 csv.Append(',');
                 csv.Append(_pollMeshDisposalsMs[f].ToString("F3", CultureInfo.InvariantCulture));
-                csv.Append(',');
-                csv.Append(_pollMeshRelightMs[f].ToString("F3", CultureInfo.InvariantCulture));
                 csv.Append(',');
                 csv.Append(_pollMeshUploadMs[f].ToString("F3", CultureInfo.InvariantCulture));
                 csv.Append(',');

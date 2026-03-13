@@ -4,6 +4,7 @@ using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Ore;
+using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;

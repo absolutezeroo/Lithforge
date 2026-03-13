@@ -25,7 +25,7 @@ Tier 2 — Unity Core (Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.
 
 Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
   Location: Assets/Lithforge.Runtime/
-  Contains: GameLoop, Schedulers (GenerationScheduler, MeshScheduler, LODScheduler),
+  Contains: GameLoop, Schedulers (GenerationScheduler, MeshScheduler, RelightScheduler, LODScheduler),
             ChunkRenderManager, MeshUploader, ContentPipeline, UI (HotbarHUD, InventoryScreen,
             SettingsScreen, LoadingScreen), SkyController, SpawnManager, Bootstrap
 ```
@@ -175,7 +175,7 @@ No com.lithforge.entity package exists yet. Chunks, meshing, worldgen, lighting,
 
 - Light data is **nibble-packed**: high 4 bits = sunlight (0–15), low 4 bits = block light (0–15). Use `LightUtils.Pack/GetSunLight/GetBlockLight`.
 - **Cross-chunk light propagation**: `LightPropagationJob` collects border light leaks into `NativeList<NativeBorderLightEntry>`. After job completion, `GenerationScheduler` copies these to managed `BorderLightEntry` on `ManagedChunk` and marks neighbors for `LightUpdateJob`.
-- **Light removal on block edit**: `SetBlock()` sets chunk state to `RelightPending`. `MeshScheduler.ProcessRelightPending()` runs `LightRemovalJob` (BFS removal + re-seed propagation) before meshing.
+- **Light removal on block edit**: `SetBlock()` sets chunk state to `RelightPending`. `RelightScheduler.ScheduleJobs()` runs `LightRemovalJob` (BFS removal + re-seed propagation) before meshing.
 - **ChunkState FSM**: `Unloaded → Loading → Generating → Decorating → RelightPending → Generated → Meshing → Ready`. The `RelightPending` state gates meshing until relight completes. `Generated → Meshing` is handled by either MeshScheduler (LOD0) or LODScheduler (LOD>0).
 
 ## Storage Safety
@@ -235,19 +235,8 @@ When duplicating code across IJob structs (unavoidable in Burst):
 
 ## Known Code Duplication (Burst constraint)
 
-The following BFS light propagation methods are duplicated across 3 IJob structs
-because Burst IJob structs cannot share instance methods or access shared NativeArrays.
-**Any change to one MUST be replicated to all three in the same commit.**
-
-| Method | LightPropagationJob | LightRemovalJob | LightUpdateJob |
-|--------|-------------------|-----------------|----------------|
-| Direction/encoding constants (_dirNegX..._skipShift, _levelShift, _levelMask) | ✓ | ✓ | ✓ |
-| PropagateSun / RepropagateSun | ✓ | ✓ | ✓ |
-| TryPropagateSun | ✓ | ✓ | ✓ |
-| PropagateBlockLight / RepropagateBlock | ✓ | ✓ | ✓ |
-| TryPropagateBlock | ✓ | ✓ | ✓ |
-| IndexToXYZ | ✓ | ✓ | ✓ |
-| CollectBorderLightLeaks / CollectBorderVoxel | ✓ | ✓ | |
+BFS light propagation methods are **unified** in `LightBfs` (`Packages/com.lithforge.worldgen/Runtime/Lighting/LightBfs.cs`).
+All 3 light jobs (`LightPropagationJob`, `LightRemovalJob`, `LightUpdateJob`) call static methods on `LightBfs` — no duplication.
 
 The following tint overlay packing logic is duplicated across 2 IJob structs.
 **Any change to one MUST be replicated to the other in the same commit.**

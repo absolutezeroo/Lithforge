@@ -86,6 +86,13 @@ namespace Lithforge.Voxel.Chunk
         public bool LightJobInFlight { get; set; }
 
         /// <summary>
+        /// When true, the chunk should transition to RelightPending after its current
+        /// mesh job completes, instead of to Ready. Set by RelightScheduler when a
+        /// border cascade needs to relight a chunk that is currently meshing.
+        /// </summary>
+        public bool NeedsRelightAfterMesh { get; set; }
+
+        /// <summary>
         /// True if voxel data has been modified (e.g. by SetBlock) since last save.
         /// Used to trigger save-on-unload for modified chunks.
         /// </summary>

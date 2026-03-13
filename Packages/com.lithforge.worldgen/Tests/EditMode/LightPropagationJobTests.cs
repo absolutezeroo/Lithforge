@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
+using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Stages;
 using NUnit.Framework;
 using Unity.Collections;
