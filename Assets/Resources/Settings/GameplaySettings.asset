@@ -20,5 +20,8 @@ MonoBehaviour:
     itemName: cobblestone
     count: 64
   - itemNamespace: lithforge
-    itemName: stone_axe
+    itemName: stone_shovel
+    count: 1
+  - itemNamespace: lithforge
+    itemName: stone_pickaxe
     count: 1

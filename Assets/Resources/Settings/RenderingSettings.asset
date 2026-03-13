@@ -153,3 +153,6 @@ MonoBehaviour:
   blockHighlightColor: {r: 0, g: 0, b: 0, a: 1}
   blockHighlightExpand: 0.005
   atlasTileSize: 16
+  grassColormap: {fileID: 2800000, guid: ff4b8e55fea90364985dab1246948e66, type: 3}
+  foliageColormap: {fileID: 2800000, guid: a4ab843692f205e469225aa35b3a57f3, type: 3}
+  biomeMapSize: 2048

@@ -15,11 +15,15 @@ MonoBehaviour:
   poolSize: 512
   renderDistance: 4
   spawnLoadRadius: 3
-  maxGenerationsPerFrame: 24
+  maxGenerationsPerFrame: 16
   maxMeshesPerFrame: 12
   maxGenCompletionsPerFrame: 8
   maxMeshCompletionsPerFrame: 8
   maxLightUpdatesPerFrame: 6
+  genCompletionBudgetMs: 2
+  meshCompletionBudgetMs: 2
+  lodCompletionBudgetMs: 1
+  maxLODCompletionsPerFrame: 4
   yLoadMin: -2
   yLoadMax: 3
   yUnloadMin: -3

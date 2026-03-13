@@ -17,6 +17,8 @@ MonoBehaviour:
   hardness: 0.2
   blastResistance: 0.2
   requiresTool: 0
+  materialType: 4
+  requiredToolLevel: 0
   soundGroup: grass
   collisionShape: 0
   renderLayer: 1

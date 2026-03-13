@@ -17,6 +17,8 @@ MonoBehaviour:
   hardness: 2
   blastResistance: 3
   requiresTool: 0
+  materialType: 2
+  requiredToolLevel: 0
   soundGroup: wood
   collisionShape: 0
   renderLayer: 0

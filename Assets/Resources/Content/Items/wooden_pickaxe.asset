@@ -21,6 +21,8 @@ MonoBehaviour:
   attackDamage: 2
   attackSpeed: 1.2
   miningSpeed: 2
+  toolSpeedProfile: {fileID: 0}
+  affixes: []
   placesBlock: {fileID: 0}
   itemModel: {fileID: 0}
   tags: []

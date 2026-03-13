@@ -17,6 +17,8 @@ MonoBehaviour:
   hardness: 0.8
   blastResistance: 0.8
   requiresTool: 1
+  materialType: 1
+  requiredToolLevel: 0
   soundGroup: stone
   collisionShape: 0
   renderLayer: 0
