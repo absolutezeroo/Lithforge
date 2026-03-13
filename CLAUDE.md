@@ -206,7 +206,7 @@ Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)             
 
 ## Known Limits
 
-- **Texture array layers ≤ 1024**: `MeshVertex.Color.a` stores texture index as `half`. The `half` type represents integers exactly up to 2048, but ContentPipeline asserts at 1024 for safety margin.
+- **Texture array layers ≤ 512**: `MeshVertex.Color.a` stores `encodedTexIndex = texIndex + tintType * 512` as `half`. The `half` type represents integers exactly up to 2048; max encoded value is `511 + 3*512 = 2047`. ContentPipeline asserts at 512.
 - **BiomeData[i].BiomeId == i**: biome lookup is O(1) by direct index. This invariant is asserted at startup in `LithforgeBootstrap`. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.
 - **ChunkPool uses HashSet for checked-out tracking**: `Return()` is O(1) amortized, not O(n).
 

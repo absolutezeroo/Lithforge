@@ -279,7 +279,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 // Build targeted changed indices from pending edits
                 NativeArray<int> changedIndices = new NativeArray<int>(
-                    chunk.PendingEditIndices.Count, Allocator.TempJob);
+                    chunk.PendingEditIndices.Count, Allocator.Persistent);
 
                 for (int j = 0; j < chunk.PendingEditIndices.Count; j++)
                 {
@@ -291,7 +291,7 @@ namespace Lithforge.Runtime.Scheduling
                 // Build border removal seeds from pending cross-chunk cascade
                 NativeArray<NativeBorderLightEntry> borderRemovalSeeds =
                     new NativeArray<NativeBorderLightEntry>(
-                        chunk.PendingBorderRemovals.Count, Allocator.TempJob);
+                        chunk.PendingBorderRemovals.Count, Allocator.Persistent);
 
                 for (int j = 0; j < chunk.PendingBorderRemovals.Count; j++)
                 {
@@ -308,7 +308,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 // Allocate border light output for post-relight border scanning
                 NativeList<NativeBorderLightEntry> borderLightOutput =
-                    new NativeList<NativeBorderLightEntry>(256, Allocator.TempJob);
+                    new NativeList<NativeBorderLightEntry>(256, Allocator.Persistent);
 
                 // Snapshot old border entries for diffing after job completes
                 List<BorderLightEntry> oldBorderEntries;
@@ -559,8 +559,8 @@ namespace Lithforge.Runtime.Scheduling
         /// worker threads transition their chunk from RelightPending to Generated.
         /// After completion, compares old vs new border light entries to cascade
         /// light changes to neighboring chunks (both removal and increase paths).
-        /// FrameAge >= 3 forces completion as a TempJob safety fallback (matches
-        /// the pattern in GenerationScheduler.ProcessCrossChunkLightUpdates).
+        /// Allocations use Persistent so there is no TempJob 4-frame deadline.
+        /// FrameAge > 300 (~5 seconds) is a safety net for stuck jobs only.
         /// </summary>
         private void PollRelightCompleted()
         {
@@ -568,8 +568,15 @@ namespace Lithforge.Runtime.Scheduling
             {
                 PendingRelight entry = _inFlightRelights[i];
 
-                if (entry.Handle.IsCompleted || entry.FrameAge >= 3)
+                if (entry.Handle.IsCompleted || entry.FrameAge > 300)
                 {
+                    if (entry.FrameAge > 300)
+                    {
+                        UnityEngine.Debug.LogWarning(
+                            $"[MeshScheduler] Force-completing stale relight job for chunk " +
+                            $"{entry.Chunk.Coord} after {entry.FrameAge} frames");
+                    }
+
                     entry.Handle.Complete();
 
                     // Process border cascade before transitioning state

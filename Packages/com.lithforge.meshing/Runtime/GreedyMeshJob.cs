@@ -284,11 +284,12 @@ namespace Lithforge.Meshing
             AtlasEntry atlasEntry = AtlasEntries[stateVal];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
-            // Encode tintType into upper bits of texIndex (bits 10-11)
+            // Encode tintType into upper bits of texIndex (bits 9-10)
             // tintType is derived from BlockStateCompact.TintType (0-3)
-            // encodedTexIndex = texIndex + tintType * 1024
+            // encodedTexIndex = texIndex + tintType * 512
+            // Max encoded value: 511 + 3*512 = 2047, safe for half-precision (exact integers up to 2048)
             byte tintType = StateTable[stateVal].TintType;
-            ushort encodedTexIndex = (ushort)(texIndex + tintType * 1024);
+            ushort encodedTexIndex = (ushort)(texIndex + tintType * 512);
 
             // Unpack nibbles: high 4 bits = sunLight, low 4 bits = blockLight
             // Minecraft gamma curve: brightness = pow(0.8, 15 - level)
@@ -297,7 +298,7 @@ namespace Lithforge.Meshing
             float sunNorm = math.pow(0.8f, 15 - sunLight);
             float blockNorm = math.pow(0.8f, 15 - blockLight);
 
-            // Vertex color: r=AO, g=blockLight, b=sunLight, a=encodedTexIndex (texIndex + tintType*1024)
+            // Vertex color: r=AO, g=blockLight, b=sunLight, a=encodedTexIndex (texIndex + tintType*512)
             half4 color00 = new half4((half)(ao00 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);
             half4 color10 = new half4((half)(ao10 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);
             half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);

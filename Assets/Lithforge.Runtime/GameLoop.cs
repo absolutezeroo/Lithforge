@@ -109,6 +109,15 @@ namespace Lithforge.Runtime
                 chunkSettings.LOD3Distance);
 
             _initialized = true;
+
+#if UNITY_EDITOR
+            if (!Unity.Burst.BurstCompiler.IsEnabled)
+            {
+                UnityEngine.Debug.LogError(
+                    "[Lithforge] Burst is DISABLED — lighting performance will be severely degraded. " +
+                    "Enable via Jobs > Burst > Enable Compilation.");
+            }
+#endif
         }
 
         /// <summary>

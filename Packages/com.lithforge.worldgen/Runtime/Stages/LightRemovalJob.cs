@@ -27,7 +27,7 @@ namespace Lithforge.WorldGen.Stages
     /// Owner of ChunkData: ManagedChunk (via ChunkPool, Persistent). Not disposed by this job.
     /// Owner of StateTable: NativeStateRegistry (Persistent). Not disposed by this job.
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(CompileSynchronously = true)]
     public struct LightRemovalJob : IJob
     {
         public NativeArray<byte> LightData;
@@ -151,7 +151,84 @@ namespace Lithforge.WorldGen.Stages
                 if (currentSun > 0)
                 {
                     LightData[index] = LightUtils.Pack(0, LightUtils.GetBlockLight(LightData[index]));
-                    sunRemovalQueue.Enqueue(index | ((int)currentSun << _levelShift));
+
+                    bool borderColumnWrite = false;
+
+                    // Column-write shortcut: if this border voxel is in a sunlight column
+                    // (sun=15 at/above heightmap), directly zero the column below and
+                    // collect horizontal reseeds instead of letting the removal BFS
+                    // cascade down the entire column via the sun=15 downward special case.
+                    if (currentSun == 15 && HeightMap.IsCreated)
+                    {
+                        int colIdx = pos.z * ChunkConstants.Size + pos.x;
+                        int worldY = ChunkWorldY + pos.y;
+
+                        if (worldY >= HeightMap[colIdx])
+                        {
+                            borderColumnWrite = true;
+
+                            int minLocalY = HeightMap[colIdx] - ChunkWorldY;
+
+                            if (minLocalY < 0)
+                            {
+                                minLocalY = 0;
+                            }
+
+                            // Phase 1: Direct column zero
+                            for (int scanY = pos.y - 1; scanY >= minLocalY; scanY--)
+                            {
+                                int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
+                                    pos.x, scanY, pos.z);
+
+                                if (StateTable[ChunkData[scanIdx].Value].IsOpaque)
+                                {
+                                    break;
+                                }
+
+                                byte scanSun = LightUtils.GetSunLight(LightData[scanIdx]);
+
+                                if (scanSun == 0)
+                                {
+                                    break;
+                                }
+
+                                byte scanBlock = LightUtils.GetBlockLight(LightData[scanIdx]);
+                                LightData[scanIdx] = LightUtils.Pack(0, scanBlock);
+                            }
+
+                            // Phase 2: Horizontal reseeds for the zeroed column
+                            for (int scanY = pos.y; scanY >= minLocalY; scanY--)
+                            {
+                                int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
+                                    pos.x, scanY, pos.z);
+
+                                if (scanY < pos.y &&
+                                    StateTable[ChunkData[scanIdx].Value].IsOpaque)
+                                {
+                                    break;
+                                }
+
+                                TryReseedHorizontalNeighbor(
+                                    pos.x - 1, scanY, pos.z, ref sunReseedQueue);
+                                TryReseedHorizontalNeighbor(
+                                    pos.x + 1, scanY, pos.z, ref sunReseedQueue);
+                                TryReseedHorizontalNeighbor(
+                                    pos.x, scanY, pos.z - 1, ref sunReseedQueue);
+                                TryReseedHorizontalNeighbor(
+                                    pos.x, scanY, pos.z + 1, ref sunReseedQueue);
+                            }
+
+                            // Seed the border voxel itself with horizontal-only skip
+                            int seedSkip = (1 << _dirNegY) | (1 << _dirPosY);
+                            sunRemovalQueue.Enqueue(index | ((int)currentSun << _levelShift)
+                                | (seedSkip << _skipShift));
+                        }
+                    }
+
+                    if (!borderColumnWrite)
+                    {
+                        sunRemovalQueue.Enqueue(index | ((int)currentSun << _levelShift));
+                    }
                 }
 
                 if (currentBlock > 0 && blockState.LightEmission == 0)

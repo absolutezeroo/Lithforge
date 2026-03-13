@@ -26,7 +26,8 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Tracks which chunk columns have been written to avoid redundant uploads.
-        /// Key: (chunkX, chunkZ).
+        /// Key: (chunkX, chunkZ). Bounded by the number of simultaneously loaded chunk columns
+        /// (approximately renderDistance^2); entries are removed on chunk unload.
         /// Owner: BiomeTintManager. Lifetime: application session.
         /// </summary>
         private readonly HashSet<int2> _writtenChunks = new HashSet<int2>();
@@ -37,6 +38,9 @@ namespace Lithforge.Runtime.Rendering
             Texture2D grassColormap,
             Texture2D foliageColormap)
         {
+            UnityEngine.Debug.Assert(mapSize % chunkSize == 0,
+                $"BiomeTintManager: mapSize ({mapSize}) must be a multiple of chunkSize ({chunkSize}).");
+
             _mapSize = mapSize;
             _chunkSize = chunkSize;
 

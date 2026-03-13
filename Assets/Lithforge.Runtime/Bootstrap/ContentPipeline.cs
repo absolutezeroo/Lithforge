@@ -317,8 +317,8 @@ namespace Lithforge.Runtime.Bootstrap
             // Assert texture count fits in half precision (exact integer range up to 2048)
             int texCount = atlasResult.TextureArray != null ? atlasResult.TextureArray.depth : 0;
 
-            UnityEngine.Debug.Assert(texCount <= 1024,
-                $"Texture array has {texCount} layers, exceeding the 1024 limit for half-precision texture indices in MeshVertex.Color.a.");
+            UnityEngine.Debug.Assert(texCount <= 512,
+                $"Texture array has {texCount} layers, exceeding the 512 limit for half-precision texture indices with tintType encoding in MeshVertex.Color.a.");
 
             // Phase 14: BakeNative + build NativeAtlasLookup
             yield return "Baking native data...";
@@ -595,8 +595,13 @@ namespace Lithforge.Runtime.Bootstrap
         /// Walks a BlockModel's element tree and returns the maximum tintIndex
         /// found across all faces of all elements. Returns -1 if no tinting.
         /// </summary>
-        private static int GetMaxTintIndex(BlockModel model)
+        private static int GetMaxTintIndex(BlockModel model, int depth = 0)
         {
+            if (depth > 16)
+            {
+                return -1;
+            }
+
             int maxTint = -1;
 
             IReadOnlyList<ModelElement> elements = model.Elements;
@@ -639,7 +644,7 @@ namespace Lithforge.Runtime.Bootstrap
             // Walk parent chain if no tint found in this model's elements
             if (maxTint == -1 && model.Parent != null)
             {
-                maxTint = GetMaxTintIndex(model.Parent);
+                maxTint = GetMaxTintIndex(model.Parent, depth + 1);
             }
 
             return maxTint;

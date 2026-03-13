@@ -8,9 +8,9 @@
 //   half4  Color     bytes 24-31  (r=AO, g=blockLight, b=sunLight, a=encodedTexIndex)
 //   float2 UV        bytes 32-39
 //
-// Color.a encoding: encodedTexIndex = texIndex + tintType * 1024
-//   texIndex = encodedTexIndex & 0x3FF  (bits 0-9,  range 0-1023)
-//   tintType = encodedTexIndex >> 10    (bits 10-11, range 0-3)
+// Color.a encoding: encodedTexIndex = texIndex + tintType * 512
+//   texIndex = encodedTexIndex & 0x1FF  (bits 0-8,  range 0-511)
+//   tintType = encodedTexIndex >> 9     (bits 9-10,  range 0-3)
 //
 // HLSL StructuredBuffer<T> stride must match exactly. The 'half' type in HLSL
 // struct members is silently promoted to float by the compiler, making stride 48
@@ -53,7 +53,7 @@ struct DecodedVertex
     half   ao;           // Color.r: 0=fully occluded, 1=unoccluded
     half   blockLight;   // Color.g: [0,1] normalised
     half   sunLight;     // Color.b: [0,1] normalised
-    int    texIndex;     // Color.a: encoded texIndex + tintType*1024
+    int    texIndex;     // Color.a: encoded texIndex + tintType*512
     float2 uv;
 };
 
@@ -77,7 +77,7 @@ DecodedVertex FetchVertex(uint svVertexID)
     dv.ao         = (half)f16tof32(raw.colorWord0);
     dv.blockLight = (half)f16tof32(raw.colorWord0 >> 16u);
     dv.sunLight   = (half)f16tof32(raw.colorWord1);
-    // texIndex is the encoded value (texIndex + tintType*1024), decoded later in vert().
+    // texIndex is the encoded value (texIndex + tintType*512), decoded later in vert().
     dv.texIndex   = (int)round(f16tof32(raw.colorWord1 >> 16u));
 
     return dv;
@@ -85,12 +85,12 @@ DecodedVertex FetchVertex(uint svVertexID)
 
 // ---------------------------------------------------------------------------
 // Decode tintType from packed texIndex
-// encodedTexIndex = realTexIndex + tintType * 1024
+// encodedTexIndex = realTexIndex + tintType * 512
 // ---------------------------------------------------------------------------
 void DecodeTintedTexIndex(int encodedIndex, out int realTexIndex, out int tintType)
 {
-    tintType     = encodedIndex >> 10;    // bits 10-11
-    realTexIndex = encodedIndex & 0x3FF;  // bits 0-9
+    tintType     = encodedIndex >> 9;     // bits 9-10
+    realTexIndex = encodedIndex & 0x1FF;  // bits 0-8
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ SAMPLER(sampler_GrassColormap);
 TEXTURE2D(_FoliageColormap);
 SAMPLER(sampler_FoliageColormap);
 
-float4 _BiomeMapTransform; // xy=unused, zw=1/mapSize
+float4 _BiomeMapTransform; // xy=reserved, zw=1/mapSize (toroidal wrap via Repeat)
 
 // ---------------------------------------------------------------------------
 // Sample biome tint color at a world position
