@@ -198,11 +198,9 @@ namespace Lithforge.WorldGen.Stages
 
                     bool columnWriteDone = false;
 
-                    // Column-write shortcut: when placing an opaque block at/above the
-                    // heightmap surface, directly zero the sunlight column below instead
-                    // of letting the removal BFS walk down the entire column. Each zeroed
-                    // voxel is enqueued with a horizontal-only skip mask so the BFS only
-                    // spreads removal sideways, not redundantly up/down the column.
+                    // Column-write shortcut for sunlight: directly zero the column below
+                    // and collect horizontal border reseeds. No removal BFS needed for the
+                    // column itself — the direct write handles it.
                     if (sun > 0 && HeightMap.IsCreated)
                     {
                         IndexToXYZ(index, out int hx, out int hy, out int hz);
@@ -215,7 +213,9 @@ namespace Lithforge.WorldGen.Stages
                             HeightMap[colIdx] = blockWorldY;
                             columnWriteDone = true;
 
-                            int horizOnlySkip = (1 << _dirNegY) | (1 << _dirPosY);
+                            // Phase 1: Direct column zero — write sun=0 for all air below
+                            // the placed block down to the old height (or first opaque).
+                            // No queue entries needed.
                             int minLocalY = oldHeight - ChunkWorldY;
 
                             if (minLocalY < 0)
@@ -241,21 +241,59 @@ namespace Lithforge.WorldGen.Stages
 
                                 byte scanBlock = LightUtils.GetBlockLight(LightData[scanIdx]);
                                 LightData[scanIdx] = LightUtils.Pack(0, scanBlock);
-                                sunRemovalQueue.Enqueue(scanIdx | ((int)scanSun << _levelShift)
-                                    | (horizOnlySkip << _skipShift));
                             }
+
+                            // Phase 2: Collect horizontal border reseeds. For each zeroed
+                            // voxel in the column, check its 4 horizontal neighbors. If the
+                            // neighbor has sun > 0 and is not opaque, it's still valid light
+                            // from another source — reseed it. This replaces the expensive
+                            // removal BFS with a direct neighbor scan.
+                            for (int scanY = hy; scanY >= minLocalY; scanY--)
+                            {
+                                int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(hx, scanY, hz);
+
+                                // Stop at opaque or at a voxel we didn't zero
+                                if (scanY < hy)
+                                {
+                                    if (StateTable[ChunkData[scanIdx].Value].IsOpaque)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                // Check 4 horizontal neighbors for reseed
+                                TryReseedHorizontalNeighbor(hx - 1, scanY, hz, ref sunReseedQueue);
+                                TryReseedHorizontalNeighbor(hx + 1, scanY, hz, ref sunReseedQueue);
+                                TryReseedHorizontalNeighbor(hx, scanY, hz - 1, ref sunReseedQueue);
+                                TryReseedHorizontalNeighbor(hx, scanY, hz + 1, ref sunReseedQueue);
+                            }
+
+                            // Check above the placed block — it might need reseed if it
+                            // had light from horizontal neighbors
+                            if (hy + 1 < ChunkConstants.Size)
+                            {
+                                int aboveIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(hx, hy + 1, hz);
+                                byte aboveSun = LightUtils.GetSunLight(LightData[aboveIdx]);
+
+                                if (aboveSun > 0)
+                                {
+                                    sunReseedQueue.Enqueue(aboveIdx | ((int)aboveSun << _levelShift));
+                                }
+                            }
+
+                            // The placed block itself: seed for horizontal-only removal BFS
+                            // with skip ±Y to avoid vertical cascade. This handles horizontal
+                            // light that was coming FROM this block's position into neighbors.
+                            int seedSkip = (1 << _dirNegY) | (1 << _dirPosY);
+                            sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift)
+                                | (seedSkip << _skipShift));
                         }
                     }
 
-                    // Seed the placed block itself for removal BFS.
-                    // If column-write handled the column below, skip ±Y to avoid
-                    // redundant vertical BFS cascade through the already-zeroed column.
-                    if (sun > 0)
+                    // Non-column-write path: standard removal seed
+                    if (!columnWriteDone && sun > 0)
                     {
-                        int seedSkip = columnWriteDone
-                            ? ((1 << _dirNegY) | (1 << _dirPosY)) : 0;
-                        sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift)
-                            | (seedSkip << _skipShift));
+                        sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift));
                     }
 
                     if (block > 0)
@@ -589,6 +627,38 @@ namespace Lithforge.WorldGen.Stages
                     ? LightUtils.GetSunLight(LightData[neighborIndex])
                     : LightUtils.GetBlockLight(LightData[neighborIndex]);
                 reseedQueue.Enqueue(neighborIndex | ((int)reseedLevel << _levelShift));
+            }
+        }
+
+        /// <summary>
+        /// Checks a horizontal neighbor of a column-write-zeroed voxel. If the neighbor
+        /// has sunlight > 0 and is not opaque, enqueue it as a reseed (not removal).
+        /// This is the lightweight alternative to enqueueing the zeroed voxel into the
+        /// removal BFS queue — we directly find the boundary between zeroed and lit voxels.
+        /// </summary>
+        private void TryReseedHorizontalNeighbor(int nx, int ny, int nz,
+            ref NativeQueue<int> sunReseedQueue)
+        {
+            if (nx < 0 || nx >= ChunkConstants.Size ||
+                ny < 0 || ny >= ChunkConstants.Size ||
+                nz < 0 || nz >= ChunkConstants.Size)
+            {
+                return;
+            }
+
+            int neighborIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
+            StateId neighborState = ChunkData[neighborIndex];
+
+            if (StateTable[neighborState.Value].IsOpaque)
+            {
+                return;
+            }
+
+            byte neighborSun = LightUtils.GetSunLight(LightData[neighborIndex]);
+
+            if (neighborSun > 0)
+            {
+                sunReseedQueue.Enqueue(neighborIndex | ((int)neighborSun << _levelShift));
             }
         }
 
