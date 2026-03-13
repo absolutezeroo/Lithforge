@@ -10,6 +10,7 @@ using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.Scheduling
 {
@@ -111,7 +112,9 @@ namespace Lithforge.Runtime.Scheduling
             PipelineStats.PollMeshDisposalsMs = (float)((td1 - td0) * 1000.0 / freq);
 
             long tr0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            Profiler.BeginSample("MS.PollRelightCompleted");
             PollRelightCompleted();
+            Profiler.EndSample();
             long tr1 = System.Diagnostics.Stopwatch.GetTimestamp();
             PipelineStats.PollMeshRelightMs = (float)((tr1 - tr0) * 1000.0 / freq);
 
@@ -175,6 +178,7 @@ namespace Lithforge.Runtime.Scheduling
                     {
                         if (chunk.DeferredEdits.Count > 0)
                         {
+                            Profiler.BeginSample("MS.DeferredEdits");
                             // Apply deferred edits that arrived while the mesh job was in-flight.
                             // This writes to ChunkData now that the job is complete and no
                             // worker thread is reading it.
@@ -189,6 +193,7 @@ namespace Lithforge.Runtime.Scheduling
 
                             chunk.DeferredEdits.Clear();
                             chunk.State = ChunkState.RelightPending;
+                            Profiler.EndSample();
                         }
                         else if (chunk.NeedsRemesh)
                         {
@@ -246,10 +251,12 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public void ScheduleRelightJobs()
         {
+            Profiler.BeginSample("MS.ScheduleRelightJobs");
             _chunkManager.FillChunksNeedingRelight(_relightCache);
 
             if (_relightCache.Count == 0)
             {
+                Profiler.EndSample();
                 return;
             }
 
@@ -353,6 +360,8 @@ namespace Lithforge.Runtime.Scheduling
             {
                 JobHandle.ScheduleBatchedJobs();
             }
+
+            Profiler.EndSample();
         }
 
         /// <summary>

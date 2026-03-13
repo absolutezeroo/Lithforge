@@ -241,7 +241,7 @@ because Burst IJob structs cannot share instance methods or access shared Native
 
 | Method | LightPropagationJob | LightRemovalJob | LightUpdateJob |
 |--------|-------------------|-----------------|----------------|
-| Direction flag constants (_dirNegX..._skipShift) | ✓ | ✓ | ✓ |
+| Direction/encoding constants (_dirNegX..._skipShift, _levelShift, _levelMask) | ✓ | ✓ | ✓ |
 | PropagateSun / RepropagateSun | ✓ | ✓ | ✓ |
 | TryPropagateSun | ✓ | ✓ | ✓ |
 | PropagateBlockLight / RepropagateBlock | ✓ | ✓ | ✓ |

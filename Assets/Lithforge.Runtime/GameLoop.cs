@@ -12,6 +12,7 @@ using Lithforge.WorldGen.Decoration;
 using Lithforge.WorldGen.Pipeline;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime
 {
@@ -129,26 +130,35 @@ namespace Lithforge.Runtime
             PipelineStats.BeginFrame();
             FrameProfiler.Begin(FrameProfiler.UpdateTotal);
 
+            Profiler.BeginSample("GL.PollGen");
             FrameProfiler.Begin(FrameProfiler.PollGen);
             _generationScheduler.PollCompleted();
             FrameProfiler.End(FrameProfiler.PollGen);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.PollMesh");
             FrameProfiler.Begin(FrameProfiler.PollMesh);
             _meshScheduler.PollCompleted();
             FrameProfiler.End(FrameProfiler.PollMesh);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.PollLOD");
             FrameProfiler.Begin(FrameProfiler.PollLOD);
             _lodScheduler.PollCompleted();
             FrameProfiler.End(FrameProfiler.PollLOD);
+            Profiler.EndSample();
 
             int3 cameraChunkCoord = GetCameraChunkCoord();
 
             _culling.UpdateFrustum(_mainCamera);
 
+            Profiler.BeginSample("GL.LoadQueue");
             FrameProfiler.Begin(FrameProfiler.LoadQueue);
             _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
             FrameProfiler.End(FrameProfiler.LoadQueue);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.Unload");
             FrameProfiler.Begin(FrameProfiler.Unload);
             _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords, _worldStorage);
 
@@ -172,32 +182,45 @@ namespace Lithforge.Runtime
                 _lodScheduler.CleanupCoord(coord);
             }
             FrameProfiler.End(FrameProfiler.Unload);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.SchedGen");
             FrameProfiler.Begin(FrameProfiler.SchedGen);
             _generationScheduler.ScheduleJobs();
             FrameProfiler.End(FrameProfiler.SchedGen);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.CrossLight");
             FrameProfiler.Begin(FrameProfiler.CrossLight);
             _generationScheduler.ProcessCrossChunkLightUpdates();
             FrameProfiler.End(FrameProfiler.CrossLight);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.Relight");
             FrameProfiler.Begin(FrameProfiler.Relight);
             _meshScheduler.ScheduleRelightJobs();
             FrameProfiler.End(FrameProfiler.Relight);
+            Profiler.EndSample();
 
             // LOD level assignment must run BEFORE mesh scheduling
             // so chunks get their LOD level before MeshScheduler decides who to mesh
+            Profiler.BeginSample("GL.LODLevels");
             FrameProfiler.Begin(FrameProfiler.LODLevels);
             _lodScheduler.UpdateLODLevels(cameraChunkCoord);
             FrameProfiler.End(FrameProfiler.LODLevels);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.SchedMesh");
             FrameProfiler.Begin(FrameProfiler.SchedMesh);
             _meshScheduler.ScheduleJobs(SpawnReady);
             FrameProfiler.End(FrameProfiler.SchedMesh);
+            Profiler.EndSample();
 
+            Profiler.BeginSample("GL.SchedLOD");
             FrameProfiler.Begin(FrameProfiler.SchedLOD);
             _lodScheduler.ScheduleJobs();
             FrameProfiler.End(FrameProfiler.SchedLOD);
+            Profiler.EndSample();
 
             FrameProfiler.End(FrameProfiler.UpdateTotal);
         }
