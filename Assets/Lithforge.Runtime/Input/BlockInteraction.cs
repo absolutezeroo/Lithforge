@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Physics;
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Rendering;
 using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
 using Lithforge.Voxel.Block;
@@ -256,21 +257,15 @@ namespace Lithforge.Runtime.Input
             _miningProgress = 0f;
             _canHarvest = true;
 
-            // Look up hardness from StateRegistryEntry
             StateId stateId = _chunkManager.GetBlock(blockCoord);
             StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
             if (entry != null)
             {
-                // Minecraft-style mining formula:
-                // - Correct tool: hardness * 1.5 / toolSpeed
-                // - Wrong tool or bare hands: hardness * 5.0
-                // - requiresTool blocks need the correct tool to drop loot
-
-                float hardness = entry.Hardness;
-                bool isCorrectTool = false;
-                float toolSpeed = 1.0f;
-                int toolLevel = 0;
+                MiningContext ctx = MiningContext.Default;
+                ctx.Hardness = entry.Hardness;
+                ctx.Material = entry.MaterialType;
+                ctx.RequiredToolLevel = entry.RequiredToolLevel;
 
                 ItemStack heldItem = _inventory.GetSelectedItem();
 
@@ -280,36 +275,57 @@ namespace Lithforge.Runtime.Input
 
                     if (itemDef != null && itemDef.ToolType != ToolType.None)
                     {
-                        toolSpeed = itemDef.MiningSpeed;
-                        toolLevel = itemDef.ToolLevel;
+                        ctx.ToolType = itemDef.ToolType;
+                        ctx.ToolLevel = itemDef.ToolLevel;
 
-                        // Check if this tool type matches the block's mineable tag
                         if (_toolTagMap.TryGetValue(itemDef.ToolType, out ResourceId requiredTag))
                         {
-                            isCorrectTool = _tagRegistry.HasTag(entry.Id, requiredTag);
+                            ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, requiredTag);
+                        }
+
+                        if (itemDef.ToolSpeedProfile is ToolSpeedProfileSO profile)
+                        {
+                            ctx.ToolSpeed = profile.GetSpeed(ctx.Material);
+                        }
+                        else
+                        {
+                            ctx.ToolSpeed = itemDef.MiningSpeed;
+                        }
+
+                        IMiningModifier[] mods = itemDef.Modifiers;
+                        Array.Sort(mods, (a, b) => a.Priority.CompareTo(b.Priority));
+
+                        for (int i = 0; i < mods.Length; i++)
+                        {
+                            ctx = mods[i].Apply(ctx);
                         }
                     }
                 }
 
-                if (isCorrectTool)
+                if (entry.RequiredToolLevel > 0 && ctx.ToolLevel < entry.RequiredToolLevel)
                 {
-                    // Correct tool: hardness * 1.5 / toolSpeed
-                    _miningRequiredTime = hardness * _toolMiningMultiplier / toolSpeed;
-                    _canHarvest = true;
+                    ctx.CanHarvest = false;
+                }
+
+                if (entry.RequiresTool && !ctx.IsCorrectTool)
+                {
+                    ctx.CanHarvest = false;
+                }
+
+                float effectiveSpeed = (ctx.ToolSpeed + ctx.FlatSpeedBonus) * ctx.SpeedMultiplier;
+                float effectiveHardness = Mathf.Max(0f, ctx.Hardness - ctx.HardnessReduction);
+
+                if (ctx.IsCorrectTool)
+                {
+                    _miningRequiredTime = effectiveHardness * _toolMiningMultiplier / effectiveSpeed;
                 }
                 else
                 {
-                    // Wrong tool or bare hands: hardness * 5.0
-                    _miningRequiredTime = hardness * _handMiningMultiplier;
-                    // requiresTool blocks need the correct tool to drop loot
-                    _canHarvest = !entry.RequiresTool;
+                    _miningRequiredTime = effectiveHardness * _handMiningMultiplier;
                 }
 
-                // Minimum break time (instant break for hardness 0)
-                if (_miningRequiredTime < _minBreakTime)
-                {
-                    _miningRequiredTime = _minBreakTime;
-                }
+                _miningRequiredTime = Mathf.Max(_minBreakTime, _miningRequiredTime);
+                _canHarvest = ctx.CanHarvest;
             }
             else
             {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Runtime.Content.Loot;
+using Lithforge.Voxel.Block;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Blocks
@@ -25,6 +26,13 @@ namespace Lithforge.Runtime.Content.Blocks
 
         [Tooltip("Whether a tool is required to get drops")]
         [SerializeField] private bool requiresTool;
+
+        [Tooltip("Physical material of the block (determines mining speed per tool)")]
+        [SerializeField] private BlockMaterialType materialType = BlockMaterialType.Stone;
+
+        [Tooltip("Minimum tool level required (0 = none, 1 = wood, 2 = stone...)")]
+        [Min(0)]
+        [SerializeField] private int requiredToolLevel = 0;
 
         [Tooltip("Sound group for block sounds")]
         [SerializeField] private string soundGroup = "stone";
@@ -95,6 +103,16 @@ namespace Lithforge.Runtime.Content.Blocks
         public bool RequiresTool
         {
             get { return requiresTool; }
+        }
+
+        public BlockMaterialType MaterialType
+        {
+            get { return materialType; }
+        }
+
+        public int RequiredToolLevel
+        {
+            get { return requiredToolLevel; }
         }
 
         public string SoundGroup

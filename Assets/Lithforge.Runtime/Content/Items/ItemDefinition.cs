@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Models;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Item;
 using UnityEngine;
 
@@ -44,6 +45,13 @@ namespace Lithforge.Runtime.Content.Items
         [Tooltip("Mining speed multiplier")]
         [Min(0f)]
         [SerializeField] private float miningSpeed = 1.0f;
+
+        [Tooltip("Speed profile per block material (optional, overrides MiningSpeed)")]
+        [SerializeField] private ToolSpeedProfileSO toolSpeedProfile;
+
+        [Tooltip("Tool affixes")]
+        [SerializeField] private AffixDefinitionSO[] affixes
+            = System.Array.Empty<AffixDefinitionSO>();
 
         [Header("Block Placement")]
         [Tooltip("Block this item places when used")]
@@ -100,6 +108,16 @@ namespace Lithforge.Runtime.Content.Items
         public float MiningSpeed
         {
             get { return miningSpeed; }
+        }
+
+        public ToolSpeedProfileSO ToolSpeedProfile
+        {
+            get { return toolSpeedProfile; }
+        }
+
+        public AffixDefinitionSO[] Affixes
+        {
+            get { return affixes; }
         }
 
         public BlockDefinition PlacesBlock

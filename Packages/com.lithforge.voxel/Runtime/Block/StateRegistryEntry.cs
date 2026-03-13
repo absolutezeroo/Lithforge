@@ -15,6 +15,8 @@ namespace Lithforge.Voxel.Block
         public float Hardness { get; }
         public float BlastResistance { get; }
         public bool RequiresTool { get; }
+        public BlockMaterialType MaterialType { get; }
+        public int RequiredToolLevel { get; }
 
         internal StateRegistryEntry(
             ResourceId id,
@@ -24,7 +26,9 @@ namespace Lithforge.Voxel.Block
             string lootTable,
             float hardness,
             float blastResistance,
-            bool requiresTool)
+            bool requiresTool,
+            BlockMaterialType materialType,
+            int requiredToolLevel)
         {
             Id = id;
             BaseStateId = baseStateId;
@@ -34,6 +38,8 @@ namespace Lithforge.Voxel.Block
             Hardness = hardness;
             BlastResistance = blastResistance;
             RequiresTool = requiresTool;
+            MaterialType = materialType;
+            RequiredToolLevel = requiredToolLevel;
         }
     }
 }

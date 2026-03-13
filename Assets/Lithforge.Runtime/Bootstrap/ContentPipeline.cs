@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
@@ -101,7 +103,9 @@ namespace Lithforge.Runtime.Bootstrap
                     (float)block.Hardness,
                     (float)block.BlastResistance,
                     block.RequiresTool,
-                    block.IsFluid);
+                    block.IsFluid,
+                    materialType: block.MaterialType,
+                    requiredToolLevel: block.RequiredToolLevel);
 
                 stateRegistry.Register(regData);
                 blockLookup[id.ToString()] = block;
@@ -310,7 +314,10 @@ namespace Lithforge.Runtime.Bootstrap
                     modLootStr,
                     (float)modBlock.Hardness,
                     (float)modBlock.BlastResistance,
-                    modBlock.RequiresTool);
+                    modBlock.RequiresTool,
+                    modBlock.IsFluid,
+                    materialType: modBlock.MaterialType,
+                    requiredToolLevel: modBlock.RequiredToolLevel);
 
                 stateRegistry.Register(modRegData);
             }
@@ -505,6 +512,10 @@ namespace Lithforge.Runtime.Bootstrap
             def.AttackDamage = item.AttackDamage;
             def.AttackSpeed = item.AttackSpeed;
             def.MiningSpeed = item.MiningSpeed;
+
+            def.ToolSpeedProfile = item.ToolSpeedProfile;
+            def.Modifiers = (item.Affixes ?? Array.Empty<AffixDefinitionSO>())
+                .Cast<IMiningModifier>().ToArray();
 
             if (item.PlacesBlock != null)
             {

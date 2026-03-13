@@ -100,7 +100,8 @@ namespace Lithforge.Voxel.Block
 
             StateRegistryEntry entry = new StateRegistryEntry(
                 data.Id, baseId, stateCount, blockOrdinal, data.LootTable,
-                data.Hardness, data.BlastResistance, data.RequiresTool);
+                data.Hardness, data.BlastResistance, data.RequiresTool,
+                data.MaterialType, data.RequiredToolLevel);
             _entries.Add(entry);
 
             return baseId;
