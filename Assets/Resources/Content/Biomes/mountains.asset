@@ -15,10 +15,10 @@ MonoBehaviour:
   _namespace: lithforge
   biomeName: mountains
   temperatureMin: 0
-  temperatureMax: 0.3
-  temperatureCenter: 0.15
+  temperatureMax: 0.35
+  temperatureCenter: 0.2
   humidityMin: 0
-  humidityMax: 0.7
+  humidityMax: 0.6
   humidityCenter: 0.35
   topBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
   fillerBlock: {fileID: 11400000, guid: 6dc247b419379ea4f985e2ab04f7ab37, type: 2}
@@ -26,10 +26,9 @@ MonoBehaviour:
   underwaterBlock: {fileID: 11400000, guid: 6dc247b419379ea4f985e2ab04f7ab37, type: 2}
   fillerDepth: 2
   treeDensity: 0.01
-  heightModifier: 0
   treeType: 0
-  continentalnessCenter: 0.7
-  erosionCenter: 0.2
-  baseHeight: 20
-  heightAmplitude: 24
+  continentalnessCenter: 0.75
+  erosionCenter: 0.15
+  baseHeight: 22
+  heightAmplitude: 28
   mapColor: {r: 0, g: 1, b: 0, a: 1}

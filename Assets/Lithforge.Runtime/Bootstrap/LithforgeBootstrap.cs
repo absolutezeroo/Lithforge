@@ -167,7 +167,6 @@ namespace Lithforge.Runtime.Bootstrap
                     UnderwaterBlock = FindStateIdForBlock(def.UnderwaterBlock),
                     FillerDepth = (byte)def.FillerDepth,
                     TreeDensity = def.TreeDensity,
-                    HeightModifier = def.HeightModifier,
                     TreeTemplateIndex = (byte)def.TreeType,
                     ContinentalnessCenter = def.ContinentalnessCenter,
                     ErosionCenter = def.ErosionCenter,

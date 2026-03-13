@@ -43,7 +43,6 @@ namespace Lithforge.WorldGen.Tests
                 UnderwaterBlock = _dirtId,
                 FillerDepth = 3,
                 TreeDensity = 0.02f,
-                HeightModifier = 0.0f,
             };
         }
 

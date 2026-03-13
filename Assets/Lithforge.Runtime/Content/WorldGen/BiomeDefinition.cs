@@ -60,9 +60,6 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Range(0f, 1f)]
         [SerializeField] private float treeDensity;
 
-        [Tooltip("Height modifier for terrain generation")]
-        [SerializeField] private float heightModifier;
-
         [Tooltip("Tree shape variant for this biome (0=oak, 1=birch, 2=spruce)")]
         [Range(0, 2)]
         [SerializeField] private int treeType;
@@ -154,11 +151,6 @@ namespace Lithforge.Runtime.Content.WorldGen
         public float TreeDensity
         {
             get { return treeDensity; }
-        }
-
-        public float HeightModifier
-        {
-            get { return heightModifier; }
         }
 
         public int TreeType

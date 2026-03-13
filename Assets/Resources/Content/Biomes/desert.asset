@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.WorldGen.BiomeDefinition
   _namespace: lithforge
   biomeName: desert
-  temperatureMin: 0.7
+  temperatureMin: 0.65
   temperatureMax: 1
   temperatureCenter: 0.85
   humidityMin: 0
@@ -26,10 +26,9 @@ MonoBehaviour:
   underwaterBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
   fillerDepth: 4
   treeDensity: 0
-  heightModifier: 0
   treeType: 0
-  continentalnessCenter: 0.4
-  erosionCenter: 0.8
+  continentalnessCenter: 0.35
+  erosionCenter: 0.85
   baseHeight: 2
-  heightAmplitude: 4
+  heightAmplitude: 3
   mapColor: {r: 0, g: 1, b: 0, a: 1}

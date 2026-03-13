@@ -19,7 +19,6 @@ namespace Lithforge.WorldGen.Biome
         public StateId UnderwaterBlock;
         public byte FillerDepth;
         public float TreeDensity;
-        public float HeightModifier;
         public byte TreeTemplateIndex;
         public float ContinentalnessCenter;
         public float ErosionCenter;

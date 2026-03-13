@@ -15,9 +15,9 @@ MonoBehaviour:
   _namespace: lithforge
   biomeName: forest
   temperatureMin: 0.3
-  temperatureMax: 0.7
-  temperatureCenter: 0.5
-  humidityMin: 0.5
+  temperatureMax: 0.65
+  temperatureCenter: 0.45
+  humidityMin: 0.55
   humidityMax: 1
   humidityCenter: 0.75
   topBlock: {fileID: 11400000, guid: 6939bb7628794ae4ea5b7f11fc81faa6, type: 2}
@@ -26,10 +26,9 @@ MonoBehaviour:
   underwaterBlock: {fileID: 11400000, guid: 91c83ab8bf0318041b36b318c08acb6f, type: 2}
   fillerDepth: 3
   treeDensity: 0.15
-  heightModifier: 0
   treeType: 0
   continentalnessCenter: 0.6
-  erosionCenter: 0.5
+  erosionCenter: 0.55
   baseHeight: 6
-  heightAmplitude: 10
+  heightAmplitude: 8
   mapColor: {r: 0, g: 1, b: 0, a: 1}
