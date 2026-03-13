@@ -196,22 +196,14 @@ namespace Lithforge.WorldGen.Stages
                 {
                     LightData[index] = LightUtils.Pack(0, 0);
 
-                    if (sun > 0)
-                    {
-                        sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift));
-                    }
-
-                    if (block > 0)
-                    {
-                        blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
-                    }
+                    bool columnWriteDone = false;
 
                     // Column-write shortcut: when placing an opaque block at/above the
                     // heightmap surface, directly zero the sunlight column below instead
                     // of letting the removal BFS walk down the entire column. Each zeroed
                     // voxel is enqueued with a horizontal-only skip mask so the BFS only
                     // spreads removal sideways, not redundantly up/down the column.
-                    if (HeightMap.IsCreated)
+                    if (sun > 0 && HeightMap.IsCreated)
                     {
                         IndexToXYZ(index, out int hx, out int hy, out int hz);
                         int colIdx = hz * ChunkConstants.Size + hx;
@@ -221,6 +213,7 @@ namespace Lithforge.WorldGen.Stages
                         if (blockWorldY >= oldHeight)
                         {
                             HeightMap[colIdx] = blockWorldY;
+                            columnWriteDone = true;
 
                             int horizOnlySkip = (1 << _dirNegY) | (1 << _dirPosY);
                             int minLocalY = oldHeight - ChunkWorldY;
@@ -251,6 +244,35 @@ namespace Lithforge.WorldGen.Stages
                                 sunRemovalQueue.Enqueue(scanIdx | ((int)scanSun << _levelShift)
                                     | (horizOnlySkip << _skipShift));
                             }
+                        }
+                    }
+
+                    // Seed the placed block itself for removal BFS.
+                    // If column-write handled the column below, skip ±Y to avoid
+                    // redundant vertical BFS cascade through the already-zeroed column.
+                    if (sun > 0)
+                    {
+                        int seedSkip = columnWriteDone
+                            ? ((1 << _dirNegY) | (1 << _dirPosY)) : 0;
+                        sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift)
+                            | (seedSkip << _skipShift));
+                    }
+
+                    if (block > 0)
+                    {
+                        blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
+                    }
+
+                    // Heightmap update for non-column-write case (block below surface)
+                    if (!columnWriteDone && HeightMap.IsCreated)
+                    {
+                        IndexToXYZ(index, out int hx2, out int hy2, out int hz2);
+                        int colIdx2 = hz2 * ChunkConstants.Size + hx2;
+                        int blockWorldY2 = ChunkWorldY + hy2;
+
+                        if (blockWorldY2 > HeightMap[colIdx2])
+                        {
+                            HeightMap[colIdx2] = blockWorldY2;
                         }
                     }
                 }
