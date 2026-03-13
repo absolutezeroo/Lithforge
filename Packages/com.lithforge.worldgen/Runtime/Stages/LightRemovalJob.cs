@@ -5,18 +5,24 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
     /// <summary>
-    /// BFS light removal job for block-change-triggered light recalculation.
+    /// BFS light removal job for block-change-triggered and cross-chunk light recalculation.
     /// When a block is placed or removed, this job:
-    /// 1. Removes stale light values via BFS from changed positions.
-    /// 2. Collects "re-seed" points (border voxels where removed light meets
-    ///    still-valid light from adjacent sources).
-    /// 3. Re-propagates light from the re-seed points.
+    /// 1. Seeds removal queues from border removal seeds (cross-chunk cascade) and
+    ///    changed positions (block edits).
+    /// 2. Removes stale light values via BFS, with a sunlight column special case
+    ///    (downward at max light forces removal regardless of neighbor level).
+    /// 3. Collects "re-seed" points (voxels where removed light meets still-valid light).
+    /// 4. Re-propagates light from the re-seed points.
+    /// 5. Scans chunk borders into BorderLightOutput for cross-chunk cascade.
     ///
     /// Owner of ChangedIndices: caller. Dispose: caller after Complete().
+    /// Owner of BorderRemovalSeeds: caller. Dispose: caller after Complete().
+    /// Owner of BorderLightOutput: caller. Dispose: caller after Complete().
     /// Owner of LightData: ManagedChunk (Persistent). Not disposed by this job.
     /// Owner of ChunkData: ManagedChunk (via ChunkPool, Persistent). Not disposed by this job.
     /// Owner of StateTable: NativeStateRegistry (Persistent). Not disposed by this job.
@@ -41,6 +47,24 @@ namespace Lithforge.WorldGen.Stages
         [NativeDisableContainerSafetyRestriction]
         public NativeArray<int> ChangedIndices;
 
+        /// <summary>
+        /// Border removal seeds from neighboring chunk edits. Each entry specifies a
+        /// border voxel whose incoming cross-chunk light has decreased and needs removal.
+        /// The LocalPosition is in THIS chunk's coordinate space.
+        /// Owner: caller. Dispose: caller after Complete().
+        /// </summary>
+        [ReadOnly]
+        public NativeArray<NativeBorderLightEntry> BorderRemovalSeeds;
+
+        /// <summary>
+        /// Output: border light entries after removal+reseed completes.
+        /// Contains voxels at chunk faces with light > 1 for cross-chunk cascade.
+        /// The caller compares these with the chunk's old border entries to detect
+        /// changes that need to propagate to further neighbors.
+        /// Owner: caller. Dispose: caller after reading.
+        /// </summary>
+        public NativeList<NativeBorderLightEntry> BorderLightOutput;
+
         public void Execute()
         {
             // Queue entries: packed as (index << 8) | oldLightValue
@@ -50,7 +74,95 @@ namespace Lithforge.WorldGen.Stages
             NativeQueue<int> sunReseedQueue = new NativeQueue<int>(Allocator.TempJob);
             NativeQueue<int> blockReseedQueue = new NativeQueue<int>(Allocator.TempJob);
 
-            // Step 1: Seed removal queues from changed positions
+            // Step 1a: Seed removal queues from border removal seeds (cross-chunk cascade)
+            SeedFromBorderRemovals(ref sunRemovalQueue, ref blockRemovalQueue,
+                ref sunReseedQueue, ref blockReseedQueue);
+
+            // Step 1b: Seed removal queues from changed positions (block edits)
+            SeedFromChangedIndices(ref sunRemovalQueue, ref blockRemovalQueue,
+                ref sunReseedQueue, ref blockReseedQueue);
+
+            // Step 2: BFS removal of sunlight (with downward column special case)
+            RemoveLight(ref sunRemovalQueue, ref sunReseedQueue, true);
+
+            // Step 3: BFS removal of block light
+            RemoveLight(ref blockRemovalQueue, ref blockReseedQueue, false);
+
+            // Step 4: Re-propagate from re-seed points
+            RepropagateSun(ref sunReseedQueue);
+            RepropagateBlock(ref blockReseedQueue);
+
+            // Step 5: Scan borders for cross-chunk cascade
+            CollectBorderLightLeaks();
+
+            sunRemovalQueue.Dispose();
+            blockRemovalQueue.Dispose();
+            sunReseedQueue.Dispose();
+            blockReseedQueue.Dispose();
+        }
+
+        private void SeedFromBorderRemovals(
+            ref NativeQueue<int> sunRemovalQueue, ref NativeQueue<int> blockRemovalQueue,
+            ref NativeQueue<int> sunReseedQueue, ref NativeQueue<int> blockReseedQueue)
+        {
+            for (int i = 0; i < BorderRemovalSeeds.Length; i++)
+            {
+                NativeBorderLightEntry seed = BorderRemovalSeeds[i];
+                int3 pos = seed.LocalPosition;
+
+                if (pos.x < 0 || pos.x >= ChunkConstants.Size ||
+                    pos.y < 0 || pos.y >= ChunkConstants.Size ||
+                    pos.z < 0 || pos.z >= ChunkConstants.Size)
+                {
+                    continue;
+                }
+
+                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                StateId stateId = ChunkData[index];
+                BlockStateCompact blockState = StateTable[stateId.Value];
+
+                if (blockState.IsOpaque)
+                {
+                    continue;
+                }
+
+                byte currentPacked = LightData[index];
+                byte currentSun = LightUtils.GetSunLight(currentPacked);
+                byte currentBlock = LightUtils.GetBlockLight(currentPacked);
+
+                // Zero incoming cross-chunk light for removal BFS
+                if (currentSun > 0)
+                {
+                    LightData[index] = LightUtils.Pack(0, LightUtils.GetBlockLight(LightData[index]));
+                    sunRemovalQueue.Enqueue((index << 8) | currentSun);
+                }
+
+                if (currentBlock > 0 && blockState.LightEmission == 0)
+                {
+                    LightData[index] = LightUtils.Pack(LightUtils.GetSunLight(LightData[index]), 0);
+                    blockRemovalQueue.Enqueue((index << 8) | currentBlock);
+                }
+
+                // If this block emits light, its emission survives as a reseed
+                if (blockState.LightEmission > 0)
+                {
+                    byte updatedBlock = LightUtils.GetBlockLight(LightData[index]);
+
+                    if (blockState.LightEmission > updatedBlock)
+                    {
+                        byte updatedSun = LightUtils.GetSunLight(LightData[index]);
+                        LightData[index] = LightUtils.Pack(updatedSun, blockState.LightEmission);
+                    }
+
+                    blockReseedQueue.Enqueue(index);
+                }
+            }
+        }
+
+        private void SeedFromChangedIndices(
+            ref NativeQueue<int> sunRemovalQueue, ref NativeQueue<int> blockRemovalQueue,
+            ref NativeQueue<int> sunReseedQueue, ref NativeQueue<int> blockReseedQueue)
+        {
             for (int i = 0; i < ChangedIndices.Length; i++)
             {
                 int index = ChangedIndices[i];
@@ -105,23 +217,77 @@ namespace Lithforge.WorldGen.Stages
 
                         blockReseedQueue.Enqueue(index);
                     }
+
+                    // Sunlight column restoration: if the voxel above has sun == 15,
+                    // this newly-transparent block should receive full sunlight.
+                    // The reseed BFS will propagate it downward with the no-decrement rule.
+                    IndexToXYZ(index, out int ax, out int ay, out int az);
+
+                    if (ay < ChunkConstants.Size - 1)
+                    {
+                        int aboveIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, ay + 1, az);
+                        byte aboveSun = LightUtils.GetSunLight(LightData[aboveIndex]);
+
+                        if (aboveSun == 15)
+                        {
+                            byte currentBlockLight = LightUtils.GetBlockLight(LightData[index]);
+                            LightData[index] = LightUtils.Pack(15, currentBlockLight);
+                            sunReseedQueue.Enqueue(index);
+                        }
+                    }
                 }
             }
+        }
 
-            // Step 2: BFS removal of sunlight
-            RemoveLight(ref sunRemovalQueue, ref sunReseedQueue, true);
+        /// <summary>
+        /// After removal+reseed completes, scan all 6 faces for voxels with light > 1.
+        /// These represent the chunk's new border light state for cross-chunk propagation.
+        /// </summary>
+        private void CollectBorderLightLeaks()
+        {
+            if (!BorderLightOutput.IsCreated)
+            {
+                return;
+            }
 
-            // Step 3: BFS removal of block light
-            RemoveLight(ref blockRemovalQueue, ref blockReseedQueue, false);
+            int lastIdx = ChunkConstants.Size - 1;
 
-            // Step 4: Re-propagate from re-seed points
-            RepropagateSun(ref sunReseedQueue);
-            RepropagateBlock(ref blockReseedQueue);
+            for (int a = 0; a < ChunkConstants.Size; a++)
+            {
+                for (int b = 0; b < ChunkConstants.Size; b++)
+                {
+                    // +X face (x=31)
+                    CollectBorderVoxel(lastIdx, a, b, new int3(lastIdx, a, b), 0);
+                    // -X face (x=0)
+                    CollectBorderVoxel(0, a, b, new int3(0, a, b), 1);
+                    // +Y face (y=31)
+                    CollectBorderVoxel(a, lastIdx, b, new int3(a, lastIdx, b), 2);
+                    // -Y face (y=0)
+                    CollectBorderVoxel(a, 0, b, new int3(a, 0, b), 3);
+                    // +Z face (z=31)
+                    CollectBorderVoxel(a, b, lastIdx, new int3(a, b, lastIdx), 4);
+                    // -Z face (z=0)
+                    CollectBorderVoxel(a, b, 0, new int3(a, b, 0), 5);
+                }
+            }
+        }
 
-            sunRemovalQueue.Dispose();
-            blockRemovalQueue.Dispose();
-            sunReseedQueue.Dispose();
-            blockReseedQueue.Dispose();
+        private void CollectBorderVoxel(int x, int y, int z, int3 localPos, byte face)
+        {
+            int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+            byte packed = LightData[index];
+            byte sun = LightUtils.GetSunLight(packed);
+            byte block = LightUtils.GetBlockLight(packed);
+
+            if (sun > 1 || block > 1)
+            {
+                BorderLightOutput.Add(new NativeBorderLightEntry
+                {
+                    LocalPosition = localPos,
+                    PackedLight = packed,
+                    Face = face,
+                });
+            }
         }
 
         private void RemoveLight(ref NativeQueue<int> removalQueue, ref NativeQueue<int> reseedQueue, bool isSun)
@@ -134,17 +300,17 @@ namespace Lithforge.WorldGen.Stages
 
                 IndexToXYZ(index, out int x, out int y, out int z);
 
-                TryRemoveNeighbor(x - 1, y, z, oldLight, isSun, ref removalQueue, ref reseedQueue);
-                TryRemoveNeighbor(x + 1, y, z, oldLight, isSun, ref removalQueue, ref reseedQueue);
-                TryRemoveNeighbor(x, y - 1, z, oldLight, isSun, ref removalQueue, ref reseedQueue);
-                TryRemoveNeighbor(x, y + 1, z, oldLight, isSun, ref removalQueue, ref reseedQueue);
-                TryRemoveNeighbor(x, y, z - 1, oldLight, isSun, ref removalQueue, ref reseedQueue);
-                TryRemoveNeighbor(x, y, z + 1, oldLight, isSun, ref removalQueue, ref reseedQueue);
+                TryRemoveNeighbor(x - 1, y, z, oldLight, isSun, false, ref removalQueue, ref reseedQueue);
+                TryRemoveNeighbor(x + 1, y, z, oldLight, isSun, false, ref removalQueue, ref reseedQueue);
+                TryRemoveNeighbor(x, y - 1, z, oldLight, isSun, true, ref removalQueue, ref reseedQueue);
+                TryRemoveNeighbor(x, y + 1, z, oldLight, isSun, false, ref removalQueue, ref reseedQueue);
+                TryRemoveNeighbor(x, y, z - 1, oldLight, isSun, false, ref removalQueue, ref reseedQueue);
+                TryRemoveNeighbor(x, y, z + 1, oldLight, isSun, false, ref removalQueue, ref reseedQueue);
             }
         }
 
         private void TryRemoveNeighbor(int nx, int ny, int nz, byte oldLight, bool isSun,
-            ref NativeQueue<int> removalQueue, ref NativeQueue<int> reseedQueue)
+            bool isDownward, ref NativeQueue<int> removalQueue, ref NativeQueue<int> reseedQueue)
         {
             if (nx < 0 || nx >= ChunkConstants.Size ||
                 ny < 0 || ny >= ChunkConstants.Size ||
@@ -159,7 +325,18 @@ namespace Lithforge.WorldGen.Stages
                 ? LightUtils.GetSunLight(neighborPacked)
                 : LightUtils.GetBlockLight(neighborPacked);
 
-            if (neighborLight > 0 && neighborLight < oldLight)
+            // Sunlight column special case: when removing sunlight at level 15 going
+            // downward, force-remove the neighbor regardless of its level. Sky light
+            // at 15 propagates downward without decrement, so the standard
+            // "neighborLight < oldLight" check fails (both are 15). Without this,
+            // the entire sunlight column below a placed block stays incorrectly lit.
+            if (isSun && isDownward && oldLight == 15 && neighborLight > 0)
+            {
+                byte blockLight = LightUtils.GetBlockLight(neighborPacked);
+                LightData[neighborIndex] = LightUtils.Pack(0, blockLight);
+                removalQueue.Enqueue((neighborIndex << 8) | neighborLight);
+            }
+            else if (neighborLight > 0 && neighborLight < oldLight)
             {
                 // This neighbor was lit by the removed source — remove it too
                 if (isSun)

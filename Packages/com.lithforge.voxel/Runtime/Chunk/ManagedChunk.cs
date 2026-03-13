@@ -50,9 +50,27 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>
         /// Border light entries collected after light propagation.
         /// Contains voxels at chunk borders with light > 1 that need to propagate to neighbors.
-        /// Owner: ManagedChunk. Populated by GenerationScheduler after LightPropagationJob completes.
+        /// Owner: ManagedChunk. Populated by GenerationScheduler after LightPropagationJob completes,
+        /// and by MeshScheduler after LightRemovalJob completes.
         /// </summary>
         public List<BorderLightEntry> BorderLightEntries { get; }
+
+        /// <summary>
+        /// Flat indices of voxels modified by SetBlock since the last relight.
+        /// Used by MeshScheduler to pass targeted changed indices to LightRemovalJob
+        /// instead of scanning all 32768 voxels.
+        /// Owner: ManagedChunk. Populated by ChunkManager.SetBlock, cleared by MeshScheduler.
+        /// </summary>
+        public List<int> PendingEditIndices { get; }
+
+        /// <summary>
+        /// Border removal seeds from neighboring chunk edits. When a neighbor's relight
+        /// reduces light at the shared border, these entries tell this chunk which border
+        /// voxels need their light zeroed and removal-BFS'd.
+        /// Owner: ManagedChunk. Populated by MeshScheduler after neighbor relight,
+        /// cleared by MeshScheduler when scheduling this chunk's LightRemovalJob.
+        /// </summary>
+        public List<BorderLightEntry> PendingBorderRemovals { get; }
 
         /// <summary>
         /// True if this chunk needs cross-chunk light re-propagation.
@@ -81,6 +99,8 @@ namespace Lithforge.Voxel.Chunk
             LODLevel = 0;
             RenderedLODLevel = -1;
             BorderLightEntries = new List<BorderLightEntry>();
+            PendingEditIndices = new List<int>();
+            PendingBorderRemovals = new List<BorderLightEntry>();
         }
     }
 }

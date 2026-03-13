@@ -442,6 +442,7 @@ namespace Lithforge.Voxel.Chunk
             NativeArray<StateId> data = chunk.Data;
             data[index] = state;
             chunk.IsDirty = true;
+            chunk.PendingEditIndices.Add(index);
 
             // Complete any running mesh job before resetting state
             if (chunk.State == ChunkState.Meshing)

@@ -5,6 +5,7 @@ using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
@@ -51,12 +52,22 @@ namespace Lithforge.Runtime.Scheduling
         private readonly List<PendingRelight> _inFlightRelights = new List<PendingRelight>();
 
         /// <summary>
-        /// Shared index array for LightRemovalJob (all 32768 voxel indices).
-        /// Allocated once on first use with Allocator.Persistent because it is
-        /// shared across frames (TempJob would expire after 4 frames).
-        /// Owner: MeshScheduler. Disposed in Shutdown().
+        /// Face offsets for 6 cardinal directions: +X, -X, +Y, -Y, +Z, -Z.
         /// </summary>
-        private NativeArray<int> _relightAllIndices;
+        private static readonly int3[] _faceOffsets =
+        {
+            new int3(1, 0, 0),   // 0: +X
+            new int3(-1, 0, 0),  // 1: -X
+            new int3(0, 1, 0),   // 2: +Y
+            new int3(0, -1, 0),  // 3: -Y
+            new int3(0, 0, 1),   // 4: +Z
+            new int3(0, 0, -1),  // 5: -Z
+        };
+
+        /// <summary>
+        /// Maps face index to the opposite face: +X(0)↔-X(1), +Y(2)↔-Y(3), +Z(4)↔-Z(5).
+        /// </summary>
+        private static readonly int[] _oppositeFace = { 1, 0, 3, 2, 5, 4 };
 
         public int PendingCount
         {
@@ -205,6 +216,8 @@ namespace Lithforge.Runtime.Scheduling
         /// in PollRelightCompleted() next frame. Chunks stay in RelightPending state
         /// until the relight job completes, which gates meshing automatically (since
         /// FillChunksToMesh only returns Generated chunks).
+        /// Uses targeted changed indices from PendingEditIndices and border removal
+        /// seeds from PendingBorderRemovals instead of scanning all 32768 voxels.
         /// Should be called each frame before ScheduleJobs().
         /// </summary>
         public void ScheduleRelightJobs()
@@ -214,17 +227,6 @@ namespace Lithforge.Runtime.Scheduling
             if (_relightCache.Count == 0)
             {
                 return;
-            }
-
-            // Lazy-allocate shared index array on first use
-            if (!_relightAllIndices.IsCreated)
-            {
-                _relightAllIndices = new NativeArray<int>(ChunkConstants.Volume, Allocator.Persistent);
-
-                for (int idx = 0; idx < ChunkConstants.Volume; idx++)
-                {
-                    _relightAllIndices[idx] = idx;
-                }
             }
 
             bool scheduled = false;
@@ -244,12 +246,50 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
+                // Build targeted changed indices from pending edits
+                NativeArray<int> changedIndices = new NativeArray<int>(
+                    chunk.PendingEditIndices.Count, Allocator.TempJob);
+
+                for (int j = 0; j < chunk.PendingEditIndices.Count; j++)
+                {
+                    changedIndices[j] = chunk.PendingEditIndices[j];
+                }
+
+                chunk.PendingEditIndices.Clear();
+
+                // Build border removal seeds from pending cross-chunk cascade
+                NativeArray<NativeBorderLightEntry> borderRemovalSeeds =
+                    new NativeArray<NativeBorderLightEntry>(
+                        chunk.PendingBorderRemovals.Count, Allocator.TempJob);
+
+                for (int j = 0; j < chunk.PendingBorderRemovals.Count; j++)
+                {
+                    BorderLightEntry entry = chunk.PendingBorderRemovals[j];
+                    borderRemovalSeeds[j] = new NativeBorderLightEntry
+                    {
+                        LocalPosition = entry.LocalPosition,
+                        PackedLight = entry.PackedLight,
+                        Face = entry.Face,
+                    };
+                }
+
+                chunk.PendingBorderRemovals.Clear();
+
+                // Allocate border light output for post-relight border scanning
+                NativeList<NativeBorderLightEntry> borderLightOutput =
+                    new NativeList<NativeBorderLightEntry>(256, Allocator.TempJob);
+
+                // Snapshot old border entries for diffing after job completes
+                List<BorderLightEntry> oldBorderEntries = new List<BorderLightEntry>(chunk.BorderLightEntries);
+
                 LightRemovalJob removalJob = new LightRemovalJob
                 {
                     LightData = chunk.LightData,
                     ChunkData = chunk.Data,
                     StateTable = _nativeStateRegistry.States,
-                    ChangedIndices = _relightAllIndices,
+                    ChangedIndices = changedIndices,
+                    BorderRemovalSeeds = borderRemovalSeeds,
+                    BorderLightOutput = borderLightOutput,
                 };
 
                 JobHandle handle = removalJob.Schedule();
@@ -261,6 +301,10 @@ namespace Lithforge.Runtime.Scheduling
                     Chunk = chunk,
                     Handle = handle,
                     FrameAge = 0,
+                    ChangedIndices = changedIndices,
+                    BorderRemovalSeeds = borderRemovalSeeds,
+                    BorderLightOutput = borderLightOutput,
+                    OldBorderEntries = oldBorderEntries,
                 });
 
                 scheduled = true;
@@ -390,6 +434,9 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     _inFlightRelights[i].Handle.Complete();
                     _inFlightRelights[i].Chunk.LightJobInFlight = false;
+                    _inFlightRelights[i].ChangedIndices.Dispose();
+                    _inFlightRelights[i].BorderRemovalSeeds.Dispose();
+                    _inFlightRelights[i].BorderLightOutput.Dispose();
                     _inFlightRelights.RemoveAt(i);
                 }
             }
@@ -450,19 +497,19 @@ namespace Lithforge.Runtime.Scheduling
             for (int i = 0; i < _inFlightRelights.Count; i++)
             {
                 _inFlightRelights[i].Handle.Complete();
+                _inFlightRelights[i].ChangedIndices.Dispose();
+                _inFlightRelights[i].BorderRemovalSeeds.Dispose();
+                _inFlightRelights[i].BorderLightOutput.Dispose();
             }
 
             _inFlightRelights.Clear();
-
-            if (_relightAllIndices.IsCreated)
-            {
-                _relightAllIndices.Dispose();
-            }
         }
 
         /// <summary>
         /// Completes in-flight relight jobs from last frame. Jobs that completed on
         /// worker threads transition their chunk from RelightPending to Generated.
+        /// After completion, compares old vs new border light entries to cascade
+        /// light changes to neighboring chunks (both removal and increase paths).
         /// FrameAge >= 3 forces completion as a TempJob safety fallback (matches
         /// the pattern in GenerationScheduler.ProcessCrossChunkLightUpdates).
         /// </summary>
@@ -475,8 +522,18 @@ namespace Lithforge.Runtime.Scheduling
                 if (entry.Handle.IsCompleted || entry.FrameAge >= 3)
                 {
                     entry.Handle.Complete();
+
+                    // Process border cascade before transitioning state
+                    ProcessRelightBorderCascade(entry);
+
                     entry.Chunk.State = ChunkState.Generated;
                     entry.Chunk.LightJobInFlight = false;
+
+                    // Dispose native containers from this relight
+                    entry.ChangedIndices.Dispose();
+                    entry.BorderRemovalSeeds.Dispose();
+                    entry.BorderLightOutput.Dispose();
+
                     _inFlightRelights.RemoveAt(i);
                 }
                 else
@@ -484,6 +541,206 @@ namespace Lithforge.Runtime.Scheduling
                     entry.FrameAge++;
                     _inFlightRelights[i] = entry;
                 }
+            }
+        }
+
+        /// <summary>
+        /// After a LightRemovalJob completes, compares the chunk's old border light
+        /// entries with the new post-relight border state. For any face where light
+        /// decreased, creates removal seeds for the neighbor chunk (setting it to
+        /// RelightPending). For any face where light increased, marks the neighbor
+        /// for LightUpdateJob (NeedsLightUpdate). Also checks if THIS chunk should
+        /// receive incoming light from neighbors (e.g., sunlight column restoration
+        /// from the chunk above after block removal).
+        /// </summary>
+        private void ProcessRelightBorderCascade(PendingRelight entry)
+        {
+            ManagedChunk chunk = entry.Chunk;
+            List<BorderLightEntry> oldEntries = entry.OldBorderEntries;
+            NativeList<NativeBorderLightEntry> newOutput = entry.BorderLightOutput;
+
+            // Update chunk's border entries with post-relight values
+            chunk.BorderLightEntries.Clear();
+
+            for (int i = 0; i < newOutput.Length; i++)
+            {
+                NativeBorderLightEntry native = newOutput[i];
+                chunk.BorderLightEntries.Add(new BorderLightEntry
+                {
+                    LocalPosition = native.LocalPosition,
+                    PackedLight = native.PackedLight,
+                    Face = native.Face,
+                });
+            }
+
+            // For each face, compare old vs new border entries and cascade to neighbors
+            for (int f = 0; f < 6; f++)
+            {
+                int3 neighborCoord = chunk.Coord + _faceOffsets[f];
+                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+
+                if (neighbor == null ||
+                    neighbor.State < ChunkState.RelightPending ||
+                    !neighbor.LightData.IsCreated)
+                {
+                    continue;
+                }
+
+                bool hasDecreased = false;
+                bool hasIncreased = false;
+
+                // Check for decreases: old entries whose light is now lower at the same position
+                for (int oi = 0; oi < oldEntries.Count; oi++)
+                {
+                    if (oldEntries[oi].Face != f)
+                    {
+                        continue;
+                    }
+
+                    int3 pos = oldEntries[oi].LocalPosition;
+                    int idx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                    byte newPacked = chunk.LightData[idx];
+                    byte oldPacked = oldEntries[oi].PackedLight;
+
+                    byte oldSun = LightUtils.GetSunLight(oldPacked);
+                    byte oldBlock = LightUtils.GetBlockLight(oldPacked);
+                    byte newSun = LightUtils.GetSunLight(newPacked);
+                    byte newBlock = LightUtils.GetBlockLight(newPacked);
+
+                    if (newSun < oldSun || newBlock < oldBlock)
+                    {
+                        hasDecreased = true;
+                        int3 neighborLocal = MapBorderToNeighborLocal(pos, f);
+                        neighbor.PendingBorderRemovals.Add(new BorderLightEntry
+                        {
+                            LocalPosition = neighborLocal,
+                            PackedLight = oldPacked,
+                            Face = (byte)_oppositeFace[f],
+                        });
+                    }
+                }
+
+                // Check for increases: new entries with higher light than old at the same position
+                for (int ni = 0; ni < chunk.BorderLightEntries.Count; ni++)
+                {
+                    if (chunk.BorderLightEntries[ni].Face != f)
+                    {
+                        continue;
+                    }
+
+                    byte newPacked = chunk.BorderLightEntries[ni].PackedLight;
+                    int3 pos = chunk.BorderLightEntries[ni].LocalPosition;
+
+                    // Find corresponding old entry
+                    bool foundOld = false;
+
+                    for (int oj = 0; oj < oldEntries.Count; oj++)
+                    {
+                        if (oldEntries[oj].Face == f &&
+                            oldEntries[oj].LocalPosition.x == pos.x &&
+                            oldEntries[oj].LocalPosition.y == pos.y &&
+                            oldEntries[oj].LocalPosition.z == pos.z)
+                        {
+                            foundOld = true;
+                            byte oldPacked = oldEntries[oj].PackedLight;
+
+                            if (LightUtils.GetSunLight(newPacked) > LightUtils.GetSunLight(oldPacked) ||
+                                LightUtils.GetBlockLight(newPacked) > LightUtils.GetBlockLight(oldPacked))
+                            {
+                                hasIncreased = true;
+                            }
+
+                            break;
+                        }
+                    }
+
+                    if (!foundOld)
+                    {
+                        hasIncreased = true;
+                    }
+
+                    if (hasIncreased)
+                    {
+                        break;
+                    }
+                }
+
+                // Cascade decreases: set neighbor to RelightPending for removal BFS
+                if (hasDecreased &&
+                    neighbor.State >= ChunkState.Generated &&
+                    !neighbor.LightJobInFlight)
+                {
+                    if (neighbor.State == ChunkState.Meshing)
+                    {
+                        neighbor.ActiveJobHandle.Complete();
+                    }
+
+                    neighbor.State = ChunkState.RelightPending;
+                }
+
+                // Cascade increases: mark neighbor for LightUpdateJob
+                if (hasIncreased)
+                {
+                    neighbor.NeedsLightUpdate = true;
+                }
+            }
+
+            // Check if THIS chunk should receive incoming light from neighbors
+            // (e.g., sunlight column restoration from the chunk above after block removal,
+            // or torch light from a neighboring chunk after this chunk's border cleared)
+            for (int f = 0; f < 6; f++)
+            {
+                int3 neighborCoord = chunk.Coord + _faceOffsets[f];
+                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+
+                if (neighbor == null || neighbor.BorderLightEntries.Count == 0)
+                {
+                    continue;
+                }
+
+                int oppFace = _oppositeFace[f];
+
+                for (int ni = 0; ni < neighbor.BorderLightEntries.Count; ni++)
+                {
+                    if (neighbor.BorderLightEntries[ni].Face == oppFace)
+                    {
+                        chunk.NeedsLightUpdate = true;
+
+                        break;
+                    }
+                }
+
+                if (chunk.NeedsLightUpdate)
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Maps a border voxel's local position from the source chunk to the
+        /// receiving chunk's local coordinate system.
+        /// </summary>
+        private static int3 MapBorderToNeighborLocal(int3 sourceLocal, int sourceFace)
+        {
+            int lastIdx = ChunkConstants.Size - 1;
+
+            switch (sourceFace)
+            {
+                case 0: // +X face of source -> -X face of receiver (x=0)
+                    return new int3(0, sourceLocal.y, sourceLocal.z);
+                case 1: // -X face of source -> +X face of receiver (x=31)
+                    return new int3(lastIdx, sourceLocal.y, sourceLocal.z);
+                case 2: // +Y face of source -> -Y face of receiver (y=0)
+                    return new int3(sourceLocal.x, 0, sourceLocal.z);
+                case 3: // -Y face of source -> +Y face of receiver (y=31)
+                    return new int3(sourceLocal.x, lastIdx, sourceLocal.z);
+                case 4: // +Z face of source -> -Z face of receiver (z=0)
+                    return new int3(sourceLocal.x, sourceLocal.y, 0);
+                case 5: // -Z face of source -> +Z face of receiver (z=31)
+                    return new int3(sourceLocal.x, sourceLocal.y, lastIdx);
+                default:
+                    return sourceLocal;
             }
         }
 
@@ -626,6 +883,10 @@ namespace Lithforge.Runtime.Scheduling
             public ManagedChunk Chunk;
             public JobHandle Handle;
             public int FrameAge;
+            public NativeArray<int> ChangedIndices;
+            public NativeArray<NativeBorderLightEntry> BorderRemovalSeeds;
+            public NativeList<NativeBorderLightEntry> BorderLightOutput;
+            public List<BorderLightEntry> OldBorderEntries;
         }
     }
 }

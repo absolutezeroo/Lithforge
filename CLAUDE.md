@@ -246,6 +246,7 @@ because Burst IJob structs cannot share instance methods or access shared Native
 | PropagateBlockLight / RepropagateBlock | ✓ | ✓ | ✓ |
 | TryPropagateBlock | ✓ | ✓ | ✓ |
 | IndexToXYZ | ✓ | ✓ | ✓ |
+| CollectBorderLightLeaks / CollectBorderVoxel | ✓ | ✓ | |
 
 ## Reference Sources
 
