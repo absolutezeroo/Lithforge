@@ -61,13 +61,13 @@ namespace Lithforge.Runtime.Scheduling
 
         /// <summary>
         /// Reusable flat array for O(1) old-border-entry lookup in ProcessRelightBorderCascade.
-        /// Index: flat voxel index (0..SizeCubed-1). Value: packed light byte (0 = not present).
+        /// Index: flat voxel index (0..SizeSquared-1). Value: packed light byte (0 = not present).
         /// PackedLight is never 0 for border entries (filtered by sun > 1 || block > 1),
         /// so 0 is a safe sentinel for "no old entry at this position".
         /// Cleared and rebuilt each call — no stale data risk.
         /// Owner: MeshScheduler. Lifetime: application.
         /// </summary>
-        private readonly byte[] _oldBorderLookup = new byte[ChunkConstants.SizeCubed];
+        private readonly byte[] _oldBorderLookup = new byte[ChunkConstants.SizeSquared];
 
         /// <summary>
         /// Face offsets for 6 cardinal directions: +X, -X, +Y, -Y, +Z, -Z.
