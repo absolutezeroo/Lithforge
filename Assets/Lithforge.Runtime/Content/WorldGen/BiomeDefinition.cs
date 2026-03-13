@@ -67,6 +67,21 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Range(0, 2)]
         [SerializeField] private int treeType;
 
+        [Header("Extended Climate")]
+        [Tooltip("Preferred continentalness value (0=ocean, 1=far inland)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float continentalnessCenter = 0.5f;
+
+        [Tooltip("Preferred erosion value (0=low erosion/peaks, 1=high erosion/flat)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float erosionCenter = 0.5f;
+
+        [Tooltip("Target surface height relative to sea level (blended per-biome)")]
+        [SerializeField] private float baseHeight = 4f;
+
+        [Tooltip("Terrain noise amplitude scale for this biome")]
+        [SerializeField] private float heightAmplitude = 12f;
+
         [Header("Map")]
         [Tooltip("Color shown on the world map")]
         [SerializeField] private Color mapColor = Color.green;
@@ -149,6 +164,26 @@ namespace Lithforge.Runtime.Content.WorldGen
         public int TreeType
         {
             get { return treeType; }
+        }
+
+        public float ContinentalnessCenter
+        {
+            get { return continentalnessCenter; }
+        }
+
+        public float ErosionCenter
+        {
+            get { return erosionCenter; }
+        }
+
+        public float BaseHeight
+        {
+            get { return baseHeight; }
+        }
+
+        public float HeightAmplitude
+        {
+            get { return heightAmplitude; }
         }
 
         public Color MapColor

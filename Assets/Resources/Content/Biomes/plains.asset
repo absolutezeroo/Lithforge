@@ -27,4 +27,9 @@ MonoBehaviour:
   fillerDepth: 3
   treeDensity: 0.02
   heightModifier: 0
+  treeType: 0
+  continentalnessCenter: 0.5
+  erosionCenter: 0.7
+  baseHeight: 4
+  heightAmplitude: 6
   mapColor: {r: 0, g: 1, b: 0, a: 1}

@@ -16,7 +16,7 @@ MonoBehaviour:
     frequency: 0.008
     lacunarity: 2
     persistence: 0.5
-    heightScale: 24
+    heightScale: 1
     octaves: 5
     seedOffset: 0
   temperatureNoise:
@@ -33,6 +33,20 @@ MonoBehaviour:
     heightScale: 1
     octaves: 3
     seedOffset: 1999
+  continentalnessNoise:
+    frequency: 0.002
+    lacunarity: 2
+    persistence: 0.55
+    heightScale: 1
+    octaves: 4
+    seedOffset: 2999
+  erosionNoise:
+    frequency: 0.003
+    lacunarity: 2
+    persistence: 0.5
+    heightScale: 1
+    octaves: 3
+    seedOffset: 3999
   caveNoise:
     frequency: 0.03
     lacunarity: 2

@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Biome;
+using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Ore;
 using Lithforge.WorldGen.Stages;
@@ -15,6 +16,8 @@ namespace Lithforge.WorldGen.Pipeline
         private readonly NativeNoiseConfig _terrainNoise;
         private readonly NativeNoiseConfig _temperatureNoise;
         private readonly NativeNoiseConfig _humidityNoise;
+        private readonly NativeNoiseConfig _continentalnessNoise;
+        private readonly NativeNoiseConfig _erosionNoise;
         private readonly NativeNoiseConfig _caveNoise;
         private readonly float _caveThreshold;
         private readonly int _minCarveY;
@@ -33,6 +36,8 @@ namespace Lithforge.WorldGen.Pipeline
             NativeNoiseConfig terrainNoise,
             NativeNoiseConfig temperatureNoise,
             NativeNoiseConfig humidityNoise,
+            NativeNoiseConfig continentalnessNoise,
+            NativeNoiseConfig erosionNoise,
             NativeNoiseConfig caveNoise,
             float caveThreshold,
             int minCarveY,
@@ -50,6 +55,8 @@ namespace Lithforge.WorldGen.Pipeline
             _terrainNoise = terrainNoise;
             _temperatureNoise = temperatureNoise;
             _humidityNoise = humidityNoise;
+            _continentalnessNoise = continentalnessNoise;
+            _erosionNoise = erosionNoise;
             _caveNoise = caveNoise;
             _caveThreshold = caveThreshold;
             _minCarveY = minCarveY;
@@ -76,29 +83,43 @@ namespace Lithforge.WorldGen.Pipeline
             NativeArray<byte> biomeMap = new NativeArray<byte>(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            NativeArray<float> temperatureMap = new NativeArray<float>(
+            NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            NativeArray<float> humidityMap = new NativeArray<float>(
-                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            // Stage 1: Climate noise sampling (4 parameters per column)
+            ClimateNoiseJob climateJob = new ClimateNoiseJob
+            {
+                ClimateMap = climateMap,
+                Seed = seed,
+                ChunkCoord = coord,
+                TemperatureNoise = _temperatureNoise,
+                HumidityNoise = _humidityNoise,
+                ContinentalnessNoise = _continentalnessNoise,
+                ErosionNoise = _erosionNoise,
+            };
 
-            // Stage 1: Terrain shape
+            JobHandle climateHandle = climateJob.Schedule();
+
+            // Stage 2: Terrain shape with biome-weighted height blending
             TerrainShapeJob terrainJob = new TerrainShapeJob
             {
                 ChunkData = chunkData,
                 HeightMap = heightMap,
+                BiomeMap = biomeMap,
+                ClimateMap = climateMap,
+                BiomeData = _biomeData,
                 Seed = seed,
                 ChunkCoord = coord,
-                NoiseConfig = _terrainNoise,
+                TerrainNoise = _terrainNoise,
                 SeaLevel = _seaLevel,
                 StoneId = _stoneId,
                 WaterId = _waterId,
                 AirId = _airId,
             };
 
-            JobHandle terrainHandle = terrainJob.Schedule();
+            JobHandle terrainHandle = terrainJob.Schedule(climateHandle);
 
-            // Stage 2: Cave carving
+            // Stage 3: Cave carving
             CaveCarverJob caveJob = new CaveCarverJob
             {
                 ChunkData = chunkData,
@@ -117,22 +138,6 @@ namespace Lithforge.WorldGen.Pipeline
 
             JobHandle caveHandle = caveJob.Schedule(terrainHandle);
 
-            // Stage 3: Biome assignment
-            BiomeAssignmentJob biomeJob = new BiomeAssignmentJob
-            {
-                HeightMap = heightMap,
-                BiomeData = _biomeData,
-                Seed = seed,
-                ChunkCoord = coord,
-                TemperatureNoise = _temperatureNoise,
-                HumidityNoise = _humidityNoise,
-                BiomeMap = biomeMap,
-                TemperatureMap = temperatureMap,
-                HumidityMap = humidityMap,
-            };
-
-            JobHandle biomeHandle = biomeJob.Schedule(caveHandle);
-
             // Stage 4: Surface builder (biome-driven)
             SurfaceBuilderJob surfaceJob = new SurfaceBuilderJob
             {
@@ -146,7 +151,7 @@ namespace Lithforge.WorldGen.Pipeline
                 AirId = _airId,
             };
 
-            JobHandle surfaceHandle = surfaceJob.Schedule(biomeHandle);
+            JobHandle surfaceHandle = surfaceJob.Schedule(caveHandle);
 
             // Stage 5: Ore generation
             OreGenerationJob oreJob = new OreGenerationJob
@@ -194,8 +199,7 @@ namespace Lithforge.WorldGen.Pipeline
                 HeightMap = heightMap,
                 LightData = lightData,
                 BiomeMap = biomeMap,
-                TemperatureMap = temperatureMap,
-                HumidityMap = humidityMap,
+                ClimateMap = climateMap,
                 BorderLightOutput = borderLightOutput,
             };
         }

@@ -1,4 +1,5 @@
 using System;
+using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
@@ -11,8 +12,13 @@ namespace Lithforge.WorldGen.Pipeline
         public NativeArray<int> HeightMap;
         public NativeArray<byte> LightData;
         public NativeArray<byte> BiomeMap;
-        public NativeArray<float> TemperatureMap;
-        public NativeArray<float> HumidityMap;
+
+        /// <summary>
+        /// Per-column climate values produced by ClimateNoiseJob.
+        /// Owner: GenerationHandle (allocated in GenerationPipeline.Schedule).
+        /// Dispose: GenerationHandle.Dispose after decoration consumes it.
+        /// </summary>
+        public NativeArray<ClimateData> ClimateMap;
 
         /// <summary>
         /// Border light entries collected by LightPropagationJob for cross-chunk propagation.
@@ -31,14 +37,9 @@ namespace Lithforge.WorldGen.Pipeline
                 BiomeMap.Dispose();
             }
 
-            if (TemperatureMap.IsCreated)
+            if (ClimateMap.IsCreated)
             {
-                TemperatureMap.Dispose();
-            }
-
-            if (HumidityMap.IsCreated)
-            {
-                HumidityMap.Dispose();
+                ClimateMap.Dispose();
             }
 
             if (BorderLightOutput.IsCreated)
@@ -67,14 +68,9 @@ namespace Lithforge.WorldGen.Pipeline
                 BiomeMap.Dispose();
             }
 
-            if (TemperatureMap.IsCreated)
+            if (ClimateMap.IsCreated)
             {
-                TemperatureMap.Dispose();
-            }
-
-            if (HumidityMap.IsCreated)
-            {
-                HumidityMap.Dispose();
+                ClimateMap.Dispose();
             }
 
             if (BorderLightOutput.IsCreated)

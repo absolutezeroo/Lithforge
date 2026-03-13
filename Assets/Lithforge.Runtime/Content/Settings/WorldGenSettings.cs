@@ -11,7 +11,7 @@ namespace Lithforge.Runtime.Content.Settings
             frequency = 0.008f,
             lacunarity = 2.0f,
             persistence = 0.5f,
-            heightScale = 24.0f,
+            heightScale = 1.0f,
             octaves = 5,
             seedOffset = 0,
         };
@@ -36,6 +36,28 @@ namespace Lithforge.Runtime.Content.Settings
             heightScale = 1.0f,
             octaves = 3,
             seedOffset = 1999,
+        };
+
+        [Header("Continentalness Noise")]
+        [SerializeField] private NoiseLayerConfig continentalnessNoise = new NoiseLayerConfig
+        {
+            frequency = 0.002f,
+            lacunarity = 2.0f,
+            persistence = 0.55f,
+            heightScale = 1.0f,
+            octaves = 4,
+            seedOffset = 2999,
+        };
+
+        [Header("Erosion Noise")]
+        [SerializeField] private NoiseLayerConfig erosionNoise = new NoiseLayerConfig
+        {
+            frequency = 0.003f,
+            lacunarity = 2.0f,
+            persistence = 0.5f,
+            heightScale = 1.0f,
+            octaves = 3,
+            seedOffset = 3999,
         };
 
         [Header("Cave Noise")]
@@ -90,6 +112,16 @@ namespace Lithforge.Runtime.Content.Settings
         public NoiseLayerConfig HumidityNoise
         {
             get { return humidityNoise; }
+        }
+
+        public NoiseLayerConfig ContinentalnessNoise
+        {
+            get { return continentalnessNoise; }
+        }
+
+        public NoiseLayerConfig ErosionNoise
+        {
+            get { return erosionNoise; }
         }
 
         public NoiseLayerConfig CaveNoise

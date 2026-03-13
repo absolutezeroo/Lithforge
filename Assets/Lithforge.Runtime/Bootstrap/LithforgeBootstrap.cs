@@ -136,6 +136,8 @@ namespace Lithforge.Runtime.Bootstrap
             NativeNoiseConfig terrainNoise = wg.TerrainNoise.ToNativeConfig();
             NativeNoiseConfig temperatureNoise = wg.TemperatureNoise.ToNativeConfig();
             NativeNoiseConfig humidityNoise = wg.HumidityNoise.ToNativeConfig();
+            NativeNoiseConfig continentalnessNoise = wg.ContinentalnessNoise.ToNativeConfig();
+            NativeNoiseConfig erosionNoise = wg.ErosionNoise.ToNativeConfig();
             NativeNoiseConfig caveNoise = wg.CaveNoise.ToNativeConfig();
 
             StateId stoneId = FindStateId("lithforge:stone");
@@ -167,6 +169,10 @@ namespace Lithforge.Runtime.Bootstrap
                     TreeDensity = def.TreeDensity,
                     HeightModifier = def.HeightModifier,
                     TreeTemplateIndex = (byte)def.TreeType,
+                    ContinentalnessCenter = def.ContinentalnessCenter,
+                    ErosionCenter = def.ErosionCenter,
+                    BaseHeight = def.BaseHeight,
+                    HeightAmplitude = def.HeightAmplitude,
                 };
             }
 
@@ -202,6 +208,8 @@ namespace Lithforge.Runtime.Bootstrap
                 terrainNoise,
                 temperatureNoise,
                 humidityNoise,
+                continentalnessNoise,
+                erosionNoise,
                 caveNoise,
                 wg.CaveThreshold,
                 wg.MinCarveY,

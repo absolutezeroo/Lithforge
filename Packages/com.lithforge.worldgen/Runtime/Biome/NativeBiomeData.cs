@@ -21,5 +21,9 @@ namespace Lithforge.WorldGen.Biome
         public float TreeDensity;
         public float HeightModifier;
         public byte TreeTemplateIndex;
+        public float ContinentalnessCenter;
+        public float ErosionCenter;
+        public float BaseHeight;
+        public float HeightAmplitude;
     }
 }
