@@ -173,7 +173,24 @@ namespace Lithforge.Runtime.Scheduling
 
                     if (chunk != null)
                     {
-                        if (chunk.NeedsRemesh)
+                        if (chunk.DeferredEdits.Count > 0)
+                        {
+                            // Apply deferred edits that arrived while the mesh job was in-flight.
+                            // This writes to ChunkData now that the job is complete and no
+                            // worker thread is reading it.
+                            NativeArray<StateId> chunkData = chunk.Data;
+
+                            for (int di = 0; di < chunk.DeferredEdits.Count; di++)
+                            {
+                                DeferredEdit edit = chunk.DeferredEdits[di];
+                                chunkData[edit.FlatIndex] = edit.NewState;
+                                chunk.PendingEditIndices.Add(edit.FlatIndex);
+                            }
+
+                            chunk.DeferredEdits.Clear();
+                            chunk.State = ChunkState.RelightPending;
+                        }
+                        else if (chunk.NeedsRemesh)
                         {
                             chunk.NeedsRemesh = false;
                             chunk.State = ChunkState.Generated;

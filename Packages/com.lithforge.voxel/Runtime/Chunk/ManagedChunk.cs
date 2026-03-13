@@ -64,6 +64,15 @@ namespace Lithforge.Voxel.Chunk
         public List<BorderLightEntry> PendingBorderRemovals { get; }
 
         /// <summary>
+        /// Block edits deferred because the chunk was in the Meshing state when SetBlock
+        /// was called. Applied to ChunkData after the in-flight mesh job completes, then
+        /// the chunk is set to RelightPending for relight + remesh.
+        /// Owner: ManagedChunk. Populated by ChunkManager.SetBlock, consumed by
+        /// MeshScheduler.PollCompleted after mesh upload.
+        /// </summary>
+        public List<DeferredEdit> DeferredEdits { get; }
+
+        /// <summary>
         /// True if this chunk needs cross-chunk light re-propagation.
         /// Set when a neighbor's border light values have changed.
         /// </summary>
@@ -92,6 +101,7 @@ namespace Lithforge.Voxel.Chunk
             BorderLightEntries = new List<BorderLightEntry>();
             PendingEditIndices = new List<int>();
             PendingBorderRemovals = new List<BorderLightEntry>();
+            DeferredEdits = new List<DeferredEdit>();
         }
     }
 }

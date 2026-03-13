@@ -439,22 +439,39 @@ namespace Lithforge.Voxel.Chunk
             int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
             int index = ChunkData.GetIndex(localX, localY, localZ);
 
-            NativeArray<StateId> data = chunk.Data;
-            data[index] = state;
             chunk.IsDirty = true;
-            chunk.PendingEditIndices.Add(index);
 
-            // Complete any running mesh job before resetting state
             if (chunk.State == ChunkState.Meshing)
             {
-                chunk.ActiveJobHandle.Complete();
+                // Defer the edit — do NOT write to ChunkData while the mesh job is
+                // reading it. The edit will be applied in MeshScheduler.PollCompleted
+                // after the job finishes and the mesh is uploaded.
+                chunk.DeferredEdits.Add(new DeferredEdit
+                {
+                    FlatIndex = index,
+                    NewState = state,
+                });
+            }
+            else
+            {
+                // Normal path: write immediately and trigger relight
+                NativeArray<StateId> data = chunk.Data;
+                data[index] = state;
+                chunk.PendingEditIndices.Add(index);
+                chunk.State = ChunkState.RelightPending;
             }
 
-            // Set to RelightPending — light must be recalculated before remeshing
-            chunk.State = ChunkState.RelightPending;
             dirtiedChunks.Add(chunkCoord);
+            DirtyNeighborBorders(chunkCoord, localX, localY, localZ, dirtiedChunks);
+        }
 
-            // Border propagation: if local coord is 0 or 31, dirty the neighbor
+        /// <summary>
+        /// Dirties neighbor chunks when an edit is on a chunk border face (local coord 0 or 31).
+        /// Extracted to avoid duplication between normal and deferred edit paths.
+        /// </summary>
+        private void DirtyNeighborBorders(int3 chunkCoord, int localX, int localY, int localZ,
+            List<int3> dirtiedChunks)
+        {
             if (localX == 0)
             {
                 DirtyNeighborChunk(chunkCoord + new int3(-1, 0, 0), dirtiedChunks);
