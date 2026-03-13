@@ -16,6 +16,13 @@ namespace Lithforge.Voxel.Chunk
 
         public NativeArray<byte> LightData { get; set; }
 
+        /// <summary>
+        /// Per-column surface heightmap from world generation. Size: ChunkConstants.SizeSquared (1024).
+        /// Index: z * ChunkConstants.Size + x. Value: world-space Y of the highest opaque block in column.
+        /// Owner: ManagedChunk. Dispose: ChunkManager on unload/shutdown.
+        /// </summary>
+        public NativeArray<int> HeightMap { get; set; }
+
         public JobHandle ActiveJobHandle { get; set; }
 
         public bool NeedsRemesh { get; set; }

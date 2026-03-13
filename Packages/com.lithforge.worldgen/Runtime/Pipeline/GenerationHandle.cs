@@ -23,10 +23,8 @@ namespace Lithforge.WorldGen.Pipeline
 
         public void Dispose()
         {
-            if (HeightMap.IsCreated)
-            {
-                HeightMap.Dispose();
-            }
+            // HeightMap is not disposed here — it is transferred to ManagedChunk
+            // when the generation completes. Only dispose if the generation was cancelled (DisposeAll).
 
             if (BiomeMap.IsCreated)
             {

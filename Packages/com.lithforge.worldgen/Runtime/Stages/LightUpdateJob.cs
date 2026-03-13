@@ -126,13 +126,30 @@ namespace Lithforge.WorldGen.Stages
         // Any modification MUST be applied to all three files in the same commit.
         // ═══════════════════════════════════════════════════════════════════════
 
+        // Direction flag constants for skip-back-propagation optimization.
+        // Queue entry packing: int packed = index | (skipMask << _skipShift)
+        // index: 15 bits (0..32767), skipMask: 6 bits (one per direction).
+        // When bit N is set, direction N is skipped (it was the source direction).
+        // SHARED CONSTANTS — duplicated in: LightPropagationJob, LightRemovalJob, LightUpdateJob
+        private const int _dirNegX = 0;
+        private const int _dirPosX = 1;
+        private const int _dirNegY = 2;
+        private const int _dirPosY = 3;
+        private const int _dirNegZ = 4;
+        private const int _dirPosZ = 5;
+        private const int _indexBits = 15;
+        private const int _indexMask = (1 << _indexBits) - 1;
+        private const int _skipShift = _indexBits;
+
         private void PropagateSun(ref NativeQueue<int> queue)
         {
             while (queue.Count > 0)
             {
-                int index = queue.Dequeue();
-                byte packed = LightData[index];
-                byte currentSun = LightUtils.GetSunLight(packed);
+                int packed = queue.Dequeue();
+                int index = packed & _indexMask;
+                int skipMask = (packed >> _skipShift) & 0x3F;
+                byte packedLight = LightData[index];
+                byte currentSun = LightUtils.GetSunLight(packedLight);
 
                 if (currentSun <= 1)
                 {
@@ -141,16 +158,40 @@ namespace Lithforge.WorldGen.Stages
 
                 IndexToXYZ(index, out int x, out int y, out int z);
 
-                TryPropagateSun(x - 1, y, z, currentSun, false, ref queue);
-                TryPropagateSun(x + 1, y, z, currentSun, false, ref queue);
-                TryPropagateSun(x, y - 1, z, currentSun, true, ref queue);
-                TryPropagateSun(x, y + 1, z, currentSun, false, ref queue);
-                TryPropagateSun(x, y, z - 1, currentSun, false, ref queue);
-                TryPropagateSun(x, y, z + 1, currentSun, false, ref queue);
+                if ((skipMask & (1 << _dirNegX)) == 0)
+                {
+                    TryPropagateSun(x - 1, y, z, currentSun, false, 1 << _dirPosX, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirPosX)) == 0)
+                {
+                    TryPropagateSun(x + 1, y, z, currentSun, false, 1 << _dirNegX, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirNegY)) == 0)
+                {
+                    TryPropagateSun(x, y - 1, z, currentSun, true, 1 << _dirPosY, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirPosY)) == 0)
+                {
+                    TryPropagateSun(x, y + 1, z, currentSun, false, 1 << _dirNegY, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirNegZ)) == 0)
+                {
+                    TryPropagateSun(x, y, z - 1, currentSun, false, 1 << _dirPosZ, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirPosZ)) == 0)
+                {
+                    TryPropagateSun(x, y, z + 1, currentSun, false, 1 << _dirNegZ, ref queue);
+                }
             }
         }
 
-        private void TryPropagateSun(int nx, int ny, int nz, byte sourceSun, bool isDownward, ref NativeQueue<int> queue)
+        private void TryPropagateSun(int nx, int ny, int nz, byte sourceSun, bool isDownward,
+            int neighborSkipMask, ref NativeQueue<int> queue)
         {
             if (nx < 0 || nx >= ChunkConstants.Size ||
                 ny < 0 || ny >= ChunkConstants.Size ||
@@ -194,7 +235,7 @@ namespace Lithforge.WorldGen.Stages
             {
                 byte neighborBlock = LightUtils.GetBlockLight(neighborPacked);
                 LightData[neighborIndex] = LightUtils.Pack(newSun, neighborBlock);
-                queue.Enqueue(neighborIndex);
+                queue.Enqueue(neighborIndex | (neighborSkipMask << _skipShift));
             }
         }
 
@@ -202,9 +243,11 @@ namespace Lithforge.WorldGen.Stages
         {
             while (queue.Count > 0)
             {
-                int index = queue.Dequeue();
-                byte packed = LightData[index];
-                byte currentBlock = LightUtils.GetBlockLight(packed);
+                int packed = queue.Dequeue();
+                int index = packed & _indexMask;
+                int skipMask = (packed >> _skipShift) & 0x3F;
+                byte packedLight = LightData[index];
+                byte currentBlock = LightUtils.GetBlockLight(packedLight);
 
                 if (currentBlock <= 1)
                 {
@@ -213,16 +256,40 @@ namespace Lithforge.WorldGen.Stages
 
                 IndexToXYZ(index, out int x, out int y, out int z);
 
-                TryPropagateBlock(x - 1, y, z, currentBlock, ref queue);
-                TryPropagateBlock(x + 1, y, z, currentBlock, ref queue);
-                TryPropagateBlock(x, y - 1, z, currentBlock, ref queue);
-                TryPropagateBlock(x, y + 1, z, currentBlock, ref queue);
-                TryPropagateBlock(x, y, z - 1, currentBlock, ref queue);
-                TryPropagateBlock(x, y, z + 1, currentBlock, ref queue);
+                if ((skipMask & (1 << _dirNegX)) == 0)
+                {
+                    TryPropagateBlock(x - 1, y, z, currentBlock, 1 << _dirPosX, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirPosX)) == 0)
+                {
+                    TryPropagateBlock(x + 1, y, z, currentBlock, 1 << _dirNegX, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirNegY)) == 0)
+                {
+                    TryPropagateBlock(x, y - 1, z, currentBlock, 1 << _dirPosY, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirPosY)) == 0)
+                {
+                    TryPropagateBlock(x, y + 1, z, currentBlock, 1 << _dirNegY, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirNegZ)) == 0)
+                {
+                    TryPropagateBlock(x, y, z - 1, currentBlock, 1 << _dirPosZ, ref queue);
+                }
+
+                if ((skipMask & (1 << _dirPosZ)) == 0)
+                {
+                    TryPropagateBlock(x, y, z + 1, currentBlock, 1 << _dirNegZ, ref queue);
+                }
             }
         }
 
-        private void TryPropagateBlock(int nx, int ny, int nz, byte sourceBlock, ref NativeQueue<int> queue)
+        private void TryPropagateBlock(int nx, int ny, int nz, byte sourceBlock,
+            int neighborSkipMask, ref NativeQueue<int> queue)
         {
             if (nx < 0 || nx >= ChunkConstants.Size ||
                 ny < 0 || ny >= ChunkConstants.Size ||
@@ -256,7 +323,7 @@ namespace Lithforge.WorldGen.Stages
             {
                 byte neighborSun = LightUtils.GetSunLight(neighborPacked);
                 LightData[neighborIndex] = LightUtils.Pack(neighborSun, (byte)newBlock);
-                queue.Enqueue(neighborIndex);
+                queue.Enqueue(neighborIndex | (neighborSkipMask << _skipShift));
             }
         }
 

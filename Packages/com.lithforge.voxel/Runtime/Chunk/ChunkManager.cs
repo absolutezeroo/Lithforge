@@ -556,6 +556,11 @@ namespace Lithforge.Voxel.Chunk
                         kvp.Value.LightData.Dispose();
                     }
 
+                    if (kvp.Value.HeightMap.IsCreated)
+                    {
+                        kvp.Value.HeightMap.Dispose();
+                    }
+
                     _toRemoveCache.Add(kvp.Key);
                     unloaded.Add(kvp.Key);
                 }
@@ -678,6 +683,11 @@ namespace Lithforge.Voxel.Chunk
                 if (kvp.Value.LightData.IsCreated)
                 {
                     kvp.Value.LightData.Dispose();
+                }
+
+                if (kvp.Value.HeightMap.IsCreated)
+                {
+                    kvp.Value.HeightMap.Dispose();
                 }
             }
 

@@ -306,6 +306,8 @@ namespace Lithforge.Runtime.Scheduling
                     LightData = chunk.LightData,
                     ChunkData = chunk.Data,
                     StateTable = _nativeStateRegistry.States,
+                    HeightMap = chunk.HeightMap,
+                    ChunkWorldY = chunk.Coord.y * ChunkConstants.Size,
                     ChangedIndices = changedIndices,
                     BorderRemovalSeeds = borderRemovalSeeds,
                     BorderLightOutput = borderLightOutput,
