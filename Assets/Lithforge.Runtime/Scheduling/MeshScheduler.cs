@@ -310,6 +310,12 @@ namespace Lithforge.Runtime.Scheduling
                 NativeList<NativeBorderLightEntry> borderLightOutput =
                     new NativeList<NativeBorderLightEntry>(256, Allocator.Persistent);
 
+                // Debug counters for BFS volume diagnostics
+                NativeReference<int> dbgSunRemoval = new NativeReference<int>(0, Allocator.Persistent);
+                NativeReference<int> dbgSunReseed = new NativeReference<int>(0, Allocator.Persistent);
+                NativeReference<int> dbgBlockRemoval = new NativeReference<int>(0, Allocator.Persistent);
+                NativeReference<int> dbgPropagation = new NativeReference<int>(0, Allocator.Persistent);
+
                 // Snapshot old border entries for diffing after job completes
                 List<BorderLightEntry> oldBorderEntries;
 
@@ -335,6 +341,10 @@ namespace Lithforge.Runtime.Scheduling
                     ChangedIndices = changedIndices,
                     BorderRemovalSeeds = borderRemovalSeeds,
                     BorderLightOutput = borderLightOutput,
+                    DbgSunRemovalCount = dbgSunRemoval,
+                    DbgSunReseedCount = dbgSunReseed,
+                    DbgBlockRemovalCount = dbgBlockRemoval,
+                    DbgPropagationCount = dbgPropagation,
                 };
 
                 JobHandle handle = removalJob.Schedule();
@@ -351,6 +361,10 @@ namespace Lithforge.Runtime.Scheduling
                     BorderRemovalSeeds = borderRemovalSeeds,
                     BorderLightOutput = borderLightOutput,
                     OldBorderEntries = oldBorderEntries,
+                    DbgSunRemovalCount = dbgSunRemoval,
+                    DbgSunReseedCount = dbgSunReseed,
+                    DbgBlockRemovalCount = dbgBlockRemoval,
+                    DbgPropagationCount = dbgPropagation,
                 });
 
                 scheduled = true;
@@ -485,6 +499,13 @@ namespace Lithforge.Runtime.Scheduling
                     _inFlightRelights[i].ChangedIndices.Dispose();
                     _inFlightRelights[i].BorderRemovalSeeds.Dispose();
                     _inFlightRelights[i].BorderLightOutput.Dispose();
+                    if (_inFlightRelights[i].DbgSunRemovalCount.IsCreated)
+                    {
+                        _inFlightRelights[i].DbgSunRemovalCount.Dispose();
+                        _inFlightRelights[i].DbgSunReseedCount.Dispose();
+                        _inFlightRelights[i].DbgBlockRemovalCount.Dispose();
+                        _inFlightRelights[i].DbgPropagationCount.Dispose();
+                    }
                     _borderEntryListPool.Push(_inFlightRelights[i].OldBorderEntries);
                     _inFlightRelights.RemoveAt(i);
                 }
@@ -549,6 +570,13 @@ namespace Lithforge.Runtime.Scheduling
                 _inFlightRelights[i].ChangedIndices.Dispose();
                 _inFlightRelights[i].BorderRemovalSeeds.Dispose();
                 _inFlightRelights[i].BorderLightOutput.Dispose();
+                if (_inFlightRelights[i].DbgSunRemovalCount.IsCreated)
+                {
+                    _inFlightRelights[i].DbgSunRemovalCount.Dispose();
+                    _inFlightRelights[i].DbgSunReseedCount.Dispose();
+                    _inFlightRelights[i].DbgBlockRemovalCount.Dispose();
+                    _inFlightRelights[i].DbgPropagationCount.Dispose();
+                }
             }
 
             _inFlightRelights.Clear();
@@ -568,7 +596,7 @@ namespace Lithforge.Runtime.Scheduling
             {
                 PendingRelight entry = _inFlightRelights[i];
 
-                if (entry.Handle.IsCompleted || entry.FrameAge > 300)
+                if ((entry.FrameAge >= 4 && entry.Handle.IsCompleted) || entry.FrameAge > 300)
                 {
                     if (entry.FrameAge > 300)
                     {
@@ -578,6 +606,27 @@ namespace Lithforge.Runtime.Scheduling
                     }
 
                     entry.Handle.Complete();
+
+                    // Log debug counters for BFS volume diagnostics
+                    if (entry.DbgSunRemovalCount.IsCreated)
+                    {
+                        int sunRem = entry.DbgSunRemovalCount.Value;
+                        int sunRes = entry.DbgSunReseedCount.Value;
+                        int blkRem = entry.DbgBlockRemovalCount.Value;
+                        int prop = entry.DbgPropagationCount.Value;
+
+                        if (sunRem + sunRes + blkRem + prop > 0)
+                        {
+                            UnityEngine.Debug.Log(
+                                $"[Relight] {entry.Chunk.Coord} sunRem={sunRem} sunReseed={sunRes} " +
+                                $"blkRem={blkRem} prop={prop} age={entry.FrameAge}f");
+                        }
+
+                        entry.DbgSunRemovalCount.Dispose();
+                        entry.DbgSunReseedCount.Dispose();
+                        entry.DbgBlockRemovalCount.Dispose();
+                        entry.DbgPropagationCount.Dispose();
+                    }
 
                     // Process border cascade before transitioning state
                     ProcessRelightBorderCascade(entry);
@@ -959,6 +1008,10 @@ namespace Lithforge.Runtime.Scheduling
             public NativeArray<NativeBorderLightEntry> BorderRemovalSeeds;
             public NativeList<NativeBorderLightEntry> BorderLightOutput;
             public List<BorderLightEntry> OldBorderEntries;
+            public NativeReference<int> DbgSunRemovalCount;
+            public NativeReference<int> DbgSunReseedCount;
+            public NativeReference<int> DbgBlockRemovalCount;
+            public NativeReference<int> DbgPropagationCount;
         }
     }
 }

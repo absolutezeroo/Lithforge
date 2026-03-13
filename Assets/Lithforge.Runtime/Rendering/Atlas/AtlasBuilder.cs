@@ -35,12 +35,21 @@ namespace Lithforge.Runtime.Rendering.Atlas
             {
                 ResolvedFaceTextures2D faces = kvp.Value;
 
+                // Base textures
                 if (faces.North != null) { uniqueTextures.Add(faces.North); }
                 if (faces.South != null) { uniqueTextures.Add(faces.South); }
                 if (faces.East != null) { uniqueTextures.Add(faces.East); }
                 if (faces.West != null) { uniqueTextures.Add(faces.West); }
                 if (faces.Up != null) { uniqueTextures.Add(faces.Up); }
                 if (faces.Down != null) { uniqueTextures.Add(faces.Down); }
+
+                // Overlay textures
+                if (faces.OverlayNorth != null) { uniqueTextures.Add(faces.OverlayNorth); }
+                if (faces.OverlaySouth != null) { uniqueTextures.Add(faces.OverlaySouth); }
+                if (faces.OverlayEast != null) { uniqueTextures.Add(faces.OverlayEast); }
+                if (faces.OverlayWest != null) { uniqueTextures.Add(faces.OverlayWest); }
+                if (faces.OverlayUp != null) { uniqueTextures.Add(faces.OverlayUp); }
+                if (faces.OverlayDown != null) { uniqueTextures.Add(faces.OverlayDown); }
             }
 
             // Build index mapping: 0 = missing, then each unique texture

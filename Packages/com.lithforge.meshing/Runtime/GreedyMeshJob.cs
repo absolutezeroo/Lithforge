@@ -284,13 +284,6 @@ namespace Lithforge.Meshing
             AtlasEntry atlasEntry = AtlasEntries[stateVal];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
-            // Encode tintType into upper bits of texIndex (bits 9-10)
-            // tintType is derived from BlockStateCompact.TintType (0-3)
-            // encodedTexIndex = texIndex + tintType * 512
-            // Max encoded value: 511 + 3*512 = 2047, safe for half-precision (exact integers up to 2048)
-            byte tintType = StateTable[stateVal].TintType;
-            ushort encodedTexIndex = (ushort)(texIndex + tintType * 512);
-
             // Unpack nibbles: high 4 bits = sunLight, low 4 bits = blockLight
             // Minecraft gamma curve: brightness = pow(0.8, 15 - level)
             byte sunLight = (byte)(light >> 4);
@@ -298,11 +291,23 @@ namespace Lithforge.Meshing
             float sunNorm = math.pow(0.8f, 15 - sunLight);
             float blockNorm = math.pow(0.8f, 15 - blockLight);
 
-            // Vertex color: r=AO, g=blockLight, b=sunLight, a=encodedTexIndex (texIndex + tintType*512)
-            half4 color00 = new half4((half)(ao00 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);
-            half4 color10 = new half4((half)(ao10 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);
-            half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);
-            half4 color11 = new half4((half)(ao11 / 3.0f), (half)blockNorm, (half)sunNorm, (half)encodedTexIndex);
+            // Vertex color: r=AO, g=blockLight, b=sunLight, a=pure baseTexIndex
+            half4 color00 = new half4((half)(ao00 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+            half4 color10 = new half4((half)(ao10 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+            half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+            half4 color11 = new half4((half)(ao11 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
+
+            // Pack per-face tint + overlay into TintOverlay uint
+            byte baseTintType = atlasEntry.GetBaseTintType(face);
+            ushort overlayTexIdx = atlasEntry.GetOverlayTextureIndex(face);
+            byte overlayTintType = atlasEntry.GetOverlayTintType(face);
+            bool hasOverlay = overlayTexIdx != 0xFFFF;
+
+            uint tintOverlay =
+                ((uint)(baseTintType & 0x3)) |
+                ((uint)(overlayTintType & 0x3) << 2) |
+                ((uint)(hasOverlay ? 1 : 0) << 4) |
+                ((uint)(hasOverlay ? (overlayTexIdx & 0x3FF) : 0) << 5);
 
             targetVertices.Add(new MeshVertex
             {
@@ -310,6 +315,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(0, 0),
                 Color = color00,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             targetVertices.Add(new MeshVertex
@@ -318,6 +325,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(width, 0),
                 Color = color10,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             targetVertices.Add(new MeshVertex
@@ -326,6 +335,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(width, height),
                 Color = color11,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             targetVertices.Add(new MeshVertex
@@ -334,6 +345,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(0, height),
                 Color = color01,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             // AO diagonal flip: use the diagonal that minimizes anisotropy.

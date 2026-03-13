@@ -2,39 +2,48 @@
 // Shared StructuredBuffer fetch logic for all Lithforge voxel shaders.
 // Must be included AFTER Core.hlsl (and Lighting.hlsl if needed by the pass).
 //
-// MeshVertex C# layout (40 bytes, StructLayout.Sequential):
-//   float3 Position  bytes  0-11
-//   float3 Normal    bytes 12-23
-//   half4  Color     bytes 24-31  (r=AO, g=blockLight, b=sunLight, a=encodedTexIndex)
-//   float2 UV        bytes 32-39
+// MeshVertex C# layout (48 bytes, StructLayout.Sequential):
+//   float3 Position     bytes  0-11
+//   float3 Normal       bytes 12-23
+//   half4  Color        bytes 24-31  (r=AO, g=blockLight, b=sunLight, a=baseTexIndex)
+//   float2 UV           bytes 32-39
+//   uint   TintOverlay  bytes 40-43  (packed per-face tint + overlay info)
+//   uint   Pad          bytes 44-47  (16-byte alignment)
 //
-// Color.a encoding: encodedTexIndex = texIndex + tintType * 512
-//   texIndex = encodedTexIndex & 0x1FF  (bits 0-8,  range 0-511)
-//   tintType = encodedTexIndex >> 9     (bits 9-10,  range 0-3)
+// Color.a encoding: pure baseTexIndex (no tintType encoding)
+//
+// TintOverlay packing (uint, 32 bits):
+//   bits  0-1  : baseTintType     (0=none, 1=grass, 2=foliage, 3=water)
+//   bits  2-3  : overlayTintType  (0=none, 1=grass, 2=foliage, 3=water)
+//   bit   4    : hasOverlay       (0=no overlay, 1=has overlay)
+//   bits  5-14 : overlayTexIndex  (0-1023, index into atlas array)
+//   bits 15-31 : reserved (0)
 //
 // HLSL StructuredBuffer<T> stride must match exactly. The 'half' type in HLSL
-// struct members is silently promoted to float by the compiler, making stride 48
-// instead of 40. Solution: pack Color as two uint words and unpack with f16tof32().
+// struct members is silently promoted to float by the compiler, making stride wrong.
+// Solution: pack Color as two uint words and unpack with f16tof32().
 
 #ifndef LITHFORGE_VOXEL_COMMON_INCLUDED
 #define LITHFORGE_VOXEL_COMMON_INCLUDED
 
 // ---------------------------------------------------------------------------
-// GPU-side vertex layout -- must produce stride == 40 bytes.
+// GPU-side vertex layout -- must produce stride == 48 bytes.
 // The two uint words at bytes 24-31 hold the four float16 Color components:
 //   colorWord0: bits 0-15 = Color.r (AO), bits 16-31 = Color.g (blockLight)
-//   colorWord1: bits 0-15 = Color.b (sunLight), bits 16-31 = Color.a (encodedTexIndex)
+//   colorWord1: bits 0-15 = Color.b (sunLight), bits 16-31 = Color.a (baseTexIndex)
 // This matches the C# half4 memory layout on little-endian (x86/ARM).
 // ---------------------------------------------------------------------------
 struct GpuMeshVertex
 {
-    float3 position;   // 12 bytes (offset 0)
-    float3 normal;     // 12 bytes (offset 12)
-    uint   colorWord0; //  4 bytes (offset 24) -- packs Color.r and Color.g as float16
-    uint   colorWord1; //  4 bytes (offset 28) -- packs Color.b and Color.a as float16
-    float2 uv;         //  8 bytes (offset 32)
+    float3 position;    // 12 bytes (offset 0)
+    float3 normal;      // 12 bytes (offset 12)
+    uint   colorWord0;  //  4 bytes (offset 24) -- packs Color.r and Color.g as float16
+    uint   colorWord1;  //  4 bytes (offset 28) -- packs Color.b and Color.a as float16
+    float2 uv;          //  8 bytes (offset 32)
+    uint   tintOverlay; //  4 bytes (offset 40) -- packed per-face tint + overlay
+    uint   _pad;        //  4 bytes (offset 44) -- 16-byte alignment
 };
-// Total: 40 bytes. Matches C# MeshVertex with StructLayout.Sequential.
+// Total: 48 bytes. Matches C# MeshVertex with StructLayout.Sequential.
 
 // ---------------------------------------------------------------------------
 // Buffer declaration. Bound per-draw from ChunkMeshStore via MaterialPropertyBlock.
@@ -50,11 +59,15 @@ struct DecodedVertex
 {
     float3 positionOS;
     float3 normalOS;
-    half   ao;           // Color.r: 0=fully occluded, 1=unoccluded
-    half   blockLight;   // Color.g: [0,1] normalised
-    half   sunLight;     // Color.b: [0,1] normalised
-    int    texIndex;     // Color.a: encoded texIndex + tintType*512
+    half   ao;              // Color.r: 0=fully occluded, 1=unoccluded
+    half   blockLight;      // Color.g: [0,1] normalised
+    half   sunLight;        // Color.b: [0,1] normalised
+    int    texIndex;        // Color.a: pure base texIndex (no tint encoding)
     float2 uv;
+    int    baseTintType;    // bits 0-1 of TintOverlay (0-3)
+    int    overlayTintType; // bits 2-3 of TintOverlay (0-3)
+    int    hasOverlay;      // bit 4 of TintOverlay (0 or 1)
+    int    overlayTexIndex; // bits 5-14 of TintOverlay (0-1023)
 };
 
 // ---------------------------------------------------------------------------
@@ -77,20 +90,17 @@ DecodedVertex FetchVertex(uint svVertexID)
     dv.ao         = (half)f16tof32(raw.colorWord0);
     dv.blockLight = (half)f16tof32(raw.colorWord0 >> 16u);
     dv.sunLight   = (half)f16tof32(raw.colorWord1);
-    // texIndex is the encoded value (texIndex + tintType*512), decoded later in vert().
+    // texIndex is now a pure base index (no tintType encoding)
     dv.texIndex   = (int)round(f16tof32(raw.colorWord1 >> 16u));
 
-    return dv;
-}
+    // Decode TintOverlay
+    uint to = raw.tintOverlay;
+    dv.baseTintType    = (int)(to & 0x3);
+    dv.overlayTintType = (int)((to >> 2) & 0x3);
+    dv.hasOverlay      = (int)((to >> 4) & 0x1);
+    dv.overlayTexIndex = (int)((to >> 5) & 0x3FF);
 
-// ---------------------------------------------------------------------------
-// Decode tintType from packed texIndex
-// encodedTexIndex = realTexIndex + tintType * 512
-// ---------------------------------------------------------------------------
-void DecodeTintedTexIndex(int encodedIndex, out int realTexIndex, out int tintType)
-{
-    tintType     = encodedIndex >> 9;     // bits 9-10
-    realTexIndex = encodedIndex & 0x1FF;  // bits 0-8
+    return dv;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,15 +153,45 @@ half3 SampleBiomeTint(float3 worldPos, int tintType)
 // ---------------------------------------------------------------------------
 struct Varyings
 {
-    float4 positionCS                    : SV_POSITION;
-    float2 uv                           : TEXCOORD0;
-    nointerpolation int texIndex        : TEXCOORD1;
-    half   ao                           : TEXCOORD2;
-    half   light                        : TEXCOORD3;
-    float3 normalWS                     : TEXCOORD4;
-    float  fogFactor                    : TEXCOORD5;
-    nointerpolation int tintType        : TEXCOORD6;
-    float3 positionWS                   : TEXCOORD7;
+    float4 positionCS                              : SV_POSITION;
+    float2 uv                                      : TEXCOORD0;
+    nointerpolation int texIndex                   : TEXCOORD1;
+    half   ao                                      : TEXCOORD2;
+    half   light                                   : TEXCOORD3;
+    float3 normalWS                                : TEXCOORD4;
+    float  fogFactor                               : TEXCOORD5;
+    nointerpolation int baseTintType               : TEXCOORD6;
+    float3 positionWS                              : TEXCOORD7;
+    nointerpolation int hasOverlay                 : TEXCOORD8;
+    nointerpolation int overlayTexIndex            : TEXCOORD9;
+    nointerpolation int overlayTintType            : TEXCOORD10;
 };
+
+// ---------------------------------------------------------------------------
+// Apply overlay texture (alpha-blended, independently tinted) on top of base color.
+// _AtlasArray and sampler must be passed as parameters since they are declared
+// per-shader (not global).
+// ---------------------------------------------------------------------------
+half3 ApplyOverlay(
+    half3 baseColor,
+    float2 tiledUV,
+    float3 worldPos,
+    int hasOverlay,
+    int overlayTexIndex,
+    int overlayTintType,
+    TEXTURE2D_ARRAY_PARAM(atlasArray, atlasSampler))
+{
+    if (hasOverlay == 0)
+        return baseColor;
+
+    half4 overlayColor = SAMPLE_TEXTURE2D_ARRAY(atlasArray, atlasSampler, tiledUV, overlayTexIndex);
+
+    // Tint the overlay
+    half3 overlayTint = SampleBiomeTint(worldPos, overlayTintType);
+    half3 tintedOverlay = overlayColor.rgb * overlayTint;
+
+    // Alpha blend overlay onto base
+    return baseColor * (1.0h - overlayColor.a) + tintedOverlay * overlayColor.a;
+}
 
 #endif // LITHFORGE_VOXEL_COMMON_INCLUDED

@@ -82,8 +82,19 @@ namespace Lithforge.WorldGen.Stages
         /// </summary>
         public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
+        /// <summary>Debug counters — written by job, read by caller after Complete().</summary>
+        public NativeReference<int> DbgSunRemovalCount;
+        public NativeReference<int> DbgSunReseedCount;
+        public NativeReference<int> DbgBlockRemovalCount;
+        public NativeReference<int> DbgPropagationCount;
+
         public void Execute()
         {
+            if (DbgSunRemovalCount.IsCreated) DbgSunRemovalCount.Value = 0;
+            if (DbgSunReseedCount.IsCreated) DbgSunReseedCount.Value = 0;
+            if (DbgBlockRemovalCount.IsCreated) DbgBlockRemovalCount.Value = 0;
+            if (DbgPropagationCount.IsCreated) DbgPropagationCount.Value = 0;
+
             // Queue entries use unified 25-bit encoding:
             //   [24..19: skipMask] [18..15: level] [14..0: index]
             NativeQueue<int> sunRemovalQueue = new NativeQueue<int>(Allocator.TempJob);
@@ -607,6 +618,10 @@ namespace Lithforge.WorldGen.Stages
             while (removalQueue.Count > 0)
             {
                 int packed = removalQueue.Dequeue();
+
+                if (isSun && DbgSunRemovalCount.IsCreated) DbgSunRemovalCount.Value++;
+                if (!isSun && DbgBlockRemovalCount.IsCreated) DbgBlockRemovalCount.Value++;
+
                 int index = packed & _indexMask;
                 byte oldLight = (byte)((packed >> _levelShift) & _levelMask);
                 int skipMask = (packed >> _skipShift) & 0x3F;
@@ -704,6 +719,8 @@ namespace Lithforge.WorldGen.Stages
                     ? LightUtils.GetSunLight(LightData[neighborIndex])
                     : LightUtils.GetBlockLight(LightData[neighborIndex]);
                 reseedQueue.Enqueue(neighborIndex | ((int)reseedLevel << _levelShift));
+
+                if (isSun && DbgSunReseedCount.IsCreated) DbgSunReseedCount.Value++;
             }
         }
 
@@ -767,6 +784,9 @@ namespace Lithforge.WorldGen.Stages
             while (queue.Count > 0)
             {
                 int packed = queue.Dequeue();
+
+                if (DbgPropagationCount.IsCreated) DbgPropagationCount.Value++;
+
                 int index = packed & _indexMask;
                 int carriedLevel = (packed >> _levelShift) & _levelMask;
                 int skipMask = (packed >> _skipShift) & 0x3F;

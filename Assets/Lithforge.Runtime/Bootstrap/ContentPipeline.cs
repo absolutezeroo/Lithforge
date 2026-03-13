@@ -194,9 +194,9 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
 
-            // Phase 6.5: Resolve tint types from model face tintIndex
-            yield return "Resolving tint types...";
-            ResolveTintTypes(stateRegistry, blockLookup);
+            // Phase 6.5: Resolve per-face tint types and overlay textures from model elements
+            yield return "Resolving overlays and tints...";
+            ResolveOverlaysAndTints(modelResolver, stateRegistry, blockLookup, resolvedFaces);
 
             // Phase 7: Load biome and ore definitions
             yield return "Loading biomes and ores...";
@@ -314,16 +314,18 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.Register(modRegData);
             }
 
-            // Assert texture count fits in half precision (exact integer range up to 2048)
+            // Assert texture count fits in half precision (exact integer range up to 2048).
+            // Color.a is now a pure texIndex (no tintType encoding), so the limit is 2048.
+            // TintOverlay.overlayTexIndex uses 10 bits, limiting overlay indices to 0-1023.
             int texCount = atlasResult.TextureArray != null ? atlasResult.TextureArray.depth : 0;
 
-            UnityEngine.Debug.Assert(texCount <= 512,
-                $"Texture array has {texCount} layers, exceeding the 512 limit for half-precision texture indices with tintType encoding in MeshVertex.Color.a.");
+            UnityEngine.Debug.Assert(texCount <= 1024,
+                $"Texture array has {texCount} layers, exceeding the 1024 limit for overlay texture indices in MeshVertex.TintOverlay.");
 
             // Phase 14: BakeNative + build NativeAtlasLookup
             yield return "Baking native data...";
             NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
-            NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult);
+            NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult, resolvedFaces);
 
             // Phase 15: Build item sprite atlas for UI
             yield return "Building item sprites...";
@@ -521,20 +523,20 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Resolves the biome tint type for each block state by inspecting the
-        /// tintIndex on model face entries. The maximum tintIndex across all faces
-        /// of the resolved model determines the per-state tint type:
-        ///   tintIndex  0 → TintType 1 (grass colormap)
-        ///   tintIndex  1 → TintType 2 (foliage colormap)
-        ///   tintIndex ≥2 → TintType 3 (water / per-biome color)
-        ///   tintIndex -1 → TintType 0 (no tint)
+        /// Resolves per-face tint types and overlay textures from model elements.
+        /// Element 0 provides base per-face tint. Element 1 (if present) provides
+        /// overlay textures and overlay per-face tint. Replaces the old per-block
+        /// ResolveTintTypes() approach with per-face granularity.
         /// </summary>
-        private void ResolveTintTypes(
+        private void ResolveOverlaysAndTints(
+            ContentModelResolver modelResolver,
             StateRegistry stateRegistry,
-            Dictionary<string, BlockDefinition> blockLookup)
+            Dictionary<string, BlockDefinition> blockLookup,
+            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
         {
             IReadOnlyList<StateRegistryEntry> entries = stateRegistry.Entries;
-            int patched = 0;
+            int tintedStates = 0;
+            int overlayStates = 0;
 
             for (int i = 0; i < entries.Count; i++)
             {
@@ -563,91 +565,119 @@ namespace Lithforge.Runtime.Bootstrap
                         continue;
                     }
 
-                    int maxTint = GetMaxTintIndex(variant.Model);
-
-                    byte tintType = 0;
-
-                    if (maxTint == 0)
+                    if (!resolvedFaces.TryGetValue(stateId, out ResolvedFaceTextures2D faceData))
                     {
-                        tintType = 1; // grass
-                    }
-                    else if (maxTint == 1)
-                    {
-                        tintType = 2; // foliage
-                    }
-                    else if (maxTint >= 2)
-                    {
-                        tintType = 3; // water
+                        continue;
                     }
 
-                    if (tintType > 0)
+                    ResolvedModel fullModel = modelResolver.ResolveFull(variant.Model);
+                    List<ModelElement> elements = fullModel.Elements;
+
+                    // Resolve per-face tint from element 0 (base)
+                    if (elements.Count > 0)
                     {
-                        stateRegistry.PatchTintType(stateId, tintType);
-                        patched++;
+                        ModelElement baseElem = elements[0];
+                        faceData.TintNorth = MapTintIndex(baseElem.North);
+                        faceData.TintSouth = MapTintIndex(baseElem.South);
+                        faceData.TintEast = MapTintIndex(baseElem.East);
+                        faceData.TintWest = MapTintIndex(baseElem.West);
+                        faceData.TintUp = MapTintIndex(baseElem.Up);
+                        faceData.TintDown = MapTintIndex(baseElem.Down);
+
+                        if (faceData.TintNorth > 0 || faceData.TintSouth > 0 ||
+                            faceData.TintEast > 0 || faceData.TintWest > 0 ||
+                            faceData.TintUp > 0 || faceData.TintDown > 0)
+                        {
+                            tintedStates++;
+                        }
                     }
+
+                    // Resolve overlay from element 1 (if present)
+                    if (elements.Count > 1)
+                    {
+                        ModelElement overlayElem = elements[1];
+                        Dictionary<string, Texture2D> resolvedTextures =
+                            modelResolver.ResolveTextureDictionary(variant.Model);
+
+                        ResolveOverlayFace(overlayElem.North, resolvedTextures,
+                            ref faceData.OverlayNorth, ref faceData.OverlayTintNorth);
+                        ResolveOverlayFace(overlayElem.South, resolvedTextures,
+                            ref faceData.OverlaySouth, ref faceData.OverlayTintSouth);
+                        ResolveOverlayFace(overlayElem.East, resolvedTextures,
+                            ref faceData.OverlayEast, ref faceData.OverlayTintEast);
+                        ResolveOverlayFace(overlayElem.West, resolvedTextures,
+                            ref faceData.OverlayWest, ref faceData.OverlayTintWest);
+                        ResolveOverlayFace(overlayElem.Up, resolvedTextures,
+                            ref faceData.OverlayUp, ref faceData.OverlayTintUp);
+                        ResolveOverlayFace(overlayElem.Down, resolvedTextures,
+                            ref faceData.OverlayDown, ref faceData.OverlayTintDown);
+
+                        overlayStates++;
+                    }
+
+                    resolvedFaces[stateId] = faceData;
                 }
             }
 
-            _logger.LogInfo($"Resolved tint types: {patched} states patched.");
+            _logger.LogInfo($"Resolved per-face tints: {tintedStates} tinted, {overlayStates} with overlays.");
         }
 
         /// <summary>
-        /// Walks a BlockModel's element tree and returns the maximum tintIndex
-        /// found across all faces of all elements. Returns -1 if no tinting.
+        /// Maps a ModelFaceEntry.TintIndex to a per-face tint type byte:
+        ///   -1 → 0 (none), 0 → 1 (grass), 1 → 2 (foliage), ≥2 → 3 (water)
         /// </summary>
-        private static int GetMaxTintIndex(BlockModel model, int depth = 0)
+        private static byte MapTintIndex(ModelFaceEntry face)
         {
-            if (depth > 16)
+            if (face == null)
             {
-                return -1;
+                return 0;
             }
 
-            int maxTint = -1;
+            int tintIndex = face.TintIndex;
 
-            IReadOnlyList<ModelElement> elements = model.Elements;
-
-            for (int e = 0; e < elements.Count; e++)
+            if (tintIndex == 0)
             {
-                ModelElement elem = elements[e];
+                return 1; // grass
+            }
 
-                if (elem.North != null && elem.North.TintIndex > maxTint)
-                {
-                    maxTint = elem.North.TintIndex;
-                }
+            if (tintIndex == 1)
+            {
+                return 2; // foliage
+            }
 
-                if (elem.South != null && elem.South.TintIndex > maxTint)
-                {
-                    maxTint = elem.South.TintIndex;
-                }
+            if (tintIndex >= 2)
+            {
+                return 3; // water
+            }
 
-                if (elem.East != null && elem.East.TintIndex > maxTint)
-                {
-                    maxTint = elem.East.TintIndex;
-                }
+            return 0; // -1 or absent = no tint
+        }
 
-                if (elem.West != null && elem.West.TintIndex > maxTint)
-                {
-                    maxTint = elem.West.TintIndex;
-                }
+        private static void ResolveOverlayFace(
+            ModelFaceEntry face,
+            Dictionary<string, Texture2D> resolvedTextures,
+            ref Texture2D overlayTex,
+            ref byte overlayTintType)
+        {
+            if (face == null || string.IsNullOrEmpty(face.Texture))
+            {
+                return;
+            }
 
-                if (elem.Up != null && elem.Up.TintIndex > maxTint)
-                {
-                    maxTint = elem.Up.TintIndex;
-                }
+            // Resolve #variable reference
+            string texRef = face.Texture;
 
-                if (elem.Down != null && elem.Down.TintIndex > maxTint)
+            if (texRef.StartsWith("#"))
+            {
+                string varName = texRef.Substring(1);
+
+                if (resolvedTextures.TryGetValue(varName, out Texture2D resolved))
                 {
-                    maxTint = elem.Down.TintIndex;
+                    overlayTex = resolved;
                 }
             }
 
-            // Walk parent chain if no tint found in this model's elements
-            if (maxTint == -1 && model.Parent != null)
-            {
-                maxTint = GetMaxTintIndex(model.Parent, depth + 1);
-            }
-
-            return maxTint;
+            overlayTintType = MapTintIndex(face);
         }
 
         private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)
@@ -662,7 +692,8 @@ namespace Lithforge.Runtime.Bootstrap
 
         private static NativeAtlasLookup BakeAtlasLookup(
             StateRegistry stateRegistry,
-            AtlasResult atlasResult)
+            AtlasResult atlasResult,
+            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
         {
             int totalStates = stateRegistry.TotalStateCount;
             NativeArray<AtlasEntry> entries = new NativeArray<AtlasEntry>(
@@ -670,16 +701,56 @@ namespace Lithforge.Runtime.Bootstrap
 
             for (int i = 0; i < totalStates; i++)
             {
-                BlockStateCompact state = stateRegistry.GetState(new StateId((ushort)i));
-                entries[i] = new AtlasEntry
+                StateId sid = new StateId((ushort)i);
+                BlockStateCompact state = stateRegistry.GetState(sid);
+
+                AtlasEntry entry = new AtlasEntry
                 {
+                    // Base texture indices (from StateRegistry, already patched)
                     TexPosX = state.TexEast,
                     TexNegX = state.TexWest,
                     TexPosY = state.TexUp,
                     TexNegY = state.TexDown,
                     TexPosZ = state.TexSouth,
                     TexNegZ = state.TexNorth,
+
+                    // Defaults: no overlay
+                    OvlPosX = 0xFFFF,
+                    OvlNegX = 0xFFFF,
+                    OvlPosY = 0xFFFF,
+                    OvlNegY = 0xFFFF,
+                    OvlPosZ = 0xFFFF,
+                    OvlNegZ = 0xFFFF,
+
+                    BaseTintPacked = 0,
+                    OverlayTintPacked = 0,
                 };
+
+                // Populate overlay + per-face tint from resolved face data
+                if (resolvedFaces.TryGetValue(sid, out ResolvedFaceTextures2D faces))
+                {
+                    // Per-face base tint (face direction: PosX=East, NegX=West, PosY=Up, NegY=Down, PosZ=South, NegZ=North)
+                    entry.BaseTintPacked = PackFaceTints(
+                        faces.TintEast, faces.TintWest,
+                        faces.TintUp, faces.TintDown,
+                        faces.TintSouth, faces.TintNorth);
+
+                    // Overlay textures
+                    entry.OvlPosX = GetOverlayIndex(atlasResult, faces.OverlayEast);
+                    entry.OvlNegX = GetOverlayIndex(atlasResult, faces.OverlayWest);
+                    entry.OvlPosY = GetOverlayIndex(atlasResult, faces.OverlayUp);
+                    entry.OvlNegY = GetOverlayIndex(atlasResult, faces.OverlayDown);
+                    entry.OvlPosZ = GetOverlayIndex(atlasResult, faces.OverlaySouth);
+                    entry.OvlNegZ = GetOverlayIndex(atlasResult, faces.OverlayNorth);
+
+                    // Per-face overlay tint
+                    entry.OverlayTintPacked = PackFaceTints(
+                        faces.OverlayTintEast, faces.OverlayTintWest,
+                        faces.OverlayTintUp, faces.OverlayTintDown,
+                        faces.OverlayTintSouth, faces.OverlayTintNorth);
+                }
+
+                entries[i] = entry;
             }
 
             int textureCount = 0;
@@ -690,6 +761,28 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             return new NativeAtlasLookup(entries, textureCount);
+        }
+
+        private static ushort PackFaceTints(
+            byte posX, byte negX, byte posY, byte negY, byte posZ, byte negZ)
+        {
+            return (ushort)(
+                (posX & 0x3) |
+                ((negX & 0x3) << 2) |
+                ((posY & 0x3) << 4) |
+                ((negY & 0x3) << 6) |
+                ((posZ & 0x3) << 8) |
+                ((negZ & 0x3) << 10));
+        }
+
+        private static ushort GetOverlayIndex(AtlasResult atlas, Texture2D texture)
+        {
+            if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))
+            {
+                return (ushort)index;
+            }
+
+            return 0xFFFF;
         }
     }
 }

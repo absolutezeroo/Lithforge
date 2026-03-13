@@ -52,10 +52,6 @@ Shader "Lithforge/VoxelCutout"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
-                // Decode tintType from packed texIndex
-                int realTexIndex, tintType;
-                DecodeTintedTexIndex(dv.texIndex, realTexIndex, tintType);
-
                 Varyings output;
 
                 VertexPositionInputs posInputs = GetVertexPositionInputs(dv.positionOS);
@@ -63,8 +59,13 @@ Shader "Lithforge/VoxelCutout"
                 output.positionWS = posInputs.positionWS;
                 output.normalWS = TransformObjectToWorldNormal(dv.normalOS);
                 output.uv = dv.uv;
-                output.texIndex = realTexIndex;
-                output.tintType = tintType;
+                output.texIndex = dv.texIndex;
+
+                // Per-face tint + overlay
+                output.baseTintType = dv.baseTintType;
+                output.hasOverlay = dv.hasOverlay;
+                output.overlayTexIndex = dv.overlayTexIndex;
+                output.overlayTintType = dv.overlayTintType;
 
                 output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
 
@@ -82,11 +83,18 @@ Shader "Lithforge/VoxelCutout"
                 half4 texColor = SAMPLE_TEXTURE2D_ARRAY(
                     _AtlasArray, sampler_AtlasArray, tiledUV, input.texIndex);
 
+                // Clip on base texture alpha (before tinting — overlay doesn't change silhouette)
                 clip(texColor.a - _AlphaClipThreshold);
 
-                // Apply biome tint
-                half3 biomeTint = SampleBiomeTint(input.positionWS, input.tintType);
-                texColor.rgb *= biomeTint;
+                // Apply base tint
+                half3 baseTint = SampleBiomeTint(input.positionWS, input.baseTintType);
+                texColor.rgb *= baseTint;
+
+                // Apply overlay
+                texColor.rgb = ApplyOverlay(
+                    texColor.rgb, tiledUV, input.positionWS,
+                    input.hasOverlay, input.overlayTexIndex, input.overlayTintType,
+                    TEXTURE2D_ARRAY_ARGS(_AtlasArray, sampler_AtlasArray));
 
                 Light mainLight = GetMainLight();
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
@@ -138,14 +146,11 @@ Shader "Lithforge/VoxelCutout"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
-                // Decode real texIndex (strip tintType bits for alpha test)
-                int realTexIndex, tintType;
-                DecodeTintedTexIndex(dv.texIndex, realTexIndex, tintType);
-
+                // texIndex is already pure (no tintType encoding to strip)
                 CutoutDepthVaryings output;
                 output.positionCS = TransformObjectToHClip(dv.positionOS);
                 output.uv = dv.uv;
-                output.texIndex = realTexIndex;
+                output.texIndex = dv.texIndex;
                 return output;
             }
 

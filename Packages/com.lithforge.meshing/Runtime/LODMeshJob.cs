@@ -101,13 +101,20 @@ namespace Lithforge.Meshing
             AtlasEntry atlasEntry = AtlasEntries[state.Value];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
-            // Encode tintType into upper bits of texIndex (bits 9-10)
-            // Max encoded value: 511 + 3*512 = 2047, safe for half-precision (exact integers up to 2048)
-            byte tintType = StateTable[state.Value].TintType;
-            ushort encodedTexIndex = (ushort)(texIndex + tintType * 512);
+            // LOD uses full brightness: AO=1, blockLight=1, sunLight=1, a=pure baseTexIndex
+            half4 color = new half4((half)1.0f, (half)1.0f, (half)1.0f, (half)texIndex);
 
-            // LOD uses full brightness: AO=1, blockLight=1, sunLight=1
-            half4 color = new half4((half)1.0f, (half)1.0f, (half)1.0f, (half)encodedTexIndex);
+            // Pack per-face tint + overlay into TintOverlay uint
+            byte baseTintType = atlasEntry.GetBaseTintType(face);
+            ushort overlayTexIdx = atlasEntry.GetOverlayTextureIndex(face);
+            byte overlayTintType = atlasEntry.GetOverlayTintType(face);
+            bool hasOverlay = overlayTexIdx != 0xFFFF;
+
+            uint tintOverlay =
+                ((uint)(baseTintType & 0x3)) |
+                ((uint)(overlayTintType & 0x3) << 2) |
+                ((uint)(hasOverlay ? 1 : 0) << 4) |
+                ((uint)(hasOverlay ? (overlayTexIdx & 0x3FF) : 0) << 5);
 
             float3 pos00;
             float3 pos10;
@@ -160,6 +167,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(0, 0),
                 Color = color,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             Vertices.Add(new MeshVertex
@@ -168,6 +177,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(1, 0),
                 Color = color,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             Vertices.Add(new MeshVertex
@@ -176,6 +187,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(1, 1),
                 Color = color,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             Vertices.Add(new MeshVertex
@@ -184,6 +197,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(0, 1),
                 Color = color,
+                TintOverlay = tintOverlay,
+                Pad = 0,
             });
 
             // CW winding for Unity front-face

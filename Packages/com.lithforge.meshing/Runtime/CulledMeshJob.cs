@@ -104,6 +104,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(0, 0),
                 Color = color,
+                TintOverlay = 0,
+                Pad = 0,
             };
 
             MeshVertex vert1 = new MeshVertex
@@ -112,6 +114,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(1, 0),
                 Color = color,
+                TintOverlay = 0,
+                Pad = 0,
             };
 
             MeshVertex vert2 = new MeshVertex
@@ -120,6 +124,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(1, 1),
                 Color = color,
+                TintOverlay = 0,
+                Pad = 0,
             };
 
             MeshVertex vert3 = new MeshVertex
@@ -128,6 +134,8 @@ namespace Lithforge.Meshing
                 Normal = normal,
                 UV = new float2(0, 1),
                 Color = color,
+                TintOverlay = 0,
+                Pad = 0,
             };
 
             Vertices.Add(vert0);

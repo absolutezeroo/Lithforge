@@ -53,10 +53,6 @@ Shader "Lithforge/VoxelTranslucent"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
-                // Decode tintType from packed texIndex
-                int realTexIndex, tintType;
-                DecodeTintedTexIndex(dv.texIndex, realTexIndex, tintType);
-
                 Varyings output;
 
                 VertexPositionInputs vertexInput = GetVertexPositionInputs(dv.positionOS);
@@ -67,8 +63,13 @@ Shader "Lithforge/VoxelTranslucent"
                 output.normalWS = normalInput.normalWS;
 
                 output.uv = dv.uv;
-                output.texIndex = realTexIndex;
-                output.tintType = tintType;
+                output.texIndex = dv.texIndex;
+
+                // Per-face tint + overlay
+                output.baseTintType = dv.baseTintType;
+                output.hasOverlay = dv.hasOverlay;
+                output.overlayTexIndex = dv.overlayTexIndex;
+                output.overlayTintType = dv.overlayTintType;
 
                 // AO: color.r is ao/3 (0=fully occluded, 1=unoccluded)
                 output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
@@ -90,9 +91,15 @@ Shader "Lithforge/VoxelTranslucent"
                 half4 texColor = SAMPLE_TEXTURE2D_ARRAY(
                     _AtlasArray, sampler_AtlasArray, tiledUV, input.texIndex);
 
-                // Apply biome tint
-                half3 biomeTint = SampleBiomeTint(input.positionWS, input.tintType);
-                texColor.rgb *= biomeTint;
+                // Apply base tint
+                half3 baseTint = SampleBiomeTint(input.positionWS, input.baseTintType);
+                texColor.rgb *= baseTint;
+
+                // Apply overlay
+                texColor.rgb = ApplyOverlay(
+                    texColor.rgb, tiledUV, input.positionWS,
+                    input.hasOverlay, input.overlayTexIndex, input.overlayTintType,
+                    TEXTURE2D_ARRAY_ARGS(_AtlasArray, sampler_AtlasArray));
 
                 // Directional lighting with ambient
                 Light mainLight = GetMainLight();

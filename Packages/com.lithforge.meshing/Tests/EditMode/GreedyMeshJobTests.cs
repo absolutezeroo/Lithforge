@@ -36,7 +36,12 @@ namespace Lithforge.Meshing.Tests
             };
 
             _atlasEntries = new NativeArray<AtlasEntry>(2, Allocator.TempJob);
-            _atlasEntries[0] = new AtlasEntry();
+            _atlasEntries[0] = new AtlasEntry
+            {
+                OvlPosX = 0xFFFF, OvlNegX = 0xFFFF,
+                OvlPosY = 0xFFFF, OvlNegY = 0xFFFF,
+                OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
+            };
             _atlasEntries[1] = new AtlasEntry
             {
                 TexPosX = 1,
@@ -45,6 +50,9 @@ namespace Lithforge.Meshing.Tests
                 TexNegY = 1,
                 TexPosZ = 1,
                 TexNegZ = 1,
+                OvlPosX = 0xFFFF, OvlNegX = 0xFFFF,
+                OvlPosY = 0xFFFF, OvlNegY = 0xFFFF,
+                OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
             };
         }
 
@@ -85,6 +93,10 @@ namespace Lithforge.Meshing.Tests
                 LightData = lightData,
                 OpaqueVertices = meshData.OpaqueVertices,
                 OpaqueIndices = meshData.OpaqueIndices,
+                CutoutVertices = meshData.CutoutVertices,
+                CutoutIndices = meshData.CutoutIndices,
+                TranslucentVertices = meshData.TranslucentVertices,
+                TranslucentIndices = meshData.TranslucentIndices,
             };
 
             return job.Schedule();

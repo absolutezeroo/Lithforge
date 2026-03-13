@@ -366,6 +366,70 @@ namespace Lithforge.Runtime.Content.Models
             return fallback;
         }
 
+        /// <summary>
+        /// Walks the parent chain of a BlockModel and resolves all texture variables
+        /// to their final Texture2D references. Returns the merged dictionary.
+        /// Used by ContentPipeline to resolve overlay face textures from #variable references.
+        /// </summary>
+        public Dictionary<string, Texture2D> ResolveTextureDictionary(BlockModel model)
+        {
+            Dictionary<string, Texture2D> result = new Dictionary<string, Texture2D>();
+
+            if (model == null)
+            {
+                return result;
+            }
+
+            List<BlockModel> chain = new List<BlockModel>();
+            HashSet<BlockModel> visited = new HashSet<BlockModel>();
+
+            BlockModel current = model;
+
+            for (int depth = 0; depth <= _maxParentDepth; depth++)
+            {
+                if (current == null)
+                {
+                    break;
+                }
+
+                if (!visited.Add(current))
+                {
+                    break;
+                }
+
+                chain.Add(current);
+
+                if (current.BuiltInParent != BuiltInParentType.None)
+                {
+                    break;
+                }
+
+                current = current.Parent;
+            }
+
+            // Merge textures from root to leaf (parent first, child overrides)
+            Dictionary<string, TextureVariable> mergedTextures = new Dictionary<string, TextureVariable>();
+
+            for (int i = chain.Count - 1; i >= 0; i--)
+            {
+                IReadOnlyList<TextureVariable> textures = chain[i].Textures;
+
+                for (int t = 0; t < textures.Count; t++)
+                {
+                    mergedTextures[textures[t].Variable] = textures[t];
+                }
+            }
+
+            // Resolve #variable references to Texture2D
+            foreach (KeyValuePair<string, TextureVariable> kvp in mergedTextures)
+            {
+                Texture2D resolved = ResolveTextureVariable(kvp.Value, mergedTextures);
+                result[kvp.Key] = resolved;
+            }
+
+            return result;
+        }
+
         private static ResolvedFaceTextures2D CreateMissing()
         {
             return new ResolvedFaceTextures2D

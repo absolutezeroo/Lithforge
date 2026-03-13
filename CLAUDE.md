@@ -82,7 +82,7 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 | `BlockStateCompact` | 2 | Yes (struct) | Cached render/physics flags for Burst |
 | `NativeStateRegistry` | 2 | Yes (NativeArray) | Burst-accessible state lookup |
 | `ChunkData` | 2 | Yes (NativeArray) | 32³ voxel storage |
-| `MeshVertex` | 2 | Yes (struct) | 40-byte vertex for GPU |
+| `MeshVertex` | 2 | Yes (struct) | 48-byte vertex for GPU |
 | `NativeNoiseConfig` | 2 | Yes (struct) | Noise parameters for Burst jobs |
 | `NativeBiomeData` | 2 | Yes (struct) | Biome data for Burst jobs |
 
@@ -206,7 +206,7 @@ Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)             
 
 ## Known Limits
 
-- **Texture array layers ≤ 512**: `MeshVertex.Color.a` stores `encodedTexIndex = texIndex + tintType * 512` as `half`. The `half` type represents integers exactly up to 2048; max encoded value is `511 + 3*512 = 2047`. ContentPipeline asserts at 512.
+- **Texture array layers ≤ 1024**: `MeshVertex.Color.a` stores a pure `texIndex` as `half`. The `half` type represents integers exactly up to 2048. Tint type and overlay info are packed separately in `MeshVertex.TintOverlay` (uint). ContentPipeline asserts at 1024.
 - **BiomeData[i].BiomeId == i**: biome lookup is O(1) by direct index. This invariant is asserted at startup in `LithforgeBootstrap`. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.
 - **ChunkPool uses HashSet for checked-out tracking**: `Return()` is O(1) amortized, not O(n).
 
