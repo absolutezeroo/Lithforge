@@ -50,7 +50,11 @@ namespace Lithforge.Runtime.Rendering
             // RGBA32 = R8G8B8A8: R=temperature, G=humidity, B=biomeId, A=reserved
             _globalMap = new Texture2D(mapSize, mapSize, TextureFormat.RGBA32, false, true);
             _globalMap.name = "GlobalBiomeParamMap";
-            _globalMap.filterMode = FilterMode.Bilinear;
+            // Point filtering required: B channel stores discrete biomeId (integer 0-255).
+            // Bilinear would interpolate biome IDs at chunk boundaries, corrupting water
+            // color LUT lookups. Temperature/humidity in RG are smooth noise values that
+            // don't need sub-texel interpolation.
+            _globalMap.filterMode = FilterMode.Point;
             _globalMap.wrapMode = TextureWrapMode.Repeat;
 
             // Clear to default (temp=0.5, humidity=0.5, biomeId=0, reserved=255)
