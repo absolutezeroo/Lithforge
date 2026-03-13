@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Models
 {
@@ -11,5 +12,11 @@ namespace Lithforge.Runtime.Content.Models
         public ResolvedFaceTextures2D Textures { get; set; }
 
         public List<ModelElement> Elements { get; set; }
+
+        /// <summary>
+        /// The fully resolved texture variable dictionary (variable name → Texture2D).
+        /// Built during parent chain walk; exposed to avoid redundant re-resolution.
+        /// </summary>
+        public Dictionary<string, Texture2D> ResolvedTextureDictionary { get; set; }
     }
 }

@@ -306,12 +306,25 @@ namespace Lithforge.Runtime.Bootstrap
                 _settings.Chunk.YLoadMin,
                 _settings.Chunk.YLoadMax);
 
+            // Build water color array indexed by biomeId
+            BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;
+            Color[] biomeWaterColors = new Color[biomes.Length];
+
+            for (int i = 0; i < biomes.Length; i++)
+            {
+                biomeWaterColors[i] = biomes[i].WaterColor;
+            }
+
             // Initialize biome tinting system
             _biomeTintManager = new BiomeTintManager(
                 _settings.Rendering.BiomeMapSize,
                 Lithforge.Voxel.Chunk.ChunkConstants.Size,
                 _settings.Rendering.GrassColormap,
-                _settings.Rendering.FoliageColormap);
+                _settings.Rendering.FoliageColormap,
+                biomeWaterColors);
+
+            // Set sea level for altitude-based tint adjustment in shader
+            Shader.SetGlobalFloat("_SeaLevel", _settings.WorldGen.SeaLevel);
         }
 
         private void InitializeGameLoop(LoadingScreen loadingScreen, UnityEngine.UIElements.PanelSettings panelSettings)

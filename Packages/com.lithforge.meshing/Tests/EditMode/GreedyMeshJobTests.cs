@@ -4,6 +4,7 @@ using Lithforge.Voxel.Chunk;
 using NUnit.Framework;
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace Lithforge.Meshing.Tests
 {
@@ -251,6 +252,119 @@ namespace Lithforge.Meshing.Tests
                     Assert.AreEqual(1.0f, texIndex, 0.01f,
                         $"Vertex {i} color.a should contain texture index 1");
                 }
+            }
+            finally
+            {
+                chunkData.Dispose();
+                lightData.Dispose();
+                meshData.Dispose();
+            }
+        }
+
+        [Test]
+        public void TintOverlay_BaseTintType_EncodedCorrectly()
+        {
+            // Configure atlas entry with grass tint (type 1) on PosY face (direction 2)
+            // BaseTintPacked: 6 faces x 2 bits, PosY is bits 4-5
+            _atlasEntries[1] = new AtlasEntry
+            {
+                TexPosX = 1, TexNegX = 1, TexPosY = 1, TexNegY = 1, TexPosZ = 1, TexNegZ = 1,
+                OvlPosX = 0xFFFF, OvlNegX = 0xFFFF, OvlPosY = 0xFFFF,
+                OvlNegY = 0xFFFF, OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
+                BaseTintPacked = (ushort)(1 << (2 * 2)),
+                OverlayTintPacked = 0,
+            };
+
+            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> lightData = CreateEmptyLightData();
+            GreedyMeshData meshData = CreateMeshData();
+
+            try
+            {
+                chunkData[ChunkData.GetIndex(16, 16, 16)] = new StateId(1);
+
+                ScheduleJob(chunkData, meshData, lightData).Complete();
+
+                // Find PosY face vertices (Normal.y > 0)
+                int posYCount = 0;
+
+                for (int i = 0; i < meshData.OpaqueVertices.Length; i++)
+                {
+                    MeshVertex vert = meshData.OpaqueVertices[i];
+
+                    if (math.abs(vert.Normal.y - 1.0f) < 0.001f)
+                    {
+                        uint baseTint = vert.TintOverlay & 0x3u;
+                        Assert.AreEqual(1u, baseTint,
+                            $"PosY vertex {i}: baseTintType should be 1 (grass)");
+                        posYCount++;
+                    }
+                }
+
+                Assert.Greater(posYCount, 0, "Should have found PosY face vertices");
+            }
+            finally
+            {
+                chunkData.Dispose();
+                lightData.Dispose();
+                meshData.Dispose();
+            }
+        }
+
+        [Test]
+        public void TintOverlay_Overlay_EncodedCorrectly()
+        {
+            // Configure atlas entry with overlay on PosX face (direction 0)
+            // overlayTexIdx=42, overlayTintType=2 (foliage) on PosX
+            ushort overlayTexIdx = 42;
+            _atlasEntries[1] = new AtlasEntry
+            {
+                TexPosX = 1, TexNegX = 1, TexPosY = 1, TexNegY = 1, TexPosZ = 1, TexNegZ = 1,
+                OvlPosX = overlayTexIdx, OvlNegX = 0xFFFF, OvlPosY = 0xFFFF,
+                OvlNegY = 0xFFFF, OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
+                BaseTintPacked = 0,
+                OverlayTintPacked = (ushort)(2 << (0 * 2)),
+            };
+
+            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> lightData = CreateEmptyLightData();
+            GreedyMeshData meshData = CreateMeshData();
+
+            try
+            {
+                chunkData[ChunkData.GetIndex(16, 16, 16)] = new StateId(1);
+
+                ScheduleJob(chunkData, meshData, lightData).Complete();
+
+                // Find PosX face vertices (Normal.x > 0)
+                int posXCount = 0;
+
+                for (int i = 0; i < meshData.OpaqueVertices.Length; i++)
+                {
+                    MeshVertex vert = meshData.OpaqueVertices[i];
+
+                    if (math.abs(vert.Normal.x - 1.0f) < 0.001f)
+                    {
+                        uint baseTint = vert.TintOverlay & 0x3u;
+                        uint overlayTint = (vert.TintOverlay >> 2) & 0x3u;
+                        uint hasOverlay = (vert.TintOverlay >> 4) & 0x1u;
+                        uint ovlTexIdx = (vert.TintOverlay >> 5) & 0x3FFu;
+
+                        Assert.AreEqual(0u, baseTint,
+                            $"PosX vertex {i}: no base tint expected");
+                        Assert.AreEqual(2u, overlayTint,
+                            $"PosX vertex {i}: overlayTintType should be 2 (foliage)");
+                        Assert.AreEqual(1u, hasOverlay,
+                            $"PosX vertex {i}: hasOverlay should be 1");
+                        Assert.AreEqual(42u, ovlTexIdx,
+                            $"PosX vertex {i}: overlayTexIndex should be 42");
+                        posXCount++;
+                    }
+                }
+
+                Assert.Greater(posXCount, 0, "Should have found PosX face vertices");
             }
             finally
             {

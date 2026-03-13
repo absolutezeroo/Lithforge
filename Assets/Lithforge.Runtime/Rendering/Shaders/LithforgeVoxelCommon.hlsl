@@ -112,8 +112,11 @@ TEXTURE2D(_GrassColormap);
 SAMPLER(sampler_GrassColormap);
 TEXTURE2D(_FoliageColormap);
 SAMPLER(sampler_FoliageColormap);
+TEXTURE2D(_WaterColorLUT);
+SAMPLER(sampler_WaterColorLUT);
 
-float4 _BiomeMapTransform; // xy=reserved, zw=1/mapSize (toroidal wrap via Repeat)
+float4 _BiomeMapScale; // xy=reserved, zw=1/mapSize (toroidal wrap via Repeat)
+float _SeaLevel;       // world Y sea level for altitude-based tint adjustment
 
 // ---------------------------------------------------------------------------
 // Sample biome tint color at a world position
@@ -125,14 +128,26 @@ half3 SampleBiomeTint(float3 worldPos, int tintType)
         return half3(1, 1, 1);
 
     // Sample temperature + humidity from global biome parameter map
-    float2 biomeUV = worldPos.xz * _BiomeMapTransform.zw;
+    float2 biomeUV = worldPos.xz * _BiomeMapScale.zw;
     float2 climate = SAMPLE_TEXTURE2D(_BiomeParamMap, sampler_BiomeParamMap, biomeUV).rg;
 
     float temp     = saturate(climate.r);
-    float humidity = saturate(climate.g);
+    float rainfall = saturate(climate.g);
 
-    // Minecraft colormap UV: x = temperature, y = humidity * temperature
-    float2 colormapUV = float2(temp, humidity * temp);
+    // Minecraft altitude adjustment: temperature decreases above sea level
+    // 0.00166667 = 1/600
+    if (worldPos.y > _SeaLevel)
+    {
+        temp -= (worldPos.y - _SeaLevel) * 0.00166667;
+        temp = saturate(temp);
+    }
+
+    // Minecraft colormap UV:
+    //   adjustedRainfall = rainfall * temp (downfall is modulated by temperature)
+    //   u = 1 - temp                      (hot=left, cold=right)
+    //   v = 1 - adjustedRainfall          (humid=bottom, dry=top)
+    float adjustedRainfall = rainfall * temp;
+    float2 colormapUV = float2(1.0 - temp, 1.0 - adjustedRainfall);
 
     if (tintType == 1) // grass
     {
@@ -142,9 +157,14 @@ half3 SampleBiomeTint(float3 worldPos, int tintType)
     {
         return (half3)SAMPLE_TEXTURE2D(_FoliageColormap, sampler_FoliageColormap, colormapUV).rgb;
     }
-    else // tintType == 3: water (per-biome, fallback to default blue)
+    else // tintType == 3: water (per-biome lookup)
     {
-        return half3(0.247h, 0.463h, 0.894h);
+        // Read biomeId from B channel of biome parameter map
+        float biomeIdNorm = SAMPLE_TEXTURE2D(_BiomeParamMap, sampler_BiomeParamMap, biomeUV).b;
+        float biomeId = biomeIdNorm * 255.0;
+        // Sample water color LUT (256x1 texture, Point filtering)
+        float2 lutUV = float2((biomeId + 0.5) / 256.0, 0.5);
+        return (half3)SAMPLE_TEXTURE2D_LOD(_WaterColorLUT, sampler_WaterColorLUT, lutUV, 0).rgb;
     }
 }
 

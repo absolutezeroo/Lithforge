@@ -184,9 +184,11 @@ namespace Lithforge.Runtime.Scheduling
                         CollectBorderLightEntries(chunk, pending.Handle.BorderLightOutput);
 
                         // Write climate data to biome tint texture before disposal
-                        if (_biomeTintManager != null && pending.Handle.ClimateMap.IsCreated)
+                        if (_biomeTintManager != null && pending.Handle.ClimateMap.IsCreated
+                            && pending.Handle.BiomeMap.IsCreated)
                         {
-                            _biomeTintManager.WriteChunkClimate(pending.Coord, pending.Handle.ClimateMap);
+                            _biomeTintManager.WriteChunkClimate(
+                                pending.Coord, pending.Handle.ClimateMap, pending.Handle.BiomeMap);
                         }
 
                         pending.Handle.Dispose();

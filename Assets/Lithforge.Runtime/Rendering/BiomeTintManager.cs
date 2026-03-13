@@ -7,22 +7,24 @@ using UnityEngine;
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Manages a global GPU texture storing biome climate parameters (temperature, humidity)
-    /// for shader-side colormap lookup. Uses toroidal addressing — the texture wraps and
-    /// new data overwrites stale regions as the player moves.
+    /// Manages a global GPU texture storing biome climate parameters (temperature, humidity,
+    /// biomeId) for shader-side colormap lookup. Uses toroidal addressing — the texture wraps
+    /// and new data overwrites stale regions as the player moves.
     /// Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
     public sealed class BiomeTintManager : System.IDisposable
     {
         private static readonly int _biomeParamMapId = Shader.PropertyToID("_BiomeParamMap");
-        private static readonly int _biomeMapTransformId = Shader.PropertyToID("_BiomeMapTransform");
+        private static readonly int _biomeMapScaleId = Shader.PropertyToID("_BiomeMapScale");
         private static readonly int _grassColormapId = Shader.PropertyToID("_GrassColormap");
         private static readonly int _foliageColormapId = Shader.PropertyToID("_FoliageColormap");
+        private static readonly int _waterColorLUTId = Shader.PropertyToID("_WaterColorLUT");
 
         private readonly int _mapSize;
         private readonly int _chunkSize;
         private readonly Texture2D _globalMap;
         private readonly Texture2D _staging;
+        private readonly Texture2D _waterColorLUT;
 
         /// <summary>
         /// Tracks which chunk columns have been written to avoid redundant uploads.
@@ -36,7 +38,8 @@ namespace Lithforge.Runtime.Rendering
             int mapSize,
             int chunkSize,
             Texture2D grassColormap,
-            Texture2D foliageColormap)
+            Texture2D foliageColormap,
+            Color[] biomeWaterColors)
         {
             UnityEngine.Debug.Assert(mapSize % chunkSize == 0,
                 $"BiomeTintManager: mapSize ({mapSize}) must be a multiple of chunkSize ({chunkSize}).");
@@ -44,25 +47,27 @@ namespace Lithforge.Runtime.Rendering
             _mapSize = mapSize;
             _chunkSize = chunkSize;
 
-            // RG16 = R8G8, two 8-bit channels, 16 bits per texel
-            _globalMap = new Texture2D(mapSize, mapSize, TextureFormat.RG16, false, true);
+            // RGBA32 = R8G8B8A8: R=temperature, G=humidity, B=biomeId, A=reserved
+            _globalMap = new Texture2D(mapSize, mapSize, TextureFormat.RGBA32, false, true);
             _globalMap.name = "GlobalBiomeParamMap";
             _globalMap.filterMode = FilterMode.Bilinear;
             _globalMap.wrapMode = TextureWrapMode.Repeat;
 
-            // Clear to default (temp=0.5, humidity=0.5)
+            // Clear to default (temp=0.5, humidity=0.5, biomeId=0, reserved=255)
             NativeArray<byte> clearData = _globalMap.GetPixelData<byte>(0);
 
-            for (int i = 0; i < clearData.Length; i += 2)
+            for (int i = 0; i < clearData.Length; i += 4)
             {
                 clearData[i] = 128;
                 clearData[i + 1] = 128;
+                clearData[i + 2] = 0;
+                clearData[i + 3] = 255;
             }
 
             _globalMap.Apply(false, false);
 
             // Staging texture for chunk-sized uploads
-            _staging = new Texture2D(chunkSize, chunkSize, TextureFormat.RG16, false, true);
+            _staging = new Texture2D(chunkSize, chunkSize, TextureFormat.RGBA32, false, true);
             _staging.name = "BiomeTintStaging";
 
             // Bind globally
@@ -78,16 +83,47 @@ namespace Lithforge.Runtime.Rendering
                 Shader.SetGlobalTexture(_foliageColormapId, foliageColormap);
             }
 
-            // Set initial transform
+            // Set scale (xy=reserved, zw=1/mapSize for toroidal UV)
             float invMapSize = 1.0f / _mapSize;
-            Shader.SetGlobalVector(_biomeMapTransformId, new Vector4(0, 0, invMapSize, invMapSize));
+            Shader.SetGlobalVector(_biomeMapScaleId, new Vector4(0, 0, invMapSize, invMapSize));
+
+            // Build water color LUT (256x1, one pixel per biome)
+            _waterColorLUT = new Texture2D(256, 1, TextureFormat.RGBA32, false, true);
+            _waterColorLUT.name = "WaterColorLUT";
+            _waterColorLUT.filterMode = FilterMode.Point;
+            _waterColorLUT.wrapMode = TextureWrapMode.Clamp;
+
+            Color32[] lutPixels = new Color32[256];
+
+            for (int i = 0; i < 256; i++)
+            {
+                if (biomeWaterColors != null && i < biomeWaterColors.Length)
+                {
+                    Color c = biomeWaterColors[i];
+                    lutPixels[i] = new Color32(
+                        (byte)(c.r * 255f), (byte)(c.g * 255f),
+                        (byte)(c.b * 255f), 255);
+                }
+                else
+                {
+                    // Default water blue
+                    lutPixels[i] = new Color32(63, 118, 228, 255);
+                }
+            }
+
+            _waterColorLUT.SetPixels32(lutPixels);
+            _waterColorLUT.Apply(false, true);
+            Shader.SetGlobalTexture(_waterColorLUTId, _waterColorLUT);
         }
 
         /// <summary>
-        /// Writes a chunk's climate data (temperature + humidity per column) into the global texture.
-        /// Must be called on main thread (uses Graphics.CopyTexture).
+        /// Writes a chunk's climate data (temperature, humidity, biomeId per column) into
+        /// the global texture. Must be called on main thread (uses Graphics.CopyTexture).
         /// </summary>
-        public void WriteChunkClimate(int3 chunkCoord, NativeArray<ClimateData> climateMap)
+        public void WriteChunkClimate(
+            int3 chunkCoord,
+            NativeArray<ClimateData> climateMap,
+            NativeArray<byte> biomeMap)
         {
             int2 key = new int2(chunkCoord.x, chunkCoord.z);
 
@@ -104,9 +140,12 @@ namespace Lithforge.Runtime.Rendering
                 {
                     int colIdx = z * _chunkSize + x;
                     ClimateData climate = climateMap[colIdx];
-                    int pixelIdx = (z * _chunkSize + x) * 2;
+                    byte biomeId = biomeMap[colIdx];
+                    int pixelIdx = colIdx * 4;
                     stagingData[pixelIdx] = (byte)(Mathf.Clamp01(climate.Temperature) * 255f);
                     stagingData[pixelIdx + 1] = (byte)(Mathf.Clamp01(climate.Humidity) * 255f);
+                    stagingData[pixelIdx + 2] = biomeId;
+                    stagingData[pixelIdx + 3] = 255;
                 }
             }
 
@@ -143,6 +182,11 @@ namespace Lithforge.Runtime.Rendering
             if (_staging != null)
             {
                 Object.Destroy(_staging);
+            }
+
+            if (_waterColorLUT != null)
+            {
+                Object.Destroy(_waterColorLUT);
             }
 
             _writtenChunks.Clear();

@@ -525,9 +525,8 @@ namespace Lithforge.Runtime.Bootstrap
 
         /// <summary>
         /// Resolves per-face tint types and overlay textures from model elements.
-        /// Element 0 provides base per-face tint. Element 1 (if present) provides
-        /// overlay textures and overlay per-face tint. Replaces the old per-block
-        /// ResolveTintTypes() approach with per-face granularity.
+        /// Element 0 provides base per-face tint. Elements 1..N provide overlay
+        /// textures and overlay per-face tint (last distinct texture wins per face).
         /// </summary>
         private void ResolveOverlaysAndTints(
             ContentModelResolver modelResolver,
@@ -613,27 +612,38 @@ namespace Lithforge.Runtime.Bootstrap
                         tintedStates++;
                     }
 
-                    // Resolve overlay from element 1 (if present)
+                    // Resolve overlay from elements 1..N (scan all, last distinct texture wins)
                     if (elements.Count > 1)
                     {
-                        ModelElement overlayElem = elements[1];
                         Dictionary<string, Texture2D> resolvedTextures =
-                            modelResolver.ResolveTextureDictionary(variant.Model);
+                            fullModel.ResolvedTextureDictionary;
+                        ModelElement baseElem = elements[0];
 
-                        ResolveOverlayFace(overlayElem.North, resolvedTextures,
-                            ref faceData.OverlayNorth, ref faceData.OverlayTintNorth);
-                        ResolveOverlayFace(overlayElem.South, resolvedTextures,
-                            ref faceData.OverlaySouth, ref faceData.OverlayTintSouth);
-                        ResolveOverlayFace(overlayElem.East, resolvedTextures,
-                            ref faceData.OverlayEast, ref faceData.OverlayTintEast);
-                        ResolveOverlayFace(overlayElem.West, resolvedTextures,
-                            ref faceData.OverlayWest, ref faceData.OverlayTintWest);
-                        ResolveOverlayFace(overlayElem.Up, resolvedTextures,
-                            ref faceData.OverlayUp, ref faceData.OverlayTintUp);
-                        ResolveOverlayFace(overlayElem.Down, resolvedTextures,
-                            ref faceData.OverlayDown, ref faceData.OverlayTintDown);
+                        ResolveOverlayFromElements(elements, baseElem, resolvedTextures,
+                            ref faceData.OverlayNorth, ref faceData.OverlayTintNorth,
+                            e => e.North);
+                        ResolveOverlayFromElements(elements, baseElem, resolvedTextures,
+                            ref faceData.OverlaySouth, ref faceData.OverlayTintSouth,
+                            e => e.South);
+                        ResolveOverlayFromElements(elements, baseElem, resolvedTextures,
+                            ref faceData.OverlayEast, ref faceData.OverlayTintEast,
+                            e => e.East);
+                        ResolveOverlayFromElements(elements, baseElem, resolvedTextures,
+                            ref faceData.OverlayWest, ref faceData.OverlayTintWest,
+                            e => e.West);
+                        ResolveOverlayFromElements(elements, baseElem, resolvedTextures,
+                            ref faceData.OverlayUp, ref faceData.OverlayTintUp,
+                            e => e.Up);
+                        ResolveOverlayFromElements(elements, baseElem, resolvedTextures,
+                            ref faceData.OverlayDown, ref faceData.OverlayTintDown,
+                            e => e.Down);
 
-                        overlayStates++;
+                        if (faceData.OverlayNorth != null || faceData.OverlaySouth != null ||
+                            faceData.OverlayEast != null || faceData.OverlayWest != null ||
+                            faceData.OverlayUp != null || faceData.OverlayDown != null)
+                        {
+                            overlayStates++;
+                        }
                     }
 
                     resolvedFaces[stateId] = faceData;
@@ -699,6 +709,44 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             overlayTintType = MapTintIndex(face);
+        }
+
+        /// <summary>
+        /// Scans elements 1..N for the last element whose face has a different texture
+        /// than element 0's face. That element's texture becomes the overlay.
+        /// </summary>
+        private static void ResolveOverlayFromElements(
+            List<ModelElement> elements,
+            ModelElement baseElem,
+            Dictionary<string, Texture2D> resolvedTextures,
+            ref Texture2D overlayTex,
+            ref byte overlayTintType,
+            System.Func<ModelElement, ModelFaceEntry> faceSelector)
+        {
+            ModelFaceEntry baseFace = faceSelector(baseElem);
+            string baseTexRef = baseFace?.Texture;
+
+            // Scan from last element backwards — first (= last in list) distinct texture wins
+            for (int i = elements.Count - 1; i >= 1; i--)
+            {
+                ModelFaceEntry candidateFace = faceSelector(elements[i]);
+
+                if (candidateFace == null || string.IsNullOrEmpty(candidateFace.Texture))
+                {
+                    continue;
+                }
+
+                // Skip if same texture reference as base (not an overlay)
+                if (candidateFace.Texture == baseTexRef)
+                {
+                    continue;
+                }
+
+                // This element has a different texture for this face — it's the overlay
+                ResolveOverlayFace(candidateFace, resolvedTextures,
+                    ref overlayTex, ref overlayTintType);
+                return;
+            }
         }
 
         private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)
