@@ -206,96 +206,72 @@ namespace Lithforge.WorldGen.Stages
                         blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
                     }
 
-                    // Raise heightmap if placing a block above the current surface
+                    // Column-write shortcut: when placing an opaque block at/above the
+                    // heightmap surface, directly zero the sunlight column below instead
+                    // of letting the removal BFS walk down the entire column. Each zeroed
+                    // voxel is enqueued with a horizontal-only skip mask so the BFS only
+                    // spreads removal sideways, not redundantly up/down the column.
                     if (HeightMap.IsCreated)
                     {
                         IndexToXYZ(index, out int hx, out int hy, out int hz);
                         int colIdx = hz * ChunkConstants.Size + hx;
                         int blockWorldY = ChunkWorldY + hy;
+                        int oldHeight = HeightMap[colIdx];
 
-                        if (blockWorldY > HeightMap[colIdx])
+                        if (blockWorldY >= oldHeight)
                         {
                             HeightMap[colIdx] = blockWorldY;
+
+                            int horizOnlySkip = (1 << _dirNegY) | (1 << _dirPosY);
+                            int minLocalY = oldHeight - ChunkWorldY;
+
+                            if (minLocalY < 0)
+                            {
+                                minLocalY = 0;
+                            }
+
+                            for (int scanY = hy - 1; scanY >= minLocalY; scanY--)
+                            {
+                                int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(hx, scanY, hz);
+
+                                if (StateTable[ChunkData[scanIdx].Value].IsOpaque)
+                                {
+                                    break;
+                                }
+
+                                byte scanSun = LightUtils.GetSunLight(LightData[scanIdx]);
+
+                                if (scanSun == 0)
+                                {
+                                    break;
+                                }
+
+                                byte scanBlock = LightUtils.GetBlockLight(LightData[scanIdx]);
+                                LightData[scanIdx] = LightUtils.Pack(0, scanBlock);
+                                sunRemovalQueue.Enqueue(scanIdx | ((int)scanSun << _levelShift)
+                                    | (horizOnlySkip << _skipShift));
+                            }
                         }
                     }
                 }
                 else
                 {
-                    // Sunlight column restoration check: if the voxel is at or above the
-                    // heightmap surface, it's in direct sunlight. Falls back to checking
-                    // the above voxel if no heightmap is available.
                     IndexToXYZ(index, out int ax, out int ay, out int az);
-                    bool sunColumnRestore = false;
+                    bool columnWriteApplied = false;
 
-                    int columnIndex = az * ChunkConstants.Size + ax;
-                    int worldY = ChunkWorldY + ay;
-
-                    if (HeightMap.IsCreated && HeightMap.Length > columnIndex)
-                    {
-                        if (worldY >= HeightMap[columnIndex])
-                        {
-                            sunColumnRestore = true;
-                        }
-                    }
-                    else if (ay < ChunkConstants.Size - 1)
-                    {
-                        // Fallback: check voxel above (old behavior, no heightmap)
-                        int aboveIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, ay + 1, az);
-                        byte aboveSun = LightUtils.GetSunLight(LightData[aboveIndex]);
-
-                        if (aboveSun == 15)
-                        {
-                            sunColumnRestore = true;
-                        }
-                    }
-
-                    if (sunColumnRestore)
-                    {
-                        // Column restoration: set sun=15 directly and reseed. Skip removal
-                        // to avoid a stale removal entry cascading downward at max light.
-                        byte currentBlockLight = LightUtils.GetBlockLight(LightData[index]);
-                        LightData[index] = LightUtils.Pack(15, currentBlockLight);
-                        sunReseedQueue.Enqueue(index | (15 << _levelShift));
-                    }
-                    else if (sun > 0)
-                    {
-                        // No column above — remove old sun and let it re-seed from neighbors
-                        LightData[index] = LightUtils.Pack(0, LightUtils.GetBlockLight(LightData[index]));
-                        sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift));
-                    }
-
-                    if (block > 0 && blockState.LightEmission == 0)
-                    {
-                        LightData[index] = LightUtils.Pack(LightUtils.GetSunLight(LightData[index]), 0);
-                        blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
-                    }
-
-                    // If this block emits light, seed it for re-propagation
-                    if (blockState.LightEmission > 0)
-                    {
-                        byte currentBlock = LightUtils.GetBlockLight(LightData[index]);
-
-                        if (blockState.LightEmission > currentBlock)
-                        {
-                            byte currentSun = LightUtils.GetSunLight(LightData[index]);
-                            LightData[index] = LightUtils.Pack(currentSun, blockState.LightEmission);
-                        }
-
-                        byte reseedLevel = LightUtils.GetBlockLight(LightData[index]);
-                        blockReseedQueue.Enqueue(index | ((int)reseedLevel << _levelShift));
-                    }
-
-                    // Lower heightmap if removing a block at or above the surface.
-                    // Note: scan is chunk-local only. If no opaque block is found in this
-                    // chunk, newSurface = ChunkWorldY - 1. The actual surface may be in a
-                    // lower chunk, but the heightmap is per-chunk so this is the best we can do.
+                    // Column-write shortcut: when breaking a block at/above the heightmap
+                    // surface, directly restore sun=15 in the entire exposed column instead
+                    // of a single-voxel reseed. Each restored voxel is enqueued with a
+                    // horizontal-only skip mask so the BFS only spreads light sideways.
                     if (HeightMap.IsCreated)
                     {
                         int colIdx = az * ChunkConstants.Size + ax;
-                        int blockWorldY = ChunkWorldY + ay;
+                        int worldY = ChunkWorldY + ay;
 
-                        if (blockWorldY >= HeightMap[colIdx])
+                        if (worldY >= HeightMap[colIdx])
                         {
+                            columnWriteApplied = true;
+
                             // Scan downward to find the new highest opaque block
                             int newSurface = ChunkWorldY - 1;
 
@@ -312,7 +288,127 @@ namespace Lithforge.WorldGen.Stages
                             }
 
                             HeightMap[colIdx] = newSurface;
+
+                            // Restore sun=15 from new surface up to broken block position
+                            int horizOnlySkip = (1 << _dirNegY) | (1 << _dirPosY);
+                            int minLocalY = newSurface - ChunkWorldY;
+
+                            if (minLocalY < 0)
+                            {
+                                minLocalY = 0;
+                            }
+
+                            int maxLocalY = ay;
+
+                            if (maxLocalY >= ChunkConstants.Size)
+                            {
+                                maxLocalY = ChunkConstants.Size - 1;
+                            }
+
+                            for (int scanY = minLocalY; scanY <= maxLocalY; scanY++)
+                            {
+                                int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, scanY, az);
+
+                                if (StateTable[ChunkData[scanIdx].Value].IsOpaque)
+                                {
+                                    continue;
+                                }
+
+                                byte scanBlockLight = LightUtils.GetBlockLight(LightData[scanIdx]);
+                                LightData[scanIdx] = LightUtils.Pack(15, scanBlockLight);
+                                sunReseedQueue.Enqueue(scanIdx | (15 << _levelShift)
+                                    | (horizOnlySkip << _skipShift));
+                            }
                         }
+                    }
+
+                    if (!columnWriteApplied)
+                    {
+                        // Standard path: single-voxel sun handling for below-surface edits
+                        // or chunks without a heightmap.
+                        bool sunColumnRestore = false;
+
+                        int columnIndex = az * ChunkConstants.Size + ax;
+                        int worldY = ChunkWorldY + ay;
+
+                        if (HeightMap.IsCreated && HeightMap.Length > columnIndex)
+                        {
+                            if (worldY >= HeightMap[columnIndex])
+                            {
+                                sunColumnRestore = true;
+                            }
+                        }
+                        else if (ay < ChunkConstants.Size - 1)
+                        {
+                            // Fallback: check voxel above (no heightmap available)
+                            int aboveIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, ay + 1, az);
+                            byte aboveSun = LightUtils.GetSunLight(LightData[aboveIndex]);
+
+                            if (aboveSun == 15)
+                            {
+                                sunColumnRestore = true;
+                            }
+                        }
+
+                        if (sunColumnRestore)
+                        {
+                            byte currentBlockLight = LightUtils.GetBlockLight(LightData[index]);
+                            LightData[index] = LightUtils.Pack(15, currentBlockLight);
+                            sunReseedQueue.Enqueue(index | (15 << _levelShift));
+                        }
+                        else if (sun > 0)
+                        {
+                            LightData[index] = LightUtils.Pack(0, LightUtils.GetBlockLight(LightData[index]));
+                            sunRemovalQueue.Enqueue(index | ((int)sun << _levelShift));
+                        }
+
+                        // Lower heightmap if removing a block at or above the surface
+                        if (HeightMap.IsCreated)
+                        {
+                            int colIdx = az * ChunkConstants.Size + ax;
+                            int blockWorldY = ChunkWorldY + ay;
+
+                            if (blockWorldY >= HeightMap[colIdx])
+                            {
+                                int newSurface = ChunkWorldY - 1;
+
+                                for (int scanY = ay - 1; scanY >= 0; scanY--)
+                                {
+                                    int scanIdx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(ax, scanY, az);
+
+                                    if (StateTable[ChunkData[scanIdx].Value].IsOpaque)
+                                    {
+                                        newSurface = ChunkWorldY + scanY;
+
+                                        break;
+                                    }
+                                }
+
+                                HeightMap[colIdx] = newSurface;
+                            }
+                        }
+                    }
+
+                    // Block light removal — always applies regardless of column-write path
+                    if (block > 0 && blockState.LightEmission == 0)
+                    {
+                        LightData[index] = LightUtils.Pack(LightUtils.GetSunLight(LightData[index]), 0);
+                        blockRemovalQueue.Enqueue(index | ((int)block << _levelShift));
+                    }
+
+                    // Light emitter re-seeding — always applies
+                    if (blockState.LightEmission > 0)
+                    {
+                        byte currentBlock = LightUtils.GetBlockLight(LightData[index]);
+
+                        if (blockState.LightEmission > currentBlock)
+                        {
+                            byte currentSun = LightUtils.GetSunLight(LightData[index]);
+                            LightData[index] = LightUtils.Pack(currentSun, blockState.LightEmission);
+                        }
+
+                        byte reseedLevel = LightUtils.GetBlockLight(LightData[index]);
+                        blockReseedQueue.Enqueue(index | ((int)reseedLevel << _levelShift));
                     }
                 }
             }
