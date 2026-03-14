@@ -31,7 +31,7 @@ MonoBehaviour:
   erosionCenter: 0.75
   baseHeight: 4
   heightAmplitude: 6
-  _weightSharpness: 7
+  _weightSharpness: 9
   _isOcean: 0
   _isFrozen: 0
   _isBeach: 0

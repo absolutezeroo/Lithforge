@@ -16,10 +16,10 @@ MonoBehaviour:
   biomeName: beach
   temperatureMin: 0.2
   temperatureMax: 1.0
-  temperatureCenter: 0.6
+  temperatureCenter: 0.5
   humidityMin: 0.0
   humidityMax: 1.0
-  humidityCenter: 0.5
+  humidityCenter: 0.4
   topBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
   fillerBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
   stoneBlock: {fileID: 11400000, guid: 73f24493020ca4545818b3222ea3e1b3, type: 2}
@@ -27,11 +27,11 @@ MonoBehaviour:
   fillerDepth: 5
   treeDensity: 0.0
   treeType: 0
-  continentalnessCenter: 0.28
-  erosionCenter: 0.8
+  continentalnessCenter: 0.3
+  erosionCenter: 0.75
   baseHeight: 0
   heightAmplitude: 2
-  _weightSharpness: 10
+  _weightSharpness: 18
   _isOcean: 0
   _isFrozen: 0
   _isBeach: 1

@@ -69,7 +69,7 @@ namespace Lithforge.WorldGen.Stages
                         StateId current = ChunkData[index];
 
                         // Frozen ocean: replace surface water with ice (patchy)
-                        if (isFrozen && current.Equals(WaterId) && worldY == SeaLevel - 1)
+                        if (isFrozen && current.Equals(WaterId) && worldY == SeaLevel)
                         {
                             uint iceHash = HashColumn(chunkWorldX + x, chunkWorldZ + z, Seed);
                             bool placeIce = (iceHash % 10u) < 8u;

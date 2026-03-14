@@ -60,8 +60,8 @@ namespace Lithforge.WorldGen.Stages
 
                     // Suppress rivers below sea level (already underwater)
                     float heightFade = math.smoothstep(
-                        (float)(SeaLevel - 5),
-                        (float)(SeaLevel + 2),
+                        (float)(SeaLevel - 1),
+                        (float)(SeaLevel + 4),
                         (float)surfaceY);
 
                     // Early out if both fades are negligible

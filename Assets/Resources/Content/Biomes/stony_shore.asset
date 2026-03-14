@@ -27,11 +27,11 @@ MonoBehaviour:
   fillerDepth: 1
   treeDensity: 0.0
   treeType: 0
-  continentalnessCenter: 0.28
+  continentalnessCenter: 0.3
   erosionCenter: 0.2
   baseHeight: 25
   heightAmplitude: 15
-  _weightSharpness: 15
+  _weightSharpness: 20
   _isOcean: 0
   _isFrozen: 0
   _isBeach: 0

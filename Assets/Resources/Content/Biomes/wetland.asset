@@ -16,10 +16,10 @@ MonoBehaviour:
   biomeName: wetland
   temperatureMin: 0.45
   temperatureMax: 0.75
-  temperatureCenter: 0.6
+  temperatureCenter: 0.65
   humidityMin: 0.6
   humidityMax: 1.0
-  humidityCenter: 0.8
+  humidityCenter: 0.85
   topBlock: {fileID: 11400000, guid: 4fabd49891c8be4bb815d58e5fbda5d8, type: 2}
   fillerBlock: {fileID: 11400000, guid: 76b315d8ecefa3ac21b9664ffc7ccbd9, type: 2}
   stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
@@ -27,11 +27,11 @@ MonoBehaviour:
   fillerDepth: 3
   treeDensity: 0.0
   treeType: 0
-  continentalnessCenter: 0.35
-  erosionCenter: 0.85
+  continentalnessCenter: 0.48
+  erosionCenter: 0.88
   baseHeight: -0.5
   heightAmplitude: 1.5
-  _weightSharpness: 4
+  _weightSharpness: 14
   _isOcean: 0
   _isFrozen: 0
   _isBeach: 0
