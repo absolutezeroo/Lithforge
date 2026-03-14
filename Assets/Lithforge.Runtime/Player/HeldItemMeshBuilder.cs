@@ -23,7 +23,9 @@ namespace Lithforge.Runtime.Player
 
         /// <summary>
         /// Builds a 6-face cube for a held block item.
-        /// Returns vertex/index counts. Pass null arrays to query counts only.
+        /// Display transform from Minecraft block.json firstperson_righthand:
+        ///   rotation [0, 45, 0], translation [0, 0, 0], scale [0.40, 0.40, 0.40]
+        /// Minecraft transform order: Translate → RotateY → RotateX → RotateZ → Scale
         /// </summary>
         public static void BuildBlockItem(
             StateRegistry stateRegistry,
@@ -47,15 +49,17 @@ namespace Lithforge.Runtime.Player
             vertices = new HeldItemVertex[24];
             indices = new int[36];
 
-            float half = BlockScale * 0.5f;
-            float3 offset = RightHandLocator;
+            float3 handOffset = RightHandLocator;
 
-            // Apply Minecraft firstperson_righthand display transform:
-            // rotation [0, 45, 0], scale [0.4, 0.4, 0.4]
-            // The rotation is baked into vertex positions.
-            float yawRad = math.radians(45f);
-            float cosY = math.cos(yawRad);
-            float sinY = math.sin(yawRad);
+            // Minecraft block.json firstperson_righthand display transform:
+            // translation [0, 0, 0], rotation [0, 45, 0], scale [0.40, 0.40, 0.40]
+            float4x4 displayMat = math.mul(
+                float4x4.RotateY(math.radians(45f)),
+                float4x4.Scale(BlockScale));
+            float3x3 displayRot = new float3x3(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
+
+            // Unit cube: 1x1x1 centered at origin (Minecraft blocks are 16x16x16 = 1 block)
+            float h = 0.5f;
 
             int vertIdx = 0;
             int idxIdx = 0;
@@ -77,82 +81,70 @@ namespace Lithforge.Runtime.Player
             normals[4] = new float3(0, 0, 1);
             normals[5] = new float3(0, 0, -1);
 
-            // Face vertex positions (before rotation)
+            // Face vertex positions (unit cube, before display transform)
             float3[][] faceVerts = new float3[6][];
 
             // +X face
             faceVerts[0] = new float3[]
             {
-                new float3(half, half, -half),
-                new float3(half, half, half),
-                new float3(half, -half, half),
-                new float3(half, -half, -half),
+                new float3(h, h, -h),
+                new float3(h, h, h),
+                new float3(h, -h, h),
+                new float3(h, -h, -h),
             };
             // -X face
             faceVerts[1] = new float3[]
             {
-                new float3(-half, half, half),
-                new float3(-half, half, -half),
-                new float3(-half, -half, -half),
-                new float3(-half, -half, half),
+                new float3(-h, h, h),
+                new float3(-h, h, -h),
+                new float3(-h, -h, -h),
+                new float3(-h, -h, h),
             };
             // +Y face
             faceVerts[2] = new float3[]
             {
-                new float3(-half, half, -half),
-                new float3(-half, half, half),
-                new float3(half, half, half),
-                new float3(half, half, -half),
+                new float3(-h, h, -h),
+                new float3(-h, h, h),
+                new float3(h, h, h),
+                new float3(h, h, -h),
             };
             // -Y face
             faceVerts[3] = new float3[]
             {
-                new float3(-half, -half, half),
-                new float3(-half, -half, -half),
-                new float3(half, -half, -half),
-                new float3(half, -half, half),
+                new float3(-h, -h, h),
+                new float3(-h, -h, -h),
+                new float3(h, -h, -h),
+                new float3(h, -h, h),
             };
             // +Z face
             faceVerts[4] = new float3[]
             {
-                new float3(half, half, half),
-                new float3(-half, half, half),
-                new float3(-half, -half, half),
-                new float3(half, -half, half),
+                new float3(h, h, h),
+                new float3(-h, h, h),
+                new float3(-h, -h, h),
+                new float3(h, -h, h),
             };
             // -Z face
             faceVerts[5] = new float3[]
             {
-                new float3(-half, half, -half),
-                new float3(half, half, -half),
-                new float3(half, -half, -half),
-                new float3(-half, -half, -half),
+                new float3(-h, h, -h),
+                new float3(h, h, -h),
+                new float3(h, -h, -h),
+                new float3(-h, -h, -h),
             };
 
             for (int face = 0; face < 6; face++)
             {
-                float3 n = normals[face];
-                // Rotate normal by 45 degrees around Y
-                float3 rotN = new float3(
-                    n.x * cosY + n.z * sinY,
-                    n.y,
-                    -n.x * sinY + n.z * cosY);
+                float3 rotN = math.normalize(math.mul(displayRot, normals[face]));
 
                 for (int v = 0; v < 4; v++)
                 {
-                    float3 pos = faceVerts[face][v];
-
-                    // Rotate position by 45 degrees around Y
-                    float3 rotPos = new float3(
-                        pos.x * cosY + pos.z * sinY,
-                        pos.y,
-                        -pos.x * sinY + pos.z * cosY);
-
-                    rotPos += offset;
+                    float3 pos = math.mul(displayMat, new float4(faceVerts[face][v], 1f)).xyz;
+                    pos += handOffset;
 
                     vertices[vertIdx + v] = new HeldItemVertex
                     {
-                        Position = rotPos,
+                        Position = pos,
                         Normal = rotN,
                         UV = GetBlockFaceUV(v),
                         TexIndex = texIndices[face],
@@ -176,6 +168,10 @@ namespace Lithforge.Runtime.Player
         /// <summary>
         /// Builds a 2-face quad for a flat held item (tools, sticks, etc.).
         /// The quad faces forward from the hand with both sides visible.
+        /// Display transform from Minecraft generated.json firstperson_righthand:
+        ///   rotation [0, -90, 25], translation [1.13, 3.2, 1.13], scale [0.68, 0.68, 0.68]
+        /// Minecraft transform order: Translate → RotateY → RotateX → RotateZ → Scale
+        /// Translation units: 1/16 of a block.
         /// </summary>
         public static void BuildFlatItem(
             out HeldItemVertex[] vertices,
@@ -185,55 +181,58 @@ namespace Lithforge.Runtime.Player
             vertices = new HeldItemVertex[8];
             indices = new int[12];
 
-            float3 offset = RightHandLocator;
-            float size = 0.35f; // item sprite size in block units
+            float3 handOffset = RightHandLocator;
 
-            // Apply Minecraft firstperson_righthand transform for flat items:
-            // rotation [0, -90, 25], scale [0.68, 0.68, 0.68]
-            // Simplified: rotate -90 around Y (face toward camera), tilt 25 degrees
-            float yawRad = math.radians(-90f);
-            float pitchRad = math.radians(25f);
+            // Minecraft generated.json firstperson_righthand display transform
+            float3 displayTranslation = new float3(1.13f, 3.2f, 1.13f) / 16f; // convert to block units
+            float displayScale = 0.68f;
 
-            // Front face (+Z after rotation)
-            float3 n = new float3(0, 0, 1);
+            // Build the display transform matrix: Translate → RotateY → RotateX → Scale
+            // rotation [0, -90, 25] = RotateY(-90) then RotateX(25)
+            float4x4 displayMat = math.mul(
+                math.mul(
+                    float4x4.Translate(displayTranslation),
+                    float4x4.RotateY(math.radians(-90f))),
+                math.mul(
+                    float4x4.RotateX(math.radians(25f)),
+                    float4x4.Scale(displayScale)));
+
+            // Unit quad: 1x1 block centered at origin, bottom at y=0
+            // (Minecraft item sprites are 16x16 pixels = 1x1 block)
             float3[] quadVerts = new float3[]
             {
-                new float3(-size * 0.5f, size, 0f),
-                new float3(size * 0.5f, size, 0f),
-                new float3(size * 0.5f, 0f, 0f),
-                new float3(-size * 0.5f, 0f, 0f),
+                new float3(-0.5f, 1f, 0f),
+                new float3(0.5f, 1f, 0f),
+                new float3(0.5f, 0f, 0f),
+                new float3(-0.5f, 0f, 0f),
             };
+
+            float3 frontNormal = new float3(0, 0, 1);
+            float3 rotFrontNormal = math.normalize(
+                math.mul((float3x3)displayMat, frontNormal));
+            float3 rotBackNormal = -rotFrontNormal;
 
             for (int v = 0; v < 4; v++)
             {
-                float3 pos = quadVerts[v];
-                // Rotate around Y
-                float3 rotPos = new float3(
-                    pos.x * math.cos(yawRad) + pos.z * math.sin(yawRad),
-                    pos.y,
-                    -pos.x * math.sin(yawRad) + pos.z * math.cos(yawRad));
-                // Tilt
-                float3 tiltPos = new float3(
-                    rotPos.x,
-                    rotPos.y * math.cos(pitchRad) - rotPos.z * math.sin(pitchRad),
-                    rotPos.y * math.sin(pitchRad) + rotPos.z * math.cos(pitchRad));
-                tiltPos += offset;
+                // Apply display transform then hand locator offset
+                float3 pos = math.mul(displayMat, new float4(quadVerts[v], 1f)).xyz;
+                pos += handOffset;
 
                 vertices[v] = new HeldItemVertex
                 {
-                    Position = tiltPos,
-                    Normal = n,
+                    Position = pos,
+                    Normal = rotFrontNormal,
                     UV = GetItemQuadUV(v),
                     TexIndex = 0,
                     Padding = 0,
                 };
             }
 
-            // Back face (same verts, reversed winding, flipped normal)
+            // Back face (same positions, reversed winding, flipped normal)
             for (int v = 0; v < 4; v++)
             {
                 vertices[4 + v] = vertices[v];
-                vertices[4 + v].Normal = -n;
+                vertices[4 + v].Normal = rotBackNormal;
             }
 
             // Front face indices
