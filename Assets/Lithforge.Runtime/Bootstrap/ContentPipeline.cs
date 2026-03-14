@@ -120,12 +120,12 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 2.5: Load block entity definitions and patch StateRegistry
             yield return "Loading block entities...";
-            BlockEntityDefinitionSO[] blockEntityDefs =
-                Resources.LoadAll<BlockEntityDefinitionSO>("Content/BlockEntities");
+            BlockEntityDefinition[] blockEntityDefs =
+                Resources.LoadAll<BlockEntityDefinition>("Content/BlockEntities");
 
             for (int i = 0; i < blockEntityDefs.Length; i++)
             {
-                BlockEntityDefinitionSO beDef = blockEntityDefs[i];
+                BlockEntityDefinition beDef = blockEntityDefs[i];
                 stateRegistry.PatchBlockEntityType(beDef.BlockIdString, beDef.BlockEntityTypeId);
             }
 

@@ -13,7 +13,7 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         fileName = "NewBlockEntity",
         menuName = "Lithforge/Content/Block Entity Definition",
         order = 10)]
-    public sealed class BlockEntityDefinitionSO : ScriptableObject
+    public sealed class BlockEntityDefinition : ScriptableObject
     {
         [Tooltip("Namespace for the block resource id")]
         [SerializeField] private string _namespace = "lithforge";
