@@ -95,6 +95,12 @@ namespace Lithforge.Runtime.Rendering
 
         public Material TranslucentMaterial { get; }
 
+        /// <summary>Whether Hi-Z occlusion culling is active (pyramid generated successfully).</summary>
+        public bool IsOcclusionCullingActive
+        {
+            get { return _hiZPyramid != null && _hiZPyramid.IsValid; }
+        }
+
         public ChunkMeshStore(
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
             int renderDistance, int yLoadMin, int yLoadMax,

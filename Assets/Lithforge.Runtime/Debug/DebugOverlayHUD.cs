@@ -280,7 +280,7 @@ namespace Lithforge.Runtime.Debug
 
             if (_mainCamera != null) { lineCount++; }
             if (_chunkManager != null) { lineCount++; }
-            if (_chunkMeshStore != null) { lineCount++; }
+            if (_chunkMeshStore != null) { lineCount += 2; } // renderers + culling status
             if (_gameLoop != null) { lineCount += 2; }
             if (_playerController != null && _playerController.IsFlying) { lineCount++; }
 
@@ -323,6 +323,21 @@ namespace Lithforge.Runtime.Debug
                 _leftBuilder.Clear();
                 _leftBuilder.Append("Renderers: ");
                 _leftBuilder.Append(_chunkMeshStore.RendererCount);
+                GUI.Label(new Rect(x, y, labelWidth, lineHeight), _leftBuilder.ToString(), _style);
+                y += lineHeight;
+
+                _leftBuilder.Clear();
+                _leftBuilder.Append("Cull: ");
+                _leftBuilder.Append(_chunkMeshStore.IsOcclusionCullingActive ? "Frustum+Hi-Z" : "Frustum");
+                long vramBytes =
+                    (long)_chunkMeshStore.OpaqueBuffer.VertexCapacity * 16
+                    + (long)_chunkMeshStore.CutoutBuffer.VertexCapacity * 16
+                    + (long)_chunkMeshStore.TranslucentBuffer.VertexCapacity * 16
+                    + (long)_chunkMeshStore.OpaqueBuffer.IndexCapacity * 4
+                    + (long)_chunkMeshStore.CutoutBuffer.IndexCapacity * 4
+                    + (long)_chunkMeshStore.TranslucentBuffer.IndexCapacity * 4;
+                _leftBuilder.Append("  VRAM: ");
+                AppendBytes(_leftBuilder, vramBytes);
                 GUI.Label(new Rect(x, y, labelWidth, lineHeight), _leftBuilder.ToString(), _style);
                 y += lineHeight;
             }

@@ -164,5 +164,82 @@ Shader "Lithforge/VoxelCutout"
             }
             ENDHLSL
         }
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+            Cull Off
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex ShadowVert
+            #pragma fragment ShadowFrag
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            #pragma require 2darray
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            #include "LithforgeVoxelCommon.hlsl"
+
+            TEXTURE2D_ARRAY(_AtlasArray);
+            SAMPLER(sampler_AtlasArray);
+
+            CBUFFER_START(UnityPerMaterial)
+                float _AlphaClipThreshold;
+            CBUFFER_END
+
+            struct CutoutShadowVaryings
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                nointerpolation int texIndex : TEXCOORD1;
+            };
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+
+            CutoutShadowVaryings ShadowVert(uint svVertexID : SV_VertexID)
+            {
+                DecodedVertex dv = FetchVertex(svVertexID);
+
+                float3 positionWS = TransformObjectToWorld(dv.positionOS);
+                float3 normalWS = TransformObjectToWorldNormal(dv.normalOS);
+
+                #if _CASTING_PUNCTUAL_LIGHT_SHADOW
+                    float3 lightDirectionWS = normalize(_LightPosition - positionWS);
+                #else
+                    float3 lightDirectionWS = _LightDirection;
+                #endif
+
+                float4 posCS = TransformWorldToHClip(
+                    ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+
+                #if UNITY_REVERSED_Z
+                    posCS.z = min(posCS.z, UNITY_NEAR_CLIP_VALUE);
+                #else
+                    posCS.z = max(posCS.z, UNITY_NEAR_CLIP_VALUE);
+                #endif
+
+                CutoutShadowVaryings output;
+                output.positionCS = posCS;
+                output.uv = dv.uv;
+                output.texIndex = dv.texIndex;
+                return output;
+            }
+
+            half4 ShadowFrag(CutoutShadowVaryings input) : SV_Target
+            {
+                float2 tiledUV = frac(input.uv);
+                half4 texColor = SAMPLE_TEXTURE2D_ARRAY(
+                    _AtlasArray, sampler_AtlasArray, tiledUV, input.texIndex);
+                clip(texColor.a - _AlphaClipThreshold);
+                return 0;
+            }
+            ENDHLSL
+        }
     }
 }

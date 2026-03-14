@@ -170,7 +170,11 @@ void CSOcclusionCull(uint3 id : SV_DispatchThreadID)
         }
 
         float3 ndc = clip.xyz / clip.w;
-        float2 screen = ndc.xy * 0.5 + 0.5;
+        // GL.GetGPUProjectionMatrix(proj, true) flips Y for render-into-texture.
+        // _CameraDepthTexture has Y=0 at top (DX convention), so flip screen.y.
+        float2 screen;
+        screen.x = ndc.x * 0.5 + 0.5;
+        screen.y = 1.0 - (ndc.y * 0.5 + 0.5);
 
         minScreenX = min(minScreenX, screen.x);
         maxScreenX = max(maxScreenX, screen.x);

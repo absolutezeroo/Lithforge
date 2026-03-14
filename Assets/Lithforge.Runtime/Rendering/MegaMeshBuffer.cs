@@ -91,6 +91,11 @@ namespace Lithforge.Runtime.Rendering
             get { return _vertexCapacity; }
         }
 
+        public int IndexCapacity
+        {
+            get { return _indexCapacity; }
+        }
+
         public int FreeRegionCount
         {
             get { return _freeRegions.Count; }
