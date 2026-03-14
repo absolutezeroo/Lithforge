@@ -18,12 +18,12 @@ MonoBehaviour:
   maxGenerationsPerFrame: 16
   maxMeshesPerFrame: 12
   maxGenCompletionsPerFrame: 8
-  maxMeshCompletionsPerFrame: 8
+  maxMeshCompletionsPerFrame: 16
   maxLightUpdatesPerFrame: 6
   genCompletionBudgetMs: 2
-  meshCompletionBudgetMs: 2
-  lodCompletionBudgetMs: 1
-  maxLODCompletionsPerFrame: 4
+  meshCompletionBudgetMs: 4
+  lodCompletionBudgetMs: 2
+  maxLODCompletionsPerFrame: 8
   yLoadMin: -2
   yLoadMax: 3
   yUnloadMin: -3
