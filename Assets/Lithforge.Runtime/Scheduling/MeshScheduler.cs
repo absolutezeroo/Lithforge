@@ -28,6 +28,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly int _maxMeshesPerFrame;
         private readonly int _maxMeshCompletionsPerFrame;
         private readonly float _completionBudgetMs;
+        private bool _initialLoadBypass = true;
 
         /// <summary>
         /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
@@ -58,6 +59,11 @@ namespace Lithforge.Runtime.Scheduling
             _maxMeshesPerFrame = maxMeshesPerFrame;
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
+        }
+
+        public void EndInitialLoadBypass()
+        {
+            _initialLoadBypass = false;
         }
 
         public void PollCompleted()
@@ -96,7 +102,7 @@ namespace Lithforge.Runtime.Scheduling
                         $"{pending.Coord} after {pending.FrameAge} frames");
                     forceComplete = true;
                 }
-                else if (pending.FrameAge < 1)
+                else if (!_initialLoadBypass && pending.FrameAge < 1)
                 {
                     pending.FrameAge++;
                     _pendingMeshes[i] = pending;
