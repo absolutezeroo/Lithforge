@@ -1,0 +1,142 @@
+using System;
+using UnityEngine;
+
+namespace Lithforge.Runtime.Player
+{
+    /// <summary>
+    /// Box face direction for skin UV mapping.
+    /// </summary>
+    public enum SkinFaceDirection
+    {
+        Top = 0,
+        Bottom = 1,
+        Right = 2,
+        Front = 3,
+        Left = 4,
+        Back = 5,
+    }
+
+    /// <summary>
+    /// Defines a body part's region in the 64x64 Minecraft skin texture.
+    /// </summary>
+    public readonly struct SkinPartDefinition
+    {
+        /// <summary>Pixel X origin of the T-shaped strip (top-left origin).</summary>
+        public readonly int OriginU;
+
+        /// <summary>Pixel Y origin of the T-shaped strip (top-left origin).</summary>
+        public readonly int OriginV;
+
+        /// <summary>Box width in pixels.</summary>
+        public readonly int W;
+
+        /// <summary>Box height in pixels.</summary>
+        public readonly int H;
+
+        /// <summary>Box depth in pixels.</summary>
+        public readonly int D;
+
+        public SkinPartDefinition(int originU, int originV, int w, int h, int d)
+        {
+            OriginU = originU;
+            OriginV = originV;
+            W = w;
+            H = h;
+            D = d;
+        }
+    }
+
+    /// <summary>
+    /// Computes UV rectangles for body part faces in a 64x64 Minecraft skin texture.
+    /// Minecraft skin layout: each part is a T-shaped strip of 6 faces packed at a known origin.
+    /// </summary>
+    public static class SkinUVMapper
+    {
+        private const float TexSize = 64f;
+
+        // --- Part definitions (complete table for future expansion) ---
+
+        // Right Arm (classic 4px wide)
+        public static readonly SkinPartDefinition RightArmBase4 = new SkinPartDefinition(40, 16, 4, 12, 4);
+        public static readonly SkinPartDefinition RightArmOverlay4 = new SkinPartDefinition(40, 32, 4, 12, 4);
+
+        // Right Arm (slim 3px wide)
+        public static readonly SkinPartDefinition RightArmBase3 = new SkinPartDefinition(40, 16, 3, 12, 4);
+        public static readonly SkinPartDefinition RightArmOverlay3 = new SkinPartDefinition(40, 32, 3, 12, 4);
+
+        // Left Arm (classic 4px wide)
+        public static readonly SkinPartDefinition LeftArmBase4 = new SkinPartDefinition(32, 48, 4, 12, 4);
+        public static readonly SkinPartDefinition LeftArmOverlay4 = new SkinPartDefinition(48, 48, 4, 12, 4);
+
+        // Left Arm (slim 3px wide)
+        public static readonly SkinPartDefinition LeftArmBase3 = new SkinPartDefinition(32, 48, 3, 12, 4);
+        public static readonly SkinPartDefinition LeftArmOverlay3 = new SkinPartDefinition(48, 48, 3, 12, 4);
+
+        /// <summary>
+        /// Computes the UV rectangle for a specific face of a body part.
+        /// Returns (uMin, vMin, uMax, vMax) in [0,1] normalized coordinates.
+        /// Uses top-left origin (Minecraft convention). The shader flips Y as needed.
+        /// </summary>
+        public static Vector4 GetFaceUV(SkinPartDefinition part, SkinFaceDirection face)
+        {
+            int u = part.OriginU;
+            int v = part.OriginV;
+            int w = part.W;
+            int h = part.H;
+            int d = part.D;
+
+            int px;
+            int py;
+            int pw;
+            int ph;
+
+            switch (face)
+            {
+                case SkinFaceDirection.Top:
+                    px = u + d;
+                    py = v;
+                    pw = w;
+                    ph = d;
+                    break;
+                case SkinFaceDirection.Bottom:
+                    px = u + d + w;
+                    py = v;
+                    pw = w;
+                    ph = d;
+                    break;
+                case SkinFaceDirection.Right:
+                    px = u;
+                    py = v + d;
+                    pw = d;
+                    ph = h;
+                    break;
+                case SkinFaceDirection.Front:
+                    px = u + d;
+                    py = v + d;
+                    pw = w;
+                    ph = h;
+                    break;
+                case SkinFaceDirection.Left:
+                    px = u + d + w;
+                    py = v + d;
+                    pw = d;
+                    ph = h;
+                    break;
+                case SkinFaceDirection.Back:
+                    px = u + d + w + d;
+                    py = v + d;
+                    pw = w;
+                    ph = h;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(face));
+            }
+
+            return new Vector4(
+                px / TexSize,
+                py / TexSize,
+                (px + pw) / TexSize,
+                (py + ph) / TexSize);
+        }
+    }
+}

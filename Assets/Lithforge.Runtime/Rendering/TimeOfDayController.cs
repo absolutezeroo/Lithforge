@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Lithforge.Runtime.Content.Settings;
 using UnityEngine;
 
@@ -15,6 +16,7 @@ namespace Lithforge.Runtime.Rendering
         private Material _voxelMaterial;
         private Material _cutoutMaterial;
         private Material _translucentMaterial;
+        private readonly List<Material> _additionalMaterials = new List<Material>();
 
         private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
 
@@ -69,6 +71,18 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>
+        /// Registers an additional material to receive _SunLightFactor updates each frame.
+        /// Used by first-person arm and held item materials.
+        /// </summary>
+        public void RegisterMaterial(Material material)
+        {
+            if (material != null && !_additionalMaterials.Contains(material))
+            {
+                _additionalMaterials.Add(material);
+            }
+        }
+
         private void Update()
         {
             if (_voxelMaterial == null)
@@ -97,6 +111,11 @@ namespace Lithforge.Runtime.Rendering
             if (_translucentMaterial != null)
             {
                 _translucentMaterial.SetFloat(s_sunLightFactorId, sunFactor);
+            }
+
+            for (int i = 0; i < _additionalMaterials.Count; i++)
+            {
+                _additionalMaterials[i].SetFloat(s_sunLightFactorId, sunFactor);
             }
 
             // Update directional light rotation (intensity is fixed; voxel light system handles brightness)

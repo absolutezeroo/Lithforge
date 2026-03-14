@@ -3,6 +3,8 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
@@ -32,6 +34,9 @@ namespace Lithforge.Runtime
 
         private BiomeTintManager _biomeTintManager;
         private BlockEntityTickScheduler _blockEntityTickScheduler;
+        private FirstPersonArmRenderer _armRenderer;
+        private PlayerController _playerController;
+        private BlockInteraction _blockInteraction;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
 
@@ -166,6 +171,20 @@ namespace Lithforge.Runtime
             _generationScheduler.SetBlockEntityRegistry(registry);
         }
 
+        /// <summary>
+        /// Sets the first-person arm renderer and player references for arm rendering.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetArmRenderer(
+            FirstPersonArmRenderer armRenderer,
+            PlayerController playerController,
+            BlockInteraction blockInteraction)
+        {
+            _armRenderer = armRenderer;
+            _playerController = playerController;
+            _blockInteraction = blockInteraction;
+        }
+
         private void Update()
         {
             if (!_initialized)
@@ -296,6 +315,16 @@ namespace Lithforge.Runtime
 
             FrameProfiler.Begin(FrameProfiler.Render);
             _chunkMeshStore.RenderAll(_mainCamera);
+
+            if (_armRenderer != null)
+            {
+                _armRenderer.Render(
+                    _mainCamera,
+                    _playerController != null && _playerController.OnGround,
+                    _playerController != null && _playerController.IsFlying,
+                    _blockInteraction != null && _blockInteraction.IsMining);
+            }
+
             FrameProfiler.End(FrameProfiler.Render);
         }
 
@@ -315,6 +344,7 @@ namespace Lithforge.Runtime
             _relightScheduler?.Shutdown();
             _meshScheduler?.Shutdown();
             _lodScheduler?.Shutdown();
+            _armRenderer?.Dispose();
         }
     }
 }

@@ -12,6 +12,7 @@ using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
@@ -382,6 +383,9 @@ namespace Lithforge.Runtime.Bootstrap
         {
             CameraController cameraControllerRef = null;
             SettingsScreen settingsScreenRef = null;
+            Material armBaseMaterialRef = null;
+            Material armOverlayMaterialRef = null;
+            Material heldItemMaterialRef = null;
 
             // Create GameLoop first (needed by PlayerController for spawn readiness)
             _gameLoop = gameObject.AddComponent<GameLoop>();
@@ -476,6 +480,64 @@ namespace Lithforge.Runtime.Bootstrap
                     playerObject.transform,
                     _settings.Physics,
                     playerController);
+
+                // Initialize first-person arm renderer
+                SkinLoader skinLoader = new SkinLoader();
+                Texture2D skinTexture = skinLoader.LoadSkin("default.png");
+
+                if (skinTexture == null)
+                {
+                    skinTexture = skinLoader.CreateDefaultSkin();
+                }
+
+                Shader armBaseShader = Shader.Find("Lithforge/PlayerArm");
+                Shader armOverlayShader = Shader.Find("Lithforge/PlayerArmOverlay");
+                Shader heldItemShader = Shader.Find("Lithforge/HeldItem");
+
+                if (armBaseShader != null && armOverlayShader != null && heldItemShader != null)
+                {
+                    Material armBaseMaterial = new Material(armBaseShader);
+                    Material armOverlayMaterial = new Material(armOverlayShader);
+                    Material heldItemMaterial = new Material(heldItemShader);
+                    armBaseMaterialRef = armBaseMaterial;
+                    armOverlayMaterialRef = armOverlayMaterial;
+                    heldItemMaterialRef = heldItemMaterial;
+
+                    // Share atlas texture with held item material
+                    heldItemMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
+
+                    // Share sun light factor materials with voxel materials
+                    Material opaqueMat = _chunkMeshStore.OpaqueMaterial;
+
+                    if (opaqueMat != null)
+                    {
+                        float sunFactor = opaqueMat.GetFloat("_SunLightFactor");
+                        float ambient = opaqueMat.GetFloat("_AmbientLight");
+                        armBaseMaterial.SetFloat("_SunLightFactor", sunFactor);
+                        armBaseMaterial.SetFloat("_AmbientLight", ambient);
+                        armOverlayMaterial.SetFloat("_SunLightFactor", sunFactor);
+                        armOverlayMaterial.SetFloat("_AmbientLight", ambient);
+                        heldItemMaterial.SetFloat("_SunLightFactor", sunFactor);
+                        heldItemMaterial.SetFloat("_AmbientLight", ambient);
+                    }
+
+                    FirstPersonArmRenderer armRenderer = new FirstPersonArmRenderer(
+                        armBaseMaterial,
+                        armOverlayMaterial,
+                        heldItemMaterial,
+                        skinTexture,
+                        playerObject.transform,
+                        playerInventory,
+                        _contentResult.ItemRegistry,
+                        _contentResult.StateRegistry);
+
+                    _gameLoop.SetArmRenderer(armRenderer, playerController, blockInteraction);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning(
+                        "[Lithforge] Arm shaders not found. First-person arms will not render.");
+                }
 
                 // Set NativeStateRegistry on ChunkManager for block entity flag checks
                 _chunkManager.SetNativeStateRegistry(_contentResult.NativeStateRegistry);
@@ -598,6 +660,11 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkMeshStore.CutoutMaterial,
                     _chunkMeshStore.TranslucentMaterial,
                     _settings.Rendering);
+
+                // Register arm materials for day/night cycle updates
+                _timeOfDayController.RegisterMaterial(armBaseMaterialRef);
+                _timeOfDayController.RegisterMaterial(armOverlayMaterialRef);
+                _timeOfDayController.RegisterMaterial(heldItemMaterialRef);
 
                 // Initialize procedural sky
                 _skyController = gameObject.AddComponent<SkyController>();
