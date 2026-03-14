@@ -1,6 +1,8 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Item;
 
+using UnityEngine.Serialization;
+
 namespace Lithforge.Runtime.Content.Items.Affixes
 {
     /// <summary>
@@ -10,33 +12,37 @@ namespace Lithforge.Runtime.Content.Items.Affixes
     [System.Serializable]
     public struct AffixMiningEffect
     {
-        public AffixEffectType Type;
-        public float Value;
-        public BlockMaterialType TargetMaterial;
-        public ToolType TargetToolType;
+        [FormerlySerializedAs("Type")]
+        public AffixEffectType type;
+        [FormerlySerializedAs("Value")]
+        public float value;
+        [FormerlySerializedAs("TargetMaterial")]
+        public BlockMaterialType targetMaterial;
+        [FormerlySerializedAs("TargetToolType")]
+        public ToolType targetToolType;
 
         public MiningContext Apply(MiningContext ctx)
         {
-            bool matMatch = TargetMaterial == BlockMaterialType.None
-                || TargetMaterial == ctx.Material;
-            bool toolMatch = TargetToolType == ToolType.None
-                || TargetToolType == ctx.ToolType;
+            bool matMatch = targetMaterial == BlockMaterialType.None
+                || targetMaterial == ctx.Material;
+            bool toolMatch = targetToolType == ToolType.None
+                || targetToolType == ctx.ToolType;
 
             if (!matMatch || !toolMatch)
             {
                 return ctx;
             }
 
-            switch (Type)
+            switch (type)
             {
                 case AffixEffectType.SpeedMultiplier:
-                    ctx.SpeedMultiplier *= Value;
+                    ctx.SpeedMultiplier *= value;
                     break;
                 case AffixEffectType.FlatSpeedBonus:
-                    ctx.FlatSpeedBonus += Value;
+                    ctx.FlatSpeedBonus += value;
                     break;
                 case AffixEffectType.HardnessReduction:
-                    ctx.HardnessReduction += Value;
+                    ctx.HardnessReduction += value;
                     break;
                 case AffixEffectType.GrantHarvest:
                     ctx.CanHarvest = true;

@@ -1,6 +1,8 @@
 using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Voxel.Item;
 
+using UnityEngine.Serialization;
+
 namespace Lithforge.Runtime.Content.Items.Enchantments
 {
     /// <summary>
@@ -9,19 +11,21 @@ namespace Lithforge.Runtime.Content.Items.Enchantments
     [System.Serializable]
     public struct EnchantmentLevelData
     {
-        public string DisplaySuffix;
-        public AffixMiningEffect[] Effects;
+        [FormerlySerializedAs("DisplaySuffix")]
+        public string displaySuffix;
+        [FormerlySerializedAs("Effects")]
+        public AffixMiningEffect[] effects;
 
         public MiningContext Apply(MiningContext ctx)
         {
-            if (Effects == null)
+            if (effects == null)
             {
                 return ctx;
             }
 
-            for (int i = 0; i < Effects.Length; i++)
+            for (int i = 0; i < effects.Length; i++)
             {
-                ctx = Effects[i].Apply(ctx);
+                ctx = effects[i].Apply(ctx);
             }
 
             return ctx;

@@ -1,5 +1,6 @@
 using Lithforge.Voxel.Block;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Tools
 {
@@ -10,20 +11,21 @@ namespace Lithforge.Runtime.Content.Tools
         [System.Serializable]
         public struct MaterialSpeedEntry
         {
-            public BlockMaterialType Material;
-            [Min(0.01f)] public float SpeedMultiplier;
+            [FormerlySerializedAs("Material")]
+            public BlockMaterialType material;
+            [FormerlySerializedAs("SpeedMultiplier"),Min(0.01f)] public float speedMultiplier;
         }
 
-        [SerializeField] private MaterialSpeedEntry[] _speeds
+        [FormerlySerializedAs("_speeds"),SerializeField] private MaterialSpeedEntry[] speeds
             = System.Array.Empty<MaterialSpeedEntry>();
 
         public float GetSpeed(BlockMaterialType mat)
         {
-            for (int i = 0; i < _speeds.Length; i++)
+            for (int i = 0; i < speeds.Length; i++)
             {
-                if (_speeds[i].Material == mat)
+                if (speeds[i].material == mat)
                 {
-                    return _speeds[i].SpeedMultiplier;
+                    return speeds[i].speedMultiplier;
                 }
             }
 

@@ -22,8 +22,8 @@ namespace Lithforge.WorldGen.Stages
 
         public NativeArray<byte> LightData;
 
-        private const byte _fullSunlight = 15;
-        private const byte _noLight = 0;
+        private const byte FullSunlight = 15;
+        private const byte NoLight = 0;
 
         public void Execute()
         {
@@ -38,8 +38,8 @@ namespace Lithforge.WorldGen.Stages
                         int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                         StateId stateId = ChunkData[index];
 
-                        byte sun = _noLight;
-                        byte block = _noLight;
+                        byte sun = NoLight;
+                        byte block = NoLight;
 
                         if (stateId.Value < StateTable.Length)
                         {
@@ -53,7 +53,7 @@ namespace Lithforge.WorldGen.Stages
                                 }
                                 else
                                 {
-                                    sun = _fullSunlight;
+                                    sun = FullSunlight;
                                 }
                             }
 

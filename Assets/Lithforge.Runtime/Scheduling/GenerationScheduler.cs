@@ -52,7 +52,7 @@ namespace Lithforge.Runtime.Scheduling
         /// Face-to-neighbor offset mapping (shared by InvalidateLightNeighbors and
         /// ProcessCrossChunkLightUpdates). Avoids per-call int3[] allocation.
         /// </summary>
-        private static readonly int3[] _faceOffsets = new int3[]
+        private static readonly int3[] s_faceOffsets = new int3[]
         {
             new int3(1, 0, 0),   // face 0: +X
             new int3(-1, 0, 0),  // face 1: -X
@@ -65,7 +65,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>
         /// Opposite face index: face 0 &lt;-&gt; 1, 2 &lt;-&gt; 3, 4 &lt;-&gt; 5.
         /// </summary>
-        private static readonly int[] _oppositeFace = new int[] { 1, 0, 3, 2, 5, 4 };
+        private static readonly int[] s_oppositeFace = new int[] { 1, 0, 3, 2, 5, 4 };
 
         /// <summary>
         /// Reusable list for chunks needing light updates — avoids per-frame allocation.
@@ -301,7 +301,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                int3 neighborCoord = coord + _faceOffsets[f];
+                int3 neighborCoord = coord + s_faceOffsets[f];
                 ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                 if (neighbor != null &&
@@ -394,7 +394,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 for (int f = 0; f < 6; f++)
                 {
-                    int3 neighborCoord = chunk.Coord + _faceOffsets[f];
+                    int3 neighborCoord = chunk.Coord + s_faceOffsets[f];
                     ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                     if (neighbor == null || neighbor.BorderLightEntries.Count == 0)
@@ -402,7 +402,7 @@ namespace Lithforge.Runtime.Scheduling
                         continue;
                     }
 
-                    int expectedFace = _oppositeFace[f];
+                    int expectedFace = s_oppositeFace[f];
 
                     for (int i = 0; i < neighbor.BorderLightEntries.Count; i++)
                     {

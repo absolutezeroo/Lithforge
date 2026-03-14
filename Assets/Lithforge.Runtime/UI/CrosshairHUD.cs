@@ -9,9 +9,9 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class CrosshairHUD : MonoBehaviour
     {
-        private const int _crosshairSize = 20;
-        private const int _crosshairThickness = 2;
-        private const int _crosshairGap = 3;
+        private const int CrosshairSize = 20;
+        private const int CrosshairThickness = 2;
+        private const int CrosshairGap = 3;
 
         private UIDocument _document;
 
@@ -54,34 +54,34 @@ namespace Lithforge.Runtime.UI
 
             // Top line
             VisualElement top = CreateLine();
-            top.style.left = -_crosshairThickness / 2;
-            top.style.top = -(_crosshairSize / 2 + _crosshairGap);
-            top.style.width = _crosshairThickness;
-            top.style.height = _crosshairSize / 2 - _crosshairGap;
+            top.style.left = -CrosshairThickness / 2;
+            top.style.top = -(CrosshairSize / 2 + CrosshairGap);
+            top.style.width = CrosshairThickness;
+            top.style.height = CrosshairSize / 2 - CrosshairGap;
             container.Add(top);
 
             // Bottom line
             VisualElement bottom = CreateLine();
-            bottom.style.left = -_crosshairThickness / 2;
-            bottom.style.top = _crosshairGap;
-            bottom.style.width = _crosshairThickness;
-            bottom.style.height = _crosshairSize / 2 - _crosshairGap;
+            bottom.style.left = -CrosshairThickness / 2;
+            bottom.style.top = CrosshairGap;
+            bottom.style.width = CrosshairThickness;
+            bottom.style.height = CrosshairSize / 2 - CrosshairGap;
             container.Add(bottom);
 
             // Left line
             VisualElement left = CreateLine();
-            left.style.left = -(_crosshairSize / 2 + _crosshairGap);
-            left.style.top = -_crosshairThickness / 2;
-            left.style.width = _crosshairSize / 2 - _crosshairGap;
-            left.style.height = _crosshairThickness;
+            left.style.left = -(CrosshairSize / 2 + CrosshairGap);
+            left.style.top = -CrosshairThickness / 2;
+            left.style.width = CrosshairSize / 2 - CrosshairGap;
+            left.style.height = CrosshairThickness;
             container.Add(left);
 
             // Right line
             VisualElement right = CreateLine();
-            right.style.left = _crosshairGap;
-            right.style.top = -_crosshairThickness / 2;
-            right.style.width = _crosshairSize / 2 - _crosshairGap;
-            right.style.height = _crosshairThickness;
+            right.style.left = CrosshairGap;
+            right.style.top = -CrosshairThickness / 2;
+            right.style.width = CrosshairSize / 2 - CrosshairGap;
+            right.style.height = CrosshairThickness;
             container.Add(right);
         }
 

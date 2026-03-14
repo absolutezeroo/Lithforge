@@ -10,7 +10,7 @@ namespace Lithforge.Voxel.Tag
     /// </summary>
     public sealed class TagRegistry
     {
-        private static readonly ResourceId[] _emptySet = System.Array.Empty<ResourceId>();
+        private static readonly ResourceId[] s_emptySet = System.Array.Empty<ResourceId>();
 
         private readonly Dictionary<ResourceId, HashSet<ResourceId>> _tagToMembers;
         private readonly Dictionary<ResourceId, HashSet<ResourceId>> _memberToTags;
@@ -81,7 +81,7 @@ namespace Lithforge.Voxel.Tag
                 return members;
             }
 
-            return _emptySet;
+            return s_emptySet;
         }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace Lithforge.Voxel.Tag
                 return tags;
             }
 
-            return _emptySet;
+            return s_emptySet;
         }
 
         /// <summary>

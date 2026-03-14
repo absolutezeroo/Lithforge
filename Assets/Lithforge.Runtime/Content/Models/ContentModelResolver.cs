@@ -10,7 +10,7 @@ namespace Lithforge.Runtime.Content.Models
     /// </summary>
     public sealed class ContentModelResolver
     {
-        private const int _maxParentDepth = 16;
+        private const int MaxParentDepth = 16;
         private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache =
             new Dictionary<BlockModel, ResolvedFaceTextures2D>();
 
@@ -32,7 +32,7 @@ namespace Lithforge.Runtime.Content.Models
 
             BlockModel current = model;
 
-            for (int depth = 0; depth <= _maxParentDepth; depth++)
+            for (int depth = 0; depth <= MaxParentDepth; depth++)
             {
                 if (current == null)
                 {
@@ -123,7 +123,7 @@ namespace Lithforge.Runtime.Content.Models
 
             BlockModel current = model;
 
-            for (int depth = 0; depth <= _maxParentDepth; depth++)
+            for (int depth = 0; depth <= MaxParentDepth; depth++)
             {
                 if (current == null)
                 {

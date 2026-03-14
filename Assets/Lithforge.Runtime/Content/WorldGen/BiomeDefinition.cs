@@ -1,14 +1,15 @@
 using Lithforge.Runtime.Content.Blocks;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.WorldGen
 {
     [CreateAssetMenu(fileName = "NewBiome", menuName = "Lithforge/Content/Biome Definition", order = 7)]
     public sealed class BiomeDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [FormerlySerializedAs("_namespace"),Header("Identity")]
         [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Biome name")]
         [SerializeField] private string biomeName = "";
@@ -89,7 +90,7 @@ namespace Lithforge.Runtime.Content.WorldGen
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string BiomeName

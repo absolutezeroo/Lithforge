@@ -10,7 +10,7 @@ namespace Lithforge.Core.Data
     /// </summary>
     public readonly struct ResourceId : IEquatable<ResourceId>
     {
-        private static readonly Regex _validPattern =
+        private static readonly Regex s_validPattern =
             new Regex(@"^[a-z0-9_]+:[a-z0-9_/]+$", RegexOptions.Compiled);
 
         public string Namespace { get; }
@@ -40,7 +40,7 @@ namespace Lithforge.Core.Data
                 throw new ArgumentException("ResourceId string cannot be null or empty.", nameof(raw));
             }
 
-            if (!_validPattern.IsMatch(raw))
+            if (!s_validPattern.IsMatch(raw))
             {
                 throw new FormatException(
                     $"ResourceId '{raw}' does not match required format '^[a-z0-9_]+:[a-z0-9_/]+$'.");
@@ -60,7 +60,7 @@ namespace Lithforge.Core.Data
                 return false;
             }
 
-            if (!_validPattern.IsMatch(raw))
+            if (!s_validPattern.IsMatch(raw))
             {
                 return false;
             }

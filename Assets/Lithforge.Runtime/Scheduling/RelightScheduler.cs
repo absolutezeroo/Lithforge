@@ -56,7 +56,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>
         /// Face offsets for 6 cardinal directions: +X, -X, +Y, -Y, +Z, -Z.
         /// </summary>
-        private static readonly int3[] _faceOffsets =
+        private static readonly int3[] s_faceOffsets =
         {
             new int3(1, 0, 0),   // 0: +X
             new int3(-1, 0, 0),  // 1: -X
@@ -69,7 +69,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>
         /// Maps face index to the opposite face: +X(0)↔-X(1), +Y(2)↔-Y(3), +Z(4)↔-Z(5).
         /// </summary>
-        private static readonly int[] _oppositeFace = { 1, 0, 3, 2, 5, 4 };
+        private static readonly int[] s_oppositeFace = { 1, 0, 3, 2, 5, 4 };
 
         /// <summary>
         /// Number of cascades triggered this frame. Reset each PollCompleted call.
@@ -77,7 +77,7 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private int _cascadesThisFrame;
 
-        private const int _maxCascadesPerFrame = 12;
+        private const int MaxCascadesPerFrame = 12;
 
         public RelightScheduler(
             ChunkManager chunkManager,
@@ -368,7 +368,7 @@ namespace Lithforge.Runtime.Scheduling
             // For each face, compare old vs new border entries and cascade to neighbors
             for (int f = 0; f < 6; f++)
             {
-                int3 neighborCoord = chunk.Coord + _faceOffsets[f];
+                int3 neighborCoord = chunk.Coord + s_faceOffsets[f];
                 ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                 if (neighbor == null ||
@@ -407,7 +407,7 @@ namespace Lithforge.Runtime.Scheduling
                         {
                             LocalPosition = neighborLocal,
                             PackedLight = oldPacked,
-                            Face = (byte)_oppositeFace[f],
+                            Face = (byte)s_oppositeFace[f],
                         });
                     }
                 }
@@ -456,7 +456,7 @@ namespace Lithforge.Runtime.Scheduling
                         // the mesh job finishes (similar to DeferredEdits/NeedsRemesh path).
                         neighbor.NeedsRelightAfterMesh = true;
                     }
-                    else if (_cascadesThisFrame < _maxCascadesPerFrame)
+                    else if (_cascadesThisFrame < MaxCascadesPerFrame)
                     {
                         neighbor.State = ChunkState.RelightPending;
                         _cascadesThisFrame++;
@@ -482,7 +482,7 @@ namespace Lithforge.Runtime.Scheduling
             // or torch light from a neighboring chunk after this chunk's border cleared)
             for (int f = 0; f < 6; f++)
             {
-                int3 neighborCoord = chunk.Coord + _faceOffsets[f];
+                int3 neighborCoord = chunk.Coord + s_faceOffsets[f];
                 ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                 if (neighbor == null || neighbor.BorderLightEntries.Count == 0)
@@ -490,7 +490,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                int oppFace = _oppositeFace[f];
+                int oppFace = s_oppositeFace[f];
 
                 for (int ni = 0; ni < neighbor.BorderLightEntries.Count; ni++)
                 {

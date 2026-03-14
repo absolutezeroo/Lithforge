@@ -1,14 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Tags
 {
     [CreateAssetMenu(fileName = "NewTag", menuName = "Lithforge/Content/Tag", order = 5)]
     public sealed class Tag : ScriptableObject
     {
-        [Header("Identity")]
+        [FormerlySerializedAs("_namespace"),Header("Identity")]
         [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Tag name (e.g. 'blocks/mineable_pickaxe')")]
         [SerializeField] private string tagName = "";
@@ -26,7 +27,7 @@ namespace Lithforge.Runtime.Content.Tags
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string TagName

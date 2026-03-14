@@ -17,7 +17,7 @@ namespace Lithforge.Runtime.Rendering
         // A cube has 12 edges. We draw them as a continuous line strip
         // visiting all edges by revisiting some vertices.
         // Path: 0->1->2->3->0->4->5->1->5->6->2->6->7->3->7->4
-        private static readonly int[] _lineIndices = new int[]
+        private static readonly int[] s_lineIndices = new int[]
         {
             0, 1, 2, 3, 0, 4, 5, 1, 5, 6, 2, 6, 7, 3, 7, 4
         };
@@ -27,7 +27,7 @@ namespace Lithforge.Runtime.Rendering
             _lineRenderer = gameObject.AddComponent<LineRenderer>();
             _lineRenderer.useWorldSpace = true;
             _lineRenderer.loop = false;
-            _lineRenderer.positionCount = _lineIndices.Length;
+            _lineRenderer.positionCount = s_lineIndices.Length;
             _lineRenderer.numCapVertices = 0;
             _lineRenderer.numCornerVertices = 0;
             _lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -72,9 +72,9 @@ namespace Lithforge.Runtime.Rendering
             corners[6] = new Vector3(max.x, max.y, max.z);
             corners[7] = new Vector3(min.x, max.y, max.z);
 
-            for (int i = 0; i < _lineIndices.Length; i++)
+            for (int i = 0; i < s_lineIndices.Length; i++)
             {
-                _lineRenderer.SetPosition(i, corners[_lineIndices[i]]);
+                _lineRenderer.SetPosition(i, corners[s_lineIndices[i]]);
             }
         }
 

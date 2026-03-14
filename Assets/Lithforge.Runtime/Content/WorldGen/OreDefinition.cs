@@ -1,14 +1,15 @@
 using Lithforge.Runtime.Content.Blocks;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.WorldGen
 {
     [CreateAssetMenu(fileName = "NewOre", menuName = "Lithforge/Content/Ore Definition", order = 8)]
     public sealed class OreDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [FormerlySerializedAs("_namespace"),Header("Identity")]
         [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Ore name")]
         [SerializeField] private string oreName = "";
@@ -40,7 +41,7 @@ namespace Lithforge.Runtime.Content.WorldGen
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string OreName

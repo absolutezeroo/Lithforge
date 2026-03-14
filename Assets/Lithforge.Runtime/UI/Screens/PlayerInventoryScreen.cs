@@ -24,7 +24,7 @@ namespace Lithforge.Runtime.UI.Screens
         private CraftingGridContainerAdapter _craftAdapter;
         private CraftingOutputContainerAdapter _outputAdapter;
 
-        private static readonly Key[] _numberKeys =
+        private static readonly Key[] s_numberKeys =
         {
             Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
             Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
@@ -265,9 +265,9 @@ namespace Lithforge.Runtime.UI.Screens
                 return;
             }
 
-            for (int i = 0; i < _numberKeys.Length; i++)
+            for (int i = 0; i < s_numberKeys.Length; i++)
             {
-                if (!keyboard[_numberKeys[i]].wasPressedThisFrame)
+                if (!keyboard[s_numberKeys[i]].wasPressedThisFrame)
                 {
                     continue;
                 }

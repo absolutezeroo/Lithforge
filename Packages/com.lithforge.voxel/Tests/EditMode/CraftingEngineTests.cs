@@ -8,11 +8,11 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class CraftingEngineTests
     {
-        private static readonly ResourceId _plank = new ResourceId("lithforge", "oak_planks");
-        private static readonly ResourceId _stick = new ResourceId("lithforge", "stick");
-        private static readonly ResourceId _craftingTable = new ResourceId("lithforge", "crafting_table");
-        private static readonly ResourceId _stonePickaxe = new ResourceId("lithforge", "stone_pickaxe");
-        private static readonly ResourceId _cobblestone = new ResourceId("lithforge", "cobblestone");
+        private static readonly ResourceId s_plank = new ResourceId("lithforge", "oak_planks");
+        private static readonly ResourceId s_stick = new ResourceId("lithforge", "stick");
+        private static readonly ResourceId s_craftingTable = new ResourceId("lithforge", "crafting_table");
+        private static readonly ResourceId s_stonePickaxe = new ResourceId("lithforge", "stone_pickaxe");
+        private static readonly ResourceId s_cobblestone = new ResourceId("lithforge", "cobblestone");
 
         [Test]
         public void FindMatch_ShapedRecipe_MatchesPattern()
@@ -20,24 +20,24 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "crafting_table_recipe"))
             {
                 Type = RecipeType.Shaped,
-                ResultItem = _craftingTable,
+                ResultItem = s_craftingTable,
                 ResultCount = 1,
                 Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', _plank } }
+                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
 
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(0, 0, _plank);
-            grid.SetSlot(1, 0, _plank);
-            grid.SetSlot(0, 1, _plank);
-            grid.SetSlot(1, 1, _plank);
+            grid.SetSlot(0, 0, s_plank);
+            grid.SetSlot(1, 0, s_plank);
+            grid.SetSlot(0, 1, s_plank);
+            grid.SetSlot(1, 1, s_plank);
 
             RecipeEntry match = engine.FindMatch(grid);
 
             Assert.IsNotNull(match);
-            Assert.AreEqual(_craftingTable, match.ResultItem);
+            Assert.AreEqual(s_craftingTable, match.ResultItem);
         }
 
         [Test]
@@ -46,18 +46,18 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "crafting_table_recipe"))
             {
                 Type = RecipeType.Shaped,
-                ResultItem = _craftingTable,
+                ResultItem = s_craftingTable,
                 ResultCount = 1,
                 Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', _plank } }
+                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
 
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(0, 0, _plank);
-            grid.SetSlot(1, 0, _plank);
-            grid.SetSlot(2, 0, _plank);
+            grid.SetSlot(0, 0, s_plank);
+            grid.SetSlot(1, 0, s_plank);
+            grid.SetSlot(2, 0, s_plank);
 
             RecipeEntry match = engine.FindMatch(grid);
 
@@ -70,25 +70,25 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "crafting_table_recipe"))
             {
                 Type = RecipeType.Shaped,
-                ResultItem = _craftingTable,
+                ResultItem = s_craftingTable,
                 ResultCount = 1,
                 Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', _plank } }
+                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
 
             // Place pattern offset to bottom-right corner
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(1, 1, _plank);
-            grid.SetSlot(2, 1, _plank);
-            grid.SetSlot(1, 2, _plank);
-            grid.SetSlot(2, 2, _plank);
+            grid.SetSlot(1, 1, s_plank);
+            grid.SetSlot(2, 1, s_plank);
+            grid.SetSlot(1, 2, s_plank);
+            grid.SetSlot(2, 2, s_plank);
 
             RecipeEntry match = engine.FindMatch(grid);
 
             Assert.IsNotNull(match);
-            Assert.AreEqual(_craftingTable, match.ResultItem);
+            Assert.AreEqual(s_craftingTable, match.ResultItem);
         }
 
         [Test]
@@ -97,21 +97,21 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "sticks_recipe"))
             {
                 Type = RecipeType.Shapeless,
-                ResultItem = _stick,
+                ResultItem = s_stick,
                 ResultCount = 4,
-                Ingredients = new List<ResourceId> { _plank, _plank }
+                Ingredients = new List<ResourceId> { s_plank, s_plank }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
 
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(2, 2, _plank);
-            grid.SetSlot(0, 1, _plank);
+            grid.SetSlot(2, 2, s_plank);
+            grid.SetSlot(0, 1, s_plank);
 
             RecipeEntry match = engine.FindMatch(grid);
 
             Assert.IsNotNull(match);
-            Assert.AreEqual(_stick, match.ResultItem);
+            Assert.AreEqual(s_stick, match.ResultItem);
             Assert.AreEqual(4, match.ResultCount);
         }
 
@@ -121,15 +121,15 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "sticks_recipe"))
             {
                 Type = RecipeType.Shapeless,
-                ResultItem = _stick,
+                ResultItem = s_stick,
                 ResultCount = 4,
-                Ingredients = new List<ResourceId> { _plank, _plank }
+                Ingredients = new List<ResourceId> { s_plank, s_plank }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
 
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(0, 0, _plank);
+            grid.SetSlot(0, 0, s_plank);
 
             RecipeEntry match = engine.FindMatch(grid);
 
@@ -142,16 +142,16 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "sticks_recipe"))
             {
                 Type = RecipeType.Shapeless,
-                ResultItem = _stick,
+                ResultItem = s_stick,
                 ResultCount = 4,
-                Ingredients = new List<ResourceId> { _plank, _plank }
+                Ingredients = new List<ResourceId> { s_plank, s_plank }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
 
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(0, 0, _plank);
-            grid.SetSlot(1, 0, _cobblestone);
+            grid.SetSlot(0, 0, s_plank);
+            grid.SetSlot(1, 0, s_cobblestone);
 
             RecipeEntry match = engine.FindMatch(grid);
 
@@ -164,10 +164,10 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry recipe = new RecipeEntry(new ResourceId("lithforge", "crafting_table_recipe"))
             {
                 Type = RecipeType.Shaped,
-                ResultItem = _craftingTable,
+                ResultItem = s_craftingTable,
                 ResultCount = 1,
                 Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', _plank } }
+                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } }
             };
 
             CraftingEngine engine = new CraftingEngine(new List<RecipeEntry> { recipe });
@@ -185,22 +185,22 @@ namespace Lithforge.Voxel.Tests
             RecipeEntry tableRecipe = new RecipeEntry(new ResourceId("lithforge", "crafting_table_recipe"))
             {
                 Type = RecipeType.Shaped,
-                ResultItem = _craftingTable,
+                ResultItem = s_craftingTable,
                 ResultCount = 1,
                 Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', _plank } }
+                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } }
             };
 
             RecipeEntry pickaxeRecipe = new RecipeEntry(new ResourceId("lithforge", "stone_pickaxe_recipe"))
             {
                 Type = RecipeType.Shaped,
-                ResultItem = _stonePickaxe,
+                ResultItem = s_stonePickaxe,
                 ResultCount = 1,
                 Pattern = new List<string> { "###", " | ", " | " },
                 Keys = new Dictionary<char, ResourceId>
                 {
-                    { '#', _cobblestone },
-                    { '|', _stick }
+                    { '#', s_cobblestone },
+                    { '|', s_stick }
                 }
             };
 
@@ -208,16 +208,16 @@ namespace Lithforge.Voxel.Tests
                 new List<RecipeEntry> { tableRecipe, pickaxeRecipe });
 
             CraftingGrid grid = new CraftingGrid(3, 3);
-            grid.SetSlot(0, 0, _cobblestone);
-            grid.SetSlot(1, 0, _cobblestone);
-            grid.SetSlot(2, 0, _cobblestone);
-            grid.SetSlot(1, 1, _stick);
-            grid.SetSlot(1, 2, _stick);
+            grid.SetSlot(0, 0, s_cobblestone);
+            grid.SetSlot(1, 0, s_cobblestone);
+            grid.SetSlot(2, 0, s_cobblestone);
+            grid.SetSlot(1, 1, s_stick);
+            grid.SetSlot(1, 2, s_stick);
 
             RecipeEntry match = engine.FindMatch(grid);
 
             Assert.IsNotNull(match);
-            Assert.AreEqual(_stonePickaxe, match.ResultItem);
+            Assert.AreEqual(s_stonePickaxe, match.ResultItem);
         }
 
         [Test]

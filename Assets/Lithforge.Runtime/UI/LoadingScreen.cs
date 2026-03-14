@@ -13,15 +13,15 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class LoadingScreen : MonoBehaviour
     {
-        private static readonly Color _backgroundColor = new Color(0.10f, 0.06f, 0.04f, 1.0f);
-        private static readonly Color _progressTrackColor = new Color(0.20f, 0.20f, 0.20f, 1.0f);
-        private static readonly Color _progressFillColor = new Color(0.55f, 0.45f, 0.25f, 1.0f);
-        private static readonly Color _logoColor = new Color(1.0f, 0.95f, 0.80f, 1.0f);
-        private static readonly Color _statusColor = new Color(0.70f, 0.70f, 0.65f, 1.0f);
+        private static readonly Color s_backgroundColor = new Color(0.10f, 0.06f, 0.04f, 1.0f);
+        private static readonly Color s_progressTrackColor = new Color(0.20f, 0.20f, 0.20f, 1.0f);
+        private static readonly Color s_progressFillColor = new Color(0.55f, 0.45f, 0.25f, 1.0f);
+        private static readonly Color s_logoColor = new Color(1.0f, 0.95f, 0.80f, 1.0f);
+        private static readonly Color s_statusColor = new Color(0.70f, 0.70f, 0.65f, 1.0f);
 
-        private const float _fadeOutDuration = 0.4f;
-        private const int _barWidth = 400;
-        private const int _barHeight = 20;
+        private const float FadeOutDuration = 0.4f;
+        private const int BarWidth = 400;
+        private const int BarHeight = 20;
 
         private UIDocument _document;
         private SpawnManager _spawnManager;
@@ -78,7 +78,7 @@ namespace Lithforge.Runtime.UI
             _background.style.top = 0;
             _background.style.right = 0;
             _background.style.bottom = 0;
-            _background.style.backgroundColor = _backgroundColor;
+            _background.style.backgroundColor = s_backgroundColor;
             _background.style.alignItems = Align.Center;
             _background.style.justifyContent = Justify.Center;
             _background.style.flexDirection = FlexDirection.Column;
@@ -89,7 +89,7 @@ namespace Lithforge.Runtime.UI
             logo.name = "loading-logo";
             logo.pickingMode = PickingMode.Ignore;
             logo.style.fontSize = 64;
-            logo.style.color = _logoColor;
+            logo.style.color = s_logoColor;
             logo.style.unityTextAlign = TextAnchor.MiddleCenter;
             logo.style.marginBottom = 8;
             logo.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -101,7 +101,7 @@ namespace Lithforge.Runtime.UI
             subtitle.name = "loading-subtitle";
             subtitle.pickingMode = PickingMode.Ignore;
             subtitle.style.fontSize = 18;
-            subtitle.style.color = _statusColor;
+            subtitle.style.color = s_statusColor;
             subtitle.style.unityTextAlign = TextAnchor.MiddleCenter;
             subtitle.style.marginBottom = 32;
             _background.Add(subtitle);
@@ -110,9 +110,9 @@ namespace Lithforge.Runtime.UI
             VisualElement progressTrack = new VisualElement();
             progressTrack.name = "progress-track";
             progressTrack.pickingMode = PickingMode.Ignore;
-            progressTrack.style.width = _barWidth;
-            progressTrack.style.height = _barHeight;
-            progressTrack.style.backgroundColor = _progressTrackColor;
+            progressTrack.style.width = BarWidth;
+            progressTrack.style.height = BarHeight;
+            progressTrack.style.backgroundColor = s_progressTrackColor;
             progressTrack.style.borderTopLeftRadius = 3;
             progressTrack.style.borderTopRightRadius = 3;
             progressTrack.style.borderBottomLeftRadius = 3;
@@ -130,7 +130,7 @@ namespace Lithforge.Runtime.UI
             _progressFill.style.top = 0;
             _progressFill.style.bottom = 0;
             _progressFill.style.width = new StyleLength(new Length(0f, LengthUnit.Percent));
-            _progressFill.style.backgroundColor = _progressFillColor;
+            _progressFill.style.backgroundColor = s_progressFillColor;
             progressTrack.Add(_progressFill);
 
             // Status label
@@ -138,7 +138,7 @@ namespace Lithforge.Runtime.UI
             _statusLabel.name = "loading-status";
             _statusLabel.pickingMode = PickingMode.Ignore;
             _statusLabel.style.fontSize = 14;
-            _statusLabel.style.color = _statusColor;
+            _statusLabel.style.color = s_statusColor;
             _statusLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
             _background.Add(_statusLabel);
         }
@@ -194,10 +194,10 @@ namespace Lithforge.Runtime.UI
             VisualElement root = _document.rootVisualElement;
             float elapsed = 0f;
 
-            while (elapsed < _fadeOutDuration)
+            while (elapsed < FadeOutDuration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / _fadeOutDuration);
+                float t = Mathf.Clamp01(elapsed / FadeOutDuration);
                 root.style.opacity = 1f - t;
                 yield return null;
             }

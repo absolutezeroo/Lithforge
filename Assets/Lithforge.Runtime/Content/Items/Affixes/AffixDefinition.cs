@@ -1,5 +1,6 @@
 using Lithforge.Voxel.Item;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Items.Affixes
 {
@@ -11,29 +12,31 @@ namespace Lithforge.Runtime.Content.Items.Affixes
         menuName = "Lithforge/Content/Affix Definition")]
     public sealed class AffixDefinition : ScriptableObject, IMiningModifier
     {
-        [Header("Identity")]
-        public string AffixId;
-        public string DisplayName;
-        public int Tier;
+        [FormerlySerializedAs("AffixId"),Header("Identity")]
+        public string affixId;
+        [FormerlySerializedAs("DisplayName")]
+        public string displayName;
+        [FormerlySerializedAs("Tier")]
+        public int tier;
 
-        [Header("Priority")]
+        [FormerlySerializedAs("_priority"),Header("Priority")]
         [Tooltip("Application order: Additive=0-9, Multiplicative=10-19, Override=20+")]
-        [SerializeField] private int _priority = 10;
+        [SerializeField] private int priority = 10;
 
         public int Priority
         {
-            get { return _priority; }
+            get { return priority; }
         }
 
-        [Header("Mining Effects")]
-        [SerializeField] private AffixMiningEffect[] _effects
+        [FormerlySerializedAs("_effects"),Header("Mining Effects")]
+        [SerializeField] private AffixMiningEffect[] effects
             = System.Array.Empty<AffixMiningEffect>();
 
         public MiningContext Apply(MiningContext ctx)
         {
-            for (int i = 0; i < _effects.Length; i++)
+            for (int i = 0; i < effects.Length; i++)
             {
-                ctx = _effects[i].Apply(ctx);
+                ctx = effects[i].Apply(ctx);
             }
 
             return ctx;

@@ -2,15 +2,16 @@ using System.Collections.Generic;
 using Lithforge.Runtime.Content.Loot;
 using Lithforge.Voxel.Block;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Blocks
 {
     [CreateAssetMenu(fileName = "NewBlock", menuName = "Lithforge/Content/Block Definition", order = 0)]
     public sealed class BlockDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [FormerlySerializedAs("_namespace"),Header("Identity")]
         [Tooltip("Namespace for the resource id (e.g. 'lithforge')")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Block name (e.g. 'stone')")]
         [SerializeField] private string blockName = "";
@@ -82,7 +83,7 @@ namespace Lithforge.Runtime.Content.Blocks
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string BlockName

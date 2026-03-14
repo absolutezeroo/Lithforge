@@ -23,12 +23,12 @@ namespace Lithforge.Runtime.Rendering
         private ChunkManager _chunkManager;
 
         private float _dynamicGITimer;
-        private const float _dynamicGIInterval = 2.0f;
+        private const float DynamicGIInterval = 2.0f;
 
-        private static readonly int _horizonColorId = Shader.PropertyToID("_HorizonColor");
-        private static readonly int _zenithColorId = Shader.PropertyToID("_ZenithColor");
-        private static readonly int _sunDirectionId = Shader.PropertyToID("_SunDirection");
-        private static readonly int _starVisibilityId = Shader.PropertyToID("_StarVisibility");
+        private static readonly int s_horizonColorId = Shader.PropertyToID("_HorizonColor");
+        private static readonly int s_zenithColorId = Shader.PropertyToID("_ZenithColor");
+        private static readonly int s_sunDirectionId = Shader.PropertyToID("_SunDirection");
+        private static readonly int s_starVisibilityId = Shader.PropertyToID("_StarVisibility");
 
         public void Initialize(
             TimeOfDayController timeOfDayController,
@@ -75,13 +75,13 @@ namespace Lithforge.Runtime.Rendering
             Color fogColor = _fogGradient.Evaluate(time);
             Color ambientColor = _ambientGradient.Evaluate(time);
 
-            _skyboxMaterial.SetColor(_horizonColorId, horizonColor);
-            _skyboxMaterial.SetColor(_zenithColorId, zenithColor);
-            _skyboxMaterial.SetFloat(_starVisibilityId, 1.0f - sunFactor);
+            _skyboxMaterial.SetColor(s_horizonColorId, horizonColor);
+            _skyboxMaterial.SetColor(s_zenithColorId, zenithColor);
+            _skyboxMaterial.SetFloat(s_starVisibilityId, 1.0f - sunFactor);
 
             if (_directionalLight != null)
             {
-                _skyboxMaterial.SetVector(_sunDirectionId,
+                _skyboxMaterial.SetVector(s_sunDirectionId,
                     -_directionalLight.transform.forward);
             }
 
@@ -101,7 +101,7 @@ namespace Lithforge.Runtime.Rendering
 
             _dynamicGITimer += Time.deltaTime;
 
-            if (_dynamicGITimer >= _dynamicGIInterval)
+            if (_dynamicGITimer >= DynamicGIInterval)
             {
                 _dynamicGITimer = 0.0f;
                 DynamicGI.UpdateEnvironment();

@@ -14,17 +14,17 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class BiomeTintManager : System.IDisposable
     {
-        private static readonly int _biomeParamMapId = Shader.PropertyToID("_BiomeParamMap");
-        private static readonly int _biomeMapScaleId = Shader.PropertyToID("_BiomeMapScale");
-        private static readonly int _grassColormapId = Shader.PropertyToID("_GrassColormap");
-        private static readonly int _foliageColormapId = Shader.PropertyToID("_FoliageColormap");
-        private static readonly int _waterColorLUTId = Shader.PropertyToID("_WaterColorLUT");
+        private static readonly int s_biomeParamMapId = Shader.PropertyToID("_BiomeParamMap");
+        private static readonly int s_biomeMapScaleId = Shader.PropertyToID("_BiomeMapScale");
+        private static readonly int s_grassColormapId = Shader.PropertyToID("_GrassColormap");
+        private static readonly int s_foliageColormapId = Shader.PropertyToID("_FoliageColormap");
+        private static readonly int s_waterColorLutId = Shader.PropertyToID("_WaterColorLUT");
 
         private readonly int _mapSize;
         private readonly int _chunkSize;
         private readonly Texture2D _globalMap;
         private readonly Texture2D _staging;
-        private readonly Texture2D _waterColorLUT;
+        private readonly Texture2D _waterColorLut;
 
         /// <summary>
         /// Tracks which chunk columns have been written to avoid redundant uploads.
@@ -75,27 +75,27 @@ namespace Lithforge.Runtime.Rendering
             _staging.name = "BiomeTintStaging";
 
             // Bind globally
-            Shader.SetGlobalTexture(_biomeParamMapId, _globalMap);
+            Shader.SetGlobalTexture(s_biomeParamMapId, _globalMap);
 
             if (grassColormap != null)
             {
-                Shader.SetGlobalTexture(_grassColormapId, grassColormap);
+                Shader.SetGlobalTexture(s_grassColormapId, grassColormap);
             }
 
             if (foliageColormap != null)
             {
-                Shader.SetGlobalTexture(_foliageColormapId, foliageColormap);
+                Shader.SetGlobalTexture(s_foliageColormapId, foliageColormap);
             }
 
             // Set scale (xy=reserved, zw=1/mapSize for toroidal UV)
             float invMapSize = 1.0f / _mapSize;
-            Shader.SetGlobalVector(_biomeMapScaleId, new Vector4(0, 0, invMapSize, invMapSize));
+            Shader.SetGlobalVector(s_biomeMapScaleId, new Vector4(0, 0, invMapSize, invMapSize));
 
             // Build water color LUT (256x1, one pixel per biome)
-            _waterColorLUT = new Texture2D(256, 1, TextureFormat.RGBA32, false, true);
-            _waterColorLUT.name = "WaterColorLUT";
-            _waterColorLUT.filterMode = FilterMode.Point;
-            _waterColorLUT.wrapMode = TextureWrapMode.Clamp;
+            _waterColorLut = new Texture2D(256, 1, TextureFormat.RGBA32, false, true);
+            _waterColorLut.name = "WaterColorLUT";
+            _waterColorLut.filterMode = FilterMode.Point;
+            _waterColorLut.wrapMode = TextureWrapMode.Clamp;
 
             Color32[] lutPixels = new Color32[256];
 
@@ -115,9 +115,9 @@ namespace Lithforge.Runtime.Rendering
                 }
             }
 
-            _waterColorLUT.SetPixels32(lutPixels);
-            _waterColorLUT.Apply(false, true);
-            Shader.SetGlobalTexture(_waterColorLUTId, _waterColorLUT);
+            _waterColorLut.SetPixels32(lutPixels);
+            _waterColorLut.Apply(false, true);
+            Shader.SetGlobalTexture(s_waterColorLutId, _waterColorLut);
         }
 
         /// <summary>
@@ -188,9 +188,9 @@ namespace Lithforge.Runtime.Rendering
                 Object.Destroy(_staging);
             }
 
-            if (_waterColorLUT != null)
+            if (_waterColorLut != null)
             {
-                Object.Destroy(_waterColorLUT);
+                Object.Destroy(_waterColorLut);
             }
 
             _writtenChunks.Clear();

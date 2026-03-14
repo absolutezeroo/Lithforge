@@ -5,15 +5,16 @@ using Lithforge.Runtime.Content.Models;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Item;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Items
 {
     [CreateAssetMenu(fileName = "NewItem", menuName = "Lithforge/Content/Item Definition", order = 3)]
     public sealed class ItemDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [FormerlySerializedAs("_namespace"),Header("Identity")]
         [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Item name")]
         [SerializeField] private string itemName = "";
@@ -73,7 +74,7 @@ namespace Lithforge.Runtime.Content.Items
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string ItemName

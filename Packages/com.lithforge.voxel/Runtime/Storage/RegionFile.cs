@@ -7,8 +7,8 @@ namespace Lithforge.Voxel.Storage
     public sealed class RegionFile : IDisposable
     {
         public const int RegionSize = 32;
-        private const int _headerSize = RegionSize * RegionSize * 8; // 8 bytes per column (offset + size)
-        private const int _sectorSize = 4096;
+        private const int HeaderSize = RegionSize * RegionSize * 8; // 8 bytes per column (offset + size)
+        private const int SectorSize = 4096;
 
         private readonly string _filePath;
         private readonly Dictionary<int, byte[]> _cache = new Dictionary<int, byte[]>();
@@ -38,7 +38,7 @@ namespace Lithforge.Voxel.Storage
             {
                 int headerOffset = key * 8;
 
-                if (fs.Length < _headerSize)
+                if (fs.Length < HeaderSize)
                 {
                     return false;
                 }
@@ -68,7 +68,7 @@ namespace Lithforge.Voxel.Storage
             using (FileStream fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
             using (BinaryReader reader = new BinaryReader(fs))
             {
-                if (fs.Length < _headerSize)
+                if (fs.Length < HeaderSize)
                 {
                     return null;
                 }
@@ -113,7 +113,7 @@ namespace Lithforge.Voxel.Storage
                 using (FileStream fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
                 using (BinaryReader reader = new BinaryReader(fs))
                 {
-                    if (fs.Length >= _headerSize)
+                    if (fs.Length >= HeaderSize)
                     {
                         for (int i = 0; i < RegionSize * RegionSize; i++)
                         {
@@ -154,7 +154,7 @@ namespace Lithforge.Voxel.Storage
                 using (BinaryWriter writer = new BinaryWriter(fs))
                 {
                     // Reserve header space
-                    writer.Write(new byte[_headerSize]);
+                    writer.Write(new byte[HeaderSize]);
 
                     // Write data and track offsets
                     int[] offsets = new int[RegionSize * RegionSize];

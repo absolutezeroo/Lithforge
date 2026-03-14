@@ -692,7 +692,7 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
-        private static readonly int3[] _neighborOffsets = new int3[]
+        private static readonly int3[] s_neighborOffsets = new int3[]
         {
             new int3(1, 0, 0),
             new int3(-1, 0, 0),
@@ -746,9 +746,9 @@ namespace Lithforge.Voxel.Chunk
 
         public void InvalidateReadyNeighbors(int3 coord)
         {
-            for (int i = 0; i < _neighborOffsets.Length; i++)
+            for (int i = 0; i < s_neighborOffsets.Length; i++)
             {
-                int3 neighborCoord = coord + _neighborOffsets[i];
+                int3 neighborCoord = coord + s_neighborOffsets[i];
                 ManagedChunk neighbor = GetChunk(neighborCoord);
 
                 if (neighbor == null)

@@ -24,7 +24,7 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class MegaMeshBuffer : IDisposable
     {
-        private static readonly int _vertexStride = Marshal.SizeOf<PackedMeshVertex>();
+        private static readonly int s_vertexStride = Marshal.SizeOf<PackedMeshVertex>();
 
         private readonly string _name;
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
@@ -135,7 +135,7 @@ namespace Lithforge.Runtime.Rendering
                 GraphicsBuffer.Target.Structured,
                 GraphicsBuffer.UsageFlags.LockBufferForWrite,
                 initialVertexCapacity,
-                _vertexStride);
+                s_vertexStride);
 
             _indexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
@@ -385,7 +385,7 @@ namespace Lithforge.Runtime.Rendering
             unsafe
             {
                 void* src = vertices.GetUnsafeReadOnlyPtr();
-                long byteCount = (long)vertCount * _vertexStride;
+                long byteCount = (long)vertCount * s_vertexStride;
 
                 fixed (PackedMeshVertex* mirrorPtr = &_vertexMirror[vOff])
                 {
@@ -408,7 +408,7 @@ namespace Lithforge.Runtime.Rendering
             if (iOff < _dirtyIndexMin) { _dirtyIndexMin = iOff; }
             if (iEnd > _dirtyIndexMax) { _dirtyIndexMax = iEnd; }
 
-            PipelineStats.AddGpuUpload(vertCount * _vertexStride + idxCount * sizeof(int));
+            PipelineStats.AddGpuUpload(vertCount * s_vertexStride + idxCount * sizeof(int));
         }
 
         /// <summary>
@@ -430,7 +430,7 @@ namespace Lithforge.Runtime.Rendering
 
                     fixed (PackedMeshVertex* src = &_vertexMirror[_dirtyVertexMin])
                     {
-                        UnsafeUtility.MemCpy(dst, src, (long)count * _vertexStride);
+                        UnsafeUtility.MemCpy(dst, src, (long)count * s_vertexStride);
                     }
                 }
 
@@ -618,7 +618,7 @@ namespace Lithforge.Runtime.Rendering
                 GraphicsBuffer.Target.Structured,
                 GraphicsBuffer.UsageFlags.LockBufferForWrite,
                 newVertCap,
-                _vertexStride);
+                s_vertexStride);
 
             _indexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
@@ -639,7 +639,7 @@ namespace Lithforge.Runtime.Rendering
 
                     fixed (PackedMeshVertex* srcPtr = &_vertexMirror[0])
                     {
-                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedVertices * _vertexStride);
+                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedVertices * s_vertexStride);
                     }
                 }
 

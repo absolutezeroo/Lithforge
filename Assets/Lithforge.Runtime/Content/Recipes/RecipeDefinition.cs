@@ -2,15 +2,16 @@ using System.Collections.Generic;
 using Lithforge.Runtime.Content.Items;
 using Lithforge.Voxel.Crafting;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Recipes
 {
     [CreateAssetMenu(fileName = "NewRecipe", menuName = "Lithforge/Content/Recipe Definition", order = 4)]
     public sealed class RecipeDefinition : ScriptableObject
     {
-        [Header("Identity")]
+        [FormerlySerializedAs("_namespace"),Header("Identity")]
         [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Recipe name")]
         [SerializeField] private string recipeName = "";
@@ -42,7 +43,7 @@ namespace Lithforge.Runtime.Content.Recipes
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string RecipeName

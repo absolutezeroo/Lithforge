@@ -43,7 +43,7 @@ namespace Lithforge.Runtime.Input
         private Random _lootRandom;
 
         // ToolType → mineable tag mapping (Minecraft-style correct-tool check)
-        private static readonly Dictionary<ToolType, ResourceId> _toolTagMap =
+        private static readonly Dictionary<ToolType, ResourceId> s_toolTagMap =
             new Dictionary<ToolType, ResourceId>
             {
                 { ToolType.Pickaxe, ResourceId.Parse("lithforge:mineable_pickaxe") },
@@ -190,7 +190,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
-        private static readonly Key[] _digitKeys =
+        private static readonly Key[] s_digitKeys =
         {
             Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
             Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
@@ -198,9 +198,9 @@ namespace Lithforge.Runtime.Input
 
         private void HandleHotbarSelection(Keyboard keyboard)
         {
-            for (int i = 0; i < Inventory.HotbarSize && i < _digitKeys.Length; i++)
+            for (int i = 0; i < Inventory.HotbarSize && i < s_digitKeys.Length; i++)
             {
-                if (keyboard[_digitKeys[i]].wasPressedThisFrame)
+                if (keyboard[s_digitKeys[i]].wasPressedThisFrame)
                 {
                     _inventory.SelectedSlot = i;
 
@@ -299,7 +299,7 @@ namespace Lithforge.Runtime.Input
                         ctx.ToolType = itemDef.ToolType;
                         ctx.ToolLevel = itemDef.ToolLevel;
 
-                        if (_toolTagMap.TryGetValue(itemDef.ToolType, out ResourceId requiredTag))
+                        if (s_toolTagMap.TryGetValue(itemDef.ToolType, out ResourceId requiredTag))
                         {
                             ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, requiredTag);
                         }

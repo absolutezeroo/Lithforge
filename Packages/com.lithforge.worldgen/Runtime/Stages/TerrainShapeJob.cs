@@ -37,7 +37,7 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public StateId WaterId;
         [ReadOnly] public StateId AirId;
 
-        private const float _weightSharpness = 8.0f;
+        private const float WeightSharpness = 8.0f;
 
         public void Execute()
         {
@@ -76,7 +76,7 @@ namespace Lithforge.WorldGen.Stages
                         float distSq = dTemp * dTemp + dHum * dHum
                                      + dCont * dCont + dEro * dEro;
 
-                        float weight = math.exp(-_weightSharpness * distSq);
+                        float weight = math.exp(-WeightSharpness * distSq);
                         totalWeight += weight;
 
                         // Each biome contributes its base height + scaled terrain noise

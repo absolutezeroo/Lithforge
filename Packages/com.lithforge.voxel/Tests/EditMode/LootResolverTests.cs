@@ -9,12 +9,12 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class LootResolverTests
     {
-        private static readonly ResourceId _stoneTableId = new ResourceId("lithforge", "blocks/stone");
-        private static readonly ResourceId _cobblestoneId = new ResourceId("lithforge", "cobblestone");
-        private static readonly ResourceId _diamondId = new ResourceId("lithforge", "diamond");
-        private static readonly ResourceId _gravelTableId = new ResourceId("lithforge", "blocks/gravel");
-        private static readonly ResourceId _flintId = new ResourceId("lithforge", "flint");
-        private static readonly ResourceId _gravelId = new ResourceId("lithforge", "gravel");
+        private static readonly ResourceId s_stoneTableId = new ResourceId("lithforge", "blocks/stone");
+        private static readonly ResourceId s_cobblestoneId = new ResourceId("lithforge", "cobblestone");
+        private static readonly ResourceId s_diamondId = new ResourceId("lithforge", "diamond");
+        private static readonly ResourceId s_gravelTableId = new ResourceId("lithforge", "blocks/gravel");
+        private static readonly ResourceId s_flintId = new ResourceId("lithforge", "flint");
+        private static readonly ResourceId s_gravelId = new ResourceId("lithforge", "gravel");
 
         [Test]
         public void Resolve_SimpleItemDrop_ReturnsSingleItem()
@@ -29,19 +29,19 @@ namespace Lithforge.Voxel.Tests
             LootPool pool = new LootPool();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> drops = resolver.Resolve(_stoneTableId, random);
+            List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
             Assert.AreEqual(1, drops.Count);
-            Assert.AreEqual(_cobblestoneId, drops[0].ItemId);
+            Assert.AreEqual(s_cobblestoneId, drops[0].ItemId);
             Assert.AreEqual(1, drops[0].Count);
         }
 
@@ -72,16 +72,16 @@ namespace Lithforge.Voxel.Tests
             LootPool pool = new LootPool();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> drops = resolver.Resolve(_stoneTableId, random);
+            List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
             Assert.AreEqual(0, drops.Count);
         }
@@ -108,19 +108,19 @@ namespace Lithforge.Voxel.Tests
             LootPool pool = new LootPool();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> drops = resolver.Resolve(_stoneTableId, random);
+            List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
             Assert.AreEqual(1, drops.Count);
-            Assert.AreEqual(_diamondId, drops[0].ItemId);
+            Assert.AreEqual(s_diamondId, drops[0].ItemId);
             Assert.AreEqual(3, drops[0].Count);
         }
 
@@ -147,19 +147,19 @@ namespace Lithforge.Voxel.Tests
             LootPool pool = new LootPool();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_gravelTableId);
+            LootTableDefinition table = new LootTableDefinition(s_gravelTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _gravelTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_gravelTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> drops = resolver.Resolve(_gravelTableId, random);
+            List<LootDrop> drops = resolver.Resolve(s_gravelTableId, random);
 
             Assert.AreEqual(1, drops.Count);
-            Assert.AreEqual(_flintId, drops[0].ItemId);
+            Assert.AreEqual(s_flintId, drops[0].ItemId);
             Assert.GreaterOrEqual(drops[0].Count, 1);
             Assert.LessOrEqual(drops[0].Count, 4);
         }
@@ -181,22 +181,22 @@ namespace Lithforge.Voxel.Tests
             };
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> drops = resolver.Resolve(_stoneTableId, random);
+            List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
             Assert.AreEqual(3, drops.Count);
 
             for (int i = 0; i < drops.Count; i++)
             {
-                Assert.AreEqual(_cobblestoneId, drops[i].ItemId);
+                Assert.AreEqual(s_cobblestoneId, drops[i].ItemId);
             }
         }
 
@@ -225,16 +225,16 @@ namespace Lithforge.Voxel.Tests
             pool.Entries.Add(heavyEntry);
             pool.Entries.Add(lightEntry);
 
-            LootTableDefinition table = new LootTableDefinition(_gravelTableId);
+            LootTableDefinition table = new LootTableDefinition(s_gravelTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _gravelTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_gravelTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> drops = resolver.Resolve(_gravelTableId, random);
+            List<LootDrop> drops = resolver.Resolve(s_gravelTableId, random);
 
             Assert.AreEqual(10, drops.Count);
 
@@ -243,7 +243,7 @@ namespace Lithforge.Voxel.Tests
 
             for (int i = 0; i < drops.Count; i++)
             {
-                if (drops[i].ItemId == _gravelId)
+                if (drops[i].ItemId == s_gravelId)
                 {
                     gravelCount++;
                 }
@@ -265,17 +265,17 @@ namespace Lithforge.Voxel.Tests
             LootPool pool = new LootPool();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
             Random random = new Random(42);
 
-            List<LootDrop> first = resolver.Resolve(_stoneTableId, random);
-            List<LootDrop> second = resolver.Resolve(_stoneTableId, random);
+            List<LootDrop> first = resolver.Resolve(s_stoneTableId, random);
+            List<LootDrop> second = resolver.Resolve(s_stoneTableId, random);
 
             // Both calls return the same list instance (reused)
             Assert.AreSame(first, second);
@@ -303,17 +303,17 @@ namespace Lithforge.Voxel.Tests
             };
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(_stoneTableId);
+            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _stoneTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
 
             // First call with seed 12345
             Random random1 = new Random(12345);
-            List<LootDrop> drops1 = resolver.Resolve(_stoneTableId, random1);
+            List<LootDrop> drops1 = resolver.Resolve(s_stoneTableId, random1);
             int count1 = drops1.Count;
             ResourceId[] ids1 = new ResourceId[count1];
             int[] counts1 = new int[count1];
@@ -326,7 +326,7 @@ namespace Lithforge.Voxel.Tests
 
             // Second call with same seed 12345
             Random random2 = new Random(12345);
-            List<LootDrop> drops2 = resolver.Resolve(_stoneTableId, random2);
+            List<LootDrop> drops2 = resolver.Resolve(s_stoneTableId, random2);
 
             Assert.AreEqual(count1, drops2.Count, "Same seed should produce same number of drops");
 
@@ -366,17 +366,17 @@ namespace Lithforge.Voxel.Tests
             pool.Entries.Add(gravelEntry);
             pool.Entries.Add(flintEntry);
 
-            LootTableDefinition table = new LootTableDefinition(_gravelTableId);
+            LootTableDefinition table = new LootTableDefinition(s_gravelTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { _gravelTableId, table } };
+                new Dictionary<ResourceId, LootTableDefinition> { { s_gravelTableId, table } };
 
             LootResolver resolver = new LootResolver(tables);
 
             // First resolve
             Random random1 = new Random(99999);
-            List<LootDrop> drops1 = resolver.Resolve(_gravelTableId, random1);
+            List<LootDrop> drops1 = resolver.Resolve(s_gravelTableId, random1);
             ResourceId[] ids1 = new ResourceId[drops1.Count];
 
             for (int i = 0; i < drops1.Count; i++)
@@ -386,7 +386,7 @@ namespace Lithforge.Voxel.Tests
 
             // Second resolve with same seed
             Random random2 = new Random(99999);
-            List<LootDrop> drops2 = resolver.Resolve(_gravelTableId, random2);
+            List<LootDrop> drops2 = resolver.Resolve(s_gravelTableId, random2);
 
             Assert.AreEqual(ids1.Length, drops2.Count);
 

@@ -1,6 +1,7 @@
 using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Voxel.Item;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Items.Enchantments
 {
@@ -12,23 +13,26 @@ namespace Lithforge.Runtime.Content.Items.Enchantments
         menuName = "Lithforge/Content/Enchantment Definition")]
     public sealed class EnchantmentDefinition : ScriptableObject
     {
-        [Header("Identity")]
-        public string EnchantmentId;
-        public string DisplayName;
-        public int MaxLevel;
-        public EnchantmentCategory Category;
+        [FormerlySerializedAs("EnchantmentId"),Header("Identity")]
+        public string enchantmentId;
+        [FormerlySerializedAs("DisplayName")]
+        public string displayName;
+        [FormerlySerializedAs("MaxLevel")]
+        public int maxLevel;
+        [FormerlySerializedAs("Category")]
+        public EnchantmentCategory category;
 
-        [Header("Levels")]
-        [SerializeField] private EnchantmentLevelData[] _levels;
+        [FormerlySerializedAs("_levels"),Header("Levels")]
+        [SerializeField] private EnchantmentLevelData[] levels;
 
         public MiningContext Apply(MiningContext ctx, int level)
         {
-            if (_levels == null || level < 1 || level > _levels.Length)
+            if (levels == null || level < 1 || level > levels.Length)
             {
                 return ctx;
             }
 
-            return _levels[level - 1].Apply(ctx);
+            return levels[level - 1].Apply(ctx);
         }
     }
 }

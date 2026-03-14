@@ -48,12 +48,12 @@ namespace Lithforge.Runtime.Debug
         private Texture2D _graphTexture;
         private readonly Color32[] _graphPixels = new Color32[GraphWidth * GraphHeight];
 
-        private static readonly Color32 ColorGreen = new Color32(0, 200, 0, 255);
-        private static readonly Color32 ColorYellow = new Color32(220, 200, 0, 255);
-        private static readonly Color32 ColorRed = new Color32(220, 40, 40, 255);
-        private static readonly Color32 ColorBg = new Color32(0, 0, 0, 160);
-        private static readonly Color32 ColorLine60 = new Color32(0, 180, 0, 80);
-        private static readonly Color32 ColorLine30 = new Color32(220, 40, 40, 80);
+        private static readonly Color32 s_colorGreen = new Color32(0, 200, 0, 255);
+        private static readonly Color32 s_colorYellow = new Color32(220, 200, 0, 255);
+        private static readonly Color32 s_colorRed = new Color32(220, 40, 40, 255);
+        private static readonly Color32 s_colorBg = new Color32(0, 0, 0, 160);
+        private static readonly Color32 s_colorLine60 = new Color32(0, 180, 0, 80);
+        private static readonly Color32 s_colorLine30 = new Color32(220, 40, 40, 80);
 
         // Chunk minimap
         private Texture2D _minimapTexture;
@@ -61,7 +61,7 @@ namespace Lithforge.Runtime.Debug
         private int _minimapSize;
         private int _minimapPixelScale;
 
-        private static readonly Color32[] _stateColors = new Color32[]
+        private static readonly Color32[] s_stateColors = new Color32[]
         {
             new Color32(20, 20, 20, 255),       // Unloaded
             new Color32(80, 80, 80, 255),        // Loading
@@ -73,7 +73,7 @@ namespace Lithforge.Runtime.Debug
             new Color32(0, 180, 0, 255),         // Ready
         };
 
-        private static readonly string[] _stateNames = new string[]
+        private static readonly string[] s_stateNames = new string[]
         {
             "Empty", "Load", "Gen", "Deco", "Relit", "Done", "Mesh", "Ready",
         };
@@ -84,12 +84,12 @@ namespace Lithforge.Runtime.Debug
         private readonly StringBuilder _leftBuilder = new StringBuilder(256);
 
         // Bar rendering colors
-        private static readonly Color _barGreen = new Color(0f, 0.78f, 0f, 1f);
-        private static readonly Color _barYellow = new Color(0.86f, 0.78f, 0f, 1f);
-        private static readonly Color _barRed = new Color(0.86f, 0.16f, 0.16f, 1f);
+        private static readonly Color s_barGreen = new Color(0f, 0.78f, 0f, 1f);
+        private static readonly Color s_barYellow = new Color(0.86f, 0.78f, 0f, 1f);
+        private static readonly Color s_barRed = new Color(0.86f, 0.16f, 0.16f, 1f);
 
         // Section display order (excludes UpdateTotal and Frame which are shown separately)
-        private static readonly int[] _displaySections = new int[]
+        private static readonly int[] s_displaySections = new int[]
         {
             FrameProfiler.PollGen,
             FrameProfiler.PollMesh,
@@ -106,7 +106,7 @@ namespace Lithforge.Runtime.Debug
         };
 
         // Padded section names for alignment (12 chars each)
-        private static readonly string[] _paddedNames = new string[]
+        private static readonly string[] s_paddedNames = new string[]
         {
             "PollGen:    ",
             "PollMesh:   ",
@@ -400,13 +400,13 @@ namespace Lithforge.Runtime.Debug
             float maxBarMs = 5f; // Scale for bar width
             int barMaxWidth = 120;
 
-            for (int i = 0; i < _displaySections.Length; i++)
+            for (int i = 0; i < s_displaySections.Length; i++)
             {
-                int section = _displaySections[i];
+                int section = s_displaySections[i];
                 float ms = FrameProfiler.GetMs(section);
 
                 _timingBuilder.Clear();
-                _timingBuilder.Append(_paddedNames[i]);
+                _timingBuilder.Append(s_paddedNames[i]);
                 AppendMs(_timingBuilder, ms);
 
                 GUI.Label(new Rect(col1X, y, 200, lineHeight), _timingBuilder.ToString(), _smallStyle);
@@ -601,15 +601,15 @@ namespace Lithforge.Runtime.Debug
         {
             if (ms < 0.5f)
             {
-                return _barGreen;
+                return s_barGreen;
             }
 
             if (ms < 2f)
             {
-                return _barYellow;
+                return s_barYellow;
             }
 
-            return _barRed;
+            return s_barRed;
         }
 
         /// <summary>
@@ -762,7 +762,7 @@ namespace Lithforge.Runtime.Debug
             // Clear pixels to background
             for (int i = 0; i < _graphPixels.Length; i++)
             {
-                _graphPixels[i] = ColorBg;
+                _graphPixels[i] = s_colorBg;
             }
 
             // 60fps threshold line (16.67ms)
@@ -770,7 +770,7 @@ namespace Lithforge.Runtime.Debug
 
             for (int px = 0; px < GraphWidth; px++)
             {
-                _graphPixels[line60Y * GraphWidth + px] = ColorLine60;
+                _graphPixels[line60Y * GraphWidth + px] = s_colorLine60;
             }
 
             // 30fps threshold line (33.33ms)
@@ -780,7 +780,7 @@ namespace Lithforge.Runtime.Debug
             {
                 for (int px = 0; px < GraphWidth; px++)
                 {
-                    _graphPixels[line30Y * GraphWidth + px] = ColorLine30;
+                    _graphPixels[line30Y * GraphWidth + px] = s_colorLine30;
                 }
             }
 
@@ -797,15 +797,15 @@ namespace Lithforge.Runtime.Debug
 
                 if (ms < 16.667f)
                 {
-                    barColor = ColorGreen;
+                    barColor = s_colorGreen;
                 }
                 else if (ms < 33.333f)
                 {
-                    barColor = ColorYellow;
+                    barColor = s_colorYellow;
                 }
                 else
                 {
-                    barColor = ColorRed;
+                    barColor = s_colorRed;
                 }
 
                 int colX = 1 + (GraphSamples - sampleCount) + i;
@@ -894,19 +894,19 @@ namespace Lithforge.Runtime.Debug
 
                     if (chunk == null)
                     {
-                        color = _stateColors[0];
+                        color = s_stateColors[0];
                     }
                     else
                     {
                         int stateIdx = (int)chunk.State;
 
-                        if (stateIdx >= 0 && stateIdx < _stateColors.Length)
+                        if (stateIdx >= 0 && stateIdx < s_stateColors.Length)
                         {
-                            color = _stateColors[stateIdx];
+                            color = s_stateColors[stateIdx];
                         }
                         else
                         {
-                            color = _stateColors[0];
+                            color = s_stateColors[0];
                         }
 
                         if (chunk.NeedsRemesh)
@@ -935,7 +935,7 @@ namespace Lithforge.Runtime.Debug
             int drawSize = _minimapSize * _minimapPixelScale;
             int padding = _overlayPadding;
             int labelHeight = 24;
-            int legendHeight = _stateColors.Length * 18;
+            int legendHeight = s_stateColors.Length * 18;
             int totalHeight = Mathf.Max(drawSize, legendHeight) + labelHeight;
 
             // Position: bottom-right, with enough room for label below
@@ -969,14 +969,14 @@ namespace Lithforge.Runtime.Debug
             int lineH = 18;
             int labelH = 20;
 
-            for (int i = 0; i < _stateColors.Length; i++)
+            for (int i = 0; i < s_stateColors.Length; i++)
             {
                 float ly = baseY + i * lineH;
                 Color prev = GUI.color;
-                GUI.color = _stateColors[i];
+                GUI.color = s_stateColors[i];
                 GUI.DrawTexture(new Rect(baseX, ly + 4, boxSize, boxSize), _barTexture);
                 GUI.color = prev;
-                GUI.Label(new Rect(baseX + boxSize + 4, ly, 80, labelH), _stateNames[i], _smallStyle);
+                GUI.Label(new Rect(baseX + boxSize + 4, ly, 80, labelH), s_stateNames[i], _smallStyle);
             }
         }
 

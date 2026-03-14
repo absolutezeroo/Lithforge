@@ -42,9 +42,9 @@ namespace Lithforge.Runtime.Debug
 
         // --- Previous-frame GC counts for delta computation ---
 
-        private static int _prevGc0;
-        private static int _prevGc1;
-        private static int _prevGc2;
+        private static int s_prevGc0;
+        private static int s_prevGc1;
+        private static int s_prevGc2;
 
         // --- Cumulative counters (never reset) ---
 
@@ -98,12 +98,12 @@ namespace Lithforge.Runtime.Debug
             int gc0 = System.GC.CollectionCount(0);
             int gc1 = System.GC.CollectionCount(1);
             int gc2 = System.GC.CollectionCount(2);
-            GcGen0 = gc0 - _prevGc0;
-            GcGen1 = gc1 - _prevGc1;
-            GcGen2 = gc2 - _prevGc2;
-            _prevGc0 = gc0;
-            _prevGc1 = gc1;
-            _prevGc2 = gc2;
+            GcGen0 = gc0 - s_prevGc0;
+            GcGen1 = gc1 - s_prevGc1;
+            GcGen2 = gc2 - s_prevGc2;
+            s_prevGc0 = gc0;
+            s_prevGc1 = gc1;
+            s_prevGc2 = gc2;
 
             MeshCompleteMaxMs = 0f;
             MeshCompleteStalls = 0;
@@ -296,7 +296,7 @@ namespace Lithforge.Runtime.Debug
         /// <summary>
         /// Total GPU upload in megabytes since launch.
         /// </summary>
-        public static float TotalGpuUploadMB
+        public static float TotalGpuUploadMb
         {
             get { return (float)(TotalGpuUploadBytes / (1024.0 * 1024.0)); }
         }

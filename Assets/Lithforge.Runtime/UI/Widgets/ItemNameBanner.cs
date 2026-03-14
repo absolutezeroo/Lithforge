@@ -10,7 +10,7 @@ namespace Lithforge.Runtime.UI.Widgets
     /// </summary>
     public sealed class ItemNameBanner : Label
     {
-        private const float _fadeDuration = 2.0f;
+        private const float FadeDuration = 2.0f;
         private float _timer;
 
         public ItemNameBanner() : base("")
@@ -35,7 +35,7 @@ namespace Lithforge.Runtime.UI.Widgets
 
             text = FormatFullName(itemName);
             style.opacity = 1f;
-            _timer = _fadeDuration;
+            _timer = FadeDuration;
         }
 
         /// <summary>

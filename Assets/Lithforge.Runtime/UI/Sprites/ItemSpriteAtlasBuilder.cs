@@ -15,7 +15,7 @@ namespace Lithforge.Runtime.UI.Sprites
     /// </summary>
     public static class ItemSpriteAtlasBuilder
     {
-        private const int _spriteSize = 32;
+        private const int SpriteSize = 32;
 
         /// <summary>
         /// Builds the sprite atlas from item entries and resolved block face textures.
@@ -101,38 +101,38 @@ namespace Lithforge.Runtime.UI.Sprites
             }
 
             // Blit through RenderTexture to handle non-readable textures
-            Texture2D readable = new Texture2D(_spriteSize, _spriteSize, TextureFormat.RGBA32, false);
+            Texture2D readable = new Texture2D(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
             readable.filterMode = FilterMode.Point;
 
             RenderTexture rt = RenderTexture.GetTemporary(
-                _spriteSize, _spriteSize, 0, RenderTextureFormat.ARGB32);
+                SpriteSize, SpriteSize, 0, RenderTextureFormat.ARGB32);
             RenderTexture prev = RenderTexture.active;
             Graphics.Blit(source, rt);
             RenderTexture.active = rt;
-            readable.ReadPixels(new Rect(0, 0, _spriteSize, _spriteSize), 0, 0);
+            readable.ReadPixels(new Rect(0, 0, SpriteSize, SpriteSize), 0, 0);
             readable.Apply();
             RenderTexture.active = prev;
             RenderTexture.ReleaseTemporary(rt);
 
             Sprite sprite = Sprite.Create(
                 readable,
-                new Rect(0, 0, _spriteSize, _spriteSize),
+                new Rect(0, 0, SpriteSize, SpriteSize),
                 new Vector2(0.5f, 0.5f),
-                _spriteSize);
+                SpriteSize);
 
             return sprite;
         }
 
         private static Sprite CreateFallbackSprite()
         {
-            Texture2D fallbackTex = new Texture2D(_spriteSize, _spriteSize, TextureFormat.RGBA32, false);
+            Texture2D fallbackTex = new Texture2D(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
             fallbackTex.filterMode = FilterMode.Point;
-            Color32[] pixels = new Color32[_spriteSize * _spriteSize];
+            Color32[] pixels = new Color32[SpriteSize * SpriteSize];
 
             for (int p = 0; p < pixels.Length; p++)
             {
-                int px = p % _spriteSize;
-                int py = p / _spriteSize;
+                int px = p % SpriteSize;
+                int py = p / SpriteSize;
                 bool checker = ((px / 4) + (py / 4)) % 2 == 0;
                 pixels[p] = checker
                     ? new Color32(255, 0, 255, 255)
@@ -144,9 +144,9 @@ namespace Lithforge.Runtime.UI.Sprites
 
             return Sprite.Create(
                 fallbackTex,
-                new Rect(0, 0, _spriteSize, _spriteSize),
+                new Rect(0, 0, SpriteSize, SpriteSize),
                 new Vector2(0.5f, 0.5f),
-                _spriteSize);
+                SpriteSize);
         }
     }
 }

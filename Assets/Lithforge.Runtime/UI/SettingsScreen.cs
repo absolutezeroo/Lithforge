@@ -36,13 +36,13 @@ namespace Lithforge.Runtime.UI
         private float _dayLength;
         private float _audioVolume;
 
-        private static readonly int _aoStrengthId = Shader.PropertyToID("_AOStrength");
+        private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
 
         // PlayerPrefs keys for persistent settings
-        private const string _prefRenderDistance = "LF_RenderDistance";
-        private const string _prefFOV = "LF_FOV";
-        private const string _prefMouseSensitivity = "LF_MouseSensitivity";
-        private const string _prefAOStrength = "LF_AOStrength";
+        private const string PrefRenderDistance = "LF_RenderDistance";
+        private const string PrefFOV = "LF_FOV";
+        private const string PrefMouseSensitivity = "LF_MouseSensitivity";
+        private const string PrefAOStrength = "LF_AOStrength";
 
         public void Initialize(
             ChunkManager chunkManager,
@@ -141,7 +141,7 @@ namespace Lithforge.Runtime.UI
                     _chunkManager.SetRenderDistance(value);
                 }
 
-                PlayerPrefs.SetInt(_prefRenderDistance, value);
+                PlayerPrefs.SetInt(PrefRenderDistance, value);
             });
 
             AddSliderFloat(scrollView, "Field of View", _fov, 60f, 120f, (float value) =>
@@ -153,7 +153,7 @@ namespace Lithforge.Runtime.UI
                     _mainCamera.fieldOfView = value;
                 }
 
-                PlayerPrefs.SetFloat(_prefFOV, value);
+                PlayerPrefs.SetFloat(PrefFOV, value);
             });
 
             AddSliderFloat(scrollView, "AO Strength", _aoStrength, 0f, 1f, (float value) =>
@@ -164,21 +164,21 @@ namespace Lithforge.Runtime.UI
                 {
                     if (_chunkMeshStore.OpaqueMaterial != null)
                     {
-                        _chunkMeshStore.OpaqueMaterial.SetFloat(_aoStrengthId, value);
+                        _chunkMeshStore.OpaqueMaterial.SetFloat(s_aoStrengthId, value);
                     }
 
                     if (_chunkMeshStore.CutoutMaterial != null)
                     {
-                        _chunkMeshStore.CutoutMaterial.SetFloat(_aoStrengthId, value);
+                        _chunkMeshStore.CutoutMaterial.SetFloat(s_aoStrengthId, value);
                     }
 
                     if (_chunkMeshStore.TranslucentMaterial != null)
                     {
-                        _chunkMeshStore.TranslucentMaterial.SetFloat(_aoStrengthId, value);
+                        _chunkMeshStore.TranslucentMaterial.SetFloat(s_aoStrengthId, value);
                     }
                 }
 
-                PlayerPrefs.SetFloat(_prefAOStrength, value);
+                PlayerPrefs.SetFloat(PrefAOStrength, value);
             });
 
             // --- Gameplay Section ---
@@ -192,7 +192,7 @@ namespace Lithforge.Runtime.UI
                     _cameraController.SetLookSensitivity(value);
                 }
 
-                PlayerPrefs.SetFloat(_prefMouseSensitivity, value);
+                PlayerPrefs.SetFloat(PrefMouseSensitivity, value);
             });
 
             AddSliderFloat(scrollView, "Day Length (seconds)", _dayLength, 60f, 3600f, (float value) =>
@@ -408,9 +408,9 @@ namespace Lithforge.Runtime.UI
         /// </summary>
         private void LoadPersistedSettings()
         {
-            if (PlayerPrefs.HasKey(_prefRenderDistance))
+            if (PlayerPrefs.HasKey(PrefRenderDistance))
             {
-                _renderDistance = PlayerPrefs.GetInt(_prefRenderDistance);
+                _renderDistance = PlayerPrefs.GetInt(PrefRenderDistance);
 
                 if (_chunkManager != null)
                 {
@@ -418,9 +418,9 @@ namespace Lithforge.Runtime.UI
                 }
             }
 
-            if (PlayerPrefs.HasKey(_prefFOV))
+            if (PlayerPrefs.HasKey(PrefFOV))
             {
-                _fov = PlayerPrefs.GetFloat(_prefFOV);
+                _fov = PlayerPrefs.GetFloat(PrefFOV);
 
                 if (_mainCamera != null)
                 {
@@ -428,9 +428,9 @@ namespace Lithforge.Runtime.UI
                 }
             }
 
-            if (PlayerPrefs.HasKey(_prefMouseSensitivity))
+            if (PlayerPrefs.HasKey(PrefMouseSensitivity))
             {
-                _mouseSensitivity = PlayerPrefs.GetFloat(_prefMouseSensitivity);
+                _mouseSensitivity = PlayerPrefs.GetFloat(PrefMouseSensitivity);
 
                 if (_cameraController != null)
                 {
@@ -438,25 +438,25 @@ namespace Lithforge.Runtime.UI
                 }
             }
 
-            if (PlayerPrefs.HasKey(_prefAOStrength))
+            if (PlayerPrefs.HasKey(PrefAOStrength))
             {
-                _aoStrength = PlayerPrefs.GetFloat(_prefAOStrength);
+                _aoStrength = PlayerPrefs.GetFloat(PrefAOStrength);
 
                 if (_chunkMeshStore != null)
                 {
                     if (_chunkMeshStore.OpaqueMaterial != null)
                     {
-                        _chunkMeshStore.OpaqueMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                        _chunkMeshStore.OpaqueMaterial.SetFloat(s_aoStrengthId, _aoStrength);
                     }
 
                     if (_chunkMeshStore.CutoutMaterial != null)
                     {
-                        _chunkMeshStore.CutoutMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                        _chunkMeshStore.CutoutMaterial.SetFloat(s_aoStrengthId, _aoStrength);
                     }
 
                     if (_chunkMeshStore.TranslucentMaterial != null)
                     {
-                        _chunkMeshStore.TranslucentMaterial.SetFloat(_aoStrengthId, _aoStrength);
+                        _chunkMeshStore.TranslucentMaterial.SetFloat(s_aoStrengthId, _aoStrength);
                     }
                 }
             }

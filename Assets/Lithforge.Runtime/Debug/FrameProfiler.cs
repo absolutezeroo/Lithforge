@@ -53,33 +53,33 @@ namespace Lithforge.Runtime.Debug
 
         public static bool Enabled;
 
-        private static Stopwatch[] _stopwatches;
-        private static float[] _currentMs;
-        private static float[][] _history;
-        private static int _historyHead;
-        private static int _historyFilled;
-        private static bool _initialized;
-        private static double _ticksToMs;
+        private static Stopwatch[] s_stopwatches;
+        private static float[] s_currentMs;
+        private static float[][] s_history;
+        private static int s_historyHead;
+        private static int s_historyFilled;
+        private static bool s_initialized;
+        private static double s_ticksToMs;
 
         /// <summary>
         /// Allocates all internal arrays. Call once at startup.
         /// </summary>
         public static void Init()
         {
-            _stopwatches = new Stopwatch[SectionCount];
-            _currentMs = new float[SectionCount];
-            _history = new float[SectionCount][];
+            s_stopwatches = new Stopwatch[SectionCount];
+            s_currentMs = new float[SectionCount];
+            s_history = new float[SectionCount][];
 
             for (int i = 0; i < SectionCount; i++)
             {
-                _stopwatches[i] = new Stopwatch();
-                _history[i] = new float[HistorySize];
+                s_stopwatches[i] = new Stopwatch();
+                s_history[i] = new float[HistorySize];
             }
 
-            _historyHead = 0;
-            _historyFilled = 0;
-            _ticksToMs = 1000.0 / Stopwatch.Frequency;
-            _initialized = true;
+            s_historyHead = 0;
+            s_historyFilled = 0;
+            s_ticksToMs = 1000.0 / Stopwatch.Frequency;
+            s_initialized = true;
         }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace Lithforge.Runtime.Debug
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void BeginFrame()
         {
-            if (!Enabled || !_initialized)
+            if (!Enabled || !s_initialized)
             {
                 return;
             }
@@ -110,19 +110,19 @@ namespace Lithforge.Runtime.Debug
                 }
                 else
                 {
-                    ms = (float)(_stopwatches[i].ElapsedTicks * _ticksToMs);
+                    ms = (float)(s_stopwatches[i].ElapsedTicks * s_ticksToMs);
                 }
 
-                _currentMs[i] = ms;
-                _history[i][_historyHead] = ms;
-                _stopwatches[i].Reset();
+                s_currentMs[i] = ms;
+                s_history[i][s_historyHead] = ms;
+                s_stopwatches[i].Reset();
             }
 
-            _historyHead = (_historyHead + 1) % HistorySize;
+            s_historyHead = (s_historyHead + 1) % HistorySize;
 
-            if (_historyFilled < HistorySize)
+            if (s_historyFilled < HistorySize)
             {
-                _historyFilled++;
+                s_historyFilled++;
             }
         }
 
@@ -132,12 +132,12 @@ namespace Lithforge.Runtime.Debug
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Begin(int sectionIndex)
         {
-            if (!Enabled || !_initialized)
+            if (!Enabled || !s_initialized)
             {
                 return;
             }
 
-            _stopwatches[sectionIndex].Start();
+            s_stopwatches[sectionIndex].Start();
         }
 
         /// <summary>
@@ -146,12 +146,12 @@ namespace Lithforge.Runtime.Debug
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void End(int sectionIndex)
         {
-            if (!Enabled || !_initialized)
+            if (!Enabled || !s_initialized)
             {
                 return;
             }
 
-            _stopwatches[sectionIndex].Stop();
+            s_stopwatches[sectionIndex].Stop();
         }
 
         /// <summary>
@@ -160,12 +160,12 @@ namespace Lithforge.Runtime.Debug
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetMs(int sectionIndex)
         {
-            if (!_initialized)
+            if (!s_initialized)
             {
                 return 0f;
             }
 
-            return _currentMs[sectionIndex];
+            return s_currentMs[sectionIndex];
         }
 
         /// <summary>
@@ -174,24 +174,24 @@ namespace Lithforge.Runtime.Debug
         /// </summary>
         public static float[] GetHistory(int sectionIndex)
         {
-            if (!_initialized)
+            if (!s_initialized)
             {
                 return null;
             }
 
-            return _history[sectionIndex];
+            return s_history[sectionIndex];
         }
 
         /// <summary>Current write position in the ring buffer (most recent entry is at Head-1).</summary>
         public static int HistoryHead
         {
-            get { return _historyHead; }
+            get { return s_historyHead; }
         }
 
         /// <summary>Number of valid entries in the history (0..HistorySize).</summary>
         public static int HistoryFilled
         {
-            get { return _historyFilled; }
+            get { return s_historyFilled; }
         }
     }
 }

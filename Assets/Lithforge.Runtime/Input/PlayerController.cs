@@ -39,9 +39,9 @@ namespace Lithforge.Runtime.Input
         private bool _noclip;
         private float _flySpeed = 10f;
 
-        private const float _minFlySpeed = 1f;
-        private const float _maxFlySpeed = 150f;
-        private const float _flySpeedScrollFactor = 1.2f;
+        private const float MinFlySpeed = 1f;
+        private const float MaxFlySpeed = 150f;
+        private const float FlySpeedScrollFactor = 1.2f;
 
         /// <summary>
         /// True if the player is standing on solid ground.
@@ -83,7 +83,7 @@ namespace Lithforge.Runtime.Input
         {
             _flyMode = fly;
             _noclip = fly && noclip;
-            _flySpeed = Mathf.Clamp(speed, _minFlySpeed, _maxFlySpeed);
+            _flySpeed = Mathf.Clamp(speed, MinFlySpeed, MaxFlySpeed);
             _verticalSpeed = 0f;
 
             if (fly)
@@ -171,11 +171,11 @@ namespace Lithforge.Runtime.Input
 
                     if (scroll > 0.1f)
                     {
-                        _flySpeed = Mathf.Clamp(_flySpeed * _flySpeedScrollFactor, _minFlySpeed, _maxFlySpeed);
+                        _flySpeed = Mathf.Clamp(_flySpeed * FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
                     }
                     else if (scroll < -0.1f)
                     {
-                        _flySpeed = Mathf.Clamp(_flySpeed / _flySpeedScrollFactor, _minFlySpeed, _maxFlySpeed);
+                        _flySpeed = Mathf.Clamp(_flySpeed / FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
                     }
                 }
             }

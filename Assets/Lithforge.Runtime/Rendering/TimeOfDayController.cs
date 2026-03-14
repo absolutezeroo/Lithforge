@@ -16,7 +16,7 @@ namespace Lithforge.Runtime.Rendering
         private Material _cutoutMaterial;
         private Material _translucentMaterial;
 
-        private static readonly int _sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
+        private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
 
         public float TimeOfDay
         {
@@ -87,16 +87,16 @@ namespace Lithforge.Runtime.Rendering
             float sunFactor = ComputeSunFactor(_timeOfDay);
 
             // Update materials
-            _voxelMaterial.SetFloat(_sunLightFactorId, sunFactor);
+            _voxelMaterial.SetFloat(s_sunLightFactorId, sunFactor);
 
             if (_cutoutMaterial != null)
             {
-                _cutoutMaterial.SetFloat(_sunLightFactorId, sunFactor);
+                _cutoutMaterial.SetFloat(s_sunLightFactorId, sunFactor);
             }
 
             if (_translucentMaterial != null)
             {
-                _translucentMaterial.SetFloat(_sunLightFactorId, sunFactor);
+                _translucentMaterial.SetFloat(s_sunLightFactorId, sunFactor);
             }
 
             // Update directional light rotation (intensity is fixed; voxel light system handles brightness)

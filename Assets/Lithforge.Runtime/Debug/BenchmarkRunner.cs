@@ -81,7 +81,7 @@ namespace Lithforge.Runtime.Debug
         // Results display
         private string _lastSummary;
         private float _summaryDisplayTimer;
-        private const float _summaryDisplayDuration = 15f;
+        private const float SummaryDisplayDuration = 15f;
 
         public bool IsRunning
         {
@@ -313,7 +313,7 @@ namespace Lithforge.Runtime.Debug
             WritePng(timestamp);
             string summary = BuildSummary();
             _lastSummary = summary;
-            _summaryDisplayTimer = _summaryDisplayDuration;
+            _summaryDisplayTimer = SummaryDisplayDuration;
 
             UnityEngine.Debug.Log(summary);
         }
@@ -615,7 +615,7 @@ namespace Lithforge.Runtime.Debug
 
         // 3x5 bitmap font for PNG axis labels. Glyphs: 0-9 (indices 0-9), '.' (index 10).
         // Each glyph is 5 rows (top to bottom). Each row: bit 2=left, bit 1=center, bit 0=right.
-        private static readonly byte[][] _fontGlyphs = new byte[][]
+        private static readonly byte[][] s_fontGlyphs = new byte[][]
         {
             new byte[] { 7, 5, 5, 5, 7 }, // 0
             new byte[] { 2, 6, 2, 2, 7 }, // 1
@@ -878,7 +878,7 @@ namespace Lithforge.Runtime.Debug
                     continue;
                 }
 
-                byte[] glyph = _fontGlyphs[glyphIndex];
+                byte[] glyph = s_fontGlyphs[glyphIndex];
 
                 for (int row = 0; row < glyphH; row++)
                 {

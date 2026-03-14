@@ -11,8 +11,8 @@ namespace Lithforge.Voxel.Storage
 {
     public static class ChunkSerializer
     {
-        private static readonly byte[] _magic = { (byte)'L', (byte)'F', (byte)'C', (byte)'H' };
-        private const byte _version = 2;
+        private static readonly byte[] s_magic = { (byte)'L', (byte)'F', (byte)'C', (byte)'H' };
+        private const byte Version = 2;
 
         public static byte[] Serialize(
             NativeArray<StateId> chunkData,
@@ -23,8 +23,8 @@ namespace Lithforge.Voxel.Storage
             using (BinaryWriter writer = new BinaryWriter(ms))
             {
                 // Header
-                writer.Write(_magic);
-                writer.Write(_version);
+                writer.Write(s_magic);
+                writer.Write(Version);
 
                 // Build palette
                 Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
@@ -140,8 +140,8 @@ namespace Lithforge.Voxel.Storage
                 byte[] magic = reader.ReadBytes(4);
 
                 if (magic.Length != 4 ||
-                    magic[0] != _magic[0] || magic[1] != _magic[1] ||
-                    magic[2] != _magic[2] || magic[3] != _magic[3])
+                    magic[0] != s_magic[0] || magic[1] != s_magic[1] ||
+                    magic[2] != s_magic[2] || magic[3] != s_magic[3])
                 {
                     return false;
                 }

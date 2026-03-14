@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
 {
@@ -15,8 +16,8 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         order = 10)]
     public sealed class BlockEntityDefinition : ScriptableObject
     {
-        [Tooltip("Namespace for the block resource id")]
-        [SerializeField] private string _namespace = "lithforge";
+        [FormerlySerializedAs("_namespace"),Tooltip("Namespace for the block resource id")]
+        [SerializeField] private string @namespace = "lithforge";
 
         [Tooltip("Block name (must match a registered block)")]
         [SerializeField] private string blockName = "";
@@ -26,7 +27,7 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
 
         public string Namespace
         {
-            get { return _namespace; }
+            get { return @namespace; }
         }
 
         public string BlockName
@@ -44,7 +45,7 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         /// </summary>
         public string BlockIdString
         {
-            get { return _namespace + ":" + blockName; }
+            get { return @namespace + ":" + blockName; }
         }
     }
 }

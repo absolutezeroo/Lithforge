@@ -18,12 +18,12 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class HiZPyramid : IDisposable
     {
-        private static readonly int _depthSourceId = Shader.PropertyToID("_DepthSource");
-        private static readonly int _hiZMip0Id = Shader.PropertyToID("_HiZMip0");
-        private static readonly int _hiZPrevMipId = Shader.PropertyToID("_HiZPrevMip");
-        private static readonly int _hiZNextMipId = Shader.PropertyToID("_HiZNextMip");
-        private static readonly int _copySizeId = Shader.PropertyToID("_CopySize");
-        private static readonly int _downsampleSizeId = Shader.PropertyToID("_DownsampleSize");
+        private static readonly int s_depthSourceId = Shader.PropertyToID("_DepthSource");
+        private static readonly int s_hiZMip0Id = Shader.PropertyToID("_HiZMip0");
+        private static readonly int s_hiZPrevMipId = Shader.PropertyToID("_HiZPrevMip");
+        private static readonly int s_hiZNextMipId = Shader.PropertyToID("_HiZNextMip");
+        private static readonly int s_copySizeId = Shader.PropertyToID("_CopySize");
+        private static readonly int s_downsampleSizeId = Shader.PropertyToID("_DownsampleSize");
 
         private readonly ComputeShader _hiZShader;
         private readonly int _copyKernel;
@@ -89,9 +89,9 @@ namespace Lithforge.Runtime.Rendering
             }
 
             // Mip 0: copy from depth source
-            _hiZShader.SetTexture(_copyKernel, _depthSourceId, depthTexture);
-            _hiZShader.SetTexture(_copyKernel, _hiZMip0Id, _mipTextures[0]);
-            _hiZShader.SetInts(_copySizeId, _width, _height);
+            _hiZShader.SetTexture(_copyKernel, s_depthSourceId, depthTexture);
+            _hiZShader.SetTexture(_copyKernel, s_hiZMip0Id, _mipTextures[0]);
+            _hiZShader.SetInts(s_copySizeId, _width, _height);
             _hiZShader.Dispatch(_copyKernel, (_width + 7) / 8, (_height + 7) / 8, 1);
 
             // Subsequent mips: 2x2 downsample
@@ -100,9 +100,9 @@ namespace Lithforge.Runtime.Rendering
                 int mipW = Mathf.Max(1, _width >> mip);
                 int mipH = Mathf.Max(1, _height >> mip);
 
-                _hiZShader.SetTexture(_downsampleKernel, _hiZPrevMipId, _mipTextures[mip - 1]);
-                _hiZShader.SetTexture(_downsampleKernel, _hiZNextMipId, _mipTextures[mip]);
-                _hiZShader.SetInts(_downsampleSizeId, mipW, mipH);
+                _hiZShader.SetTexture(_downsampleKernel, s_hiZPrevMipId, _mipTextures[mip - 1]);
+                _hiZShader.SetTexture(_downsampleKernel, s_hiZNextMipId, _mipTextures[mip]);
+                _hiZShader.SetInts(s_downsampleSizeId, mipW, mipH);
                 _hiZShader.Dispatch(_downsampleKernel, (mipW + 7) / 8, (mipH + 7) / 8, 1);
             }
 

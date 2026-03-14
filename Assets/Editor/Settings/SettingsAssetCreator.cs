@@ -6,13 +6,13 @@ namespace Lithforge.Editor.Settings
 {
     public static class SettingsAssetCreator
     {
-        private const string _resourcesPath = "Assets/Resources/Settings";
+        private const string ResourcesPath = "Assets/Resources/Settings";
 
         [MenuItem("Lithforge/Settings/Create All Settings Assets")]
         public static void CreateAll()
         {
             EnsureDirectory("Assets/Resources");
-            EnsureDirectory(_resourcesPath);
+            EnsureDirectory(ResourcesPath);
 
             CreateIfMissing<WorldGenSettings>("WorldGenSettings");
             CreateIfMissing<ChunkSettings>("ChunkSettings");
@@ -24,7 +24,7 @@ namespace Lithforge.Editor.Settings
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            UnityEngine.Debug.Log("[Lithforge] All settings assets created at " + _resourcesPath);
+            UnityEngine.Debug.Log("[Lithforge] All settings assets created at " + ResourcesPath);
         }
 
         private static void EnsureDirectory(string path)
@@ -39,7 +39,7 @@ namespace Lithforge.Editor.Settings
 
         private static void CreateIfMissing<T>(string name) where T : ScriptableObject
         {
-            string fullPath = _resourcesPath + "/" + name + ".asset";
+            string fullPath = ResourcesPath + "/" + name + ".asset";
 
             if (AssetDatabase.LoadAssetAtPath<T>(fullPath) != null)
             {

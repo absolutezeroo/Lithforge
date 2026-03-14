@@ -430,7 +430,7 @@ namespace Lithforge.Runtime.Scheduling
         /// Neighbor offset + face direction pairs for border extraction.
         /// Each entry: (offset to neighbor chunk, face direction to extract from that neighbor).
         /// </summary>
-        private static readonly (int3 Offset, int Face, int OutputIndex)[] _borderExtractions =
+        private static readonly (int3 Offset, int Face, int OutputIndex)[] s_borderExtractions =
         {
             (new int3(1, 0, 0),  1, 0), // +X neighbor: extract its -X face
             (new int3(-1, 0, 0), 0, 1), // -X neighbor: extract its +X face
@@ -450,9 +450,9 @@ namespace Lithforge.Runtime.Scheduling
             int handleCount = 0;
             NativeArray<JobHandle> handles = new NativeArray<JobHandle>(6, Allocator.Temp, NativeArrayOptions.ClearMemory);
 
-            for (int i = 0; i < _borderExtractions.Length; i++)
+            for (int i = 0; i < s_borderExtractions.Length; i++)
             {
-                int3 neighborCoord = coord + _borderExtractions[i].Offset;
+                int3 neighborCoord = coord + s_borderExtractions[i].Offset;
                 ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
 
                 if (neighbor == null || neighbor.State < ChunkState.RelightPending || !neighbor.Data.IsCreated)
@@ -463,8 +463,8 @@ namespace Lithforge.Runtime.Scheduling
                 ExtractSingleBorderJob borderJob = new ExtractSingleBorderJob
                 {
                     ChunkData = neighbor.Data,
-                    FaceDirection = _borderExtractions[i].Face,
-                    Output = GetBorderOutput(meshData, _borderExtractions[i].OutputIndex),
+                    FaceDirection = s_borderExtractions[i].Face,
+                    Output = GetBorderOutput(meshData, s_borderExtractions[i].OutputIndex),
                 };
 
                 handles[handleCount] = borderJob.Schedule();
