@@ -101,12 +101,13 @@ namespace Lithforge.WorldGen.Pipeline
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             // River arrays: flags are Persistent (transferred to ManagedChunk),
-            // carve depth is TempJob (transient, consumed by RiverCarveJob only).
+            // carve depth is Persistent (transient, consumed by RiverCarveJob only,
+            // disposed in GenerationHandle.Dispose).
             NativeArray<byte> riverFlags = new NativeArray<byte>(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
             NativeArray<float> riverCarveDepth = new NativeArray<float>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             // Stage 1: Climate noise sampling (4 parameters per column)
             ClimateNoiseJob climateJob = new ClimateNoiseJob
@@ -165,7 +166,6 @@ namespace Lithforge.WorldGen.Pipeline
                 ChunkCoord = coord,
                 AirId = _airId,
                 WaterId = _waterId,
-                StoneId = _stoneId,
                 SeaLevel = _seaLevel,
             };
 

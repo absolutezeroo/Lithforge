@@ -43,6 +43,7 @@ namespace Lithforge.WorldGen.Decoration
             NativeArray<StateId> chunkData,
             NativeArray<int> heightMap,
             NativeArray<byte> biomeMap,
+            NativeArray<byte> riverFlags,
             long seed)
         {
             // Apply any pending decorations from neighboring chunks
@@ -67,9 +68,10 @@ namespace Lithforge.WorldGen.Decoration
                         continue;
                     }
 
-                    // Suppress trees in ocean biomes and on underwater columns
+                    // Suppress trees in ocean biomes, on underwater columns, and in river channels
                     bool isOcean = (biome.SurfaceFlags & NativeBiomeSurfaceFlags.IsOcean) != 0;
-                    if (isOcean || surfaceY < _seaLevel)
+                    bool isRiver = riverFlags.IsCreated && riverFlags[columnIndex] != 0;
+                    if (isOcean || surfaceY < _seaLevel || isRiver)
                     {
                         continue;
                     }

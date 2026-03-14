@@ -92,8 +92,8 @@ namespace Lithforge.WorldGen.Stages
                     float erosionFactor = math.remap(0f, 1f, 0.4f, 2.5f, climate.Erosion);
                     float threshold = Config.BaseThreshold * erosionFactor * fadeFactor;
 
-                    // River detection (branch-free for Burst SIMD)
-                    bool isRiver = absNoise < threshold & fadeFactor > 0.01f;
+                    // River detection
+                    bool isRiver = absNoise < threshold;
                     float intensity = math.select(
                         0f,
                         (1f - absNoise / math.max(threshold, 0.001f)) * fadeFactor,

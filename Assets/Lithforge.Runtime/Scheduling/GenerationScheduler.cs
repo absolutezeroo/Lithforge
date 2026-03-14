@@ -186,6 +186,7 @@ namespace Lithforge.Runtime.Scheduling
                                 chunk.Data,
                                 pending.Handle.HeightMap,
                                 pending.Handle.BiomeMap,
+                                pending.Handle.RiverFlags,
                                 _seed);
                             long decorEnd = Stopwatch.GetTimestamp();
                             float decorMs = (float)((decorEnd - decorStart) * 1000.0 / Stopwatch.Frequency);

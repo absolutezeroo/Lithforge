@@ -4,6 +4,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
@@ -15,7 +16,7 @@ namespace Lithforge.WorldGen.Stages
     /// Runs after RiverNoiseJob and before CaveCarverJob so cave-river intersections
     /// create natural waterfalls and flooded cave entrances.
     ///
-    /// Owner: GenerationPipeline.Schedule allocates RiverCarveDepth (TempJob).
+    /// Owner: GenerationPipeline.Schedule allocates RiverCarveDepth (Persistent).
     /// Dispose: RiverCarveDepth disposed in GenerationHandle.Dispose.
     /// </summary>
     [BurstCompile]
@@ -32,7 +33,6 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public int3 ChunkCoord;
         [ReadOnly] public StateId AirId;
         [ReadOnly] public StateId WaterId;
-        [ReadOnly] public StateId StoneId;
         [ReadOnly] public int SeaLevel;
 
         public void Execute()
@@ -81,8 +81,8 @@ namespace Lithforge.WorldGen.Stages
                             continue;
                         }
 
-                        // Fill with water below sea level, air above
-                        if (worldY < SeaLevel)
+                        // Fill with water at or below sea level, air above
+                        if (worldY <= SeaLevel)
                         {
                             ChunkData[index] = WaterId;
                         }
