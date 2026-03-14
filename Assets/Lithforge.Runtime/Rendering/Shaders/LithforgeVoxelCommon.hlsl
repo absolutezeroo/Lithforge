@@ -2,55 +2,90 @@
 // Shared StructuredBuffer fetch logic for all Lithforge voxel shaders.
 // Must be included AFTER Core.hlsl (and Lighting.hlsl if needed by the pass).
 //
-// MeshVertex C# layout (48 bytes, StructLayout.Sequential):
-//   float3 Position     bytes  0-11
-//   float3 Normal       bytes 12-23
-//   half4  Color        bytes 24-31  (r=AO, g=blockLight, b=sunLight, a=baseTexIndex)
-//   float2 UV           bytes 32-39
-//   uint   TintOverlay  bytes 40-43  (packed per-face tint + overlay info)
-//   uint   Pad          bytes 44-47  (16-byte alignment)
+// PackedMeshVertex C# layout (16 bytes, StructLayout.Sequential):
+//   uint Word0  bytes 0-3
+//   uint Word1  bytes 4-7
+//   uint Word2  bytes 8-11
+//   uint Word3  bytes 12-15
 //
-// Color.a encoding: pure baseTexIndex (no tintType encoding)
-//
-// TintOverlay packing (uint, 32 bits):
-//   bits  0-1  : baseTintType     (0=none, 1=grass, 2=foliage, 3=water)
-//   bits  2-3  : overlayTintType  (0=none, 1=grass, 2=foliage, 3=water)
-//   bit   4    : hasOverlay       (0=no overlay, 1=has overlay)
-//   bits  5-14 : overlayTexIndex  (0-1023, index into atlas array)
-//   bits 15-31 : reserved (0)
-//
-// HLSL StructuredBuffer<T> stride must match exactly. The 'half' type in HLSL
-// struct members is silently promoted to float by the compiler, making stride wrong.
-// Solution: pack Color as two uint words and unpack with f16tof32().
+// word0: posX(6) | posY(6) | posZ(6) | normal(3) | ao(2) | blockLight(4) | sunLight(4) | fluidTop(1)
+// word1: texIndex(10) | baseTintType(2) | hasOverlay(1) | overlayTexIndex(10) | overlayTintType(2) | lodScale(2) | pad(5)
+// word2: uvX(8) | uvY(8) | chunkWorldX(16)
+// word3: chunkWorldY(16) | chunkWorldZ(16)
 
 #ifndef LITHFORGE_VOXEL_COMMON_INCLUDED
 #define LITHFORGE_VOXEL_COMMON_INCLUDED
 
 // ---------------------------------------------------------------------------
-// GPU-side vertex layout -- must produce stride == 48 bytes.
-// The two uint words at bytes 24-31 hold the four float16 Color components:
-//   colorWord0: bits 0-15 = Color.r (AO), bits 16-31 = Color.g (blockLight)
-//   colorWord1: bits 0-15 = Color.b (sunLight), bits 16-31 = Color.a (baseTexIndex)
-// This matches the C# half4 memory layout on little-endian (x86/ARM).
+// GPU-side vertex layout -- 16 bytes. 4 packed uint32 words.
 // ---------------------------------------------------------------------------
-struct GpuMeshVertex
+struct GpuPackedVertex
 {
-    float3 position;    // 12 bytes (offset 0)
-    float3 normal;      // 12 bytes (offset 12)
-    uint   colorWord0;  //  4 bytes (offset 24) -- packs Color.r and Color.g as float16
-    uint   colorWord1;  //  4 bytes (offset 28) -- packs Color.b and Color.a as float16
-    float2 uv;          //  8 bytes (offset 32)
-    uint   tintOverlay; //  4 bytes (offset 40) -- packed per-face tint + overlay
-    uint   _pad;        //  4 bytes (offset 44) -- 16-byte alignment
+    uint word0;  // 4 bytes (offset 0)
+    uint word1;  // 4 bytes (offset 4)
+    uint word2;  // 4 bytes (offset 8)
+    uint word3;  // 4 bytes (offset 12)
 };
-// Total: 48 bytes. Matches C# MeshVertex with StructLayout.Sequential.
+// Total: 16 bytes. Matches C# PackedMeshVertex with StructLayout.Sequential.
 
 // ---------------------------------------------------------------------------
 // Buffer declaration. Bound per-draw from ChunkMeshStore via MaterialPropertyBlock.
 // The index buffer is hardware-bound via RenderPrimitivesIndexedIndirect,
 // so SV_VertexID gives the post-index vertex index directly.
 // ---------------------------------------------------------------------------
-StructuredBuffer<GpuMeshVertex> _VertexBuffer;
+StructuredBuffer<GpuPackedVertex> _VertexBuffer;
+
+// ---------------------------------------------------------------------------
+// Normal lookup table (6 cardinal directions, indexed by 3-bit normal field).
+// ---------------------------------------------------------------------------
+static const float3 kNormals[6] =
+{
+    float3( 1, 0, 0),  // 0: +X
+    float3(-1, 0, 0),  // 1: -X
+    float3( 0, 1, 0),  // 2: +Y
+    float3( 0,-1, 0),  // 3: -Y
+    float3( 0, 0, 1),  // 4: +Z
+    float3( 0, 0,-1),  // 5: -Z
+};
+
+// ---------------------------------------------------------------------------
+// LOD voxel scale lookup (indexed by 2-bit lodScale field).
+// ---------------------------------------------------------------------------
+static const float kLodScales[4] = { 1.0, 2.0, 4.0, 8.0 };
+
+// ---------------------------------------------------------------------------
+// Minecraft-style light gamma: pow(0.8, 15-level).
+// Precomputed for 0..15.
+// ---------------------------------------------------------------------------
+static const float kLightGamma[16] =
+{
+    0.035184, // 0: pow(0.8, 15)
+    0.043980, // 1: pow(0.8, 14)
+    0.054976, // 2: pow(0.8, 13)
+    0.068719, // 3: pow(0.8, 12)
+    0.085899, // 4: pow(0.8, 11)
+    0.107374, // 5: pow(0.8, 10)
+    0.134218, // 6: pow(0.8, 9)
+    0.167772, // 7: pow(0.8, 8)
+    0.209715, // 8: pow(0.8, 7)
+    0.262144, // 9: pow(0.8, 6)
+    0.327680, // 10: pow(0.8, 5)
+    0.409600, // 11: pow(0.8, 4)
+    0.512000, // 12: pow(0.8, 3)
+    0.640000, // 13: pow(0.8, 2)
+    0.800000, // 14: pow(0.8, 1)
+    1.000000, // 15: pow(0.8, 0)
+};
+
+// ---------------------------------------------------------------------------
+// Sign-extend a 16-bit uint to a signed int.
+// HLSL has no int16 type; this XOR-subtract pattern converts unsigned bit
+// pattern to two's complement signed.
+// ---------------------------------------------------------------------------
+int SignExtend16(uint v)
+{
+    return (int)((v ^ 0x8000u) - 0x8000u);
+}
 
 // ---------------------------------------------------------------------------
 // Decoded working vertex -- plain floats, safe for URP transform helpers.
@@ -59,15 +94,15 @@ struct DecodedVertex
 {
     float3 positionOS;
     float3 normalOS;
-    half   ao;              // Color.r: 0=fully occluded, 1=unoccluded
-    half   blockLight;      // Color.g: [0,1] normalised
-    half   sunLight;        // Color.b: [0,1] normalised
-    int    texIndex;        // Color.a: pure base texIndex (no tint encoding)
+    half   ao;              // 0=fully occluded, 1=unoccluded (from 2-bit field 0-3)
+    half   blockLight;      // [0,1] normalised (gamma-corrected from 4-bit level)
+    half   sunLight;        // [0,1] normalised (gamma-corrected from 4-bit level)
+    int    texIndex;        // 0-1023 base texture atlas index
     float2 uv;
-    int    baseTintType;    // bits 0-1 of TintOverlay (0-3)
-    int    overlayTintType; // bits 2-3 of TintOverlay (0-3)
-    int    hasOverlay;      // bit 4 of TintOverlay (0 or 1)
-    int    overlayTexIndex; // bits 5-14 of TintOverlay (0-1023)
+    int    baseTintType;    // 0-3 (0=none, 1=grass, 2=foliage, 3=water)
+    int    overlayTintType; // 0-3
+    int    hasOverlay;      // 0 or 1
+    int    overlayTexIndex; // 0-1023
 };
 
 // ---------------------------------------------------------------------------
@@ -78,27 +113,64 @@ struct DecodedVertex
 // ---------------------------------------------------------------------------
 DecodedVertex FetchVertex(uint svVertexID)
 {
-    GpuMeshVertex raw = _VertexBuffer[svVertexID];
+    GpuPackedVertex raw = _VertexBuffer[svVertexID];
+
+    uint w0 = raw.word0;
+    uint w1 = raw.word1;
+    uint w2 = raw.word2;
+    uint w3 = raw.word3;
+
+    // Decode local grid position (6 bits each, 0-63)
+    float posX = (float)(w0 & 0x3Fu);
+    float posY = (float)((w0 >> 6u) & 0x3Fu);
+    float posZ = (float)((w0 >> 12u) & 0x3Fu);
+
+    // Normal direction (3 bits, 0-5)
+    uint normalIdx = (w0 >> 18u) & 0x7u;
+
+    // LOD voxel scale (2 bits from word1)
+    float lodScale = kLodScales[(w1 >> 25u) & 0x3u];
+
+    // Chunk world offset (int16 sign-extended)
+    int cwx = SignExtend16(w2 >> 16u);
+    int cwy = SignExtend16(w3 & 0xFFFFu);
+    int cwz = SignExtend16(w3 >> 16u);
+
+    // Reconstruct world-space position
+    // pos * lodScale gives local position in world units, then add chunk world offset
+    float3 worldPos = float3(
+        posX * lodScale + (float)cwx,
+        posY * lodScale + (float)cwy,
+        posZ * lodScale + (float)cwz);
+
+    // Fluid top face: bit 31 of word0. Apply -0.125 Y offset for water surface.
+    uint fluidTop = (w0 >> 31u) & 0x1u;
+    worldPos.y -= (float)fluidTop * 0.125;
 
     DecodedVertex dv;
-    dv.positionOS = raw.position;
-    dv.normalOS   = raw.normal;
-    dv.uv         = raw.uv;
+    dv.positionOS = worldPos;
+    dv.normalOS   = kNormals[normalIdx];
 
-    // Unpack float16 pairs using f16tof32().
-    // f16tof32(x) extracts bits [0:15]; f16tof32(x >> 16) extracts bits [16:31].
-    dv.ao         = (half)f16tof32(raw.colorWord0);
-    dv.blockLight = (half)f16tof32(raw.colorWord0 >> 16u);
-    dv.sunLight   = (half)f16tof32(raw.colorWord1);
-    // texIndex is now a pure base index (no tintType encoding)
-    dv.texIndex   = (int)round(f16tof32(raw.colorWord1 >> 16u));
+    // AO: 2-bit field (0-3), normalise to [0,1] where 3=unoccluded
+    dv.ao = (half)((float)((w0 >> 21u) & 0x3u) / 3.0);
 
-    // Decode TintOverlay
-    uint to = raw.tintOverlay;
-    dv.baseTintType    = (int)(to & 0x3);
-    dv.overlayTintType = (int)((to >> 2) & 0x3);
-    dv.hasOverlay      = (int)((to >> 4) & 0x1);
-    dv.overlayTexIndex = (int)((to >> 5) & 0x3FF);
+    // Light: 4-bit raw levels (0-15), apply Minecraft gamma curve
+    uint blockLightLevel = (w0 >> 23u) & 0xFu;
+    uint sunLightLevel   = (w0 >> 27u) & 0xFu;
+    dv.blockLight = (half)kLightGamma[blockLightLevel];
+    dv.sunLight   = (half)kLightGamma[sunLightLevel];
+
+    // Texture index (10 bits)
+    dv.texIndex = (int)(w1 & 0x3FFu);
+
+    // Tint types
+    dv.baseTintType    = (int)((w1 >> 10u) & 0x3u);
+    dv.hasOverlay      = (int)((w1 >> 12u) & 0x1u);
+    dv.overlayTexIndex = (int)((w1 >> 13u) & 0x3FFu);
+    dv.overlayTintType = (int)((w1 >> 23u) & 0x3u);
+
+    // UV: 8-bit each (greedy quad width/height in voxels), used for texture tiling
+    dv.uv = float2((float)(w2 & 0xFFu), (float)((w2 >> 8u) & 0xFFu));
 
     return dv;
 }

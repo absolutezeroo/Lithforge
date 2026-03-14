@@ -31,11 +31,14 @@ namespace Lithforge.Meshing
         [ReadOnly] public NativeArray<AtlasEntry> AtlasEntries;
         [ReadOnly] public NativeArray<byte> LightData;
 
-        public NativeList<MeshVertex> OpaqueVertices;
+        /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
+        public int3 ChunkCoord;
+
+        public NativeList<PackedMeshVertex> OpaqueVertices;
         public NativeList<int> OpaqueIndices;
-        public NativeList<MeshVertex> CutoutVertices;
+        public NativeList<PackedMeshVertex> CutoutVertices;
         public NativeList<int> CutoutIndices;
-        public NativeList<MeshVertex> TranslucentVertices;
+        public NativeList<PackedMeshVertex> TranslucentVertices;
         public NativeList<int> TranslucentIndices;
 
         public void Execute()
@@ -264,7 +267,7 @@ namespace Lithforge.Meshing
             byte renderLayer)
         {
             // Route to correct buffer: renderLayer 0=opaque, 1=cutout, 2=translucent
-            NativeList<MeshVertex> targetVertices;
+            NativeList<PackedMeshVertex> targetVertices;
             NativeList<int> targetIndices;
 
             (targetVertices, targetIndices) = renderLayer switch
@@ -276,78 +279,101 @@ namespace Lithforge.Meshing
 
             int vertexStart = targetVertices.Length;
 
-            ComputeQuadPositions(face, slice, u0, v0, width, height, stateVal,
-                out float3 pos00, out float3 pos10, out float3 pos01, out float3 pos11);
-
-            float3 normal = (float3)GetFaceNormal(face);
-
             AtlasEntry atlasEntry = AtlasEntries[stateVal];
             ushort texIndex = atlasEntry.GetTextureIndex(face);
-
-            // Unpack nibbles: high 4 bits = sunLight, low 4 bits = blockLight
-            // Minecraft gamma curve: brightness = pow(0.8, 15 - level)
-            byte sunLight = (byte)(light >> 4);
-            byte blockLight = (byte)(light & 0x0F);
-            float sunNorm = math.pow(0.8f, 15 - sunLight);
-            float blockNorm = math.pow(0.8f, 15 - blockLight);
-
-            // Vertex color: r=AO, g=blockLight, b=sunLight, a=pure baseTexIndex
-            half4 color00 = new half4((half)(ao00 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
-            half4 color10 = new half4((half)(ao10 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
-            half4 color01 = new half4((half)(ao01 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
-            half4 color11 = new half4((half)(ao11 / 3.0f), (half)blockNorm, (half)sunNorm, (half)texIndex);
-
-            // SHARED TINT OVERLAY PACKING — GreedyMeshJob, LODMeshJob
             byte baseTintType = atlasEntry.GetBaseTintType(face);
             ushort overlayTexIdx = atlasEntry.GetOverlayTextureIndex(face);
             byte overlayTintType = atlasEntry.GetOverlayTintType(face);
             bool hasOverlay = overlayTexIdx != 0xFFFF;
+            int ovlIdx = hasOverlay ? overlayTexIdx : 0;
 
-            uint tintOverlay =
-                ((uint)(baseTintType & 0x3)) |
-                ((uint)(overlayTintType & 0x3) << 2) |
-                ((uint)(hasOverlay ? 1 : 0) << 4) |
-                ((uint)(hasOverlay ? (overlayTexIdx & 0x3FF) : 0) << 5);
+            // Unpack light nibbles: high 4 bits = sunLight, low 4 bits = blockLight
+            int sunLight = light >> 4;
+            int blockLight = light & 0x0F;
 
-            targetVertices.Add(new MeshVertex
+            // Fluid top face flag: +Y face of fluid blocks gets -0.125 offset in shader
+            bool fluidTop = face == 2 && StateTable[stateVal].IsFluid;
+
+            int cwx = ChunkCoord.x * ChunkConstants.Size;
+            int cwy = ChunkCoord.y * ChunkConstants.Size;
+            int cwz = ChunkCoord.z * ChunkConstants.Size;
+
+            // Compute integer positions for each corner based on face direction
+            int sliceOff = (face == 0 || face == 2 || face == 4) ? slice + 1 : slice;
+
+            int px00;
+            int py00;
+            int pz00;
+            int px10;
+            int py10;
+            int pz10;
+            int px11;
+            int py11;
+            int pz11;
+            int px01;
+            int py01;
+            int pz01;
+
+            switch (face)
             {
-                Position = pos00,
-                Normal = normal,
-                UV = new float2(0, 0),
-                Color = color00,
-                TintOverlay = tintOverlay,
-                Pad = 0,
-            });
+                case 0: // +X
+                    px00 = sliceOff; py00 = v0;          pz00 = u0;
+                    px10 = sliceOff; py10 = v0;          pz10 = u0 + width;
+                    px11 = sliceOff; py11 = v0 + height; pz11 = u0 + width;
+                    px01 = sliceOff; py01 = v0 + height; pz01 = u0;
+                    break;
+                case 1: // -X
+                    px00 = sliceOff; py00 = v0;          pz00 = u0 + width;
+                    px10 = sliceOff; py10 = v0;          pz10 = u0;
+                    px11 = sliceOff; py11 = v0 + height; pz11 = u0;
+                    px01 = sliceOff; py01 = v0 + height; pz01 = u0 + width;
+                    break;
+                case 2: // +Y
+                    px00 = u0;         py00 = sliceOff; pz00 = v0;
+                    px10 = u0 + width; py10 = sliceOff; pz10 = v0;
+                    px11 = u0 + width; py11 = sliceOff; pz11 = v0 + height;
+                    px01 = u0;         py01 = sliceOff; pz01 = v0 + height;
+                    break;
+                case 3: // -Y
+                    px00 = u0;         py00 = sliceOff; pz00 = v0 + height;
+                    px10 = u0 + width; py10 = sliceOff; pz10 = v0 + height;
+                    px11 = u0 + width; py11 = sliceOff; pz11 = v0;
+                    px01 = u0;         py01 = sliceOff; pz01 = v0;
+                    break;
+                case 4: // +Z
+                    px00 = u0 + width; py00 = v0;          pz00 = sliceOff;
+                    px10 = u0;         py10 = v0;          pz10 = sliceOff;
+                    px11 = u0;         py11 = v0 + height; pz11 = sliceOff;
+                    px01 = u0 + width; py01 = v0 + height; pz01 = sliceOff;
+                    break;
+                default: // -Z
+                    px00 = u0;         py00 = v0;          pz00 = sliceOff;
+                    px10 = u0 + width; py10 = v0;          pz10 = sliceOff;
+                    px11 = u0 + width; py11 = v0 + height; pz11 = sliceOff;
+                    px01 = u0;         py01 = v0 + height; pz01 = sliceOff;
+                    break;
+            }
 
-            targetVertices.Add(new MeshVertex
-            {
-                Position = pos10,
-                Normal = normal,
-                UV = new float2(width, 0),
-                Color = color10,
-                TintOverlay = tintOverlay,
-                Pad = 0,
-            });
+            // LOD0: lodScale index = 0 (x1)
+            targetVertices.Add(PackedMeshVertex.Pack(
+                px00, py00, pz00, face, ao00, blockLight, sunLight, fluidTop,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, 0, 0, cwx, cwy, cwz));
 
-            targetVertices.Add(new MeshVertex
-            {
-                Position = pos11,
-                Normal = normal,
-                UV = new float2(width, height),
-                Color = color11,
-                TintOverlay = tintOverlay,
-                Pad = 0,
-            });
+            targetVertices.Add(PackedMeshVertex.Pack(
+                px10, py10, pz10, face, ao10, blockLight, sunLight, fluidTop,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, width, 0, cwx, cwy, cwz));
 
-            targetVertices.Add(new MeshVertex
-            {
-                Position = pos01,
-                Normal = normal,
-                UV = new float2(0, height),
-                Color = color01,
-                TintOverlay = tintOverlay,
-                Pad = 0,
-            });
+            targetVertices.Add(PackedMeshVertex.Pack(
+                px11, py11, pz11, face, ao11, blockLight, sunLight, fluidTop,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, width, height, cwx, cwy, cwz));
+
+            targetVertices.Add(PackedMeshVertex.Pack(
+                px01, py01, pz01, face, ao01, blockLight, sunLight, fluidTop,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, 0, height, cwx, cwy, cwz));
 
             // AO diagonal flip: use the diagonal that minimizes anisotropy.
             // When ao00+ao11 > ao10+ao01, the 00-11 diagonal has more contrast,
@@ -575,66 +601,5 @@ namespace Lithforge.Meshing
             };
         }
 
-        private void ComputeQuadPositions(
-            int face, int slice, int u0, int v0, int width, int height,
-            ushort stateVal,
-            out float3 pos00, out float3 pos10, out float3 pos01, out float3 pos11)
-        {
-            // The quad is emitted on the face of the block at the slice position.
-            // For positive faces (+X, +Y, +Z), the face is at slice+1.
-            // For negative faces (-X, -Y, -Z), the face is at slice.
-            // Fluid blocks have their top face lowered by 2/16 (0.125).
-            bool isFluidTop = face == 2 && StateTable[stateVal].IsFluid;
-            float fluidOffset = isFluidTop ? -0.125f : 0.0f;
-            float sliceOffset = (face == 0 || face == 2 || face == 4)
-                ? (slice + 1.0f + fluidOffset)
-                : slice;
-
-            switch (face)
-            {
-                case 0: // +X: face at x=slice+1, quad spans z=[u0..u0+w], y=[v0..v0+h]
-                    pos00 = new float3(sliceOffset, v0, u0);
-                    pos10 = new float3(sliceOffset, v0, u0 + width);
-                    pos01 = new float3(sliceOffset, v0 + height, u0);
-                    pos11 = new float3(sliceOffset, v0 + height, u0 + width);
-
-                    return;
-                case 1: // -X: face at x=slice, quad spans z=[u0..u0+w], y=[v0..v0+h]
-                    pos00 = new float3(sliceOffset, v0, u0 + width);
-                    pos10 = new float3(sliceOffset, v0, u0);
-                    pos01 = new float3(sliceOffset, v0 + height, u0 + width);
-                    pos11 = new float3(sliceOffset, v0 + height, u0);
-
-                    return;
-                case 2: // +Y: face at y=slice+1, quad spans x=[u0..u0+w], z=[v0..v0+h]
-                    pos00 = new float3(u0, sliceOffset, v0);
-                    pos10 = new float3(u0 + width, sliceOffset, v0);
-                    pos01 = new float3(u0, sliceOffset, v0 + height);
-                    pos11 = new float3(u0 + width, sliceOffset, v0 + height);
-
-                    return;
-                case 3: // -Y: face at y=slice, quad spans x=[u0..u0+w], z=[v0..v0+h]
-                    pos00 = new float3(u0, sliceOffset, v0 + height);
-                    pos10 = new float3(u0 + width, sliceOffset, v0 + height);
-                    pos01 = new float3(u0, sliceOffset, v0);
-                    pos11 = new float3(u0 + width, sliceOffset, v0);
-
-                    return;
-                case 4: // +Z: face at z=slice+1, quad spans x=[u0..u0+w], y=[v0..v0+h]
-                    pos00 = new float3(u0 + width, v0, sliceOffset);
-                    pos10 = new float3(u0, v0, sliceOffset);
-                    pos01 = new float3(u0 + width, v0 + height, sliceOffset);
-                    pos11 = new float3(u0, v0 + height, sliceOffset);
-
-                    return;
-                default: // -Z: face at z=slice, quad spans x=[u0..u0+w], y=[v0..v0+h]
-                    pos00 = new float3(u0, v0, sliceOffset);
-                    pos10 = new float3(u0 + width, v0, sliceOffset);
-                    pos01 = new float3(u0, v0 + height, sliceOffset);
-                    pos11 = new float3(u0 + width, v0 + height, sliceOffset);
-
-                    return;
-            }
-        }
     }
 }

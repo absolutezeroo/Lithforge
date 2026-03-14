@@ -267,6 +267,7 @@ namespace Lithforge.Runtime.Scheduling
                     StateTable = _nativeStateRegistry.States,
                     AtlasEntries = _nativeAtlasLookup.Entries,
                     LightData = chunk.LightData,
+                    ChunkCoord = chunk.Coord,
                     OpaqueVertices = meshData.OpaqueVertices,
                     OpaqueIndices = meshData.OpaqueIndices,
                     CutoutVertices = meshData.CutoutVertices,

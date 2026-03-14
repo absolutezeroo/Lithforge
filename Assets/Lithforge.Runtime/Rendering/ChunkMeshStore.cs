@@ -172,9 +172,9 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void UpdateRenderer(
             int3 coord,
-            NativeList<MeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
-            NativeList<MeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
-            NativeList<MeshVertex> translucentVerts, NativeList<int> translucentIndices)
+            NativeList<PackedMeshVertex> opaqueVerts, NativeList<int> opaqueIndices,
+            NativeList<PackedMeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
+            NativeList<PackedMeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
             _opaqueBuffer.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
             _cutoutBuffer.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
@@ -194,7 +194,7 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void UpdateRendererSingleMesh(
             int3 coord,
-            NativeList<MeshVertex> vertices, NativeList<int> indices)
+            NativeList<PackedMeshVertex> vertices, NativeList<int> indices)
         {
             _opaqueBuffer.AllocateOrUpdate(coord, vertices, indices);
             _cutoutBuffer.Free(coord);

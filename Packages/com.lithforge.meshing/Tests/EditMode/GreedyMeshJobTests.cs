@@ -92,6 +92,7 @@ namespace Lithforge.Meshing.Tests
                 StateTable = _stateTable,
                 AtlasEntries = _atlasEntries,
                 LightData = lightData,
+                ChunkCoord = int3.zero,
                 OpaqueVertices = meshData.OpaqueVertices,
                 OpaqueIndices = meshData.OpaqueIndices,
                 CutoutVertices = meshData.CutoutVertices,
@@ -101,6 +102,33 @@ namespace Lithforge.Meshing.Tests
             };
 
             return job.Schedule();
+        }
+
+        /// <summary>Extracts the 3-bit normal index from a packed vertex.</summary>
+        private static int GetNormalIndex(PackedMeshVertex v)
+        {
+            return (int)((v.Word0 >> 18) & 0x7u);
+        }
+
+        /// <summary>Extracts the 10-bit base texture index from a packed vertex.</summary>
+        private static int GetTexIndex(PackedMeshVertex v)
+        {
+            return (int)(v.Word1 & 0x3FFu);
+        }
+
+        /// <summary>Extracts the 2-bit baseTintType from a packed vertex.</summary>
+        private static uint GetBaseTintType(PackedMeshVertex v)
+        {
+            return (v.Word1 >> 10) & 0x3u;
+        }
+
+        /// <summary>Extracts overlay fields from a packed vertex.</summary>
+        private static void GetOverlayFields(PackedMeshVertex v,
+            out uint hasOverlay, out uint overlayTexIndex, out uint overlayTintType)
+        {
+            hasOverlay = (v.Word1 >> 12) & 0x1u;
+            overlayTexIndex = (v.Word1 >> 13) & 0x3FFu;
+            overlayTintType = (v.Word1 >> 23) & 0x3u;
         }
 
         [Test]
@@ -244,13 +272,13 @@ namespace Lithforge.Meshing.Tests
 
                 ScheduleJob(chunkData, meshData, lightData).Complete();
 
-                // Check that vertex color.a contains texture index (1.0 for stone)
+                // Check that packed vertex contains texture index 1 (stone)
                 for (int i = 0; i < meshData.OpaqueVertices.Length; i++)
                 {
-                    MeshVertex vert = meshData.OpaqueVertices[i];
-                    float texIndex = (float)vert.Color.w;
-                    Assert.AreEqual(1.0f, texIndex, 0.01f,
-                        $"Vertex {i} color.a should contain texture index 1");
+                    PackedMeshVertex vert = meshData.OpaqueVertices[i];
+                    int texIndex = GetTexIndex(vert);
+                    Assert.AreEqual(1, texIndex,
+                        $"Vertex {i} texIndex should be 1");
                 }
             }
             finally
@@ -286,16 +314,16 @@ namespace Lithforge.Meshing.Tests
 
                 ScheduleJob(chunkData, meshData, lightData).Complete();
 
-                // Find PosY face vertices (Normal.y > 0)
+                // Find PosY face vertices (normalIndex == 2)
                 int posYCount = 0;
 
                 for (int i = 0; i < meshData.OpaqueVertices.Length; i++)
                 {
-                    MeshVertex vert = meshData.OpaqueVertices[i];
+                    PackedMeshVertex vert = meshData.OpaqueVertices[i];
 
-                    if (math.abs(vert.Normal.y - 1.0f) < 0.001f)
+                    if (GetNormalIndex(vert) == 2) // +Y
                     {
-                        uint baseTint = vert.TintOverlay & 0x3u;
+                        uint baseTint = GetBaseTintType(vert);
                         Assert.AreEqual(1u, baseTint,
                             $"PosY vertex {i}: baseTintType should be 1 (grass)");
                         posYCount++;
@@ -338,25 +366,24 @@ namespace Lithforge.Meshing.Tests
 
                 ScheduleJob(chunkData, meshData, lightData).Complete();
 
-                // Find PosX face vertices (Normal.x > 0)
+                // Find PosX face vertices (normalIndex == 0)
                 int posXCount = 0;
 
                 for (int i = 0; i < meshData.OpaqueVertices.Length; i++)
                 {
-                    MeshVertex vert = meshData.OpaqueVertices[i];
+                    PackedMeshVertex vert = meshData.OpaqueVertices[i];
 
-                    if (math.abs(vert.Normal.x - 1.0f) < 0.001f)
+                    if (GetNormalIndex(vert) == 0) // +X
                     {
-                        uint baseTint = vert.TintOverlay & 0x3u;
-                        uint overlayTint = (vert.TintOverlay >> 2) & 0x3u;
-                        uint hasOverlay = (vert.TintOverlay >> 4) & 0x1u;
-                        uint ovlTexIdx = (vert.TintOverlay >> 5) & 0x3FFu;
+                        uint baseTint = GetBaseTintType(vert);
+                        GetOverlayFields(vert,
+                            out uint hasOverlayVal, out uint ovlTexIdx, out uint overlayTint);
 
                         Assert.AreEqual(0u, baseTint,
                             $"PosX vertex {i}: no base tint expected");
                         Assert.AreEqual(2u, overlayTint,
                             $"PosX vertex {i}: overlayTintType should be 2 (foliage)");
-                        Assert.AreEqual(1u, hasOverlay,
+                        Assert.AreEqual(1u, hasOverlayVal,
                             $"PosX vertex {i}: hasOverlay should be 1");
                         Assert.AreEqual(42u, ovlTexIdx,
                             $"PosX vertex {i}: overlayTexIndex should be 42");

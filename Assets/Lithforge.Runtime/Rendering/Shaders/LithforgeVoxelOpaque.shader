@@ -138,10 +138,10 @@ Shader "Lithforge/VoxelOpaque"
 
             DepthVaryings DepthOnlyVert(uint svVertexID : SV_VertexID)
             {
-                GpuMeshVertex raw = _VertexBuffer[svVertexID];
+                DecodedVertex dv = FetchVertex(svVertexID);
 
                 DepthVaryings output;
-                output.positionCS = TransformObjectToHClip(raw.position);
+                output.positionCS = TransformObjectToHClip(dv.positionOS);
                 return output;
             }
 

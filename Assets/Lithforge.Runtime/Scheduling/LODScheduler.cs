@@ -332,13 +332,16 @@ namespace Lithforge.Runtime.Scheduling
 
             JobHandle downsampleHandle = downsampleJob.Schedule();
 
-            LODMeshJob meshJob = new LODMeshJob
+            int lodScaleIndex = lodLevel; // 1=x2, 2=x4, 3=x8
+
+            LODGreedyMeshJob meshJob = new LODGreedyMeshJob
             {
                 Data = lodData.DownsampledData,
                 StateTable = _nativeStateRegistry.States,
                 AtlasEntries = _nativeAtlasLookup.Entries,
                 GridSize = gridSize,
-                VoxelScale = scale,
+                LODScaleIndex = lodScaleIndex,
+                ChunkCoord = chunk.Coord,
                 Vertices = lodData.Vertices,
                 Indices = lodData.Indices,
             };

@@ -24,7 +24,7 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class MegaMeshBuffer : IDisposable
     {
-        private static readonly int _vertexStride = Marshal.SizeOf<MeshVertex>();
+        private static readonly int _vertexStride = Marshal.SizeOf<PackedMeshVertex>();
 
         private readonly string _name;
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
@@ -33,7 +33,7 @@ namespace Lithforge.Runtime.Rendering
         private readonly List<FreeRegion> _freeRegions = new List<FreeRegion>();
         private readonly List<PendingZero> _pendingZeros = new List<PendingZero>();
 
-        private MeshVertex[] _vertexMirror;
+        private PackedMeshVertex[] _vertexMirror;
         private int[] _indexMirror;
         private int _vertexCapacity;
         private int _indexCapacity;
@@ -119,7 +119,7 @@ namespace Lithforge.Runtime.Rendering
             _maxChunkSlots = maxChunkSlots;
             _vertexCapacity = initialVertexCapacity;
             _indexCapacity = initialIndexCapacity;
-            _vertexMirror = new MeshVertex[initialVertexCapacity];
+            _vertexMirror = new PackedMeshVertex[initialVertexCapacity];
             _indexMirror = new int[initialIndexCapacity];
 
             _vertexBuffer = new GraphicsBuffer(
@@ -194,7 +194,7 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void AllocateOrUpdate(
             int3 coord,
-            NativeList<MeshVertex> vertices, NativeList<int> indices)
+            NativeList<PackedMeshVertex> vertices, NativeList<int> indices)
         {
             int vertCount = vertices.Length;
             int idxCount = indices.Length;
@@ -233,7 +233,7 @@ namespace Lithforge.Runtime.Rendering
                         _indexBuffer.UnlockBufferAfterWrite<int>(tailCount);
                     }
 
-                    WriteData(slot.VertexOffset, slot.IndexOffset, coord, vertices, indices);
+                    WriteData(slot.VertexOffset, slot.IndexOffset, vertices, indices);
 
                     _slots[coord] = new SlotInfo
                     {
@@ -261,7 +261,7 @@ namespace Lithforge.Runtime.Rendering
                 FreeRegion region = _freeRegions[freeIdx];
                 _freeRegions.RemoveAt(freeIdx);
 
-                WriteData(region.VertexOffset, region.IndexOffset, coord, vertices, indices);
+                WriteData(region.VertexOffset, region.IndexOffset, vertices, indices);
 
                 // Split remainder back into free-list if significant leftover
                 int leftoverVerts = region.VertexCapacity - vertCount;
@@ -313,7 +313,7 @@ namespace Lithforge.Runtime.Rendering
             int vOff = _usedVertices;
             int iOff = _usedIndices;
 
-            WriteData(vOff, iOff, coord, vertices, indices);
+            WriteData(vOff, iOff, vertices, indices);
 
             _slots[coord] = new SlotInfo
             {
@@ -407,40 +407,37 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Transforms vertices to world-space and writes vertex + index data to the
-        /// CPU mirror and GPU buffer at the given offsets. Uses LockBufferForWrite
-        /// to write directly to GPU-mapped memory, avoiding the staging buffer copy
-        /// that SetData would require.
+        /// Writes vertex + index data to the CPU mirror and GPU buffer at the given offsets.
+        /// Uses LockBufferForWrite to write directly to GPU-mapped memory. World position is
+        /// encoded in the packed vertex (chunkWorldX/Y/Z), so no per-vertex transform is needed
+        /// — bulk memcpy is used for vertices.
         /// </summary>
         private void WriteData(
-            int vOff, int iOff, int3 coord,
-            NativeList<MeshVertex> vertices, NativeList<int> indices)
+            int vOff, int iOff,
+            NativeList<PackedMeshVertex> vertices, NativeList<int> indices)
         {
             int vertCount = vertices.Length;
             int idxCount = indices.Length;
 
-            float3 worldOffset = new float3(
-                coord.x * ChunkConstants.Size,
-                coord.y * ChunkConstants.Size,
-                coord.z * ChunkConstants.Size);
+            // Vertices: bulk memcpy (world offset encoded in packed vertex)
+            NativeArray<PackedMeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<PackedMeshVertex>(vOff, vertCount);
 
-            // Write world-offset vertices to GPU and CPU mirror in one loop (was two separate loops).
-            // Cannot bulk-memcpy because the world offset transform requires per-element work.
-            // Cannot read back from GPU NativeArray because LockBufferForWrite uses write-combined
-            // memory — reads are unreliable and slow. Dual-write is the correct pattern.
-            NativeArray<MeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<MeshVertex>(vOff, vertCount);
-
-            for (int i = 0; i < vertCount; i++)
+            unsafe
             {
-                MeshVertex v = vertices[i];
-                v.Position = v.Position + worldOffset;
-                gpuVerts[i] = v;
-                _vertexMirror[vOff + i] = v;
+                void* gpuDst = NativeArrayUnsafeUtility.GetUnsafePtr(gpuVerts);
+                void* src = vertices.GetUnsafeReadOnlyPtr();
+                long byteCount = (long)vertCount * _vertexStride;
+                UnsafeUtility.MemCpy(gpuDst, src, byteCount);
+
+                fixed (PackedMeshVertex* mirrorPtr = &_vertexMirror[vOff])
+                {
+                    UnsafeUtility.MemCpy(mirrorPtr, src, byteCount);
+                }
             }
 
-            _vertexBuffer.UnlockBufferAfterWrite<MeshVertex>(vertCount);
+            _vertexBuffer.UnlockBufferAfterWrite<PackedMeshVertex>(vertCount);
 
-            // Write offset indices to GPU and CPU mirror in one loop (was two separate loops).
+            // Indices: still need global vertex offset applied
             NativeArray<int> gpuIndices = _indexBuffer.LockBufferForWrite<int>(iOff, idxCount);
 
             for (int i = 0; i < idxCount; i++)
@@ -625,19 +622,19 @@ namespace Lithforge.Runtime.Rendering
             // so no per-element transform is needed here — straight copy is correct.
             if (_usedVertices > 0)
             {
-                NativeArray<MeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<MeshVertex>(0, _usedVertices);
+                NativeArray<PackedMeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<PackedMeshVertex>(0, _usedVertices);
 
                 unsafe
                 {
                     void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuVerts);
 
-                    fixed (MeshVertex* srcPtr = &_vertexMirror[0])
+                    fixed (PackedMeshVertex* srcPtr = &_vertexMirror[0])
                     {
                         UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedVertices * _vertexStride);
                     }
                 }
 
-                _vertexBuffer.UnlockBufferAfterWrite<MeshVertex>(_usedVertices);
+                _vertexBuffer.UnlockBufferAfterWrite<PackedMeshVertex>(_usedVertices);
             }
 
             if (_usedIndices > 0)

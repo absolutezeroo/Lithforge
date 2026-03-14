@@ -328,7 +328,7 @@ namespace Lithforge.Runtime.Bootstrap
             int texCount = atlasResult.TextureArray != null ? atlasResult.TextureArray.depth : 0;
 
             UnityEngine.Debug.Assert(texCount <= 1024,
-                $"Texture array has {texCount} layers, exceeding the 1024 limit for overlay texture indices in MeshVertex.TintOverlay.");
+                $"Texture array has {texCount} layers, exceeding the 1024 limit for overlay texture indices in PackedMeshVertex.");
 
             // Phase 14: BakeNative + build NativeAtlasLookup
             yield return "Baking native data...";

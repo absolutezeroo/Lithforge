@@ -12,11 +12,11 @@ namespace Lithforge.Meshing
     /// </summary>
     public struct GreedyMeshData : IDisposable
     {
-        public NativeList<MeshVertex> OpaqueVertices;
+        public NativeList<PackedMeshVertex> OpaqueVertices;
         public NativeList<int> OpaqueIndices;
-        public NativeList<MeshVertex> CutoutVertices;
+        public NativeList<PackedMeshVertex> CutoutVertices;
         public NativeList<int> CutoutIndices;
-        public NativeList<MeshVertex> TranslucentVertices;
+        public NativeList<PackedMeshVertex> TranslucentVertices;
         public NativeList<int> TranslucentIndices;
         public NativeArray<StateId> NeighborPosX;
         public NativeArray<StateId> NeighborNegX;
@@ -27,11 +27,11 @@ namespace Lithforge.Meshing
 
         public GreedyMeshData(Allocator allocator)
         {
-            OpaqueVertices = new NativeList<MeshVertex>(4096, allocator);
+            OpaqueVertices = new NativeList<PackedMeshVertex>(4096, allocator);
             OpaqueIndices = new NativeList<int>(6144, allocator);
-            CutoutVertices = new NativeList<MeshVertex>(512, allocator);
+            CutoutVertices = new NativeList<PackedMeshVertex>(512, allocator);
             CutoutIndices = new NativeList<int>(768, allocator);
-            TranslucentVertices = new NativeList<MeshVertex>(1024, allocator);
+            TranslucentVertices = new NativeList<PackedMeshVertex>(1024, allocator);
             TranslucentIndices = new NativeList<int>(1536, allocator);
             NeighborPosX = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
             NeighborNegX = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);

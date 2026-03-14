@@ -12,13 +12,13 @@ namespace Lithforge.Meshing
     public struct LODMeshData : IDisposable
     {
         public NativeArray<StateId> DownsampledData;
-        public NativeList<MeshVertex> Vertices;
+        public NativeList<PackedMeshVertex> Vertices;
         public NativeList<int> Indices;
 
         public LODMeshData(int gridVolume, Allocator allocator)
         {
             DownsampledData = new NativeArray<StateId>(gridVolume, allocator, NativeArrayOptions.ClearMemory);
-            Vertices = new NativeList<MeshVertex>(1024, allocator);
+            Vertices = new NativeList<PackedMeshVertex>(1024, allocator);
             Indices = new NativeList<int>(1536, allocator);
         }
 
