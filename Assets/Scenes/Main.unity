@@ -149,10 +149,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Bootstrap.LithforgeBootstrap
   voxelMaterial: {fileID: 0}
-  poolSize: 256
-  renderDistance: 8
-  seaLevel: 62
-  seed: 129056109832901
+  frustumCullShader: {fileID: 7200000, guid: f5a9efc48fe1ac54abea9c91ac59628c, type: 3}
+  hiZGenerateShader: {fileID: 7200000, guid: aaa48e97955423246b7dfad43be84aa9, type: 3}
 --- !u!4 &1507543890
 Transform:
   m_ObjectHideFlags: 0

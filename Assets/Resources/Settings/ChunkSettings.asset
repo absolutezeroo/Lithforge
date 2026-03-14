@@ -32,5 +32,6 @@ MonoBehaviour:
   lod2Distance: 10
   lod3Distance: 16
   maxLODMeshesPerFrame: 4
+  maxChunkRenderSlots: 6144
   spawnFallbackY: 62
   initialSpawnYOffset: 32
