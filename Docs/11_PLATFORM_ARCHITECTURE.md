@@ -38,15 +38,23 @@ Lithforge is currently a **single-game voxel engine**. All content (blocks, item
 **`LithforgeBootstrap.Start()`** (coroutine):
 2. Creates `LoadingScreen` early (UI Toolkit, sortingOrder=500)
 3. Runs `ContentPipeline.Build()` as `IEnumerable<string>`, yielding a frame between each phase:
-   - Phases 1-6: Blocks → StateRegistry → ModelResolver → AtlasBuilder → texture patch
+   - Phases 1-6.5: Blocks → StateRegistry → BlockEntities → Models → Textures → Overlays/Tints → Atlas → texture patch
    - Phase 7: BiomeDefinitions, OreDefinitions
    - Phase 8: ItemDefinitions
    - Phases 9-12: LootTables, Tags, Recipes, ItemRegistry
    - Phase 13: AssetBundle mods from `persistentDataPath/mods/*.lithmod`
    - Phase 14: BakeNative() → NativeStateRegistry + NativeAtlasLookup
-4. Initialize ChunkPool, ChunkManager, GenerationPipeline, WorldStorage
-5. Initialize GameLoop with GenerationScheduler, MeshScheduler, LODScheduler
-6. Initialize SpawnManager, UI (HotbarHUD, CrosshairHUD, InventoryScreen, SettingsScreen), Input
+   - Phase 15: ItemSpriteAtlas for UI
+   - Phase 16: SmeltingRecipes + BlockEntityRegistry
+4. Initialize Storage (WorldStorage)
+5. Initialize ChunkPool, ChunkManager
+6. Initialize WorldGen (GenerationPipeline, DecorationStage, native biome/ore data)
+7. Initialize Rendering (ChunkMeshStore with MegaMeshBuffer, BiomeTintManager, compute shaders)
+8. Initialize GameLoop with GenerationScheduler, MeshScheduler, LODScheduler, RelightScheduler
+9. Initialize Player (PlayerController, CameraController, BlockInteraction, Inventory)
+10. Initialize UI (HotbarDisplay, CrosshairHUD, PlayerInventoryScreen, ChestScreen, FurnaceScreen, SettingsScreen)
+11. Initialize SpawnManager, DebugOverlayHUD, BenchmarkRunner
+12. Initialize TimeOfDayController, SkyController
 
 ### Content Definition Types
 

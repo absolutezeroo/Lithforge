@@ -6,10 +6,13 @@
 
 | Metric | Unit | Source | ProfilerMarker |
 |--------|------|--------|---------------|
-| Frame time | ms | Unity | `Lithforge.Frame` |
-| Main thread budget used | ms | GameLoop | `Lithforge.MainThread` |
-| Mesh uploads this frame | count | MeshUploader | — |
-| Generation results processed | count | ChunkManager | — |
+| Frame time | ms | Unity / FrameProfiler | `Lithforge.Frame` |
+| Main thread budget used | ms | GameLoop / FrameProfiler | `Lithforge.MainThread` |
+| GPU uploads this frame | count/bytes | PipelineStats (via MegaMeshBuffer) | — |
+| Generation results processed | count | PipelineStats | — |
+| Mesh results processed | count | PipelineStats | — |
+| LOD results processed | count | PipelineStats | — |
+| GC collections (Gen 0/1/2) | count | PipelineStats | — |
 
 ### Chunk Pipeline Metrics
 
@@ -21,6 +24,7 @@
 | GreedyMeshJob time | ms | Job profiling | `Lithforge.GreedyMesh` |
 | Mesh vertex count (per chunk) | count | MeshData | — |
 | Mesh triangle count (per chunk) | count | MeshData | — |
+| LODGreedyMeshJob time | ms | Job profiling | `Lithforge.LODMesh` |
 | Light propagation time | ms | LightEngine | `Lithforge.LightProp` |
 
 ### World State Metrics
@@ -44,6 +48,25 @@
 | Managed heap | MB | GC.GetTotalMemory |
 | GPU memory (meshes) | MB | Profiler.GetAllocatedMemoryForGraphicsDriver |
 | Texture atlas memory | MB | Texture2DArray size |
+
+### FrameProfiler (`Assets/Lithforge.Runtime/Debug/FrameProfiler.cs`)
+
+Static zero-alloc frame profiler measuring CPU cost of each `GameLoop` section:
+
+- **14 sections**: PollGen, PollMesh, PollLOD, LoadQueue, Unload, SchedGen, CrossLight, Relight, LODLevels, SchedMesh, SchedLOD, Render, UpdateTotal, Frame
+- **Stopwatch-based**: `System.Diagnostics.Stopwatch` for sub-microsecond precision
+- **300-frame rolling history**: pre-allocated parallel arrays, zero GC per frame
+- **Gated by `FrameProfiler.Enabled`**: when false, `Begin()`/`End()` are near-zero-cost (single branch on static bool)
+- **Initialized by `LithforgeBootstrap.Awake()`** based on `DebugSettings.EnableProfiling`
+
+### PipelineStats (`Assets/Lithforge.Runtime/Debug/PipelineStats.cs`)
+
+Static pipeline statistics collector with per-frame and cumulative counters:
+
+- **Per-frame counters** (reset by `BeginFrame()`): GenScheduled/Completed, MeshScheduled/Completed, LODScheduled/Completed, DecorateCount, GpuUploadBytes/Count, FreeListSize, GrowEvents, GC deltas
+- **Cumulative counters**: TotalGenerated, TotalMeshed, TotalLOD, TotalGpuUploadBytes
+- **Chunk state histogram**: filled once per frame via `ChunkManager.FillStateHistogram()`
+- **All increment methods**: `[AggressiveInlining]`, gated by `Enabled` static bool
 
 ---
 
@@ -91,26 +114,31 @@ public struct GreedyMeshJob : IJob
 
 ## Debug Overlay (In-Game)
 
-An IMGUI-based overlay toggled with F3 (matching Minecraft convention):
+An IMGUI-based overlay toggled with **F3** (matching Minecraft convention). Two modes:
 
+**Standard mode** (F3):
 ```
 ┌─────────────────────────────────────────┐
 │ Lithforge v0.1.0 (URP)                  │
-│ FPS: 62 (16.1ms)  GPU: 4.2ms            │
+│ FPS: 62 (16.1ms)                        │
 │                                          │
-│ Chunks: 4821 loaded / 312 meshed/frame   │
+│ Chunks: 4821 loaded                      │
 │ Gen queue: 24   Mesh queue: 8            │
 │ Pool: 128/512 available                  │
+│ Renderers: 3200  LOD queue: 12           │
 │                                          │
 │ Player: (128, 72, -256)                  │
-│ Chunk: (4, 2, -8)  Biome: plains         │
-│ Target: stone [lit=false]                │
+│ Chunk: (4, 2, -8)                        │
 │                                          │
-│ Memory: 842MB native / 124MB managed     │
-│ Draw calls: 1247  Triangles: 2.1M        │
-│ LOD: 2841/0/1248/732 (L0/L1/L2/L3)      │
+│ [Chunk state minimap + frame time graph] │
 └─────────────────────────────────────────┘
 ```
+
+**Benchmark panel** (F4, extended metrics):
+- Two-column layout: timing bars (FrameProfiler sections) + pipeline stats (PipelineStats counters)
+- Per-section timing bars using `GUI.DrawTexture` (color-coded: green < 1ms, yellow < 2ms, red > 2ms)
+- GPU upload bytes, free list size, grow events, GC deltas
+- Chunk state histogram (Unloaded through Ready)
 
 ---
 
@@ -167,6 +195,19 @@ public sealed class UnityLogger : ILogger
 
 ## Benchmark Suite
 
+### BenchmarkRunner (`Assets/Lithforge.Runtime/Debug/BenchmarkRunner.cs`)
+
+In-engine automated benchmark activated by **F5**:
+
+- Disables `PlayerController`, sets fly mode with configurable speed
+- Flies player forward for configurable duration (default 10s at 50 units/s)
+- Records per-frame data using parallel arrays (zero heap allocation during recording):
+  - Frame time, all 14 FrameProfiler sections
+  - PipelineStats counters (gen/mesh/LOD scheduled/completed, GPU upload bytes, GC counts)
+- Writes CSV report to `Application.persistentDataPath/benchmark_*.csv`
+- Logs summary (avg/min/max FPS, total chunks generated/meshed) to console
+- Configured via `DebugSettings.BenchmarkFlySpeed` and `DebugSettings.BenchmarkDuration`
+
 ### Pure C# Benchmarks (BenchmarkDotNet)
 
 Run outside Unity for precise measurement of Tier 1/2 algorithms:
@@ -187,7 +228,7 @@ Using Unity's Performance Testing package for in-engine measurement:
 ```
 Assets/Tests/Performance/
 ├── ChunkGenerationPerfTest.cs   # Full pipeline, measured with ProfilerMarker
-├── MeshUploadPerfTest.cs        # Mesh.ApplyAndDisposeWritableMeshData timing
+├── GpuUploadPerfTest.cs         # MegaMeshBuffer upload timing
 ├── RenderPerfTest.cs            # FPS at various render distances
 └── ContentLoadPerfTest.cs       # Full content loading pipeline timing
 ```

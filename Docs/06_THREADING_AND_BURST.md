@@ -12,8 +12,8 @@ Lithforge uses **Unity's Job System** exclusively. No custom thread pool, no `Sy
 │  Unity's Update() / LateUpdate()                          │
 │                                                           │
 │  • Poll job completion (JobHandle.IsCompleted)            │
-│  • Upload MeshData → Mesh (Mesh.ApplyAndDisposeWritable)  │
-│  • Create/destroy chunk GameObjects                       │
+│  • Upload mesh data → MegaMeshBuffer → GPU GraphicsBuffers│
+│  • Manage ChunkMeshStore (GPU-driven indirect draw)       │
 │  • Update entity visual transforms                        │
 │  • Process input events                                   │
 │  • Update UI                                              │
@@ -30,7 +30,7 @@ Lithforge uses **Unity's Job System** exclusively. No custom thread pool, no `Sy
 │  • Chunk generation (TerrainShapeJob, CaveCarverJob, etc) │
 │  • Chunk meshing (GreedyMeshJob)                          │
 │  • Light propagation (LightPropagationJob)                │
-│  • LOD mesh generation (LODMeshJob)                       │
+│  • LOD mesh generation (LODGreedyMeshJob)                  │
 │  • Entity movement/AI (DOTS systems via IJobChunk)        │
 │                                                           │
 │  Rules:                                                   │
@@ -52,12 +52,13 @@ Lithforge uses **Unity's Job System** exclusively. No custom thread pool, no `Sy
 |-----|----------------------|------------------------|-----------|
 | `TerrainShapeJob` | NoiseConfig (blittable struct), seed | `NativeArray<StateId>` (chunk), `NativeArray<int>` (heightmap) | TempJob |
 | `CaveCarverJob` | `NativeArray<StateId>` (chunk), NoiseConfig | Modifies chunk in-place | — |
-| `BiomeAssignmentJob` | `NativeArray<int>` (heightmap), NoiseConfig, `NativeArray<NativeBiomeData>` | `NativeArray<byte>` (biome map) | TempJob |
+| `ClimateNoiseJob` | Seed, ChunkCoord, 4× `NativeNoiseConfig` | `NativeArray<ClimateData>` (climate map) | Persistent |
 | `SurfaceBuilderJob` | Chunk, heightmap, biome map, `NativeArray<NativeBiomeData>` | Modifies chunk in-place | — |
 | `OreGenerationJob` | Chunk, `NativeArray<OreConfig>`, seed | Modifies chunk in-place | — |
 | `InitialLightingJob` | Chunk, `NativeStateRegistry` | `NativeArray<byte>` (light data) | TempJob |
-| `GreedyMeshJob` | Chunk, 6× neighbor borders, `NativeStateRegistry`, `NativeAtlasLookup` | `NativeList<MeshVertex>`, `NativeList<int>` (indices) | TempJob |
-| `LODMeshJob` | Chunk (downsampled), `NativeStateRegistry` | `NativeList<MeshVertex>`, `NativeList<int>` | TempJob |
+| `GreedyMeshJob` | Chunk, 6× neighbor borders, `NativeStateRegistry`, `NativeAtlasLookup` | `NativeList<PackedMeshVertex>`, `NativeList<int>` (indices) | TempJob |
+| `LODGreedyMeshJob` | Chunk (downsampled), `NativeStateRegistry`, `NativeAtlasLookup` | `NativeList<PackedMeshVertex>`, `NativeList<int>` | TempJob |
+| `ExtractSingleBorderJob` | `NativeArray<StateId>` (chunk), face direction | `NativeArray<StateId>` (1024 border slice) | TempJob |
 | `LightPropagationJob` | Chunk, light data, `NativeQueue<int3>` (BFS queue) | Modifies light data in-place | TempJob (queue) |
 | `VoxelRaycast` | Start pos, direction, `NativeArray<StateId>`, `NativeStateRegistry` | Hit result (blittable struct) | — |
 | DOTS `MovementSystem` | Entity velocity, position, chunk access | Modifies position | — |
@@ -66,7 +67,7 @@ Lithforge uses **Unity's Job System** exclusively. No custom thread pool, no `Sy
 
 | System | Reason |
 |--------|--------|
-| Content loading (JSON parsing) | String-heavy, one-time cost, managed types needed |
+| Content loading (ScriptableObject loading) | Managed types, one-time cost, Unity API needed |
 | Registry building | Dictionary/List operations, one-time at load |
 | StateRegistry construction | Cartesian product with managed property types |
 | Model resolution (parent inheritance) | String lookups, tree traversal |
@@ -74,7 +75,7 @@ Lithforge uses **Unity's Job System** exclusively. No custom thread pool, no `Sy
 | EventBus | Delegate dispatch, managed subscribers |
 | Mod loading | Filesystem access, JSON parsing, reflection |
 | UI updates | Unity UI API is main-thread managed |
-| Mesh upload to GPU | UnityEngine.Mesh API (main thread, managed) |
+| GPU buffer upload | GraphicsBuffer.Lock/Unlock (main thread, managed) |
 | Save/Load I/O | File streams, zstd compression via managed interop |
 | Network packet processing | Managed byte[] buffers, protocol logic |
 
@@ -140,28 +141,21 @@ public struct NativeStateRegistry : System.IDisposable
 }
 ```
 
-### MeshVertex — Blittable, Matches Unity VertexAttributes
+### PackedMeshVertex — Bit-Packed GPU Vertex (16 bytes)
 
 ```csharp
 [StructLayout(LayoutKind.Sequential)]
-public struct MeshVertex
+public struct PackedMeshVertex
 {
-    public float3 Position;          // 12 bytes
-    public float3 Normal;            // 12 bytes
-    public float2 UV;                // 8 bytes (atlas coordinates)
-    public half4 Color;              // 8 bytes (r=AO, g=blockLight, b=sunLight, a=tintIndex)
-    // Total: 40 bytes per vertex
+    public uint Word0;  // pos(18) + normal(3) + ao(2) + blockLight(4) + sunLight(4) + fluidTop(1)
+    public uint Word1;  // texIndex(10) + baseTint(2) + hasOverlay(1) + overlayTex(10) + overlayTint(2) + lodScale(2) + pad(5)
+    public uint Word2;  // uvX(8) + uvY(8) + chunkWorldX(16)
+    public uint Word3;  // chunkWorldY(16) + chunkWorldZ(16)
+    // Total: 16 bytes per vertex (3× smaller than old 48-byte MeshVertex)
 }
-
-// Matching VertexAttributeDescriptor array:
-public static readonly VertexAttributeDescriptor[] VertexAttributes = new[]
-{
-    new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-    new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
-    new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
-    new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float16, 4),
-};
 ```
+
+Vertex data is uploaded to a `StructuredBuffer<PackedMeshVertex>` via `MegaMeshBuffer`. Shaders decode on the GPU via `FetchVertex(uint svVertexID)` in `LithforgeVoxelCommon.hlsl`. No `VertexAttributeDescriptor` needed — the hardware index buffer remaps `SV_VertexID` before the structured buffer fetch.
 
 ---
 

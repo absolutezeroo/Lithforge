@@ -106,7 +106,7 @@
 
 ### Deliverables
 
-- [x] `Lithforge.WorldGen`: BiomeAssignmentJob (Burst), SurfaceBuilderJob extended for biomes
+- [x] `Lithforge.WorldGen`: ClimateNoiseJob (Burst), SurfaceBuilderJob extended for biomes (biome assignment integrated into TerrainShapeJob)
 - [x] `Lithforge.WorldGen`: CaveCarverJob (Burst — worm caves)
 - [x] `Lithforge.WorldGen`: OreGenerationJob (Burst — scatter + blob)
 - [x] `Lithforge.WorldGen`: DecorationStage (managed — oak tree templates)
@@ -132,7 +132,7 @@
 
 ---
 
-## Sprint 4 — Interaction (Weeks 9-10)
+## Sprint 4 — Interaction (Weeks 9-10) ✅ COMPLETED
 
 **Goal**: Place/break blocks, inventory, crafting, HUD.
 
@@ -143,7 +143,7 @@
 - [x] `Lithforge.Voxel`: CraftingEngine, Inventory, RecipeEntry — crafting lives in voxel package (no separate crafting package)
 - [x] `Lithforge.Voxel`: Loot table loading + drop resolution
 - [x] `Lithforge.Voxel`: Tag loading + tool requirement checking
-- [x] `Lithforge.Runtime.UI`: CrosshairHUD, HotbarHUD, InventoryScreen (UI Toolkit)
+- [x] `Lithforge.Runtime.UI`: CrosshairHUD, HotbarDisplay, PlayerInventoryScreen (ContainerScreen base, UI Toolkit)
 - [x] Block highlight wireframe (LineRenderer on targeted block)
 - [x] Dirty chunk propagation on block change + remesh
 - [x] Content: planks, sticks, wooden pickaxe recipes
@@ -169,7 +169,7 @@
 
 ### Deliverables
 
-- [x] `Lithforge.Meshing`: VoxelDownsampleJob + LODMeshJob (Burst), LODMeshData
+- [x] `Lithforge.Meshing`: VoxelDownsampleJob + LODGreedyMeshJob (Burst), LODMeshData
 - [x] LOD levels 0-3 (full → half → quarter → eighth) via dual-path scheduling (MeshScheduler + LODScheduler)
 - [x] Culling: frustum-prioritized meshing, forward-weighted generation queue, distance-based unload with save-on-unload
 - [x] 3-submesh pipeline: opaque(0) → cutout(1) → translucent(2)
@@ -192,6 +192,46 @@
 ✓ Settings adjustable at runtime
 ✓ No Allocator.Persistent leaks across 10-minute play session
 ```
+
+---
+
+## Post-Sprint 5 — Completed Work
+
+The following features have been implemented after Sprint 5:
+
+### GPU-Driven Rendering Pipeline
+- `ChunkMeshStore` + `MegaMeshBuffer`: persistent GPU vertex/index buffers per render layer (opaque, cutout, translucent)
+- `Graphics.RenderPrimitivesIndexedIndirect` — zero GameObjects/MeshFilter/MeshRenderer per chunk
+- `FrustumCull.compute` (3 kernels: CSResetCull, CSFrustumCull, CSOcclusionCull)
+- `HiZPyramid` — Hi-Z occlusion culling from previous frame's depth buffer
+- `PackedMeshVertex` — 16-byte bit-packed vertex (replaced 48-byte MeshVertex)
+
+### Container UI Framework
+- `ContainerScreen` (abstract MonoBehaviour base), `PlayerInventoryScreen`, `ChestScreen`, `FurnaceScreen`
+- `SlotInteractionController` — Minecraft-style slot interaction (left/right click, shift-click, drag, number-key swap)
+- `ContainerLayoutSO` + `SlotGroupDefinition` — data-driven UI layouts
+- `ItemSpriteAtlas` + `ItemSpriteAtlasBuilder` — sprite generation for UI
+
+### Biome Tinting
+- `BiomeTintManager` — global biome parameter map (RGBA32, toroidal wrapping)
+- Per-face tint types (grass/foliage/water colormaps)
+- Dual-texture overlay system (base + overlay per face, alpha-blended in shader)
+
+### Block Entity System
+- `BlockEntityRegistry`, `BlockEntityTickScheduler`
+- `ChestBlockEntity` + `ChestScreen` (container storage)
+- `FurnaceBlockEntity` + `FurnaceScreen` (smelting with `SmeltingRecipeRegistry`)
+
+### Content Additions
+- `AffixDefinition` — data-driven mining modifiers via `IMiningModifier`
+- `EnchantmentDefinition` — multi-level enchantment data
+- `ToolSpeedProfile` — per-material mining speed overrides
+- `BlockBehavior` + `BehaviorAction` subclasses
+
+### Debug Infrastructure
+- `FrameProfiler` — 14-section, zero-alloc, 300-frame rolling history
+- `PipelineStats` — per-frame + cumulative counters
+- `BenchmarkRunner` — F5-triggered automated benchmark with CSV output
 
 ---
 

@@ -27,6 +27,7 @@ Assets/Resources/
 │   ├── Recipes/         13x RecipeDefinition.asset
 │   ├── Biomes/          4x BiomeDefinition.asset
 │   ├── Ores/            4x OreDefinition.asset
+│   ├── Layouts/        ContainerLayoutSO.asset (data-driven UI layouts)
 │   └── Textures/
 │       ├── Blocks/      ~30x Texture2D PNG (block face textures, 16x16)
 │       └── Items/       ~27x Texture2D PNG (item icons)
@@ -65,6 +66,9 @@ Assets/Resources/
 | `lootTable` | LootTable (SO ref) | Drop rules |
 | `blockStateMapping` | BlockStateMapping (SO ref) | State→model mapping |
 | `properties` | List\<BlockPropertyEntry\> | State properties (axis, facing, lit, etc.) |
+| `materialType` | BlockMaterialType | Physical material (determines mining speed per tool) |
+| `requiredToolLevel` | int | Minimum tool level (0=none, 1=wood, 2=stone...) |
+| `defaultTintType` | int (-1 to 3) | Biome tint applied when model has no per-face tintIndex |
 | `tags` | List\<string\> | Tag membership |
 
 `ComputeStateCount()` returns the cartesian product of all property value counts.
@@ -133,7 +137,45 @@ Parent inheritance is resolved by `ContentModelResolver` during `ContentPipeline
 | `miningSpeed` | float | Tool speed multiplier |
 | `placesBlock` | BlockDefinition (SO ref) | Block placed on right-click |
 | `itemModel` | BlockModel (SO ref) | Display model |
+| `toolSpeedProfile` | ToolSpeedProfile (SO ref) | Speed profile per block material (overrides miningSpeed) |
+| `affixes` | AffixDefinition[] | Mining modifier affixes |
+| `fuelTime` | float | Fuel burn time in seconds (0 = not fuel) |
 | `tags` | List\<string\> | Tag membership |
+
+### ToolSpeedProfile
+
+`Assets/Lithforge.Runtime/Content/Tools/ToolSpeedProfile.cs` — `[CreateAssetMenu]`
+
+Data-driven per-material mining speed overrides. When assigned to an `ItemDefinition`, it replaces the flat `miningSpeed` with per-`BlockMaterialType` speed values. Used for tool-tier differentiation (e.g., diamond pickaxe faster on stone than on dirt).
+
+### AffixDefinition
+
+`Assets/Lithforge.Runtime/Content/Items/Affixes/AffixDefinition.cs` — `[CreateAssetMenu]`
+
+Data-driven mining modifier. Implements `IMiningModifier` (Tier 2 interface). Affixes are sorted by `Priority` at load time and applied in sequence to `MiningContext` during block break calculations. Each affix has an `AffixEffectType` and `AffixMiningEffect` that modify speed, damage, or other mining parameters.
+
+### EnchantmentDefinition
+
+`Assets/Lithforge.Runtime/Content/Items/Enchantments/EnchantmentDefinition.cs` — `[CreateAssetMenu]`
+
+Multi-level enchantment data. Each enchantment has an `EnchantmentCategory` and a list of `EnchantmentLevelData` entries defining per-level stat modifiers. Planned for use in the enchanting system (NOT yet wired into gameplay).
+
+### BlockBehavior
+
+`Assets/Lithforge.Runtime/Content/Blocks/BlockBehavior.cs`
+
+Defines a list of `BehaviorAction` subclasses triggered on block events. Available action types:
+- `GiveItemAction` — adds item to player inventory
+- `PlaySoundAction` — plays a sound effect
+- `SetBlockAction` — changes a block in the world
+- `SpawnEntityAction` — spawns an entity at block position
+- `SpawnParticleAction` — emits particles
+
+### ContainerLayoutSO
+
+`Assets/Lithforge.Runtime/UI/Layout/ContainerLayoutSO.cs` — `[CreateAssetMenu]`
+
+Data-driven UI layout for container screens (chest, furnace, etc.). Contains a list of `SlotGroupDefinition` entries, each defining a grid region (rows, columns, position offset) in the container UI. Used by `ContainerScreen` subclasses to generate slot grids from data rather than code.
 
 ### LootTable
 
@@ -171,16 +213,18 @@ Each `LootFunctionEntry` has a `functionType` and key-value parameters (`List<St
 
 `ContentPipeline.Build()` is an `IEnumerable<string>` that yields phase description strings. `LithforgeBootstrap.Start()` iterates it as a coroutine, yielding a frame between phases so the `LoadingScreen` can update.
 
-### Phase Sequence (14 phases)
+### Phase Sequence (16 phases)
 
 | # | Phase | What Happens |
 |---|-------|-------------|
 | 1 | Load Blocks | `Resources.LoadAll<BlockDefinition>("Content/Blocks")` → 19 SOs |
 | 2 | Build StateRegistry | Iterate blocks, compute cartesian product of properties, create `BlockRegistrationData` per block |
+| 2.5 | Load Block Entities | `Resources.LoadAll<BlockEntityDefinitionSO>("Content/BlockEntities")` → patch `StateRegistry` with block entity type IDs |
 | 3 | Resolve Models | Create `ContentModelResolver`, walk `BlockModel` parent inheritance chains |
 | 4 | Resolve Textures | For every state, match `BlockStateMapping.Variants` by `BuildVariantKey()`, resolve per-face `Texture2D` references |
-| 5 | Build Atlas | `AtlasBuilder.Build()` → pack all `Texture2D` objects into a `Texture2DArray` |
-| 6 | Patch Indices | Iterate resolved faces, call `stateRegistry.PatchTextures()` to embed atlas layer indices |
+| 5 | Resolve Overlays & Tints | Resolve per-face tint types and overlay textures from model elements (must run before atlas build) |
+| 6 | Build Atlas | `AtlasBuilder.Build()` → pack all `Texture2D` objects (base + overlay) into a `Texture2DArray` |
+| 6.5 | Patch Indices | Iterate resolved faces, call `stateRegistry.PatchTextures()` to embed atlas layer indices |
 | 7 | Load WorldGen | `Resources.LoadAll<BiomeDefinition>("Content/Biomes")` + `Resources.LoadAll<OreDefinition>("Content/Ores")` |
 | 8 | Load Items | `Resources.LoadAll<ItemDefinition>("Content/Items")` |
 | 9 | Load Loot | `Resources.LoadAll<LootTable>("Content/LootTables")` → convert to `LootTableDefinition` (Tier 2), call `PreParseValues()` |
@@ -188,17 +232,22 @@ Each `LootFunctionEntry` has a `functionType` and key-value parameters (`List<St
 | 11 | Load Recipes | `Resources.LoadAll<RecipeDefinition>("Content/Recipes")` → convert to `RecipeEntry`, build `CraftingEngine` |
 | 12 | Build ItemRegistry | Convert `ItemDefinition` SOs to `ItemEntry` objects, register block items + standalone items |
 | 13 | Load Mods | `ModLoader.LoadAllMods()` — scan `persistentDataPath/mods/*.lithmod` AssetBundles, load their SOs, register mod blocks |
-| 14 | Bake Native | `stateRegistry.BakeNative(Persistent)` → `NativeStateRegistry`; `BakeAtlasLookup()` → `NativeAtlasLookup`; package into `ContentPipelineResult` |
+| 14 | Bake Native | `stateRegistry.BakeNative(Persistent)` → `NativeStateRegistry`; `BakeAtlasLookup()` → `NativeAtlasLookup` (includes overlay texture indices and per-face tint packing) |
+| 15 | Build Item Sprites | `ItemSpriteAtlasBuilder.Build()` → generate `ItemSpriteAtlas` (Dictionary<ResourceId, Sprite>) for UI display |
+| 16 | Load Smelting & Block Entity Factories | `Resources.LoadAll<SmeltingRecipeDefinition>("Content/Recipes/Smelting")` → build `SmeltingRecipeRegistry`; register `BlockEntityRegistry` (ChestBlockEntityFactory, FurnaceBlockEntityFactory) |
 
 ### ContentPipelineResult
 
 The pipeline produces a `ContentPipelineResult` containing:
 - `StateRegistry` (managed, Tier 2)
 - `NativeStateRegistry` (`NativeArray<BlockStateCompact>`, Tier 2 — Burst-accessible)
-- `NativeAtlasLookup` (`NativeArray`, Tier 2 — Burst-accessible)
+- `NativeAtlasLookup` (`NativeArray<AtlasEntry>`, Tier 2 — Burst-accessible, includes overlay indices + per-face tint)
 - `AtlasResult` (`Texture2DArray` + index map, Tier 3)
 - `BiomeDefinitions[]`, `OreDefinitions[]` (SO references)
 - `ItemEntries`, `LootTables`, `TagRegistry`, `ItemRegistry`, `CraftingEngine` (managed)
+- `ItemSpriteAtlas` (Dictionary<ResourceId, Sprite> for UI)
+- `BlockEntityRegistry` (block entity type factories)
+- `SmeltingRecipeRegistry` (smelting recipes)
 
 This result is passed to `GameLoop`, `GenerationPipeline`, and other systems.
 
@@ -271,7 +320,7 @@ The `Assets/Editor/Content/JsonToSOConverter.cs` exists as a utility to convert 
 
 ## Invariants
 
-1. After Phase 14 (bake), no new content can be registered. Registries are immutable.
+1. After Phase 16, no new content can be registered. Registries are immutable.
 2. `StateId(0)` is always AIR. This is hardcoded and cannot be overridden.
 3. The `NativeStateRegistry` bake has exactly the same length and indexing as the managed `StateRegistry`.
 4. `BiomeData[i].BiomeId == i` — biome lookup is O(1) by direct index.

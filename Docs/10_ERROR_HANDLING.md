@@ -8,8 +8,8 @@ Detected during content loading pipeline. Strict by default.
 
 | Error | Policy | Fallback |
 |-------|--------|----------|
-| JSON syntax error | **FAIL** — log error, skip this file | Block/item not registered |
-| Missing required field | **FAIL** — log error, skip this file | Block/item not registered |
+| ScriptableObject missing/null | **FAIL** — log error, skip this asset | Block/item not registered |
+| Missing required field | **FAIL** — log error, skip this asset | Block/item not registered |
 | Unknown field | **WARN** — log warning, ignore field | Continue loading |
 | Invalid property type | **FAIL** — skip this block definition | Block not registered |
 | Blockstate references non-existent model | **WARN** — use fallback cube model | Magenta cube |
@@ -55,10 +55,10 @@ These are compiled into the engine and cannot be overridden by mods:
 
 ## Content Validation Pipeline
 
-Validation runs as a separate pass after JSON parsing, before registry freeze:
+Validation runs as a separate pass after ScriptableObject loading, before registry freeze:
 
 ```
-Phase 1: Parse JSON → raw definition objects
+Phase 1: Load ScriptableObjects via Resources.LoadAll<T>()
 Phase 2: Validate each definition:
   - Required fields present?
   - Field types correct?

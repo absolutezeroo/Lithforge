@@ -57,7 +57,7 @@ The single most important architectural decision: Lithforge uses a **three-tier*
 | NativeContainers | Not available | Cache-friendly, Burst-compatible, explicit lifetime | Required for data-oriented hot paths |
 | ECS (opt-in) | Not available | DOTS Entities for entity simulation | Batch processing of mobs/projectiles |
 | Render pipeline | Godot renderer | URP with custom HLSL shaders | More control over voxel rendering |
-| Mesh API | ArrayMesh (limited) | Mesh.MeshDataArray (Burst-writable) | Direct mesh construction in jobs |
+| Mesh API | ArrayMesh (limited) | GraphicsBuffer + indirect draw | GPU-driven rendering, no per-chunk GameObjects |
 | Ecosystem | Growing | Massive, proven in production | Tooling, profiling, platform support |
 | Platform targets | Desktop + mobile | All platforms including consoles | Wider reach |
 
@@ -84,8 +84,8 @@ The single most important architectural decision: Lithforge uses a **three-tier*
 2. **Burst-first for hot paths** — Meshing, worldgen, lighting, chunk access are Burst-compiled. No managed allocations in these paths.
 3. **Explicit types everywhere** — No `var`. Allman braces. One file per type.
 4. **Assembly definitions enforce boundaries** — Each package has an `.asmdef` with declared dependencies.
-5. **Data-driven everything** — If it defines game content, it lives in a JSON file.
-6. **Minecraft data conventions** — Content directory follows `assets/` + `data/` split.
+5. **Data-driven everything** — If it defines game content, it lives in a ScriptableObject loaded via `Resources.LoadAll<T>()`.
+6. **Structured content directory** — Content lives in `Assets/Resources/Content/` organized by type (Blocks/, Items/, Biomes/, etc.).
 7. **NativeContainer ownership is explicit** — Every NativeArray/NativeList has a documented owner and dispose point.
 
 ## Target Performance
@@ -94,7 +94,7 @@ The single most important architectural decision: Lithforge uses a **three-tier*
 |--------|--------|----------|
 | Chunk generation (32³) | < 1ms | Burst-compiled noise + block placement |
 | Greedy mesh build (32³) | < 0.5ms | Burst binary greedy, NativeArray output |
-| Chunk GPU upload | < 0.3ms | Mesh.MeshDataArray (zero-copy) |
+| Chunk GPU upload | < 0.3ms | MegaMeshBuffer persistent GraphicsBuffers |
 | Light propagation (chunk) | < 0.3ms | Burst BFS with NativeQueue |
 | 16-chunk render distance | > 60 FPS | LOD, frustum cull, occlusion |
 | Memory per chunk | ~128 KB | Palette compression, NativeArray pooling |

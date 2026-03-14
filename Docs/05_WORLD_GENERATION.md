@@ -7,9 +7,9 @@ World generation is an ordered pipeline of stages. The pipeline **orchestrator**
 ```
 GenerationPipeline (managed orchestrator)
 │
-├── TerrainShapeJob        [BurstCompile]  priority: 0
-├── CaveCarverJob          [BurstCompile]  priority: 100
-├── BiomeAssignmentJob     [BurstCompile]  priority: 200
+├── ClimateNoiseJob        [BurstCompile]  priority: 0
+├── TerrainShapeJob        [BurstCompile]  priority: 100
+├── CaveCarverJob          [BurstCompile]  priority: 200
 ├── SurfaceBuilderJob      [BurstCompile]  priority: 300
 ├── OreGenerationJob       [BurstCompile]  priority: 400
 ├── InitialLightingJob     [BurstCompile]  priority: 500
@@ -43,78 +43,56 @@ public sealed class GenerationPipeline
     /// </summary>
     public GenerationHandle Schedule(int3 coord, long seed, NativeArray<StateId> chunkData)
     {
-        NativeArray<int> heightMap = new NativeArray<int>(1024, Allocator.TempJob);
-        NativeArray<byte> biomeMap = new NativeArray<byte>(1024, Allocator.TempJob);
-        NativeArray<float> tempMap = new NativeArray<float>(1024, Allocator.TempJob);
-        NativeArray<float> humidMap = new NativeArray<float>(1024, Allocator.TempJob);
+        NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
+            ChunkConstants.SizeSquared, Allocator.Persistent);
+        NativeArray<int> heightMap = new NativeArray<int>(
+            ChunkConstants.SizeSquared, Allocator.Persistent);
+        NativeArray<byte> biomeMap = new NativeArray<byte>(
+            ChunkConstants.SizeSquared, Allocator.Persistent);
 
-        JobHandle h0 = new TerrainShapeJob
+        JobHandle h0 = new ClimateNoiseJob
         {
-            ChunkData = chunkData,
-            HeightMap = heightMap,
+            ClimateMap = climateMap,
             Seed = seed,
             ChunkCoord = coord,
-            NoiseConfig = _terrainNoise,
-            SeaLevel = 64,
-            StoneId = _stoneId,
-            WaterId = _waterId,
-            AirId = _airId,
+            TemperatureNoise = _temperatureNoise,
+            HumidityNoise = _humidityNoise,
+            ContinentalnessNoise = _continentalnessNoise,
+            ErosionNoise = _erosionNoise,
         }.Schedule();
 
-        JobHandle h1 = new CaveCarverJob
+        JobHandle h1 = new TerrainShapeJob
         {
             ChunkData = chunkData,
+            ClimateMap = climateMap,
+            HeightMap = heightMap,
+            BiomeMap = biomeMap,
             Seed = seed,
             ChunkCoord = coord,
-            CaveConfig = _caveNoise,
-            AirId = _airId,
+            BiomeData = _biomeData,
+            // ... noise configs, sea level, block StateIds
         }.Schedule(h0);
 
-        JobHandle h2 = new BiomeAssignmentJob
-        {
-            HeightMap = heightMap,
-            BiomeMap = biomeMap,
-            TemperatureMap = tempMap,
-            HumidityMap = humidMap,
-            BiomeData = _biomeData,
-            Seed = seed,
-            ChunkCoord = coord,
-        }.Schedule(h1);
+        JobHandle h2 = new CaveCarverJob { /* ... */ }.Schedule(h1);
+        JobHandle h3 = new SurfaceBuilderJob { /* ... */ }.Schedule(h2);
+        JobHandle h4 = new OreGenerationJob { /* ... */ }.Schedule(h3);
+        JobHandle h5 = new InitialLightingJob { /* ... */ }.Schedule(h4);
 
-        JobHandle h3 = new SurfaceBuilderJob
+        NativeList<NativeBorderLightEntry> borderLight =
+            new NativeList<NativeBorderLightEntry>(64, Allocator.Persistent);
+        JobHandle h6 = new LightPropagationJob
         {
-            ChunkData = chunkData,
-            HeightMap = heightMap,
-            BiomeMap = biomeMap,
-            BiomeData = _biomeData,
-            ChunkCoord = coord,
-            SeaLevel = 64,
-        }.Schedule(h2);
-
-        JobHandle h4 = new OreGenerationJob
-        {
-            ChunkData = chunkData,
-            OreConfigs = _oreConfigs,
-            Seed = seed,
-            ChunkCoord = coord,
-            StateRegistry = _stateRegistry,
-        }.Schedule(h3);
-
-        JobHandle h5 = new InitialLightingJob
-        {
-            ChunkData = chunkData,
-            HeightMap = heightMap,
-            StateRegistry = _stateRegistry,
-            // Output: writes to light data NativeArray
-        }.Schedule(h4);
+            // ... chunk data, light data, neighbor light
+            BorderLightOutput = borderLight,
+        }.Schedule(h5);
 
         return new GenerationHandle
         {
-            FinalHandle = h5,
+            FinalHandle = h6,
             HeightMap = heightMap,
             BiomeMap = biomeMap,
-            TemperatureMap = tempMap,
-            HumidityMap = humidMap,
+            ClimateMap = climateMap,
+            BorderLightOutput = borderLight,
         };
     }
 }
@@ -127,15 +105,15 @@ public struct GenerationHandle : System.IDisposable
     public JobHandle FinalHandle;
     public NativeArray<int> HeightMap;
     public NativeArray<byte> BiomeMap;
-    public NativeArray<float> TemperatureMap;
-    public NativeArray<float> HumidityMap;
+    public NativeArray<ClimateData> ClimateMap;
+    public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
     public void Dispose()
     {
         if (HeightMap.IsCreated) HeightMap.Dispose();
         if (BiomeMap.IsCreated) BiomeMap.Dispose();
-        if (TemperatureMap.IsCreated) TemperatureMap.Dispose();
-        if (HumidityMap.IsCreated) HumidityMap.Dispose();
+        if (ClimateMap.IsCreated) ClimateMap.Dispose();
+        if (BorderLightOutput.IsCreated) BorderLightOutput.Dispose();
     }
 }
 ```
@@ -154,7 +132,7 @@ surfaceY = SeaLevel + round(noiseValue)
 
 For each voxel: below `surfaceY` → stone, between `surfaceY` and `SeaLevel` → water, above both → air.
 
-The `HeightMap` output (32×32 = 1024 entries) is reused by `BiomeAssignmentJob` and `SurfaceBuilderJob`.
+The `HeightMap` output (32×32 = 1024 entries) is reused by `SurfaceBuilderJob`. `TerrainShapeJob` now receives `ClimateMap` from `ClimateNoiseJob` and uses biome-weighted height blending to produce both `HeightMap` and `BiomeMap`.
 
 **Note**: 3D density-based terrain (overhangs, floating islands) is NOT currently implemented. The terrain is strictly a heightmap with no overhangs. 3D terrain generation via density noise is a planned future enhancement.
 
@@ -320,64 +298,36 @@ public struct NativeBiomeData
 }
 ```
 
-### Biome Assignment (Burst Job)
+### Climate Noise (Burst Job)
+
+`ClimateNoiseJob` is the first stage of the pipeline (replacing the former `BiomeAssignmentJob`). It samples 4 independent 2D noise fields per column:
 
 ```csharp
 [BurstCompile]
-public struct BiomeAssignmentJob : IJob
+public struct ClimateNoiseJob : IJob
 {
-    [ReadOnly] public NativeArray<int> HeightMap;
-    [ReadOnly] public NativeArray<NativeBiomeData> BiomeData;
+    [WriteOnly] public NativeArray<ClimateData> ClimateMap;
     [ReadOnly] public long Seed;
     [ReadOnly] public int3 ChunkCoord;
+    [ReadOnly] public NativeNoiseConfig TemperatureNoise;
+    [ReadOnly] public NativeNoiseConfig HumidityNoise;
+    [ReadOnly] public NativeNoiseConfig ContinentalnessNoise;
+    [ReadOnly] public NativeNoiseConfig ErosionNoise;
+}
 
-    public NativeArray<byte> BiomeMap;
-    public NativeArray<float> TemperatureMap;
-    public NativeArray<float> HumidityMap;
-
-    public void Execute()
-    {
-        int wx = ChunkCoord.x * ChunkConstants.Size;
-        int wz = ChunkCoord.z * ChunkConstants.Size;
-
-        for (int x = 0; x < ChunkConstants.Size; x++)
-        {
-            for (int z = 0; z < ChunkConstants.Size; z++)
-            {
-                int idx = z * ChunkConstants.Size + x;
-                float temp = NativeNoise.Sample2D(wx + x, wz + z, TEMP_NOISE_CONFIG, Seed);
-                float humid = NativeNoise.Sample2D(wx + x, wz + z, HUMID_NOISE_CONFIG, Seed + 999);
-
-                TemperatureMap[idx] = temp;
-                HumidityMap[idx] = humid;
-
-                // Find closest biome
-                byte bestBiome = 0;
-                float bestDist = float.MaxValue;
-
-                for (int b = 0; b < BiomeData.Length; b++)
-                {
-                    NativeBiomeData bd = BiomeData[b];
-                    if (temp >= bd.TemperatureMin && temp <= bd.TemperatureMax
-                        && humid >= bd.HumidityMin && humid <= bd.HumidityMax)
-                    {
-                        float dist = math.distancesq(
-                            new float2(temp, humid),
-                            new float2(bd.TemperatureCenter, bd.HumidityCenter));
-                        if (dist < bestDist)
-                        {
-                            bestDist = dist;
-                            bestBiome = bd.BiomeId;
-                        }
-                    }
-                }
-
-                BiomeMap[idx] = bestBiome;
-            }
-        }
-    }
+[StructLayout(LayoutKind.Sequential)]
+public struct ClimateData
+{
+    public float Temperature;       // [0,1]
+    public float Humidity;          // [0,1]
+    public float Continentalness;   // [0,1]
+    public float Erosion;           // [0,1]
 }
 ```
+
+Temperature and humidity use `NativeNoise.Sample2D()` (backward-compatible `snoise`). Continentalness and erosion use `NativeNoise.Sample2DCnoise()` (24–42% faster). All values are normalized from [-1,1] → [0,1] and clamped.
+
+`TerrainShapeJob` then uses the `ClimateMap` to select biomes (closest-center in temp/humidity space) and blend biome-weighted heights. Both `HeightMap` and `BiomeMap` are output by `TerrainShapeJob`, not by a separate biome assignment stage.
 
 ---
 
@@ -386,9 +336,9 @@ public struct BiomeAssignmentJob : IJob
 1. Each generation stage receives exclusive write access to the chunk's NativeArray. No two stages run concurrently on the same chunk.
 2. Stages execute in priority order via `JobHandle` dependency chain.
 3. A stage may read `HeightMap` only if `TerrainShapeJob` has completed (guaranteed by dependency chain).
-4. A stage may read `BiomeMap` only if `BiomeAssignmentJob` has completed.
+4. A stage may read `BiomeMap` or `ClimateMap` only if `TerrainShapeJob` has completed (biome assignment is integrated into TerrainShapeJob).
 5. WorldGen output is deterministic given the same seed and registered content definitions.
-6. No stage allocates NativeContainers with `Allocator.Persistent` — all per-generation allocations use `Allocator.TempJob`.
+6. Per-generation NativeArrays use `Allocator.Persistent` and are disposed by `GenerationScheduler.PollCompleted()` after decoration and light propagation.
 7. The `GenerationHandle` caller is responsible for `Dispose()` of all temporary NativeArrays after job completion.
 8. Decoration overflow (cross-chunk blocks) is handled via managed `PendingDecorationStore`, never via Burst.
 9. `BiomeData[i].BiomeId == i` — biome lookup is O(1) by direct index. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.

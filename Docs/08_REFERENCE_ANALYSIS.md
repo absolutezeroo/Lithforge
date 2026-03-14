@@ -43,7 +43,7 @@ src/
 | No LOD | 4-level LOD system |
 | 16³ MapBlocks (poor greedy ratio, many boundaries) | 32³ chunks aligned with uint32 bitwise ops |
 | `param2` limited to 8 bits for all metadata | Full property system with pre-computed state registry |
-| Formspec UI | Unity UI Toolkit + uGUI |
+| Formspec UI | Unity UI Toolkit |
 | Single-threaded meshing/lighting | Unity Job System + Burst for all hot paths |
 | Lua-only scripting (server-side) | Data-driven mods (V1) + C# mods (V2) |
 
@@ -93,9 +93,10 @@ Minosoft's performance doc emphasizes simple code over clever code. Lithforge ap
 | Threading | EmergeThread | Kotlin coroutines | Dedicated threads | **Unity Jobs + Burst** |
 | ECS | None | None | None | **DOTS (entities only)** |
 | Modding | Lua scripts | Limited | Java (Fabric/Forge) | **Data mods (V1), C# (V2)** |
-| UI | Formspecs | JavaFX | Custom | **UI Toolkit + uGUI** |
+| UI | Formspecs | JavaFX | Custom | **UI Toolkit** |
 | Render pipeline | Irrlicht | Raw OpenGL | Custom | **URP** |
-| Data format | C++ structs + Lua | PixLyzer JSON | Hardcoded + datapacks | **JSON content files** |
+| Data format | C++ structs + Lua | PixLyzer JSON | Hardcoded + datapacks | **ScriptableObjects** |
 | World storage | Custom | MC Anvil | Anvil regions | **Custom regions + zstd** |
 | Profiling | Basic timers | JVM profiler | JVM profiler | **Unity Profiler + ProfilerMarker** |
-| Asset format | Custom | MC format | MC format | **Texture2DArray + JSON models** |
+| Vertex format | Per-face | ~40 bytes | ~28 bytes | **PackedMeshVertex (16 bytes, bit-packed)** |
+| Asset format | Custom | MC format | MC format | **Texture2DArray + SO models** |

@@ -41,6 +41,7 @@ Lithforge/
 │   │   │   │   ├── BlockRegistrationData.cs   # managed block registration info
 │   │   │   │   ├── StateRegistry.cs           # managed: builds state palette
 │   │   │   │   ├── StateRegistryEntry.cs
+│   │   │   │   ├── BlockMaterialType.cs       # enum: Opaque, Cutout, Translucent
 │   │   │   │   └── NativeStateRegistry.cs     # NativeArray<BlockStateCompact> bake for jobs
 │   │   │   ├── Chunk/
 │   │   │   │   ├── ChunkConstants.cs          # Size=32, Volume=32768
@@ -48,6 +49,9 @@ Lithforge/
 │   │   │   │   ├── ChunkState.cs              # enum: Unloaded→Loading→Generating→Decorating→RelightPending→Generated→Meshing→Ready
 │   │   │   │   ├── ManagedChunk.cs            # wrapper with LODLevel, BorderLightEntries, IsDirty
 │   │   │   │   ├── ChunkBorderExtractor.cs    # extracts 32×32 border slices from neighbors
+│   │   │   │   ├── ExtractSingleBorderJob.cs  # [BurstCompile] single-border extraction
+│   │   │   │   ├── DeferredEdit.cs            # deferred block edit (applied after meshing)
+│   │   │   │   ├── BorderLightEntry.cs        # managed border light entry
 │   │   │   │   ├── ChunkPool.cs               # pre-allocated NativeArray pool
 │   │   │   │   └── ChunkManager.cs            # load/unload/save lifecycle, forward-weighted queue sort
 │   │   │   ├── Storage/
@@ -60,6 +64,8 @@ Lithforge/
 │   │   │   │   ├── ItemStack.cs
 │   │   │   │   ├── ItemEntry.cs
 │   │   │   │   ├── ItemRegistry.cs
+│   │   │   │   ├── IMiningModifier.cs          # interface for mining speed modifiers
+│   │   │   │   ├── MiningContext.cs            # context for mining speed calculation
 │   │   │   │   └── Inventory.cs               # 36-slot player inventory
 │   │   │   ├── Loot/
 │   │   │   │   ├── LootTableDefinition.cs
@@ -91,7 +97,7 @@ Lithforge/
 │   │   │   ├── Stages/
 │   │   │   │   ├── TerrainShapeJob.cs         # [BurstCompile] IJob — 2D heightmap
 │   │   │   │   ├── CaveCarverJob.cs           # [BurstCompile] IJob — spaghetti caves
-│   │   │   │   ├── BiomeAssignmentJob.cs      # [BurstCompile] IJob
+│   │   │   │   ├── ClimateNoiseJob.cs         # [BurstCompile] IJob — temperature/humidity noise
 │   │   │   │   ├── SurfaceBuilderJob.cs       # [BurstCompile] IJob
 │   │   │   │   ├── OreGenerationJob.cs        # [BurstCompile] IJob — blob/scatter
 │   │   │   │   ├── InitialLightingJob.cs      # [BurstCompile] IJob
@@ -111,8 +117,12 @@ Lithforge/
 │   │   │   ├── Noise/
 │   │   │   │   ├── NativeNoise.cs             # Burst-compatible FBM noise (Unity.Mathematics)
 │   │   │   │   └── NativeNoiseConfig.cs       # blittable noise parameters
+│   │   │   ├── Climate/
+│   │   │   │   └── ClimateData.cs             # blittable climate data struct
 │   │   │   └── Lighting/
-│   │   │       └── LightUtils.cs              # nibble pack/unpack helpers
+│   │   │       ├── LightUtils.cs              # nibble pack/unpack helpers
+│   │   │       ├── LightBfs.cs                # unified BFS (propagation + removal + border)
+│   │   │       └── NativeBorderLightEntry.cs  # blittable border light entry
 │   │   ├── Lithforge.WorldGen.asmdef          # References: Core, Voxel, Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.Jobs
 │   │   ├── Tests/
 │   │   └── package.json
@@ -126,8 +136,10 @@ Lithforge/
 │   │   │   ├── GreedyMeshData.cs              # TempJob containers for greedy mesh flight
 │   │   │   ├── CulledMeshJob.cs               # [BurstCompile] IJob — simple face culling
 │   │   │   ├── VoxelDownsampleJob.cs          # [BurstCompile] IJob — majority-vote downsample
+│   │   │   ├── LODGreedyMeshJob.cs            # [BurstCompile] IJob — greedy meshing for LOD
 │   │   │   ├── LODMeshJob.cs                  # [BurstCompile] IJob — culled faces for LOD
 │   │   │   ├── LODMeshData.cs                 # TempJob containers for LOD mesh flight
+│   │   │   ├── PackedMeshVertex.cs            # 16-byte blittable vertex (4×uint32)
 │   │   │   └── Atlas/
 │   │   │       ├── AtlasEntry.cs
 │   │   │       └── NativeAtlasLookup.cs       # NativeArray indexed by texture ID
@@ -160,12 +172,16 @@ Lithforge/
 │   │   ├── Scheduling/
 │   │   │   ├── GenerationScheduler.cs         # generation scheduling, cross-chunk light updates
 │   │   │   ├── MeshScheduler.cs               # LOD0 greedy meshing, relight gating
-│   │   │   └── LODScheduler.cs                # LOD1-3 downsample + mesh, level transitions
+│   │   │   ├── LODScheduler.cs                # LOD1-3 downsample + mesh, level transitions
+│   │   │   ├── RelightScheduler.cs            # relight scheduling, circuit breaker
+│   │   │   └── FrameBudget.cs                 # per-frame time budget tracking
 │   │   ├── Rendering/
-│   │   │   ├── ChunkRenderManager.cs          # manages ChunkRenderer GameObjects
-│   │   │   ├── ChunkRenderer.cs               # MonoBehaviour: MeshFilter + MeshRenderer
+│   │   │   ├── ChunkMeshStore.cs              # manages per-chunk mesh regions in MegaMeshBuffer
+│   │   │   ├── MegaMeshBuffer.cs              # single GPU mesh, sub-mesh regions per chunk
+│   │   │   ├── ChunkBoundsGPU.cs              # uploads chunk AABBs for GPU culling
+│   │   │   ├── HiZPyramid.cs                  # hierarchical-Z occlusion pyramid
+│   │   │   ├── BiomeTintManager.cs            # per-biome grass/foliage/water tint colors
 │   │   │   ├── ChunkCulling.cs                # frustum plane extraction + AABB test
-│   │   │   ├── MeshUploader.cs                # Mesh.AllocateWritableMeshData → ApplyAndDispose
 │   │   │   ├── BlockHighlight.cs              # LineRenderer wireframe on targeted block
 │   │   │   ├── SkyController.cs               # procedural sky + fog + ambient from TimeOfDay
 │   │   │   ├── TimeOfDayController.cs         # cosine cycle, drives _SunLightFactor
@@ -173,9 +189,12 @@ Lithforge/
 │   │   │   │   ├── AtlasBuilder.cs            # builds Texture2DArray from face textures
 │   │   │   │   └── AtlasResult.cs
 │   │   │   └── Shaders/
+│   │   │       ├── FrustumCull.compute
+│   │   │       ├── HiZGenerate.compute
 │   │   │       ├── LithforgeVoxelOpaque.shader
-│   │   │       ├── LithforgeVoxelUnlit.shader
-│   │   │       └── LithforgeVoxelTranslucent.shader
+│   │   │       ├── LithforgeVoxelCutout.shader
+│   │   │       ├── LithforgeVoxelCommon.hlsl
+│   │   │       └── LithforgeSky.shader
 │   │   ├── Input/
 │   │   │   ├── PlayerController.cs            # gravity, WASD, voxel collision, step-up
 │   │   │   ├── CameraController.cs            # mouse look
@@ -183,10 +202,32 @@ Lithforge/
 │   │   │   ├── BlockInteraction.cs            # progressive mining, placement from inventory
 │   │   │   └── SolidBlockQuery.cs
 │   │   ├── UI/
+│   │   │   ├── Screens/
+│   │   │   │   ├── ContainerScreen.cs         # abstract base for inventory-style screens
+│   │   │   │   ├── PlayerInventoryScreen.cs   # concrete player inventory (E-key toggle)
+│   │   │   │   ├── HotbarDisplay.cs           # read-only hotbar display
+│   │   │   │   └── SettingsScreen.cs          # UI Toolkit, Escape key, live-apply sliders
+│   │   │   ├── Widgets/
+│   │   │   │   ├── SlotWidget.cs              # icon + count + durability bar
+│   │   │   │   ├── TooltipWidget.cs
+│   │   │   │   ├── DragGhostWidget.cs
+│   │   │   │   └── ItemNameBanner.cs
+│   │   │   ├── Interaction/
+│   │   │   │   ├── SlotInteractionController.cs  # 6 interaction modes
+│   │   │   │   └── HeldStack.cs
+│   │   │   ├── Container/
+│   │   │   │   ├── ISlotContainer.cs
+│   │   │   │   ├── InventoryContainerAdapter.cs
+│   │   │   │   ├── CraftingGridContainerAdapter.cs
+│   │   │   │   ├── CraftingOutputContainerAdapter.cs
+│   │   │   │   └── SlotContainerContext.cs
+│   │   │   ├── Layout/
+│   │   │   │   ├── SlotGroupDefinition.cs
+│   │   │   │   └── ContainerLayoutSO.cs
+│   │   │   ├── Sprites/
+│   │   │   │   ├── ItemSpriteAtlas.cs
+│   │   │   │   └── ItemSpriteAtlasBuilder.cs
 │   │   │   ├── CrosshairHUD.cs
-│   │   │   ├── HotbarHUD.cs
-│   │   │   ├── InventoryScreen.cs             # UI Toolkit, E-key toggle
-│   │   │   ├── SettingsScreen.cs              # UI Toolkit, Escape key, live-apply sliders
 │   │   │   ├── LoadingScreen.cs               # UI Toolkit, sortingOrder=500, progress bar + fade
 │   │   │   ├── HudVisibilityController.cs     # hides HUDs during loading
 │   │   │   ├── ItemDisplayFormatter.cs
@@ -196,23 +237,47 @@ Lithforge/
 │   │   │   ├── SpawnState.cs                  # Checking → FindingY → Teleporting → Done
 │   │   │   └── SpawnProgress.cs
 │   │   ├── Debug/
-│   │   │   └── DebugOverlayHUD.cs             # FPS, loaded chunks, renderer count, LOD queue
+│   │   │   ├── DebugOverlayHUD.cs             # FPS, loaded chunks, renderer count, LOD queue
+│   │   │   ├── FrameProfiler.cs               # Stopwatch-based, 300-frame rolling history
+│   │   │   ├── PipelineStats.cs               # per-frame + cumulative counters
+│   │   │   └── BenchmarkRunner.cs             # F5 trigger, CSV export, fly-through benchmark
 │   │   ├── Content/
-│   │   │   ├── Blocks/                        # BlockDefinition.cs, BlockStateMapping.cs, etc.
+│   │   │   ├── Blocks/                        # BlockDefinition.cs, BlockStateMapping.cs, BlockBehavior.cs
 │   │   │   ├── Items/                         # ItemDefinition.cs (ScriptableObject)
+│   │   │   │   ├── Affixes/
+│   │   │   │   │   ├── AffixDefinition.cs
+│   │   │   │   │   ├── AffixEffectType.cs
+│   │   │   │   │   └── AffixMiningEffect.cs
+│   │   │   │   └── Enchantments/
+│   │   │   │       ├── EnchantmentDefinition.cs
+│   │   │   │       ├── EnchantmentCategory.cs
+│   │   │   │       └── EnchantmentLevelData.cs
 │   │   │   ├── Loot/                          # LootTable.cs (ScriptableObject)
 │   │   │   ├── Models/                        # BlockModel.cs, ContentModelResolver.cs
 │   │   │   ├── Recipes/                       # RecipeDefinition.cs (ScriptableObject)
 │   │   │   ├── Tags/                          # Tag.cs (ScriptableObject)
+│   │   │   ├── Tools/
+│   │   │   │   └── ToolSpeedProfile.cs
 │   │   │   ├── WorldGen/                      # BiomeDefinition.cs, OreDefinition.cs (SOs)
 │   │   │   ├── Mods/                          # ModLoader.cs (AssetBundle-based .lithmod loading)
-│   │   │   ├── Behaviors/                     # BehaviorAction.cs and subclasses
+│   │   │   ├── Behaviors/
+│   │   │   │   ├── BehaviorAction.cs
+│   │   │   │   ├── GiveItemAction.cs
+│   │   │   │   ├── PlaySoundAction.cs
+│   │   │   │   ├── SetBlockAction.cs
+│   │   │   │   ├── SpawnEntityAction.cs
+│   │   │   │   └── SpawnParticleAction.cs
 │   │   │   └── Settings/                      # SettingsLoader.cs, ChunkSettings.cs, etc. (SOs)
 │   │   └── Lithforge.Runtime.asmdef           # References: ALL Tier 1+2 packages, UnityEngine, URP, InputSystem
 │   │
 │   ├── Editor/
 │   │   ├── Lithforge.Editor.asmdef            # Editor-only, references Core + Voxel + Runtime
-│   │   ├── Content/                           # BlockDefinitionEditor, ContentDashboard, JsonToSOConverter
+│   │   ├── Content/
+│   │   │   ├── BlockModelEditor.cs
+│   │   │   ├── CreateFullBlockSetup.cs
+│   │   │   ├── BlockDefinitionEditor.cs
+│   │   │   ├── ContentDashboard.cs
+│   │   │   └── JsonToSOConverter.cs
 │   │   └── Settings/                          # SettingsAssetCreator
 │   │
 │   ├── Resources/
@@ -227,6 +292,7 @@ Lithforge/
 │   │   │   ├── Recipes/                       # 13x RecipeDefinition.asset
 │   │   │   ├── Biomes/                        # 4x BiomeDefinition.asset
 │   │   │   ├── Ores/                          # 4x OreDefinition.asset
+│   │   │   ├── Layouts/                       # ContainerLayoutSO assets
 │   │   │   └── Textures/
 │   │   │       ├── Blocks/                    # ~30x Texture2D PNG
 │   │   │       └── Items/                     # ~27x Texture2D PNG

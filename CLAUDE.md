@@ -26,8 +26,10 @@ Tier 2 — Unity Core (Unity.Collections, Unity.Mathematics, Unity.Burst, Unity.
 Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
   Location: Assets/Lithforge.Runtime/
   Contains: GameLoop, Schedulers (GenerationScheduler, MeshScheduler, RelightScheduler, LODScheduler),
-            ChunkRenderManager, MeshUploader, ContentPipeline, UI (HotbarHUD, InventoryScreen,
-            SettingsScreen, LoadingScreen), SkyController, SpawnManager, Bootstrap
+            Rendering (ChunkMeshStore, MegaMeshBuffer, HiZPyramid, BiomeTintManager, FrustumCull.compute),
+            ContentPipeline, UI (ContainerScreen, PlayerInventoryScreen, HotbarDisplay, SettingsScreen,
+            LoadingScreen), SkyController, SpawnManager, Bootstrap,
+            Debug (FrameProfiler, PipelineStats, BenchmarkRunner)
 ```
 
 **Planned but not yet implemented**: com.lithforge.crafting (separate package), com.lithforge.modding, com.lithforge.lighting (standalone), com.lithforge.entity (DOTS ECS). Currently, crafting/loot/inventory live in com.lithforge.voxel, and lighting jobs live in com.lithforge.worldgen.
@@ -69,7 +71,7 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 
 ### Tier 3 Rules
 
-23. **Mesh upload on main thread only** — `Mesh.ApplyAndDisposeWritableMeshData`.
+23. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
 24. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
 25. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
 
@@ -84,9 +86,21 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 | `BlockStateCompact` | 2 | Yes (struct) | Cached render/physics flags for Burst |
 | `NativeStateRegistry` | 2 | Yes (NativeArray) | Burst-accessible state lookup |
 | `ChunkData` | 2 | Yes (NativeArray) | 32³ voxel storage |
-| `MeshVertex` | 2 | Yes (struct) | 48-byte vertex for GPU |
+| `PackedMeshVertex` | 2 | Yes (struct) | 16-byte bit-packed vertex (4×uint32) |
+| `ClimateData` | 2 | Yes (struct) | Per-column temperature/humidity/continentalness/erosion |
+| `DeferredEdit` | 2 | Yes (struct) | Pending block edit (FlatIndex + NewState) |
+| `MiningContext` | 2 | Yes (struct) | Mutable mining calculation state |
 | `NativeNoiseConfig` | 2 | Yes (struct) | Noise parameters for Burst jobs |
 | `NativeBiomeData` | 2 | Yes (struct) | Biome data for Burst jobs |
+| `ChunkBoundsGPU` | 3 | Yes (struct) | Per-chunk AABB for GPU frustum culling (32 bytes) |
+| `ChunkMeshStore` | 3 | No (IDisposable) | GPU-driven chunk mesh storage + indirect draw |
+| `MegaMeshBuffer` | 3 | No (IDisposable) | Persistent GPU vertex/index buffers per render layer |
+| `HiZPyramid` | 3 | No (IDisposable) | Hi-Z occlusion culling mipmap pyramid |
+| `ContainerScreen` | 3 | No (MonoBehaviour) | Abstract base for all container UIs |
+| `SlotInteractionController` | 3 | No (class) | Minecraft-style slot interaction (6 modes) |
+| `FrameProfiler` | 3 | No (static) | Zero-alloc frame section profiler (14 sections) |
+| `PipelineStats` | 3 | No (static) | Pipeline counters (per-frame + cumulative) |
+| `FrameBudget` | 3 | Yes (struct) | Lightweight time-budget tracker for polling loops |
 
 ## Dual Representation Pattern
 
@@ -136,10 +150,12 @@ DebugSettings.asset      → debug overlay toggles
 **Loading pipeline** (`ContentPipeline.Build()` is an `IEnumerable<string>` yielding phase descriptions):
 1. Load BlockDefinitions → register in StateRegistry
 2. Expand BlockStates (cartesian product of properties) → StateRegistry
+2.5. Load BlockEntityDefinitions → patch StateRegistry with block entity type IDs
 3. Resolve BlockModels (ContentModelResolver with parent inheritance chain)
 4. Resolve per-state per-face Texture2D references
-5. Build Texture2DArray atlas (AtlasBuilder)
-6. Patch texture indices in StateRegistry
+5. Resolve overlays and tints (per-face tint types, overlay textures)
+6. Build Texture2DArray atlas (AtlasBuilder)
+6.5. Patch texture indices in StateRegistry
 7. Load BiomeDefinitions, OreDefinitions
 8. Load ItemDefinitions
 9. Load LootTables → convert to LootTableDefinition (Tier 2)
@@ -148,6 +164,8 @@ DebugSettings.asset      → debug overlay toggles
 12. Build ItemRegistry (block items + standalone items)
 13. Load AssetBundle mods from `persistentDataPath/mods/*.lithmod`
 14. BakeNative() → NativeStateRegistry + NativeAtlasLookup
+15. Build ItemSpriteAtlas (item textures + block top faces → UI sprites)
+16. Load SmeltingRecipeDefinitions → register BlockEntityFactories
 
 **Mods**: Currently loaded as Unity AssetBundles (`.lithmod` files) containing ScriptableObjects. JSON-based content loading for mods is planned but NOT implemented.
 
@@ -157,7 +175,11 @@ DebugSettings.asset      → debug overlay toggles
 Main Thread ──schedule──► Worker Thread (Burst Job) ──produce──► NativeContainers
      ▲                                                                │
      └──────────────── poll JobHandle.IsCompleted ◄────────────────────┘
-     Main thread: upload mesh to GPU, dispose temp NativeContainers
+     Main thread: MegaMeshBuffer.Upload() → persistent GPU GraphicsBuffers
+                                                    ↓
+                                    FrustumCull.compute → per-chunk indirect args
+                                                    ↓
+                                    Graphics.RenderPrimitivesIndexedIndirect()
 ```
 
 ## ECS Scope
@@ -190,8 +212,8 @@ No com.lithforge.entity package exists yet. Chunks, meshing, worldgen, lighting,
 Dual-path meshing from `Generated` state:
 
 ```
-Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)                    → Ready
-            └─ LODLevel > 0 → LODScheduler  (VoxelDownsampleJob + LODMeshJob)   → Ready
+Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)                          → Ready
+            └─ LODLevel > 0 → LODScheduler  (VoxelDownsampleJob + LODGreedyMeshJob) → Ready
 ```
 
 - `LODScheduler.UpdateLODLevels()` assigns LOD levels to both Generated and Ready chunks based on Chebyshev XZ distance from camera chunk.
@@ -201,14 +223,14 @@ Generated ─┬─ LODLevel == 0 → MeshScheduler (GreedyMeshJob)             
   - LOD>0 → LOD0: chunk state reset to `Generated`, MeshScheduler remeshes at full detail.
 - MeshScheduler filters out LODLevel > 0 chunks (they belong to LODScheduler).
 - Frustum culling on MeshScheduler **prioritizes** but does NOT block meshing — off-frustum chunks mesh if budget remains.
-- LODMeshJob emits full-brightness vertices (AO=1, light=1) — no AO or lighting at LOD.
+- LODGreedyMeshJob emits full-brightness vertices (AO=3, light=15) — no AO or lighting at LOD.
 - VoxelDownsampleJob uses majority-vote: if >50% of source voxels are air, output is air; otherwise picks first opaque block.
 
 **Invariant**: A chunk in `Generated` state MUST always have a path to `Ready`, regardless of its LODLevel.
 
 ## Known Limits
 
-- **Texture array layers ≤ 1024**: `MeshVertex.Color.a` stores a pure `texIndex` as `half`. The `half` type represents integers exactly up to 2048. Tint type and overlay info are packed separately in `MeshVertex.TintOverlay` (uint). ContentPipeline asserts at 1024.
+- **Texture array layers ≤ 1024**: `PackedMeshVertex.Word1` stores `texIndex` in 10 bits (0–1023) and `overlayTexIndex` in 10 bits (0–1023). ContentPipeline asserts at 1024.
 - **BiomeData[i].BiomeId == i**: biome lookup is O(1) by direct index. This invariant is asserted at startup in `LithforgeBootstrap`. Both `SurfaceBuilderJob.GetBiome()` and `DecorationStage.GetBiome()` rely on this.
 - **ChunkPool uses HashSet for checked-out tracking**: `Return()` is O(1) amortized, not O(n).
 
@@ -243,8 +265,8 @@ All 3 light jobs (`LightPropagationJob`, `LightRemovalJob`, `LightUpdateJob`) ca
 The following tint overlay packing logic is duplicated across 2 IJob structs.
 **Any change to one MUST be replicated to the other in the same commit.**
 
-| Method | GreedyMeshJob | LODMeshJob |
-|--------|---------------|------------|
+| Method | GreedyMeshJob | LODGreedyMeshJob |
+|--------|---------------|------------------|
 | Tint overlay packing (baseTintType, overlayTintType, hasOverlay, overlayTexIdx bit packing) | ✓ | ✓ |
 
 ## Reference Sources
@@ -262,7 +284,7 @@ All documentation lives in `Docs/`:
 | `Docs/01_PROJECT_OVERVIEW.md` | Vision, three-tier architecture, why Unity, targets |
 | `Docs/02_SOLUTION_ARCHITECTURE.md` | Package structure, asmdef rules, dependency graph |
 | `Docs/03_VOXEL_CORE.md` | Chunks (NativeArray), BlockState, StateRegistry, storage, invariants |
-| `Docs/04_MESHING_AND_RENDERING.md` | Burst greedy meshing, URP shaders, Texture2DArray, MeshUploader |
+| `Docs/04_MESHING_AND_RENDERING.md` | Burst greedy meshing, GPU-driven rendering, PackedMeshVertex, compute culling |
 | `Docs/05_WORLD_GENERATION.md` | Burst pipeline stages, NativeNoise, biomes, ores, cross-chunk decoration |
 | `Docs/06_THREADING_AND_BURST.md` | Job scheduling, blittable types, NativeContainer ownership, memory budget |
 | `Docs/07_DATA_DRIVEN_CONTENT.md` | File formats, loading pipeline, mod integration, validation |

@@ -98,7 +98,7 @@ UNLOADED → LOADING → GENERATING → DECORATING → RELIGHTPENDING → GENERA
 | `Decorating` | 3 | Decoration stage running (trees) | Main thread |
 | `RelightPending` | 4 | Block edit occurred, must relight before meshing | Main thread |
 | `Generated` | 5 | Data ready, first state eligible for meshing | Main thread read |
-| `Meshing` | 6 | Mesh job in flight (GreedyMeshJob or LODMeshJob) | Worker thread (read-only) |
+| `Meshing` | 6 | Mesh job in flight (GreedyMeshJob or LODGreedyMeshJob) | Worker thread (read-only) |
 | `Ready` | 7 | Rendered, stable | Main thread (write on block change) |
 
 **Transition rules:**
@@ -214,48 +214,25 @@ public struct BlockStateCompact
 
 ## Chunk Neighbor Data
 
-For meshing, each chunk needs to know the border blocks of its 6 neighbors (for face culling at chunk edges). Rather than passing the entire neighbor chunk, we extract 32×32 border slices:
+For meshing, each chunk needs to know the border blocks of its 6 neighbors (for face culling at chunk edges). Border slices are extracted via `ExtractSingleBorderJob` (Burst-compiled) on worker threads:
 
 ```csharp
 /// <summary>
-/// Pre-extracted border slices from 6 neighbors.
-/// Each slice is 32×32 = 1024 StateIds.
-/// Created on main thread before scheduling mesh job.
-/// Allocated with Allocator.TempJob, disposed after mesh job completes.
+/// Burst-compiled job that extracts a single 32×32 border slice from a chunk.
+/// One job per face direction, scheduled in parallel for all 6 neighbors.
 /// </summary>
-public struct ChunkNeighborData : System.IDisposable
+[BurstCompile]
+public struct ExtractSingleBorderJob : IJob
 {
-    public NativeArray<StateId> North;   // 1024 elements: neighbor's z=0 face
-    public NativeArray<StateId> South;   // 1024 elements: neighbor's z=31 face
-    public NativeArray<StateId> East;    // 1024 elements: neighbor's x=0 face
-    public NativeArray<StateId> West;    // 1024 elements: neighbor's x=31 face
-    public NativeArray<StateId> Up;      // 1024 elements: neighbor's y=0 face
-    public NativeArray<StateId> Down;    // 1024 elements: neighbor's y=31 face
-
-    public static ChunkNeighborData Allocate()
-    {
-        return new ChunkNeighborData
-        {
-            North = new NativeArray<StateId>(1024, Allocator.TempJob),
-            South = new NativeArray<StateId>(1024, Allocator.TempJob),
-            East  = new NativeArray<StateId>(1024, Allocator.TempJob),
-            West  = new NativeArray<StateId>(1024, Allocator.TempJob),
-            Up    = new NativeArray<StateId>(1024, Allocator.TempJob),
-            Down  = new NativeArray<StateId>(1024, Allocator.TempJob),
-        };
-    }
-
-    public void Dispose()
-    {
-        if (North.IsCreated) North.Dispose();
-        if (South.IsCreated) South.Dispose();
-        if (East.IsCreated)  East.Dispose();
-        if (West.IsCreated)  West.Dispose();
-        if (Up.IsCreated)    Up.Dispose();
-        if (Down.IsCreated)  Down.Dispose();
-    }
+    [ReadOnly] public NativeArray<StateId> ChunkData;
+    public int FaceDirection;  // 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+    [WriteOnly] public NativeArray<StateId> Output;  // 32×32 = 1024 elements
 }
 ```
+
+The 6 extracted borders are stored as fields in `GreedyMeshData` (e.g., `NeighborPosX`, `NeighborNegX`, etc.) and passed as `[ReadOnly]` inputs to `GreedyMeshJob`. Border extraction jobs are chained as dependencies of the mesh job.
+
+A managed reference implementation exists in `ChunkBorderExtractor.ExtractBorder()` for comparison.
 
 ---
 
@@ -331,7 +308,7 @@ public sealed class ChunkManager : System.IDisposable
         // 3. Queue distant chunks for unloading (complete pending jobs first)
         // 4. Process completed generation results
         // 5. For newly generated chunks: check if all neighbors ready → queue meshing
-        // 6. Process completed mesh results → pass to ChunkRenderManager
+        // 6. Process completed mesh results → pass to ChunkMeshStore
         // 7. Save dirty chunks periodically
     }
 }
@@ -350,7 +327,24 @@ Block at local (x, y, 0) → also dirty chunk (cx, cy, cz-1)
 Block at local (x, y, 31) → also dirty chunk (cx, cy, cz+1)
 ```
 
-If a remesh job is already in flight for a chunk that becomes dirty again, the in-flight job's result is **discarded** when it completes (stale flag), and a new remesh is scheduled with current data.
+If a remesh job is already in flight for a chunk that becomes dirty again, the edit is deferred.
+
+### Deferred Edits
+
+When a block change occurs on a chunk in `Meshing` state (mesh job in-flight), the edit cannot be applied immediately (the job is reading ChunkData). Instead, `ChunkManager.SetBlock()` adds a `DeferredEdit` to the chunk:
+
+```csharp
+public struct DeferredEdit
+{
+    public int FlatIndex;
+    public StateId NewState;
+}
+```
+
+After the mesh job completes in `MeshScheduler.PollCompleted()`:
+1. The completed mesh is uploaded to GPU normally
+2. Deferred edits are applied to `ChunkData`
+3. Chunk state is set to `RelightPending` (light removal/reseed needed before re-meshing)
 
 ---
 
