@@ -6,11 +6,11 @@ namespace Lithforge.Voxel.Item
     /// </summary>
     public interface IToolTrait : IMiningModifier
     {
-        string TraitId { get; }
+        public string TraitId { get; }
 
         /// <summary>
         /// Allows duplicate detection — only the highest level wins.
         /// </summary>
-        int TraitLevel { get; }
+        public int TraitLevel { get; }
     }
 }

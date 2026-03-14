@@ -46,9 +46,9 @@ namespace Lithforge.Runtime.Player
         private bool _hasHeldItemMesh;
 
         // Render params
-        private readonly RenderParams _baseArmParams;
-        private readonly RenderParams _overlayArmParams;
-        private readonly RenderParams _heldItemParams;
+        private RenderParams _baseArmParams;
+        private RenderParams _overlayArmParams;
+        private RenderParams _heldItemParams;
 
         // Skin texture
         private readonly Texture2D _skinTexture;
@@ -202,10 +202,16 @@ namespace Lithforge.Runtime.Player
             }
             _partTransformsBuffer.SetData(_partTransformUpload);
 
-            // Compute arm projection matrix (separate FOV from world camera)
+            // Compute arm projection matrix (separate FOV from world camera).
+            // Arm vertices are already in camera-local (view) space after part transforms,
+            // so we only apply projection — no worldToCameraMatrix needed.
             Matrix4x4 armProjection = Matrix4x4.Perspective(ArmFov, camera.aspect, ArmNearClip, ArmFarClip);
-            armProjection = GL.GetGPUProjectionMatrix(armProjection, true);
-            Matrix4x4 armToClip = armProjection * camera.worldToCameraMatrix;
+            Matrix4x4 armToClip = GL.GetGPUProjectionMatrix(armProjection, true);
+
+            // Restrict draw calls to this camera only (prevents rendering in scene view)
+            _baseArmParams.camera = camera;
+            _overlayArmParams.camera = camera;
+            _heldItemParams.camera = camera;
 
             // Draw arm base layer
             _baseArmParams.matProps.SetBuffer(s_armVertexBufferId, _armVertexBuffer);

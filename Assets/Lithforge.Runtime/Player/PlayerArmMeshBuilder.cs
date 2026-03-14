@@ -105,9 +105,9 @@ namespace Lithforge.Runtime.Player
             float3 inflatedSize = size + new float3(inflation * 2f);
             float3 inflatedMax = inflatedMin + inflatedSize;
 
-            // Pivot-relative corners
-            float3 lo = inflatedMin - pivot;
-            float3 hi = inflatedMax - pivot;
+            // Pivot-relative corners, converted from model units (pixels) to block units (÷16)
+            float3 lo = (inflatedMin - pivot) / 16f;
+            float3 hi = (inflatedMax - pivot) / 16f;
 
             int baseVert = vertOffset;
 
