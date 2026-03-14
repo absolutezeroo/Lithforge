@@ -10,6 +10,6 @@ namespace Lithforge.Voxel.BlockEntity
         /// <summary>
         /// Creates a new, empty block entity instance.
         /// </summary>
-        IBlockEntity Create();
+        public IBlockEntity Create();
     }
 }

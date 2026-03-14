@@ -16,8 +16,8 @@ namespace Lithforge.Runtime.BlockEntity
         private const int BucketCount = 20;
 
         private readonly List<EntityKey>[] _buckets;
-        private readonly Dictionary<EntityKey, Lithforge.Runtime.BlockEntity.BlockEntity> _entities =
-            new Dictionary<EntityKey, Lithforge.Runtime.BlockEntity.BlockEntity>();
+        private readonly Dictionary<EntityKey, BlockEntity> _entities =
+            new Dictionary<EntityKey, BlockEntity>();
         private int _currentBucket;
 
         private readonly ChunkManager _chunkManager;
@@ -62,7 +62,7 @@ namespace Lithforge.Runtime.BlockEntity
             {
                 EntityKey key = bucket[i];
 
-                if (_entities.TryGetValue(key, out Lithforge.Runtime.BlockEntity.BlockEntity entity))
+                if (_entities.TryGetValue(key, out BlockEntity entity))
                 {
                     entity.Tick(effectiveDt);
                 }
@@ -87,9 +87,9 @@ namespace Lithforge.Runtime.BlockEntity
                 return;
             }
 
-            foreach (KeyValuePair<int, Voxel.BlockEntity.IBlockEntity> kvp in chunk.BlockEntities)
+            foreach (KeyValuePair<int, IBlockEntity> kvp in chunk.BlockEntities)
             {
-                if (kvp.Value is Lithforge.Runtime.BlockEntity.BlockEntity runtimeEntity)
+                if (kvp.Value is BlockEntity runtimeEntity)
                 {
                     EntityKey key = new EntityKey(chunkCoord, kvp.Key);
 
@@ -113,7 +113,7 @@ namespace Lithforge.Runtime.BlockEntity
             // Collect keys to remove (can't modify dict during enumeration)
             _removeCache.Clear();
 
-            foreach (KeyValuePair<EntityKey, Lithforge.Runtime.BlockEntity.BlockEntity> kvp in _entities)
+            foreach (KeyValuePair<EntityKey, BlockEntity> kvp in _entities)
             {
                 if (kvp.Key.ChunkCoord.Equals(chunkCoord))
                 {
@@ -147,17 +147,17 @@ namespace Lithforge.Runtime.BlockEntity
                 return;
             }
 
-            Voxel.BlockEntity.IBlockEntity entity = _registry.CreateEntity(entry.BlockEntityTypeId);
+            IBlockEntity entity = _registry.CreateEntity(entry.BlockEntityTypeId);
 
             if (entity == null)
             {
                 return;
             }
 
-            Dictionary<int, Voxel.BlockEntity.IBlockEntity> entities = chunk.GetOrCreateBlockEntities();
+            Dictionary<int, IBlockEntity> entities = chunk.GetOrCreateBlockEntities();
             entities[flatIndex] = entity;
 
-            if (entity is Lithforge.Runtime.BlockEntity.BlockEntity runtimeEntity)
+            if (entity is BlockEntity runtimeEntity)
             {
                 EntityKey key = new EntityKey(chunkCoord, flatIndex);
                 _entities[key] = runtimeEntity;
@@ -175,7 +175,7 @@ namespace Lithforge.Runtime.BlockEntity
                 return;
             }
 
-            if (chunk.BlockEntities.TryGetValue(flatIndex, out Voxel.BlockEntity.IBlockEntity entity))
+            if (chunk.BlockEntities.TryGetValue(flatIndex, out IBlockEntity entity))
             {
                 entity.OnChunkUnload();
                 chunk.BlockEntities.Remove(flatIndex);
@@ -190,10 +190,10 @@ namespace Lithforge.Runtime.BlockEntity
         /// Gets the block entity at the given position, or null.
         /// Used by BlockInteraction for right-click dispatch.
         /// </summary>
-        public Lithforge.Runtime.BlockEntity.BlockEntity GetEntity(int3 chunkCoord, int flatIndex)
+        public BlockEntity GetEntity(int3 chunkCoord, int flatIndex)
         {
             EntityKey key = new EntityKey(chunkCoord, flatIndex);
-            _entities.TryGetValue(key, out Lithforge.Runtime.BlockEntity.BlockEntity entity);
+            _entities.TryGetValue(key, out BlockEntity entity);
 
             return entity;
         }

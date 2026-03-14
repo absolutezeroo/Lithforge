@@ -22,6 +22,8 @@ MonoBehaviour:
   soundGroup: stone
   collisionShape: 0
   renderLayer: 0
+  isFluid: 0
+  defaultTintType: -1
   lightEmission: 0
   lightFilter: 15
   mapColor: '#7F7F7F'
