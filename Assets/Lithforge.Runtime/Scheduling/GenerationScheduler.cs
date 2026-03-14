@@ -324,11 +324,8 @@ namespace Lithforge.Runtime.Scheduling
                     entry.SeedEntries.Dispose();
                     chunk.LightJobInFlight = false;
                     chunk.ActiveJobHandle = default;
+                    _chunkManager.ClearNeedsLightUpdate(chunk.Coord);
 
-                    // Don't call ClearNeedsLightUpdate here — the chunk may have been
-                    // re-marked while this job was in flight. Leave the flag and dirty set
-                    // entry intact; the scheduling phase will either find zero seed entries
-                    // (and clear then) or schedule a new job for the re-mark.
                     _inFlightLightUpdates.RemoveAt(i);
                 }
                 else
