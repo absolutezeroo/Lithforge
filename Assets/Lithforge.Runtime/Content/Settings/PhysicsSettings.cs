@@ -9,154 +9,139 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Player Movement")]
         [Tooltip("Walking speed in blocks per second")]
         [Min(0.1f)]
-        [FormerlySerializedAs("walkSpeed")]
-        [SerializeField] private float _walkSpeed = 4.317f;
+        [SerializeField] private float walkSpeed = 4.317f;
 
         [Tooltip("Sprint speed in blocks per second")]
         [Min(0.1f)]
-        [FormerlySerializedAs("sprintSpeed")]
-        [SerializeField] private float _sprintSpeed = 5.612f;
+        [SerializeField] private float sprintSpeed = 5.612f;
 
         [Tooltip("Jump launch velocity in blocks per second")]
         [Min(0.1f)]
-        [FormerlySerializedAs("jumpVelocity")]
-        [SerializeField] private float _jumpVelocity = 8.5f;
+        [SerializeField] private float jumpVelocity = 8.5f;
 
         [Tooltip("Gravity acceleration in blocks per second squared (negative = downward)")]
-        [FormerlySerializedAs("gravity")]
-        [SerializeField] private float _gravity = -28.0f;
+        [SerializeField] private float gravity = -28.0f;
 
         [Tooltip("Maximum downward velocity in blocks per second (negative)")]
-        [FormerlySerializedAs("maxFallSpeed")]
-        [SerializeField] private float _maxFallSpeed = -60.0f;
+        [SerializeField] private float maxFallSpeed = -60.0f;
 
         [Header("Player Dimensions")]
         [Tooltip("Player eye height offset from feet position")]
         [Min(0.1f)]
-        [FormerlySerializedAs("playerEyeHeight")]
-        [SerializeField] private float _playerEyeHeight = 1.62f;
+        [SerializeField] private float playerEyeHeight = 1.62f;
 
         [Tooltip("Half-width of player hitbox on X and Z axes")]
         [Min(0.01f)]
-        [FormerlySerializedAs("playerHalfWidth")]
-        [SerializeField] private float _playerHalfWidth = 0.3f;
+        [SerializeField] private float playerHalfWidth = 0.3f;
 
         [Tooltip("Total height of player hitbox in blocks")]
         [Min(0.1f)]
-        [FormerlySerializedAs("playerHeight")]
-        [SerializeField] private float _playerHeight = 1.8f;
+        [SerializeField] private float playerHeight = 1.8f;
 
         [Tooltip("Step-up height for walking over single-block ledges")]
         [Min(0f)]
-        [FormerlySerializedAs("stepHeight")]
-        [SerializeField] private float _stepHeight = 0.6f;
+        [SerializeField] private float stepHeight = 0.6f;
 
         [Header("Interaction")]
         [Tooltip("Maximum reach distance for block interaction in blocks")]
         [Min(0.5f)]
-        [FormerlySerializedAs("interactionRange")]
-        [SerializeField] private float _interactionRange = 5.0f;
+        [SerializeField] private float interactionRange = 5.0f;
 
         [Tooltip("Cooldown between block placements in seconds")]
         [Min(0f)]
-        [FormerlySerializedAs("placeCooldownTime")]
-        [SerializeField] private float _placeCooldownTime = 0.25f;
+        [SerializeField] private float placeCooldownTime = 0.25f;
 
         [Header("Mining")]
         [Tooltip("Time multiplier when mining with bare hands (higher = slower)")]
         [Min(0.1f)]
-        [FormerlySerializedAs("handMiningMultiplier")]
-        [SerializeField] private float _handMiningMultiplier = 5.0f;
+        [SerializeField] private float handMiningMultiplier = 5.0f;
 
         [Tooltip("Base time multiplier when mining with a tool (before tool speed modifier)")]
         [Min(0.1f)]
-        [FormerlySerializedAs("toolMiningMultiplier")]
-        [SerializeField] private float _toolMiningMultiplier = 1.5f;
+        [SerializeField] private float toolMiningMultiplier = 1.5f;
 
         [Tooltip("Minimum block break time in seconds")]
         [Min(0.001f)]
-        [FormerlySerializedAs("minBreakTime")]
-        [SerializeField] private float _minBreakTime = 0.05f;
+        [SerializeField] private float minBreakTime = 0.05f;
 
         [Header("Items")]
         [Tooltip("Default max stack size when no ItemEntry override exists")]
         [Min(1)]
-        [FormerlySerializedAs("defaultMaxStackSize")]
-        [SerializeField] private int _defaultMaxStackSize = 64;
+        [SerializeField] private int defaultMaxStackSize = 64;
 
         public float WalkSpeed
         {
-            get { return _walkSpeed; }
+            get { return walkSpeed; }
         }
 
         public float SprintSpeed
         {
-            get { return _sprintSpeed; }
+            get { return sprintSpeed; }
         }
 
         public float JumpVelocity
         {
-            get { return _jumpVelocity; }
+            get { return jumpVelocity; }
         }
 
         public float Gravity
         {
-            get { return _gravity; }
+            get { return gravity; }
         }
 
         public float MaxFallSpeed
         {
-            get { return _maxFallSpeed; }
+            get { return maxFallSpeed; }
         }
 
         public float PlayerEyeHeight
         {
-            get { return _playerEyeHeight; }
+            get { return playerEyeHeight; }
         }
 
         public float PlayerHalfWidth
         {
-            get { return _playerHalfWidth; }
+            get { return playerHalfWidth; }
         }
 
         public float PlayerHeight
         {
-            get { return _playerHeight; }
+            get { return playerHeight; }
         }
 
         public float StepHeight
         {
-            get { return _stepHeight; }
+            get { return stepHeight; }
         }
 
         public float InteractionRange
         {
-            get { return _interactionRange; }
+            get { return interactionRange; }
         }
 
         public float PlaceCooldownTime
         {
-            get { return _placeCooldownTime; }
+            get { return placeCooldownTime; }
         }
 
         public float HandMiningMultiplier
         {
-            get { return _handMiningMultiplier; }
+            get { return handMiningMultiplier; }
         }
 
         public float ToolMiningMultiplier
         {
-            get { return _toolMiningMultiplier; }
+            get { return toolMiningMultiplier; }
         }
 
         public float MinBreakTime
         {
-            get { return _minBreakTime; }
+            get { return minBreakTime; }
         }
 
         public int DefaultMaxStackSize
         {
-            get { return _defaultMaxStackSize; }
+            get { return defaultMaxStackSize; }
         }
     }
 }

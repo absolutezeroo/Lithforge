@@ -6,84 +6,72 @@ namespace Lithforge.Runtime.Content.Models
     [System.Serializable]
     public sealed class ModelElement
     {
-        [FormerlySerializedAs("from")]
-        [Tooltip("From corner position (0-16 range)")]
-        [SerializeField] private Vector3 _from;
+        [FormerlySerializedAs("_from"),Tooltip("From corner position (0-16 range)")]
+        [SerializeField] private Vector3 from;
 
-        [FormerlySerializedAs("to")]
-        [Tooltip("To corner position (0-16 range)")]
-        [SerializeField] private Vector3 _to;
+        [FormerlySerializedAs("_to"),Tooltip("To corner position (0-16 range)")]
+        [SerializeField] private Vector3 to;
 
-        [FormerlySerializedAs("north")]
-        [Header("Faces")]
-        [SerializeField] private ModelFaceEntry _north;
+        [FormerlySerializedAs("_north"),Header("Faces")]
+        [SerializeField] private ModelFaceEntry north;
 
-        [FormerlySerializedAs("south")]
-        [SerializeField] private ModelFaceEntry _south;
+        [FormerlySerializedAs("_south"),SerializeField] private ModelFaceEntry south;
 
-        [FormerlySerializedAs("east")]
-        [SerializeField] private ModelFaceEntry _east;
+        [FormerlySerializedAs("_east"),SerializeField] private ModelFaceEntry east;
 
-        [FormerlySerializedAs("west")]
-        [SerializeField] private ModelFaceEntry _west;
+        [FormerlySerializedAs("_west"),SerializeField] private ModelFaceEntry west;
 
-        [FormerlySerializedAs("up")]
-        [SerializeField] private ModelFaceEntry _up;
+        [FormerlySerializedAs("_up"),SerializeField] private ModelFaceEntry up;
 
-        [FormerlySerializedAs("down")]
-        [SerializeField] private ModelFaceEntry _down;
+        [FormerlySerializedAs("_down"),SerializeField] private ModelFaceEntry down;
 
-        [FormerlySerializedAs("rotationOrigin")]
-        [Header("Rotation")]
-        [SerializeField] private Vector3 _rotationOrigin;
+        [FormerlySerializedAs("_rotationOrigin"),Header("Rotation")]
+        [SerializeField] private Vector3 rotationOrigin;
 
-        [FormerlySerializedAs("rotationAxis")]
-        [SerializeField] private ModelRotationAxis _rotationAxis;
+        [FormerlySerializedAs("_rotationAxis"),SerializeField] private ModelRotationAxis rotationAxis;
 
-        [FormerlySerializedAs("rotationAngle")]
-        [SerializeField] private float _rotationAngle;
+        [FormerlySerializedAs("_rotationAngle"),SerializeField] private float rotationAngle;
 
-        [FormerlySerializedAs("rotationRescale")]
-        [SerializeField] private bool _rotationRescale;
+        [FormerlySerializedAs("_rotationRescale"),SerializeField] private bool rotationRescale;
 
         public Vector3 From
         {
-            get { return _from; }
+            get { return from; }
         }
 
         public Vector3 To
         {
-            get { return _to; }
+            get { return to; }
         }
 
         public ModelFaceEntry North
         {
-            get { return _north; }
+            get { return north; }
         }
 
         public ModelFaceEntry South
         {
-            get { return _south; }
+            get { return south; }
         }
 
         public ModelFaceEntry East
         {
-            get { return _east; }
+            get { return east; }
         }
 
         public ModelFaceEntry West
         {
-            get { return _west; }
+            get { return west; }
         }
 
         public ModelFaceEntry Up
         {
-            get { return _up; }
+            get { return up; }
         }
 
         public ModelFaceEntry Down
         {
-            get { return _down; }
+            get { return down; }
         }
     }
 }

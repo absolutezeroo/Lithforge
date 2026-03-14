@@ -5,7 +5,7 @@ namespace Lithforge.Runtime.Content.Tools
 {
     [CreateAssetMenu(fileName = "NewToolMaterial",
         menuName = "Lithforge/Content/Tool Material Definition")]
-    public sealed class ToolMaterialDefinitionSO : ScriptableObject
+    public sealed class ToolMaterialDefinitionSo : ScriptableObject
     {
         [Header("Identity")]
         public string materialId;

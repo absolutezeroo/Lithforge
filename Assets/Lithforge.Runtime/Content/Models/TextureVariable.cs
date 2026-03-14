@@ -6,36 +6,33 @@ namespace Lithforge.Runtime.Content.Models
     [System.Serializable]
     public sealed class TextureVariable
     {
-        [FormerlySerializedAs("variable")]
-        [Tooltip("Variable name (e.g. 'all', 'side', 'end', 'north')")]
-        [SerializeField] private string _variable;
+        [FormerlySerializedAs("_variable"),Tooltip("Variable name (e.g. 'all', 'side', 'end', 'north')")]
+        [SerializeField] private string variable;
 
-        [FormerlySerializedAs("texture")]
-        [Tooltip("Direct texture reference (drag-drop a Texture2D asset)")]
-        [SerializeField] private Texture2D _texture;
+        [FormerlySerializedAs("_texture"),Tooltip("Direct texture reference (drag-drop a Texture2D asset)")]
+        [SerializeField] private Texture2D texture;
 
-        [FormerlySerializedAs("variableReference")]
-        [Tooltip("Variable reference (e.g. '#all') for indirection to another variable")]
-        [SerializeField] private string _variableReference;
+        [FormerlySerializedAs("_variableReference"),Tooltip("Variable reference (e.g. '#all') for indirection to another variable")]
+        [SerializeField] private string variableReference;
 
         public string Variable
         {
-            get { return _variable; }
+            get { return variable; }
         }
 
         public Texture2D Texture
         {
-            get { return _texture; }
+            get { return texture; }
         }
 
         public string VariableReference
         {
-            get { return _variableReference; }
+            get { return variableReference; }
         }
 
         public bool IsVariableReference
         {
-            get { return !string.IsNullOrEmpty(_variableReference) && _variableReference.StartsWith("#"); }
+            get { return !string.IsNullOrEmpty(variableReference) && variableReference.StartsWith("#"); }
         }
     }
 }

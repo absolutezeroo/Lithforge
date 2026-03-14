@@ -7,69 +7,63 @@ namespace Lithforge.Runtime.Content.Blocks
     [System.Serializable]
     public sealed class BlockPropertyEntry
     {
-        [FormerlySerializedAs("name")]
-        [Tooltip("Property name (e.g. 'facing', 'lit', 'axis')")]
-        [SerializeField] private string _name;
+        [FormerlySerializedAs("_name"),Tooltip("Property name (e.g. 'facing', 'lit', 'axis')")]
+        [SerializeField] private string name;
 
-        [FormerlySerializedAs("kind")]
-        [Tooltip("Property type")]
-        [SerializeField] private BlockPropertyKind _kind;
+        [FormerlySerializedAs("_kind"),Tooltip("Property type")]
+        [SerializeField] private BlockPropertyKind kind;
 
-        [FormerlySerializedAs("values")]
-        [Tooltip("Possible values (for enum type, or auto-generated for bool/int)")]
-        [SerializeField] private List<string> _values = new List<string>();
+        [FormerlySerializedAs("_values"),Tooltip("Possible values (for enum type, or auto-generated for bool/int)")]
+        [SerializeField] private List<string> values = new List<string>();
 
-        [FormerlySerializedAs("defaultValue")]
-        [Tooltip("Default value")]
-        [SerializeField] private string _defaultValue;
+        [FormerlySerializedAs("_defaultValue"),Tooltip("Default value")]
+        [SerializeField] private string defaultValue;
 
-        [FormerlySerializedAs("minValue")]
-        [Tooltip("Min value (for int range type)")]
-        [SerializeField] private int _minValue;
+        [FormerlySerializedAs("_minValue"),Tooltip("Min value (for int range type)")]
+        [SerializeField] private int minValue;
 
-        [FormerlySerializedAs("maxValue")]
-        [Tooltip("Max value (for int range type)")]
-        [SerializeField] private int _maxValue;
+        [FormerlySerializedAs("_maxValue"),Tooltip("Max value (for int range type)")]
+        [SerializeField] private int maxValue;
 
         public string Name
         {
-            get { return _name; }
+            get { return name; }
         }
 
         public BlockPropertyKind Kind
         {
-            get { return _kind; }
+            get { return kind; }
         }
 
         public IReadOnlyList<string> Values
         {
-            get { return _values; }
+            get { return values; }
         }
 
         public string DefaultValue
         {
-            get { return _defaultValue; }
+            get { return defaultValue; }
         }
 
         public int MinValue
         {
-            get { return _minValue; }
+            get { return minValue; }
         }
 
         public int MaxValue
         {
-            get { return _maxValue; }
+            get { return maxValue; }
         }
 
         public int ValueCount
         {
             get
             {
-                return _kind switch
+                return kind switch
                 {
                     BlockPropertyKind.Bool => 2,
-                    BlockPropertyKind.IntRange => _maxValue - _minValue + 1,
-                    BlockPropertyKind.Enum => _values.Count,
+                    BlockPropertyKind.IntRange => maxValue - minValue + 1,
+                    BlockPropertyKind.Enum => values.Count,
                     _ => 1,
                 };
             }
@@ -77,12 +71,12 @@ namespace Lithforge.Runtime.Content.Blocks
 
         public string GetValue(int index)
         {
-            return _kind switch
+            return kind switch
             {
                 BlockPropertyKind.Bool => index == 0 ? "true" : "false",
-                BlockPropertyKind.IntRange => (_minValue + index).ToString(),
-                BlockPropertyKind.Enum => _values[index],
-                _ => _defaultValue,
+                BlockPropertyKind.IntRange => (minValue + index).ToString(),
+                BlockPropertyKind.Enum => values[index],
+                _ => defaultValue,
             };
         }
     }

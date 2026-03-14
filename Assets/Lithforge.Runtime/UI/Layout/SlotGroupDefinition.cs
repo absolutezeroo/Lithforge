@@ -10,59 +10,52 @@ namespace Lithforge.Runtime.UI.Layout
     [System.Serializable]
     public sealed class SlotGroupDefinition
     {
-        [FormerlySerializedAs("containerName")]
-        [SerializeField] private string _containerName = "";
-        [FormerlySerializedAs("columns")]
-        [SerializeField] private int _columns = 9;
-        [FormerlySerializedAs("rows")]
-        [SerializeField] private int _rows = 1;
-        [FormerlySerializedAs("startIndex")]
-        [SerializeField] private int _startIndex;
-        [FormerlySerializedAs("slotSize")]
-        [SerializeField] private int _slotSize = 60;
-        [FormerlySerializedAs("slotSpacing")]
-        [SerializeField] private int _slotSpacing = 3;
-        [FormerlySerializedAs("label")]
-        [SerializeField] private string _label = "";
+        [FormerlySerializedAs("_containerName"),SerializeField] private string containerName = "";
+        [FormerlySerializedAs("_columns"),SerializeField] private int columns = 9;
+        [FormerlySerializedAs("_rows"),SerializeField] private int rows = 1;
+        [FormerlySerializedAs("_startIndex"),SerializeField] private int startIndex;
+        [FormerlySerializedAs("_slotSize"),SerializeField] private int slotSize = 60;
+        [FormerlySerializedAs("_slotSpacing"),SerializeField] private int slotSpacing = 3;
+        [FormerlySerializedAs("_label"),SerializeField] private string label = "";
 
         public string ContainerName
         {
-            get { return _containerName; }
+            get { return containerName; }
         }
 
         public int Columns
         {
-            get { return _columns; }
+            get { return columns; }
         }
 
         public int Rows
         {
-            get { return _rows; }
+            get { return rows; }
         }
 
         public int StartIndex
         {
-            get { return _startIndex; }
+            get { return startIndex; }
         }
 
         public int SlotSize
         {
-            get { return _slotSize; }
+            get { return slotSize; }
         }
 
         public int SlotSpacing
         {
-            get { return _slotSpacing; }
+            get { return slotSpacing; }
         }
 
         public string Label
         {
-            get { return _label; }
+            get { return label; }
         }
 
         public int TotalSlots
         {
-            get { return _columns * _rows; }
+            get { return columns * rows; }
         }
 
         /// <summary>
@@ -73,13 +66,13 @@ namespace Lithforge.Runtime.UI.Layout
             int start = 0, int size = 60, int spacing = 3, string groupLabel = "")
         {
             SlotGroupDefinition def = new SlotGroupDefinition();
-            def._containerName = name;
-            def._columns = cols;
-            def._rows = rowCount;
-            def._startIndex = start;
-            def._slotSize = size;
-            def._slotSpacing = spacing;
-            def._label = groupLabel;
+            def.containerName = name;
+            def.columns = cols;
+            def.rows = rowCount;
+            def.startIndex = start;
+            def.slotSize = size;
+            def.slotSpacing = spacing;
+            def.label = groupLabel;
             return def;
         }
     }

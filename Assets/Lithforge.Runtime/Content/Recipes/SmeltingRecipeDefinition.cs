@@ -16,42 +16,38 @@ namespace Lithforge.Runtime.Content.Recipes
         order = 5)]
     public sealed class SmeltingRecipeDefinition : ScriptableObject
     {
-        [FormerlySerializedAs("inputItemId")]
-        [Tooltip("Input item resource ID (e.g. lithforge:iron_ore)")]
-        [SerializeField] private string _inputItemId = "";
+        [FormerlySerializedAs("_inputItemId"),Tooltip("Input item resource ID (e.g. lithforge:iron_ore)")]
+        [SerializeField] private string inputItemId = "";
 
-        [FormerlySerializedAs("resultItemId")]
-        [Tooltip("Result item resource ID (e.g. lithforge:iron_ingot)")]
-        [SerializeField] private string _resultItemId = "";
+        [FormerlySerializedAs("_resultItemId"),Tooltip("Result item resource ID (e.g. lithforge:iron_ingot)")]
+        [SerializeField] private string resultItemId = "";
 
-        [FormerlySerializedAs("resultCount")]
-        [Tooltip("Number of result items per smelt")]
+        [FormerlySerializedAs("_resultCount"),Tooltip("Number of result items per smelt")]
         [Min(1)]
-        [SerializeField] private int _resultCount = 1;
+        [SerializeField] private int resultCount = 1;
 
-        [FormerlySerializedAs("experienceReward")]
-        [Tooltip("Experience reward per smelt")]
+        [FormerlySerializedAs("_experienceReward"),Tooltip("Experience reward per smelt")]
         [Min(0f)]
-        [SerializeField] private float _experienceReward;
+        [SerializeField] private float experienceReward;
 
         public string InputItemId
         {
-            get { return _inputItemId; }
+            get { return inputItemId; }
         }
 
         public string ResultItemId
         {
-            get { return _resultItemId; }
+            get { return resultItemId; }
         }
 
         public int ResultCount
         {
-            get { return _resultCount; }
+            get { return resultCount; }
         }
 
         public float ExperienceReward
         {
-            get { return _experienceReward; }
+            get { return experienceReward; }
         }
     }
 }

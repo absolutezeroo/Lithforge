@@ -35,12 +35,9 @@ namespace Lithforge.Runtime.Bootstrap
 {
     public sealed class LithforgeBootstrap : MonoBehaviour
     {
-        [FormerlySerializedAs("voxelMaterial")]
-        [SerializeField] private Material _voxelMaterial;
-        [FormerlySerializedAs("frustumCullShader")]
-        [SerializeField] private ComputeShader _frustumCullShader;
-        [FormerlySerializedAs("hiZGenerateShader")]
-        [SerializeField] private ComputeShader _hiZGenerateShader;
+        [FormerlySerializedAs("_voxelMaterial"),SerializeField] private Material voxelMaterial;
+        [FormerlySerializedAs("_frustumCullShader"),SerializeField] private ComputeShader frustumCullShader;
+        [FormerlySerializedAs("_hiZGenerateShader"),SerializeField] private ComputeShader hiZGenerateShader;
 
         private LoadedSettings _settings;
         private ContentPipelineResult _contentResult;
@@ -250,7 +247,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeRendering()
         {
-            Material opaqueMaterial = _voxelMaterial;
+            Material opaqueMaterial = voxelMaterial;
 
             if (opaqueMaterial == null)
             {
@@ -319,7 +316,7 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Load frustum cull compute shader from Resources if not assigned in Inspector
-            ComputeShader cullShader = _frustumCullShader;
+            ComputeShader cullShader = frustumCullShader;
 
             if (cullShader == null)
             {
@@ -334,7 +331,7 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Load Hi-Z pyramid generation compute shader
-            ComputeShader hiZShader = _hiZGenerateShader;
+            ComputeShader hiZShader = hiZGenerateShader;
 
             if (hiZShader == null)
             {

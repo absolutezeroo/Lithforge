@@ -11,9 +11,16 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class ArmAnimator
     {
-        // Base arm positions in camera-local space (model units → block units / 16)
-        private static readonly float3 RightArmOffset = new float3(0.56f, -0.52f, -0.72f);
-        private static readonly float3 LeftArmOffset = new float3(-0.56f, -0.52f, -0.72f);
+        // Base arm positions in camera-local space (block units)
+        private static readonly float3 s_rightArmOffset = new float3(0.56f, -0.52f, -0.72f);
+        private static readonly float3 s_leftArmOffset = new float3(-0.56f, -0.52f, -0.72f);
+
+        // Base arm rotation: pitches arm forward from hanging down to reaching forward,
+        // then angles slightly inward. Applied as local transform around the pivot.
+        // Matches Minecraft's first-person arm orientation.
+        private static readonly float4x4 s_baseArmRotation = math.mul(
+            float4x4.RotateY(math.radians(-45f)),
+            float4x4.RotateX(math.radians(-160f)));
 
         // View bob parameters
         private const float BobStrength = 0.015f;
@@ -108,8 +115,8 @@ namespace Lithforge.Runtime.Player
             UpdateEquip(deltaTime);
 
             // Compute final matrices for each arm
-            _partTransforms[2] = ComputeArmMatrix(RightArmOffset);
-            _partTransforms[3] = ComputeArmMatrix(LeftArmOffset);
+            _partTransforms[2] = ComputeArmMatrix(s_rightArmOffset);
+            _partTransforms[3] = ComputeArmMatrix(s_leftArmOffset);
         }
 
         private void UpdateWalkBob(float deltaTime, bool isOnGround, bool isFlying)
@@ -178,7 +185,7 @@ namespace Lithforge.Runtime.Player
             // 2. Base arm position
             mat = math.mul(float4x4.Translate(baseOffset), mat);
 
-            // 3. Equip animation (drop and rise)
+            // 3. Equip animation (drop and rise, world-space)
             if (_isEquipping)
             {
                 float progress = math.saturate(_equipTimer / EquipDuration);
@@ -187,7 +194,10 @@ namespace Lithforge.Runtime.Player
                 mat = math.mul(float4x4.Translate(new float3(0f, -drop * EquipDropAmount, 0f)), mat);
             }
 
-            // 4. Swing animation (pitch/yaw/roll rotation)
+            // 4. Base arm rotation (local: pitches arm forward from default hanging-down pose)
+            mat = math.mul(mat, s_baseArmRotation);
+
+            // 5. Swing animation (pitch/yaw/roll rotation, local)
             if (_isSwinging)
             {
                 float t = math.saturate(_swingTimer / SwingDuration);

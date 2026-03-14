@@ -7,59 +7,53 @@ namespace Lithforge.Runtime.Content.Blocks
     [System.Serializable]
     public sealed class BlockStateVariantEntry
     {
-        [FormerlySerializedAs("variantKey")]
-        [Tooltip("Variant key (e.g. '' for no properties, 'axis=y', 'facing=north,lit=false')")]
-        [SerializeField] private string _variantKey = "";
+        [FormerlySerializedAs("_variantKey"),Tooltip("Variant key (e.g. '' for no properties, 'axis=y', 'facing=north,lit=false')")]
+        [SerializeField] private string variantKey = "";
 
-        [FormerlySerializedAs("model")]
-        [Tooltip("Block model for this variant")]
-        [SerializeField] private BlockModel _model;
+        [FormerlySerializedAs("_model"),Tooltip("Block model for this variant")]
+        [SerializeField] private BlockModel model;
 
-        [FormerlySerializedAs("rotationX")]
-        [Tooltip("X rotation in degrees (0, 90, 180, 270)")]
-        [SerializeField] private int _rotationX;
+        [FormerlySerializedAs("_rotationX"),Tooltip("X rotation in degrees (0, 90, 180, 270)")]
+        [SerializeField] private int rotationX;
 
-        [FormerlySerializedAs("rotationY")]
-        [Tooltip("Y rotation in degrees (0, 90, 180, 270)")]
-        [SerializeField] private int _rotationY;
+        [FormerlySerializedAs("_rotationY"),Tooltip("Y rotation in degrees (0, 90, 180, 270)")]
+        [SerializeField] private int rotationY;
 
-        [FormerlySerializedAs("uvlock")]
-        [Tooltip("Lock UV coordinates when rotating")]
-        [SerializeField] private bool _uvlock;
+        [FormerlySerializedAs("_uvlock"),Tooltip("Lock UV coordinates when rotating")]
+        [SerializeField] private bool uvlock;
 
-        [FormerlySerializedAs("weight")]
-        [Tooltip("Selection weight for weighted random variants")]
+        [FormerlySerializedAs("_weight"),Tooltip("Selection weight for weighted random variants")]
         [Min(1)]
-        [SerializeField] private int _weight = 1;
+        [SerializeField] private int weight = 1;
 
         public string VariantKey
         {
-            get { return _variantKey; }
+            get { return variantKey; }
         }
 
         public BlockModel Model
         {
-            get { return _model; }
+            get { return model; }
         }
 
         public int RotationX
         {
-            get { return _rotationX; }
+            get { return rotationX; }
         }
 
         public int RotationY
         {
-            get { return _rotationY; }
+            get { return rotationY; }
         }
 
         public bool Uvlock
         {
-            get { return _uvlock; }
+            get { return uvlock; }
         }
 
         public int Weight
         {
-            get { return _weight; }
+            get { return weight; }
         }
     }
 }

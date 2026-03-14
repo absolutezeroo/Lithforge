@@ -11,19 +11,16 @@ namespace Lithforge.Runtime.Content.Loot
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
-        [FormerlySerializedAs("tableName")]
-        [Tooltip("Loot table name (e.g. 'blocks/stone')")]
-        [SerializeField] private string _tableName = "";
+        [FormerlySerializedAs("_tableName"),Tooltip("Loot table name (e.g. 'blocks/stone')")]
+        [SerializeField] private string tableName = "";
 
-        [FormerlySerializedAs("type")]
-        [Header("Type")]
+        [FormerlySerializedAs("_type"),Header("Type")]
         [Tooltip("Loot table type")]
-        [SerializeField] private string _type = "block";
+        [SerializeField] private string type = "block";
 
-        [FormerlySerializedAs("pools")]
-        [Header("Pools")]
+        [FormerlySerializedAs("_pools"),Header("Pools")]
         [Tooltip("Loot pools — each pool is rolled independently")]
-        [SerializeField] private List<LootPoolEntry> _pools = new List<LootPoolEntry>();
+        [SerializeField] private List<LootPoolEntry> pools = new List<LootPoolEntry>();
 
         public string Namespace
         {
@@ -32,24 +29,24 @@ namespace Lithforge.Runtime.Content.Loot
 
         public string TableName
         {
-            get { return _tableName; }
+            get { return tableName; }
         }
 
         public string Type
         {
-            get { return _type; }
+            get { return type; }
         }
 
         public IReadOnlyList<LootPoolEntry> Pools
         {
-            get { return _pools; }
+            get { return pools; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_tableName))
+            if (string.IsNullOrEmpty(tableName))
             {
-                _tableName = name;
+                tableName = name;
             }
         }
     }

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Models
 {
@@ -12,36 +13,36 @@ namespace Lithforge.Runtime.Content.Models
     [Serializable]
     public sealed class ModelDisplayTransform
     {
-        [Tooltip("Whether this display transform has been explicitly set.")]
-        [SerializeField] private bool _hasValue;
+        [FormerlySerializedAs("_hasValue"),Tooltip("Whether this display transform has been explicitly set.")]
+        [SerializeField] private bool hasValue;
 
-        [Tooltip("Rotation in degrees [X, Y, Z].")]
-        [SerializeField] private Vector3 _rotation;
+        [FormerlySerializedAs("_rotation"),Tooltip("Rotation in degrees [X, Y, Z].")]
+        [SerializeField] private Vector3 rotation;
 
-        [Tooltip("Translation in 1/16 block units. Clamped to [-80, 80].")]
-        [SerializeField] private Vector3 _translation;
+        [FormerlySerializedAs("_translation"),Tooltip("Translation in 1/16 block units. Clamped to [-80, 80].")]
+        [SerializeField] private Vector3 translation;
 
-        [Tooltip("Scale per axis. Capped at 4.")]
-        [SerializeField] private Vector3 _scale = Vector3.one;
+        [FormerlySerializedAs("_scale"),Tooltip("Scale per axis. Capped at 4.")]
+        [SerializeField] private Vector3 scale = Vector3.one;
 
         public bool HasValue
         {
-            get { return _hasValue; }
+            get { return hasValue; }
         }
 
         public Vector3 Rotation
         {
-            get { return _rotation; }
+            get { return rotation; }
         }
 
         public Vector3 Translation
         {
-            get { return _translation; }
+            get { return translation; }
         }
 
         public Vector3 Scale
         {
-            get { return _scale; }
+            get { return scale; }
         }
     }
 }

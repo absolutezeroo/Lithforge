@@ -11,116 +11,96 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
-        [FormerlySerializedAs("biomeName")]
-        [Tooltip("Biome name")]
-        [SerializeField] private string _biomeName = "";
+        [FormerlySerializedAs("_biomeName"),Tooltip("Biome name")]
+        [SerializeField] private string biomeName = "";
 
-        [Header("Climate Range")]
-        [FormerlySerializedAs("temperatureMin")]
+        [FormerlySerializedAs("_temperatureMin"),Header("Climate Range")]
         [Tooltip("Minimum temperature")]
         [Range(0f, 1f)]
-        [SerializeField] private float _temperatureMin;
+        [SerializeField] private float temperatureMin;
 
-        [FormerlySerializedAs("temperatureMax")]
-        [Tooltip("Maximum temperature")]
+        [FormerlySerializedAs("_temperatureMax"),Tooltip("Maximum temperature")]
         [Range(0f, 1f)]
-        [SerializeField] private float _temperatureMax = 1.0f;
+        [SerializeField] private float temperatureMax = 1.0f;
 
-        [FormerlySerializedAs("temperatureCenter")]
-        [Tooltip("Preferred temperature center")]
+        [FormerlySerializedAs("_temperatureCenter"),Tooltip("Preferred temperature center")]
         [Range(0f, 1f)]
-        [SerializeField] private float _temperatureCenter = 0.5f;
+        [SerializeField] private float temperatureCenter = 0.5f;
 
-        [FormerlySerializedAs("humidityMin")]
-        [Tooltip("Minimum humidity")]
+        [FormerlySerializedAs("_humidityMin"),Tooltip("Minimum humidity")]
         [Range(0f, 1f)]
-        [SerializeField] private float _humidityMin;
+        [SerializeField] private float humidityMin;
 
-        [FormerlySerializedAs("humidityMax")]
-        [Tooltip("Maximum humidity")]
+        [FormerlySerializedAs("_humidityMax"),Tooltip("Maximum humidity")]
         [Range(0f, 1f)]
-        [SerializeField] private float _humidityMax = 1.0f;
+        [SerializeField] private float humidityMax = 1.0f;
 
-        [FormerlySerializedAs("humidityCenter")]
-        [Tooltip("Preferred humidity center")]
+        [FormerlySerializedAs("_humidityCenter"),Tooltip("Preferred humidity center")]
         [Range(0f, 1f)]
-        [SerializeField] private float _humidityCenter = 0.5f;
+        [SerializeField] private float humidityCenter = 0.5f;
 
-        [Header("Surface Blocks")]
-        [FormerlySerializedAs("topBlock")]
+        [FormerlySerializedAs("_topBlock"),Header("Surface Blocks")]
         [Tooltip("Top surface block (e.g. grass_block)")]
-        [SerializeField] private BlockDefinition _topBlock;
+        [SerializeField] private BlockDefinition topBlock;
 
-        [FormerlySerializedAs("fillerBlock")]
-        [Tooltip("Filler block below surface (e.g. dirt)")]
-        [SerializeField] private BlockDefinition _fillerBlock;
+        [FormerlySerializedAs("_fillerBlock"),Tooltip("Filler block below surface (e.g. dirt)")]
+        [SerializeField] private BlockDefinition fillerBlock;
 
-        [FormerlySerializedAs("stoneBlock")]
-        [Tooltip("Stone block")]
-        [SerializeField] private BlockDefinition _stoneBlock;
+        [FormerlySerializedAs("_stoneBlock"),Tooltip("Stone block")]
+        [SerializeField] private BlockDefinition stoneBlock;
 
-        [FormerlySerializedAs("underwaterBlock")]
-        [Tooltip("Block used underwater")]
-        [SerializeField] private BlockDefinition _underwaterBlock;
+        [FormerlySerializedAs("_underwaterBlock"),Tooltip("Block used underwater")]
+        [SerializeField] private BlockDefinition underwaterBlock;
 
-        [Header("Terrain")]
-        [FormerlySerializedAs("fillerDepth")]
+        [FormerlySerializedAs("_fillerDepth"),Header("Terrain")]
         [Tooltip("Depth of filler blocks")]
         [Min(0)]
-        [SerializeField] private int _fillerDepth = 3;
+        [SerializeField] private int fillerDepth = 3;
 
-        [FormerlySerializedAs("treeDensity")]
-        [Tooltip("Tree density (0 = no trees, 1 = maximum)")]
+        [FormerlySerializedAs("_treeDensity"),Tooltip("Tree density (0 = no trees, 1 = maximum)")]
         [Range(0f, 1f)]
-        [SerializeField] private float _treeDensity;
+        [SerializeField] private float treeDensity;
 
-        [FormerlySerializedAs("treeType")]
-        [Tooltip("Tree shape variant for this biome (0=oak, 1=birch, 2=spruce)")]
+        [FormerlySerializedAs("_treeType"),Tooltip("Tree shape variant for this biome (0=oak, 1=birch, 2=spruce)")]
         [Range(0, 2)]
-        [SerializeField] private int _treeType;
+        [SerializeField] private int treeType;
 
-        [Header("Extended Climate")]
-        [FormerlySerializedAs("continentalnessCenter")]
+        [FormerlySerializedAs("_continentalnessCenter"),Header("Extended Climate")]
         [Tooltip("Preferred continentalness value (0=ocean, 1=far inland)")]
         [Range(0f, 1f)]
-        [SerializeField] private float _continentalnessCenter = 0.5f;
+        [SerializeField] private float continentalnessCenter = 0.5f;
 
-        [FormerlySerializedAs("erosionCenter")]
-        [Tooltip("Preferred erosion value (0=low erosion/peaks, 1=high erosion/flat)")]
+        [FormerlySerializedAs("_erosionCenter"),Tooltip("Preferred erosion value (0=low erosion/peaks, 1=high erosion/flat)")]
         [Range(0f, 1f)]
-        [SerializeField] private float _erosionCenter = 0.5f;
+        [SerializeField] private float erosionCenter = 0.5f;
 
-        [FormerlySerializedAs("baseHeight")]
-        [Tooltip("Target surface height relative to sea level (blended per-biome)")]
-        [SerializeField] private float _baseHeight = 4f;
+        [FormerlySerializedAs("_baseHeight"),Tooltip("Target surface height relative to sea level (blended per-biome)")]
+        [SerializeField] private float baseHeight = 4f;
 
-        [FormerlySerializedAs("heightAmplitude")]
-        [Tooltip("Terrain noise amplitude scale for this biome")]
-        [SerializeField] private float _heightAmplitude = 12f;
+        [FormerlySerializedAs("_heightAmplitude"),Tooltip("Terrain noise amplitude scale for this biome")]
+        [SerializeField] private float heightAmplitude = 12f;
 
-        [Tooltip("Sharpness of the exponential weight falloff (higher = harder edges)")]
+        [FormerlySerializedAs("_weightSharpness"),Tooltip("Sharpness of the exponential weight falloff (higher = harder edges)")]
         [Range(1f, 32f)]
-        [SerializeField] private float _weightSharpness = 8.0f;
+        [SerializeField] private float weightSharpness = 8.0f;
 
-        [Header("Surface Behavior")]
+        [FormerlySerializedAs("_isOcean"),Header("Surface Behavior")]
         [Tooltip("Ocean biome: suppresses trees, uses UnderwaterBlock for floor")]
-        [SerializeField] private bool _isOcean;
+        [SerializeField] private bool isOcean;
 
-        [Tooltip("Frozen biome: places ice at water surface")]
-        [SerializeField] private bool _isFrozen;
+        [FormerlySerializedAs("_isFrozen"),Tooltip("Frozen biome: places ice at water surface")]
+        [SerializeField] private bool isFrozen;
 
-        [Tooltip("Beach biome: reserved for future shore-specific behavior")]
-        [SerializeField] private bool _isBeach;
+        [FormerlySerializedAs("_isBeach"),Tooltip("Beach biome: reserved for future shore-specific behavior")]
+        [SerializeField] private bool isBeach;
 
-        [Header("Tinting")]
-        [FormerlySerializedAs("waterColor")]
+        [FormerlySerializedAs("_waterColor"),Header("Tinting")]
         [Tooltip("Water tint color for this biome")]
-        [SerializeField] private Color _waterColor = new Color(0.247f, 0.463f, 0.894f, 1f);
+        [SerializeField] private Color waterColor = new Color(0.247f, 0.463f, 0.894f, 1f);
 
-        [Header("Map")]
-        [FormerlySerializedAs("mapColor")]
+        [FormerlySerializedAs("_mapColor"),Header("Map")]
         [Tooltip("Color shown on the world map")]
-        [SerializeField] private Color _mapColor = Color.green;
+        [SerializeField] private Color mapColor = Color.green;
 
         public string Namespace
         {
@@ -129,129 +109,129 @@ namespace Lithforge.Runtime.Content.WorldGen
 
         public string BiomeName
         {
-            get { return _biomeName; }
+            get { return biomeName; }
         }
 
         public float TemperatureMin
         {
-            get { return _temperatureMin; }
+            get { return temperatureMin; }
         }
 
         public float TemperatureMax
         {
-            get { return _temperatureMax; }
+            get { return temperatureMax; }
         }
 
         public float TemperatureCenter
         {
-            get { return _temperatureCenter; }
+            get { return temperatureCenter; }
         }
 
         public float HumidityMin
         {
-            get { return _humidityMin; }
+            get { return humidityMin; }
         }
 
         public float HumidityMax
         {
-            get { return _humidityMax; }
+            get { return humidityMax; }
         }
 
         public float HumidityCenter
         {
-            get { return _humidityCenter; }
+            get { return humidityCenter; }
         }
 
         public BlockDefinition TopBlock
         {
-            get { return _topBlock; }
+            get { return topBlock; }
         }
 
         public BlockDefinition FillerBlock
         {
-            get { return _fillerBlock; }
+            get { return fillerBlock; }
         }
 
         public BlockDefinition StoneBlock
         {
-            get { return _stoneBlock; }
+            get { return stoneBlock; }
         }
 
         public BlockDefinition UnderwaterBlock
         {
-            get { return _underwaterBlock; }
+            get { return underwaterBlock; }
         }
 
         public int FillerDepth
         {
-            get { return _fillerDepth; }
+            get { return fillerDepth; }
         }
 
         public float TreeDensity
         {
-            get { return _treeDensity; }
+            get { return treeDensity; }
         }
 
         public int TreeType
         {
-            get { return _treeType; }
+            get { return treeType; }
         }
 
         public float ContinentalnessCenter
         {
-            get { return _continentalnessCenter; }
+            get { return continentalnessCenter; }
         }
 
         public float ErosionCenter
         {
-            get { return _erosionCenter; }
+            get { return erosionCenter; }
         }
 
         public float BaseHeight
         {
-            get { return _baseHeight; }
+            get { return baseHeight; }
         }
 
         public float HeightAmplitude
         {
-            get { return _heightAmplitude; }
+            get { return heightAmplitude; }
         }
 
         public float WeightSharpness
         {
-            get { return _weightSharpness; }
+            get { return weightSharpness; }
         }
 
         public bool IsOcean
         {
-            get { return _isOcean; }
+            get { return isOcean; }
         }
 
         public bool IsFrozen
         {
-            get { return _isFrozen; }
+            get { return isFrozen; }
         }
 
         public bool IsBeach
         {
-            get { return _isBeach; }
+            get { return isBeach; }
         }
 
         public Color WaterColor
         {
-            get { return _waterColor; }
+            get { return waterColor; }
         }
 
         public Color MapColor
         {
-            get { return _mapColor; }
+            get { return mapColor; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_biomeName))
+            if (string.IsNullOrEmpty(biomeName))
             {
-                _biomeName = name;
+                biomeName = name;
             }
         }
     }

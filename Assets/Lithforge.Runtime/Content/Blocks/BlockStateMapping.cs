@@ -7,14 +7,13 @@ namespace Lithforge.Runtime.Content.Blocks
     [CreateAssetMenu(fileName = "NewBlockStateMapping", menuName = "Lithforge/Content/Block State Mapping", order = 1)]
     public sealed class BlockStateMapping : ScriptableObject
     {
-        [Header("Variants")]
-        [FormerlySerializedAs("variants")]
+        [FormerlySerializedAs("_variants"),Header("Variants")]
         [Tooltip("Property string → model reference mappings")]
-        [SerializeField] private List<BlockStateVariantEntry> _variants = new List<BlockStateVariantEntry>();
+        [SerializeField] private List<BlockStateVariantEntry> variants = new List<BlockStateVariantEntry>();
 
         public IReadOnlyList<BlockStateVariantEntry> Variants
         {
-            get { return _variants; }
+            get { return variants; }
         }
     }
 }

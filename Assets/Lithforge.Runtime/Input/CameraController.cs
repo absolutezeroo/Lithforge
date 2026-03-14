@@ -10,8 +10,7 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class CameraController : MonoBehaviour
     {
-        [FormerlySerializedAs("lookSensitivity")]
-        [SerializeField] private float _lookSensitivity = 0.1f;
+        [FormerlySerializedAs("_lookSensitivity"),SerializeField] private float lookSensitivity = 0.1f;
 
         private float _pitch;
 
@@ -40,7 +39,7 @@ namespace Lithforge.Runtime.Input
             Vector2 delta = mouse.delta.ReadValue();
 
             // Pitch: rotate camera locally on X axis (clamped)
-            _pitch -= delta.y * _lookSensitivity;
+            _pitch -= delta.y * lookSensitivity;
             _pitch = Mathf.Clamp(_pitch, -89f, 89f);
             transform.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
 
@@ -49,19 +48,19 @@ namespace Lithforge.Runtime.Input
 
             if (parent != null)
             {
-                float yaw = parent.eulerAngles.y + delta.x * _lookSensitivity;
+                float yaw = parent.eulerAngles.y + delta.x * lookSensitivity;
                 parent.rotation = Quaternion.Euler(0f, yaw, 0f);
             }
         }
 
         public float LookSensitivity
         {
-            get { return _lookSensitivity; }
+            get { return lookSensitivity; }
         }
 
         public void SetLookSensitivity(float value)
         {
-            _lookSensitivity = Mathf.Clamp(value, 0.01f, 2.0f);
+            lookSensitivity = Mathf.Clamp(value, 0.01f, 2.0f);
         }
 
         /// <summary>

@@ -9,222 +9,205 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Pool")]
         [Tooltip("Number of chunk buffers in the pool")]
         [Min(16)]
-        [FormerlySerializedAs("poolSize")]
-        [SerializeField] private int _poolSize = 256;
+        [SerializeField] private int poolSize = 256;
 
         [Header("Loading")]
         [Tooltip("Render distance in chunks")]
         [Range(1, 32)]
-        [FormerlySerializedAs("renderDistance")]
-        [SerializeField] private int _renderDistance = 4;
+        [SerializeField] private int renderDistance = 4;
 
-        [Tooltip("Number of chunks to load around spawn before gameplay starts")]
+        [
+         Tooltip("Number of chunks to load around spawn before gameplay starts")]
         [Range(1, 8)]
-        [FormerlySerializedAs("spawnLoadRadius")]
-        [SerializeField] private int _spawnLoadRadius = 2;
+        [SerializeField] private int spawnLoadRadius = 2;
 
-        [Header("Frame Budget")]
+        [
+         Header("Frame Budget")]
         [Tooltip("Maximum chunk generation jobs scheduled per frame")]
         [Range(1, 16)]
-        [FormerlySerializedAs("maxGenerationsPerFrame")]
-        [SerializeField] private int _maxGenerationsPerFrame = 8;
+        [SerializeField] private int maxGenerationsPerFrame = 8;
 
-        [Tooltip("Maximum chunk mesh jobs scheduled per frame")]
+        [
+         Tooltip("Maximum chunk mesh jobs scheduled per frame")]
         [Range(1, 16)]
-        [FormerlySerializedAs("maxMeshesPerFrame")]
-        [SerializeField] private int _maxMeshesPerFrame = 8;
+        [SerializeField] private int maxMeshesPerFrame = 8;
 
-        [Tooltip("Maximum completed generation jobs processed per frame (spreads decoration + light work)")]
+        [
+         Tooltip("Maximum completed generation jobs processed per frame (spreads decoration + light work)")]
         [Range(1, 32)]
-        [FormerlySerializedAs("maxGenCompletionsPerFrame")]
-        [SerializeField] private int _maxGenCompletionsPerFrame = 8;
+        [SerializeField] private int maxGenCompletionsPerFrame = 8;
 
-        [Tooltip("Maximum completed mesh jobs processed per frame (spreads GPU uploads)")]
+        [ Tooltip("Maximum completed mesh jobs processed per frame (spreads GPU uploads)")]
         [Range(1, 32)]
-        [FormerlySerializedAs("maxMeshCompletionsPerFrame")]
-        [SerializeField] private int _maxMeshCompletionsPerFrame = 8;
+        [SerializeField] private int maxMeshCompletionsPerFrame = 8;
 
-        [Tooltip("Maximum cross-chunk light update jobs processed per frame")]
+        [ Tooltip("Maximum cross-chunk light update jobs processed per frame")]
         [Range(1, 32)]
-        [FormerlySerializedAs("maxLightUpdatesPerFrame")]
-        [SerializeField] private int _maxLightUpdatesPerFrame = 6;
+        [SerializeField] private int maxLightUpdatesPerFrame = 6;
 
-        [Tooltip("Milliseconds of CPU budget for processing completed generation jobs per frame")]
+        [ Tooltip("Milliseconds of CPU budget for processing completed generation jobs per frame")]
         [Range(0.1f, 8f)]
-        [FormerlySerializedAs("genCompletionBudgetMs")]
-        [SerializeField] private float _genCompletionBudgetMs = 2f;
+        [SerializeField] private float genCompletionBudgetMs = 2f;
 
-        [Tooltip("Milliseconds of CPU budget for processing completed mesh jobs per frame")]
+        [ Tooltip("Milliseconds of CPU budget for processing completed mesh jobs per frame")]
         [Range(0.1f, 8f)]
-        [FormerlySerializedAs("meshCompletionBudgetMs")]
-        [SerializeField] private float _meshCompletionBudgetMs = 2f;
+        [SerializeField] private float meshCompletionBudgetMs = 2f;
 
-        [Tooltip("Milliseconds of CPU budget for processing completed LOD mesh jobs per frame")]
+        [
+         Tooltip("Milliseconds of CPU budget for processing completed LOD mesh jobs per frame")]
         [Range(0.1f, 8f)]
-        [FormerlySerializedAs("lodCompletionBudgetMs")]
-        [SerializeField] private float _lodCompletionBudgetMs = 1f;
+        [SerializeField] private float lodCompletionBudgetMs = 1f;
 
         [Tooltip("Maximum completed LOD mesh jobs processed per frame (secondary cap alongside ms budget)")]
         [Range(1, 32)]
-        [FormerlySerializedAs("maxLODCompletionsPerFrame")]
-        [SerializeField] private int _maxLODCompletionsPerFrame = 4;
+        [SerializeField] private int maxLODCompletionsPerFrame = 4;
 
         [Header("Y Range — Loading")]
         [Tooltip("Minimum Y chunk offset from camera to load")]
-        [FormerlySerializedAs("yLoadMin")]
-        [SerializeField] private int _yLoadMin = -1;
+        [SerializeField] private int yLoadMin = -1;
 
         [Tooltip("Maximum Y chunk offset from camera to load")]
-        [FormerlySerializedAs("yLoadMax")]
-        [SerializeField] private int _yLoadMax = 3;
+        [SerializeField] private int yLoadMax = 3;
 
         [Header("Y Range — Unloading")]
         [Tooltip("Minimum Y chunk offset below which chunks are unloaded")]
-        [FormerlySerializedAs("yUnloadMin")]
-        [SerializeField] private int _yUnloadMin = -2;
+        [SerializeField] private int yUnloadMin = -2;
 
         [Tooltip("Maximum Y chunk offset above which chunks are unloaded")]
-        [FormerlySerializedAs("yUnloadMax")]
-        [SerializeField] private int _yUnloadMax = 4;
+        [SerializeField] private int yUnloadMax = 4;
 
         [Header("LOD")]
         [Tooltip("Chunk distance (in chunks) at which LOD1 (2x downsample) begins")]
         [Range(2, 32)]
-        [FormerlySerializedAs("lod1Distance")]
-        [SerializeField] private int _lod1Distance = 4;
+        [SerializeField] private int lod1Distance = 4;
 
         [Tooltip("Chunk distance (in chunks) at which LOD2 (4x downsample) begins")]
         [Range(4, 48)]
-        [FormerlySerializedAs("lod2Distance")]
-        [SerializeField] private int _lod2Distance = 8;
+        [SerializeField] private int lod2Distance = 8;
 
         [Tooltip("Chunk distance (in chunks) at which LOD3 (8x downsample) begins")]
         [Range(6, 64)]
-        [FormerlySerializedAs("lod3Distance")]
-        [SerializeField] private int _lod3Distance = 14;
+        [SerializeField] private int lod3Distance = 14;
 
         [Tooltip("Maximum LOD mesh jobs scheduled per frame")]
         [Range(1, 16)]
-        [FormerlySerializedAs("maxLODMeshesPerFrame")]
-        [SerializeField] private int _maxLODMeshesPerFrame = 4;
+        [SerializeField] private int maxLODMeshesPerFrame = 4;
 
         [Header("Spawn")]
         [Tooltip("Fallback world Y for player if no solid block is found during spawn scan")]
-        [FormerlySerializedAs("spawnFallbackY")]
-        [SerializeField] private int _spawnFallbackY = 65;
+        [SerializeField] private int spawnFallbackY = 65;
 
         [Tooltip("Initial Y offset above sea level for player position before safe-spawn scan")]
-        [FormerlySerializedAs("initialSpawnYOffset")]
-        [SerializeField] private int _initialSpawnYOffset = 32;
+        [SerializeField] private int initialSpawnYOffset = 32;
 
         public int PoolSize
         {
-            get { return _poolSize; }
+            get { return poolSize; }
         }
 
         public int RenderDistance
         {
-            get { return _renderDistance; }
+            get { return renderDistance; }
         }
 
         public int SpawnLoadRadius
         {
-            get { return _spawnLoadRadius; }
+            get { return spawnLoadRadius; }
         }
 
         public int MaxGenerationsPerFrame
         {
-            get { return _maxGenerationsPerFrame; }
+            get { return maxGenerationsPerFrame; }
         }
 
         public int MaxMeshesPerFrame
         {
-            get { return _maxMeshesPerFrame; }
+            get { return maxMeshesPerFrame; }
         }
 
         public int MaxGenCompletionsPerFrame
         {
-            get { return _maxGenCompletionsPerFrame; }
+            get { return maxGenCompletionsPerFrame; }
         }
 
         public int MaxMeshCompletionsPerFrame
         {
-            get { return _maxMeshCompletionsPerFrame; }
+            get { return maxMeshCompletionsPerFrame; }
         }
 
         public int MaxLightUpdatesPerFrame
         {
-            get { return _maxLightUpdatesPerFrame; }
+            get { return maxLightUpdatesPerFrame; }
         }
 
         public int YLoadMin
         {
-            get { return _yLoadMin; }
+            get { return yLoadMin; }
         }
 
         public int YLoadMax
         {
-            get { return _yLoadMax; }
+            get { return yLoadMax; }
         }
 
         public int YUnloadMin
         {
-            get { return _yUnloadMin; }
+            get { return yUnloadMin; }
         }
 
         public int YUnloadMax
         {
-            get { return _yUnloadMax; }
+            get { return yUnloadMax; }
         }
 
         public int LOD1Distance
         {
-            get { return _lod1Distance; }
+            get { return lod1Distance; }
         }
 
         public int LOD2Distance
         {
-            get { return _lod2Distance; }
+            get { return lod2Distance; }
         }
 
         public int LOD3Distance
         {
-            get { return _lod3Distance; }
+            get { return lod3Distance; }
         }
 
         public int MaxLODMeshesPerFrame
         {
-            get { return _maxLODMeshesPerFrame; }
+            get { return maxLODMeshesPerFrame; }
         }
 
         public int MaxLODCompletionsPerFrame
         {
-            get { return _maxLODCompletionsPerFrame; }
+            get { return maxLODCompletionsPerFrame; }
         }
 
         public float GenCompletionBudgetMs
         {
-            get { return _genCompletionBudgetMs; }
+            get { return genCompletionBudgetMs; }
         }
 
         public float MeshCompletionBudgetMs
         {
-            get { return _meshCompletionBudgetMs; }
+            get { return meshCompletionBudgetMs; }
         }
 
         public float LodCompletionBudgetMs
         {
-            get { return _lodCompletionBudgetMs; }
+            get { return lodCompletionBudgetMs; }
         }
 
         public int SpawnFallbackY
         {
-            get { return _spawnFallbackY; }
+            get { return spawnFallbackY; }
         }
 
         public int InitialSpawnYOffset
         {
-            get { return _initialSpawnYOffset; }
+            get { return initialSpawnYOffset; }
         }
     }
 }

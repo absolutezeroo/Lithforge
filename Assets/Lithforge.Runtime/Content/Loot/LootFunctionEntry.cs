@@ -7,22 +7,20 @@ namespace Lithforge.Runtime.Content.Loot
     [System.Serializable]
     public sealed class LootFunctionEntry
     {
-        [FormerlySerializedAs("functionType")]
-        [Tooltip("Function type")]
-        [SerializeField] private string _functionType = "";
+        [FormerlySerializedAs("_functionType"),Tooltip("Function type")]
+        [SerializeField] private string functionType = "";
 
-        [FormerlySerializedAs("parameters")]
-        [Tooltip("Function parameters as key=value pairs")]
-        [SerializeField] private List<StringPair> _parameters = new List<StringPair>();
+        [FormerlySerializedAs("_parameters"),Tooltip("Function parameters as key=value pairs")]
+        [SerializeField] private List<StringPair> parameters = new List<StringPair>();
 
         public string FunctionType
         {
-            get { return _functionType; }
+            get { return functionType; }
         }
 
         public IReadOnlyList<StringPair> Parameters
         {
-            get { return _parameters; }
+            get { return parameters; }
         }
     }
 }

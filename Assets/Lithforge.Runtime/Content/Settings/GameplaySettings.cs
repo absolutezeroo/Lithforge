@@ -10,45 +10,41 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Inventory")]
         [Tooltip("Total inventory slot count (advisory — Inventory.SlotCount is the runtime constant)")]
         [Min(9)]
-        [FormerlySerializedAs("inventorySlotCount")]
-        [SerializeField] private int _inventorySlotCount = 36;
+        [SerializeField] private int inventorySlotCount = 36;
 
         [Tooltip("Hotbar size (advisory — Inventory.HotbarSize is the runtime constant)")]
         [Min(1)]
-        [FormerlySerializedAs("hotbarSize")]
-        [SerializeField] private int _hotbarSize = 9;
+        [SerializeField] private int hotbarSize = 9;
 
         [Tooltip("Player crafting grid dimension (2 = 2x2)")]
         [Range(2, 3)]
-        [FormerlySerializedAs("craftingGridSize")]
-        [SerializeField] private int _craftingGridSize = 2;
+        [SerializeField] private int craftingGridSize = 2;
 
         [Header("Starting Items")]
         [Tooltip("Items granted to the player at first spawn")]
-        [FormerlySerializedAs("startingItems")]
-        [SerializeField] private StartingItemEntry[] _startingItems = new StartingItemEntry[]
+        [SerializeField] private StartingItemEntry[] startingItems = new StartingItemEntry[]
         {
             new StartingItemEntry { itemNamespace = "lithforge", itemName = "cobblestone", count = 64 },
         };
 
         public int InventorySlotCount
         {
-            get { return _inventorySlotCount; }
+            get { return inventorySlotCount; }
         }
 
         public int HotbarSize
         {
-            get { return _hotbarSize; }
+            get { return hotbarSize; }
         }
 
         public int CraftingGridSize
         {
-            get { return _craftingGridSize; }
+            get { return craftingGridSize; }
         }
 
         public IReadOnlyList<StartingItemEntry> StartingItems
         {
-            get { return _startingItems; }
+            get { return startingItems; }
         }
     }
 }

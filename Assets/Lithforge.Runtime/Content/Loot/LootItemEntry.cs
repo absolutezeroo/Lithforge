@@ -8,59 +8,53 @@ namespace Lithforge.Runtime.Content.Loot
     [System.Serializable]
     public sealed class LootItemEntry
     {
-        [FormerlySerializedAs("type")]
-        [Tooltip("Entry type (item, empty, loot_table)")]
-        [SerializeField] private string _type = "item";
+        [FormerlySerializedAs("_type"),Tooltip("Entry type (item, empty, loot_table)")]
+        [SerializeField] private string type = "item";
 
-        [FormerlySerializedAs("item")]
-        [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition _item;
+        [FormerlySerializedAs("_item"),Tooltip("Item reference")]
+        [SerializeField] private ItemDefinition item;
 
-        [FormerlySerializedAs("itemName")]
-        [Tooltip("Item name (fallback when direct reference not set)")]
-        [SerializeField] private string _itemName = "";
+        [FormerlySerializedAs("_itemName"),Tooltip("Item name (fallback when direct reference not set)")]
+        [SerializeField] private string itemName = "";
 
-        [FormerlySerializedAs("weight")]
-        [Tooltip("Selection weight")]
+        [FormerlySerializedAs("_weight"),Tooltip("Selection weight")]
         [Min(1)]
-        [SerializeField] private int _weight = 1;
+        [SerializeField] private int weight = 1;
 
-        [FormerlySerializedAs("conditions")]
-        [Tooltip("Conditions for this entry")]
-        [SerializeField] private List<LootConditionEntry> _conditions = new List<LootConditionEntry>();
+        [FormerlySerializedAs("_conditions"),Tooltip("Conditions for this entry")]
+        [SerializeField] private List<LootConditionEntry> conditions = new List<LootConditionEntry>();
 
-        [FormerlySerializedAs("functions")]
-        [Tooltip("Functions to apply to this entry")]
-        [SerializeField] private List<LootFunctionEntry> _functions = new List<LootFunctionEntry>();
+        [FormerlySerializedAs("_functions"),Tooltip("Functions to apply to this entry")]
+        [SerializeField] private List<LootFunctionEntry> functions = new List<LootFunctionEntry>();
 
         public string Type
         {
-            get { return _type; }
+            get { return type; }
         }
 
         public ItemDefinition Item
         {
-            get { return _item; }
+            get { return item; }
         }
 
         public string ItemName
         {
-            get { return _itemName; }
+            get { return itemName; }
         }
 
         public int Weight
         {
-            get { return _weight; }
+            get { return weight; }
         }
 
         public IReadOnlyList<LootConditionEntry> Conditions
         {
-            get { return _conditions; }
+            get { return conditions; }
         }
 
         public IReadOnlyList<LootFunctionEntry> Functions
         {
-            get { return _functions; }
+            get { return functions; }
         }
     }
 }

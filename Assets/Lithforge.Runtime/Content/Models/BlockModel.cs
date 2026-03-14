@@ -7,52 +7,48 @@ namespace Lithforge.Runtime.Content.Models
     [CreateAssetMenu(fileName = "NewBlockModel", menuName = "Lithforge/Content/Block Model", order = 2)]
     public sealed class BlockModel : ScriptableObject
     {
-        [Header("Parent")]
-        [FormerlySerializedAs("parent")]
+        [FormerlySerializedAs("_parent"),Header("Parent")]
         [Tooltip("Parent model (direct reference). Drag-drop for parent chain resolution.")]
-        [SerializeField] private BlockModel _parent;
+        [SerializeField] private BlockModel parent;
 
-        [FormerlySerializedAs("builtInParent")]
-        [Tooltip("Built-in parent type (used when parent is a terminal built-in model)")]
-        [SerializeField] private BuiltInParentType _builtInParent = BuiltInParentType.None;
+        [FormerlySerializedAs("_builtInParent"),Tooltip("Built-in parent type (used when parent is a terminal built-in model)")]
+        [SerializeField] private BuiltInParentType builtInParent = BuiltInParentType.None;
 
-        [Header("Textures")]
-        [FormerlySerializedAs("textures")]
+        [FormerlySerializedAs("_textures"),Header("Textures")]
         [Tooltip("Texture variable mappings (variable name → texture path or #variable reference)")]
-        [SerializeField] private List<TextureVariable> _textures = new List<TextureVariable>();
+        [SerializeField] private List<TextureVariable> textures = new List<TextureVariable>();
 
-        [Header("Elements")]
-        [FormerlySerializedAs("elements")]
+        [FormerlySerializedAs("_elements"),Header("Elements")]
         [Tooltip("Model geometry elements (optional, for custom shapes)")]
-        [SerializeField] private List<ModelElement> _elements = new List<ModelElement>();
+        [SerializeField] private List<ModelElement> elements = new List<ModelElement>();
 
-        [Header("Display")]
+        [FormerlySerializedAs("_firstPersonRightHand"),Header("Display")]
         [Tooltip("First-person right hand display transform (rotation, translation, scale).")]
-        [SerializeField] private ModelDisplayTransform _firstPersonRightHand;
+        [SerializeField] private ModelDisplayTransform firstPersonRightHand;
 
         public BlockModel Parent
         {
-            get { return _parent; }
+            get { return parent; }
         }
 
         public BuiltInParentType BuiltInParent
         {
-            get { return _builtInParent; }
+            get { return builtInParent; }
         }
 
         public IReadOnlyList<TextureVariable> Textures
         {
-            get { return _textures; }
+            get { return textures; }
         }
 
         public IReadOnlyList<ModelElement> Elements
         {
-            get { return _elements; }
+            get { return elements; }
         }
 
         public ModelDisplayTransform FirstPersonRightHand
         {
-            get { return _firstPersonRightHand; }
+            get { return firstPersonRightHand; }
         }
     }
 }

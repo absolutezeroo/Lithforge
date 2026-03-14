@@ -11,19 +11,17 @@ namespace Lithforge.Runtime.UI.Layout
     [CreateAssetMenu(menuName = "Lithforge/UI/Container Layout")]
     public sealed class ContainerLayoutSo : ScriptableObject
     {
-        [FormerlySerializedAs("slotGroups")]
-        [SerializeField] private List<SlotGroupDefinition> _slotGroups = new List<SlotGroupDefinition>();
-        [FormerlySerializedAs("screenTitle")]
-        [SerializeField] private string _screenTitle = "Container";
+        [FormerlySerializedAs("_slotGroups"),SerializeField] private List<SlotGroupDefinition> slotGroups = new List<SlotGroupDefinition>();
+        [FormerlySerializedAs("_screenTitle"),SerializeField] private string screenTitle = "Container";
 
         public IReadOnlyList<SlotGroupDefinition> SlotGroups
         {
-            get { return _slotGroups; }
+            get { return slotGroups; }
         }
 
         public string ScreenTitle
         {
-            get { return _screenTitle; }
+            get { return screenTitle; }
         }
     }
 }

@@ -7,31 +7,28 @@ namespace Lithforge.Runtime.Content.Recipes
     [System.Serializable]
     public sealed class RecipeIngredient
     {
-        [FormerlySerializedAs("item")]
-        [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition _item;
+        [FormerlySerializedAs("_item"),Tooltip("Item reference")]
+        [SerializeField] private ItemDefinition item;
 
-        [FormerlySerializedAs("itemId")]
-        [Tooltip("Item id (fallback)")]
-        [SerializeField] private string _itemId;
+        [FormerlySerializedAs("_itemId"),Tooltip("Item id (fallback)")]
+        [SerializeField] private string itemId;
 
-        [FormerlySerializedAs("tagId")]
-        [Tooltip("Tag reference (alternative to item)")]
-        [SerializeField] private string _tagId;
+        [FormerlySerializedAs("_tagId"),Tooltip("Tag reference (alternative to item)")]
+        [SerializeField] private string tagId;
 
         public ItemDefinition Item
         {
-            get { return _item; }
+            get { return item; }
         }
 
         public string ItemId
         {
-            get { return _itemId; }
+            get { return itemId; }
         }
 
         public string TagId
         {
-            get { return _tagId; }
+            get { return tagId; }
         }
     }
 }

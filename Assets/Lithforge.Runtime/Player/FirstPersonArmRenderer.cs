@@ -65,8 +65,7 @@ namespace Lithforge.Runtime.Player
         private bool _hasLastHeldItem;
         private int _lastSelectedSlot = -1;
 
-        // FOV for arm projection
-        private const float ArmFov = 70f;
+        // Near/far clip for arm projection (custom near to avoid clipping the arm)
         private const float ArmNearClip = 0.05f;
         private const float ArmFarClip = 10f;
 
@@ -112,22 +111,23 @@ namespace Lithforge.Runtime.Player
 
             GraphicsBuffer.IndirectDrawIndexedArgs[] armArgs = new GraphicsBuffer.IndirectDrawIndexedArgs[2];
 
-            // Base layer: right arm base (indices 0-35) + left arm base (indices 36-71)
+            // Base layer: right arm base only (indices 0-35)
+            // Left arm (indices 36-71) is not rendered in first-person (Minecraft convention)
             armArgs[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerArmMeshBuilder.BaseLayerIndexCount,
+                indexCountPerInstance = 36,
                 instanceCount = 1,
                 startIndex = 0,
                 baseVertexIndex = 0,
                 startInstance = 0,
             };
 
-            // Overlay layer: right arm overlay (indices 72-107) + left arm overlay (indices 108-143)
+            // Overlay layer: right arm overlay only (indices 72-107)
             armArgs[1] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerArmMeshBuilder.OverlayLayerIndexCount,
+                indexCountPerInstance = 36,
                 instanceCount = 1,
-                startIndex = (uint)PlayerArmMeshBuilder.BaseLayerIndexCount,
+                startIndex = 72,
                 baseVertexIndex = 0,
                 startInstance = 0,
             };
@@ -202,10 +202,12 @@ namespace Lithforge.Runtime.Player
             }
             _partTransformsBuffer.SetData(_partTransformUpload);
 
-            // Compute arm projection matrix (separate FOV from world camera).
+            // Compute arm projection matrix using the same FOV as the world camera
+            // (Minecraft convention) but with a custom near clip to avoid arm clipping.
             // Arm vertices are already in camera-local (view) space after part transforms,
             // so we only apply projection — no worldToCameraMatrix needed.
-            Matrix4x4 armProjection = Matrix4x4.Perspective(ArmFov, camera.aspect, ArmNearClip, ArmFarClip);
+            Matrix4x4 armProjection = Matrix4x4.Perspective(
+                camera.fieldOfView, camera.aspect, ArmNearClip, ArmFarClip);
             Matrix4x4 armToClip = GL.GetGPUProjectionMatrix(armProjection, true);
 
             // Restrict draw calls to this camera only (prevents rendering in scene view)

@@ -11,23 +11,19 @@ namespace Lithforge.Runtime.Content.Tags
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
-        [FormerlySerializedAs("tagName")]
-        [Tooltip("Tag name (e.g. 'blocks/mineable_pickaxe')")]
-        [SerializeField] private string _tagName = "";
+        [FormerlySerializedAs("_tagName"),Tooltip("Tag name (e.g. 'blocks/mineable_pickaxe')")]
+        [SerializeField] private string tagName = "";
 
-        [Header("Behavior")]
-        [FormerlySerializedAs("replace")]
+        [FormerlySerializedAs("_replace"),Header("Behavior")]
         [Tooltip("If true, this tag replaces any existing entries instead of appending")]
-        [SerializeField] private bool _replace;
+        [SerializeField] private bool replace;
 
-        [Header("Entries")]
-        [FormerlySerializedAs("entries")]
+        [FormerlySerializedAs("_entries"),Header("Entries")]
         [Tooltip("ScriptableObject entries (blocks, items, etc.) that belong to this tag")]
-        [SerializeField] private List<ScriptableObject> _entries = new List<ScriptableObject>();
+        [SerializeField] private List<ScriptableObject> entries = new List<ScriptableObject>();
 
-        [FormerlySerializedAs("entryIds")]
-        [Tooltip("String entry ids (for backward compatibility or cross-reference)")]
-        [SerializeField] private List<string> _entryIds = new List<string>();
+        [FormerlySerializedAs("_entryIds"),Tooltip("String entry ids (for backward compatibility or cross-reference)")]
+        [SerializeField] private List<string> entryIds = new List<string>();
 
         public string Namespace
         {
@@ -36,29 +32,29 @@ namespace Lithforge.Runtime.Content.Tags
 
         public string TagName
         {
-            get { return _tagName; }
+            get { return tagName; }
         }
 
         public bool Replace
         {
-            get { return _replace; }
+            get { return replace; }
         }
 
         public IReadOnlyList<ScriptableObject> Entries
         {
-            get { return _entries; }
+            get { return entries; }
         }
 
         public IReadOnlyList<string> EntryIds
         {
-            get { return _entryIds; }
+            get { return entryIds; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_tagName))
+            if (string.IsNullOrEmpty(tagName))
             {
-                _tagName = name;
+                tagName = name;
             }
         }
     }

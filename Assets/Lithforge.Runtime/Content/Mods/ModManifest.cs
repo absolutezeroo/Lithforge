@@ -7,69 +7,63 @@ namespace Lithforge.Runtime.Content.Mods
     [CreateAssetMenu(fileName = "NewModManifest", menuName = "Lithforge/Content/Mod Manifest", order = 10)]
     public sealed class ModManifest : ScriptableObject
     {
-        [FormerlySerializedAs("modId")]
-        [Header("Identity")]
+        [FormerlySerializedAs("_modId"),Header("Identity")]
         [Tooltip("Unique mod identifier")]
-        [SerializeField] private string _modId;
+        [SerializeField] private string modId;
 
-        [FormerlySerializedAs("modName")]
-        [Tooltip("Display name")]
-        [SerializeField] private string _modName;
+        [FormerlySerializedAs("_modName"),Tooltip("Display name")]
+        [SerializeField] private string modName;
 
-        [FormerlySerializedAs("version")]
-        [Tooltip("Mod version (semver)")]
-        [SerializeField] private string _version = "1.0.0";
+        [FormerlySerializedAs("_version"),Tooltip("Mod version (semver)")]
+        [SerializeField] private string version = "1.0.0";
 
-        [FormerlySerializedAs("description")]
-        [Header("Metadata")]
+        [FormerlySerializedAs("_description"),Header("Metadata")]
         [Tooltip("Mod description")]
         [TextArea(2, 5)]
-        [SerializeField] private string _description;
+        [SerializeField] private string description;
 
-        [FormerlySerializedAs("author")]
-        [Tooltip("Mod author(s)")]
-        [SerializeField] private string _author;
+        [FormerlySerializedAs("_author"),Tooltip("Mod author(s)")]
+        [SerializeField] private string author;
 
-        [FormerlySerializedAs("dependencies")]
-        [Header("Dependencies")]
+        [FormerlySerializedAs("_dependencies"),Header("Dependencies")]
         [Tooltip("Required mod dependencies (mod_id:min_version)")]
-        [SerializeField] private List<ModDependency> _dependencies = new List<ModDependency>();
+        [SerializeField] private List<ModDependency> dependencies = new List<ModDependency>();
 
         public string ModId
         {
-            get { return _modId; }
+            get { return modId; }
         }
 
         public string ModName
         {
-            get { return _modName; }
+            get { return modName; }
         }
 
         public string Version
         {
-            get { return _version; }
+            get { return version; }
         }
 
         public string Description
         {
-            get { return _description; }
+            get { return description; }
         }
 
         public string Author
         {
-            get { return _author; }
+            get { return author; }
         }
 
         public IReadOnlyList<ModDependency> Dependencies
         {
-            get { return _dependencies; }
+            get { return dependencies; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_modName))
+            if (string.IsNullOrEmpty(modName))
             {
-                _modName = name;
+                modName = name;
             }
         }
     }

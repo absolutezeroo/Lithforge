@@ -13,41 +13,33 @@ namespace Lithforge.Runtime.Content.Recipes
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
-        [FormerlySerializedAs("recipeName")]
-        [Tooltip("Recipe name")]
-        [SerializeField] private string _recipeName = "";
+        [FormerlySerializedAs("_recipeName"),Tooltip("Recipe name")]
+        [SerializeField] private string recipeName = "";
 
-        [FormerlySerializedAs("type")]
-        [Header("Type")]
-        [SerializeField] private RecipeType _type = RecipeType.Shaped;
+        [FormerlySerializedAs("_type"),Header("Type")]
+        [SerializeField] private RecipeType type = RecipeType.Shaped;
 
-        [FormerlySerializedAs("resultItem")]
-        [Header("Result")]
+        [FormerlySerializedAs("_resultItem"),Header("Result")]
         [Tooltip("Result item")]
-        [SerializeField] private ItemDefinition _resultItem;
+        [SerializeField] private ItemDefinition resultItem;
 
-        [FormerlySerializedAs("resultItemId")]
-        [Tooltip("Result item id (fallback when direct reference not set)")]
-        [SerializeField] private string _resultItemId;
+        [FormerlySerializedAs("_resultItemId"),Tooltip("Result item id (fallback when direct reference not set)")]
+        [SerializeField] private string resultItemId;
 
-        [FormerlySerializedAs("resultCount")]
-        [Tooltip("Number of items produced")]
+        [FormerlySerializedAs("_resultCount"),Tooltip("Number of items produced")]
         [Min(1)]
-        [SerializeField] private int _resultCount = 1;
+        [SerializeField] private int resultCount = 1;
 
-        [FormerlySerializedAs("pattern")]
-        [Header("Shaped Pattern")]
+        [FormerlySerializedAs("_pattern"),Header("Shaped Pattern")]
         [Tooltip("Pattern rows (e.g. '## ', '## ', '   ')")]
-        [SerializeField] private List<string> _pattern = new List<string>();
+        [SerializeField] private List<string> pattern = new List<string>();
 
-        [FormerlySerializedAs("keys")]
-        [Tooltip("Key mappings (character → item)")]
-        [SerializeField] private List<RecipeKeyEntry> _keys = new List<RecipeKeyEntry>();
+        [FormerlySerializedAs("_keys"),Tooltip("Key mappings (character → item)")]
+        [SerializeField] private List<RecipeKeyEntry> keys = new List<RecipeKeyEntry>();
 
-        [FormerlySerializedAs("ingredients")]
-        [Header("Shapeless Ingredients")]
+        [FormerlySerializedAs("_ingredients"),Header("Shapeless Ingredients")]
         [Tooltip("Ingredients for shapeless recipes")]
-        [SerializeField] private List<RecipeIngredient> _ingredients = new List<RecipeIngredient>();
+        [SerializeField] private List<RecipeIngredient> ingredients = new List<RecipeIngredient>();
 
         public string Namespace
         {
@@ -56,49 +48,49 @@ namespace Lithforge.Runtime.Content.Recipes
 
         public string RecipeName
         {
-            get { return _recipeName; }
+            get { return recipeName; }
         }
 
         public RecipeType Type
         {
-            get { return _type; }
+            get { return type; }
         }
 
         public ItemDefinition ResultItem
         {
-            get { return _resultItem; }
+            get { return resultItem; }
         }
 
         public string ResultItemId
         {
-            get { return _resultItemId; }
+            get { return resultItemId; }
         }
 
         public int ResultCount
         {
-            get { return _resultCount; }
+            get { return resultCount; }
         }
 
         public IReadOnlyList<string> Pattern
         {
-            get { return _pattern; }
+            get { return pattern; }
         }
 
         public IReadOnlyList<RecipeKeyEntry> Keys
         {
-            get { return _keys; }
+            get { return keys; }
         }
 
         public IReadOnlyList<RecipeIngredient> Ingredients
         {
-            get { return _ingredients; }
+            get { return ingredients; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_recipeName))
+            if (string.IsNullOrEmpty(recipeName))
             {
-                _recipeName = name;
+                recipeName = name;
             }
         }
     }

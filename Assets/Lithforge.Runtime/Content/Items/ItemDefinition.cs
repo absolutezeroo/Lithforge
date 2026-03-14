@@ -16,75 +16,61 @@ namespace Lithforge.Runtime.Content.Items
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
-        [FormerlySerializedAs("itemName")]
-        [Tooltip("Item name")]
-        [SerializeField] private string _itemName = "";
+        [FormerlySerializedAs("_itemName"),Tooltip("Item name")]
+        [SerializeField] private string itemName = "";
 
-        [FormerlySerializedAs("maxStackSize")]
-        [Header("Stack")]
+        [FormerlySerializedAs("_maxStackSize"),Header("Stack")]
         [Tooltip("Maximum stack size")]
         [Range(1, 64)]
-        [SerializeField] private int _maxStackSize = 64;
+        [SerializeField] private int maxStackSize = 64;
 
-        [FormerlySerializedAs("toolType")]
-        [Header("Tool Properties")]
+        [FormerlySerializedAs("_toolType"),Header("Tool Properties")]
         [Tooltip("Tool type")]
-        [SerializeField] private ToolType _toolType = ToolType.None;
+        [SerializeField] private ToolType toolType = ToolType.None;
 
-        [FormerlySerializedAs("toolLevel")]
-        [Tooltip("Tool mining level")]
+        [FormerlySerializedAs("_toolLevel"),Tooltip("Tool mining level")]
         [Min(0)]
-        [SerializeField] private int _toolLevel;
+        [SerializeField] private int toolLevel;
 
-        [FormerlySerializedAs("durability")]
-        [Tooltip("Item durability (0 = unbreakable)")]
+        [FormerlySerializedAs("_durability"),Tooltip("Item durability (0 = unbreakable)")]
         [Min(0)]
-        [SerializeField] private int _durability;
+        [SerializeField] private int durability;
 
-        [FormerlySerializedAs("attackDamage")]
-        [Tooltip("Attack damage")]
+        [FormerlySerializedAs("_attackDamage"),Tooltip("Attack damage")]
         [Min(0f)]
-        [SerializeField] private float _attackDamage = 1.0f;
+        [SerializeField] private float attackDamage = 1.0f;
 
-        [FormerlySerializedAs("attackSpeed")]
-        [Tooltip("Attack speed")]
+        [FormerlySerializedAs("_attackSpeed"),Tooltip("Attack speed")]
         [Min(0f)]
-        [SerializeField] private float _attackSpeed = 4.0f;
+        [SerializeField] private float attackSpeed = 4.0f;
 
-        [FormerlySerializedAs("miningSpeed")]
-        [Tooltip("Mining speed multiplier")]
+        [FormerlySerializedAs("_miningSpeed"),Tooltip("Mining speed multiplier")]
         [Min(0f)]
-        [SerializeField] private float _miningSpeed = 1.0f;
+        [SerializeField] private float miningSpeed = 1.0f;
 
-        [FormerlySerializedAs("toolSpeedProfile")]
-        [Tooltip("Speed profile per block material (optional, overrides MiningSpeed)")]
-        [SerializeField] private ToolSpeedProfile _toolSpeedProfile;
+        [FormerlySerializedAs("_toolSpeedProfile"),Tooltip("Speed profile per block material (optional, overrides MiningSpeed)")]
+        [SerializeField] private ToolSpeedProfile toolSpeedProfile;
 
-        [FormerlySerializedAs("affixes")]
-        [Tooltip("Tool affixes")]
-        [SerializeField] private AffixDefinition[] _affixes
+        [FormerlySerializedAs("_affixes"),Tooltip("Tool affixes")]
+        [SerializeField] private AffixDefinition[] affixes
             = System.Array.Empty<AffixDefinition>();
 
-        [FormerlySerializedAs("fuelTime")]
-        [Header("Fuel")]
+        [FormerlySerializedAs("_fuelTime"),Header("Fuel")]
         [Tooltip("Fuel burn time in seconds (0 = not a fuel item)")]
         [Min(0f)]
-        [SerializeField] private float _fuelTime;
+        [SerializeField] private float fuelTime;
 
-        [FormerlySerializedAs("placesBlock")]
-        [Header("Block Placement")]
+        [FormerlySerializedAs("_placesBlock"),Header("Block Placement")]
         [Tooltip("Block this item places when used")]
-        [SerializeField] private BlockDefinition _placesBlock;
+        [SerializeField] private BlockDefinition placesBlock;
 
-        [FormerlySerializedAs("itemModel")]
-        [Header("Model")]
+        [FormerlySerializedAs("_itemModel"),Header("Model")]
         [Tooltip("Item model reference")]
-        [SerializeField] private BlockModel _itemModel;
+        [SerializeField] private BlockModel itemModel;
 
-        [FormerlySerializedAs("tags")]
-        [Header("Tags")]
+        [FormerlySerializedAs("_tags"),Header("Tags")]
         [Tooltip("Tags this item belongs to")]
-        [SerializeField] private List<string> _tags = new List<string>();
+        [SerializeField] private List<string> tags = new List<string>();
 
         public string Namespace
         {
@@ -93,84 +79,84 @@ namespace Lithforge.Runtime.Content.Items
 
         public string ItemName
         {
-            get { return _itemName; }
+            get { return itemName; }
         }
 
         public int MaxStackSize
         {
-            get { return _maxStackSize; }
+            get { return maxStackSize; }
         }
 
         public ToolType ToolType
         {
-            get { return _toolType; }
+            get { return toolType; }
         }
 
         public int ToolLevel
         {
-            get { return _toolLevel; }
+            get { return toolLevel; }
         }
 
         public int Durability
         {
-            get { return _durability; }
+            get { return durability; }
         }
 
         public float AttackDamage
         {
-            get { return _attackDamage; }
+            get { return attackDamage; }
         }
 
         public float AttackSpeed
         {
-            get { return _attackSpeed; }
+            get { return attackSpeed; }
         }
 
         public float MiningSpeed
         {
-            get { return _miningSpeed; }
+            get { return miningSpeed; }
         }
 
         public ToolSpeedProfile ToolSpeedProfile
         {
-            get { return _toolSpeedProfile; }
+            get { return toolSpeedProfile; }
         }
 
         public AffixDefinition[] Affixes
         {
-            get { return _affixes; }
+            get { return affixes; }
         }
 
         public float FuelTime
         {
-            get { return _fuelTime; }
+            get { return fuelTime; }
         }
 
         public BlockDefinition PlacesBlock
         {
-            get { return _placesBlock; }
+            get { return placesBlock; }
         }
 
         public BlockModel ItemModel
         {
-            get { return _itemModel; }
+            get { return itemModel; }
         }
 
         public IReadOnlyList<string> Tags
         {
-            get { return _tags; }
+            get { return tags; }
         }
 
         public bool IsBlockItem
         {
-            get { return _placesBlock != null; }
+            get { return placesBlock != null; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(_itemName))
+            if (string.IsNullOrEmpty(itemName))
             {
-                _itemName = name;
+                itemName = name;
             }
         }
     }
