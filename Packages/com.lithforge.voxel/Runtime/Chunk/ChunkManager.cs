@@ -21,6 +21,7 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
         private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
+        private readonly HashSet<int3> _chunksNeedingLightUpdate = new HashSet<int3>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
 
         /// <summary>
@@ -342,19 +343,48 @@ namespace Lithforge.Voxel.Chunk
 
         /// <summary>
         /// Fills the provided list with all chunks that need cross-chunk light updates.
+        /// Iterates only the dirty set instead of all loaded chunks — O(dirty) not O(all).
         /// Clears the list before filling.
         /// </summary>
         public void FillChunksNeedingLightUpdate(List<ManagedChunk> result)
         {
             result.Clear();
 
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            foreach (int3 coord in _chunksNeedingLightUpdate)
             {
-                if (kvp.Value.NeedsLightUpdate && !kvp.Value.LightJobInFlight)
+                if (_chunks.TryGetValue(coord, out ManagedChunk chunk) &&
+                    chunk.NeedsLightUpdate && !chunk.LightJobInFlight)
                 {
-                    result.Add(kvp.Value);
+                    result.Add(chunk);
                 }
             }
+        }
+
+        /// <summary>
+        /// Marks a chunk as needing a cross-chunk light update and adds it to the dirty set.
+        /// Call this instead of setting chunk.NeedsLightUpdate = true directly.
+        /// </summary>
+        public void MarkNeedsLightUpdate(int3 coord)
+        {
+            if (_chunks.TryGetValue(coord, out ManagedChunk chunk))
+            {
+                chunk.NeedsLightUpdate = true;
+                _chunksNeedingLightUpdate.Add(coord);
+            }
+        }
+
+        /// <summary>
+        /// Clears the NeedsLightUpdate flag on a chunk and removes it from the dirty set.
+        /// Call this instead of setting chunk.NeedsLightUpdate = false directly.
+        /// </summary>
+        public void ClearNeedsLightUpdate(int3 coord)
+        {
+            if (_chunks.TryGetValue(coord, out ManagedChunk chunk))
+            {
+                chunk.NeedsLightUpdate = false;
+            }
+
+            _chunksNeedingLightUpdate.Remove(coord);
         }
 
         /// <summary>
@@ -585,6 +615,7 @@ namespace Lithforge.Voxel.Chunk
 
             for (int i = 0; i < _toRemoveCache.Count; i++)
             {
+                _chunksNeedingLightUpdate.Remove(_toRemoveCache[i]);
                 _chunks.Remove(_toRemoveCache[i]);
             }
         }

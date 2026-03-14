@@ -289,7 +289,7 @@ namespace Lithforge.Runtime.Scheduling
                     neighbor.State >= ChunkState.RelightPending &&
                     neighbor.LightData.IsCreated)
                 {
-                    neighbor.NeedsLightUpdate = true;
+                    _chunkManager.MarkNeedsLightUpdate(neighborCoord);
                 }
             }
         }
@@ -322,7 +322,7 @@ namespace Lithforge.Runtime.Scheduling
                     }
 
                     entry.SeedEntries.Dispose();
-                    chunk.NeedsLightUpdate = false;
+                    _chunkManager.ClearNeedsLightUpdate(chunk.Coord);
                     chunk.LightJobInFlight = false;
                     chunk.ActiveJobHandle = default;
 
@@ -357,7 +357,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
                 {
-                    chunk.NeedsLightUpdate = false;
+                    _chunkManager.ClearNeedsLightUpdate(chunk.Coord);
 
                     continue;
                 }
@@ -432,7 +432,7 @@ namespace Lithforge.Runtime.Scheduling
                 else
                 {
                     seedEntries.Dispose();
-                    chunk.NeedsLightUpdate = false;
+                    _chunkManager.ClearNeedsLightUpdate(chunk.Coord);
                 }
             }
 

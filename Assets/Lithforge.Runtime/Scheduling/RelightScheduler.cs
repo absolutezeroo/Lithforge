@@ -473,7 +473,7 @@ namespace Lithforge.Runtime.Scheduling
                 // Cascade increases: mark neighbor for LightUpdateJob
                 if (hasIncreased)
                 {
-                    neighbor.NeedsLightUpdate = true;
+                    _chunkManager.MarkNeedsLightUpdate(neighborCoord);
                 }
             }
 
@@ -496,7 +496,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     if (neighbor.BorderLightEntries[ni].Face == oppFace)
                     {
-                        chunk.NeedsLightUpdate = true;
+                        _chunkManager.MarkNeedsLightUpdate(chunk.Coord);
 
                         break;
                     }

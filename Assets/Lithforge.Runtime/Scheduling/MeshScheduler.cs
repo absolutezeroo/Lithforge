@@ -84,6 +84,23 @@ namespace Lithforge.Runtime.Scheduling
 
                 PendingMesh pending = _pendingMeshes[i];
 
+                // Don't poll IsCompleted on jobs younger than 1 frame.
+                // Avoids Unity work-stealing the job + its border extraction deps
+                // on the main thread (measured: up to 134ms stalls).
+                if (pending.FrameAge > 300)
+                {
+                    UnityEngine.Debug.LogWarning(
+                        $"[MeshScheduler] Force-completing stale mesh job for chunk " +
+                        $"{pending.Coord} after {pending.FrameAge} frames");
+                }
+                else if (pending.FrameAge < 1)
+                {
+                    pending.FrameAge++;
+                    _pendingMeshes[i] = pending;
+                    i++;
+                    continue;
+                }
+
                 bool isCompleted;
 
                 if (firstCheck)
@@ -178,6 +195,8 @@ namespace Lithforge.Runtime.Scheduling
                 }
                 else
                 {
+                    pending.FrameAge++;
+                    _pendingMeshes[i] = pending;
                     i++;
                 }
             }
@@ -284,6 +303,7 @@ namespace Lithforge.Runtime.Scheduling
                     Coord = chunk.Coord,
                     Handle = meshHandle,
                     Data = meshData,
+                    FrameAge = 0,
                 });
                 PipelineStats.IncrMeshScheduled();
             }
@@ -478,6 +498,7 @@ namespace Lithforge.Runtime.Scheduling
             public int3 Coord;
             public JobHandle Handle;
             public GreedyMeshData Data;
+            public int FrameAge;
         }
     }
 }

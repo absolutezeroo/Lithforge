@@ -31,7 +31,6 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
         private readonly List<FreeRegion> _freeRegions = new List<FreeRegion>();
-        private readonly List<PendingZero> _pendingZeros = new List<PendingZero>();
 
         private PackedMeshVertex[] _vertexMirror;
         private int[] _indexMirror;
@@ -40,6 +39,11 @@ namespace Lithforge.Runtime.Rendering
         private int _usedVertices;
         private int _usedIndices;
         private bool _argsDirty;
+
+        private int _dirtyVertexMin = int.MaxValue;
+        private int _dirtyVertexMax = -1;
+        private int _dirtyIndexMin = int.MaxValue;
+        private int _dirtyIndexMax = -1;
 
         private GraphicsBuffer _vertexBuffer;
         private GraphicsBuffer _indexBuffer;
@@ -184,7 +188,6 @@ namespace Lithforge.Runtime.Rendering
 
             _slots.Clear();
             _freeRegions.Clear();
-            _pendingZeros.Clear();
             _vertexMirror = null;
             _indexMirror = null;
         }
@@ -228,17 +231,13 @@ namespace Lithforge.Runtime.Rendering
                         int tailCount = slot.IndexCount - idxCount;
                         Array.Clear(_indexMirror, tailOffset, tailCount);
 
-                        NativeArray<int> gpuTail = _indexBuffer.LockBufferForWrite<int>(tailOffset, tailCount);
-
-                        for (int j = 0; j < tailCount; j++)
-                        {
-                            gpuTail[j] = 0;
-                        }
-
-                        _indexBuffer.UnlockBufferAfterWrite<int>(tailCount);
+                        // Extend dirty range to cover the zeroed tail
+                        int tailEnd = tailOffset + tailCount;
+                        if (tailOffset < _dirtyIndexMin) { _dirtyIndexMin = tailOffset; }
+                        if (tailEnd > _dirtyIndexMax) { _dirtyIndexMax = tailEnd; }
                     }
 
-                    WriteData(slot.VertexOffset, slot.IndexOffset, vertices, indices);
+                    WriteDataToMirror(slot.VertexOffset, slot.IndexOffset, vertices, indices);
 
                     _slots[coord] = new SlotInfo
                     {
@@ -266,7 +265,7 @@ namespace Lithforge.Runtime.Rendering
                 FreeRegion region = _freeRegions[freeIdx];
                 _freeRegions.RemoveAt(freeIdx);
 
-                WriteData(region.VertexOffset, region.IndexOffset, vertices, indices);
+                WriteDataToMirror(region.VertexOffset, region.IndexOffset, vertices, indices);
 
                 // Split remainder back into free-list if significant leftover
                 int leftoverVerts = region.VertexCapacity - vertCount;
@@ -318,7 +317,7 @@ namespace Lithforge.Runtime.Rendering
             int vOff = _usedVertices;
             int iOff = _usedIndices;
 
-            WriteData(vOff, iOff, vertices, indices);
+            WriteDataToMirror(vOff, iOff, vertices, indices);
 
             _slots[coord] = new SlotInfo
             {
@@ -349,53 +348,12 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Uploads any pending index zeros to the GPU and updates the indirect args buffer
-        /// if dirty. Call once per frame before issuing draw calls.
+        /// Updates the indirect args buffer if dirty. Pending index zeros are now handled
+        /// by FlushDirtyToGpu() via the dirty range system. Call once per frame after
+        /// FlushDirtyToGpu() and before issuing draw calls.
         /// </summary>
         public void FlushArgs()
         {
-            // Upload pending index zeros in a single Lock/Unlock covering the full range.
-            // The mirror already has zeros (applied by FreeSlot) and valid data between gaps,
-            // so bulk-copying the entire [min..max) range rewrites everything correctly.
-            if (_pendingZeros.Count > 0)
-            {
-                int minOffset = _pendingZeros[0].IndexOffset;
-                int maxEnd = _pendingZeros[0].IndexOffset + _pendingZeros[0].IndexCount;
-
-                for (int i = 1; i < _pendingZeros.Count; i++)
-                {
-                    PendingZero pz = _pendingZeros[i];
-                    int pzEnd = pz.IndexOffset + pz.IndexCount;
-
-                    if (pz.IndexOffset < minOffset)
-                    {
-                        minOffset = pz.IndexOffset;
-                    }
-
-                    if (pzEnd > maxEnd)
-                    {
-                        maxEnd = pzEnd;
-                    }
-                }
-
-                int rangeLength = maxEnd - minOffset;
-                NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(minOffset, rangeLength);
-
-                unsafe
-                {
-                    void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuIdx);
-
-                    fixed (int* srcPtr = &_indexMirror[minOffset])
-                    {
-                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)rangeLength * sizeof(int));
-                    }
-                }
-
-                _indexBuffer.UnlockBufferAfterWrite<int>(rangeLength);
-                _pendingZeros.Clear();
-            }
-
-            // Update indirect args if anything changed
             if (_argsDirty)
             {
                 _argsUploadBuffer[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
@@ -412,27 +370,22 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Writes vertex + index data to the CPU mirror and GPU buffer at the given offsets.
-        /// Uses LockBufferForWrite to write directly to GPU-mapped memory. World position is
-        /// encoded in the packed vertex (chunkWorldX/Y/Z), so no per-vertex transform is needed
-        /// — bulk memcpy is used for vertices.
+        /// Writes vertex + index data to the CPU mirror only (no GPU upload).
+        /// Expands the dirty ranges so FlushDirtyToGpu() uploads them in a single
+        /// Lock/Unlock pair per buffer at the end of the frame.
         /// </summary>
-        private void WriteData(
+        private void WriteDataToMirror(
             int vOff, int iOff,
             NativeList<PackedMeshVertex> vertices, NativeList<int> indices)
         {
             int vertCount = vertices.Length;
             int idxCount = indices.Length;
 
-            // Vertices: bulk memcpy (world offset encoded in packed vertex)
-            NativeArray<PackedMeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<PackedMeshVertex>(vOff, vertCount);
-
+            // Vertices: bulk memcpy to CPU mirror (world offset encoded in packed vertex)
             unsafe
             {
-                void* gpuDst = NativeArrayUnsafeUtility.GetUnsafePtr(gpuVerts);
                 void* src = vertices.GetUnsafeReadOnlyPtr();
                 long byteCount = (long)vertCount * _vertexStride;
-                UnsafeUtility.MemCpy(gpuDst, src, byteCount);
 
                 fixed (PackedMeshVertex* mirrorPtr = &_vertexMirror[vOff])
                 {
@@ -440,21 +393,74 @@ namespace Lithforge.Runtime.Rendering
                 }
             }
 
-            _vertexBuffer.UnlockBufferAfterWrite<PackedMeshVertex>(vertCount);
-
-            // Indices: still need global vertex offset applied
-            NativeArray<int> gpuIndices = _indexBuffer.LockBufferForWrite<int>(iOff, idxCount);
-
+            // Indices: apply global vertex offset, write to CPU mirror only
             for (int i = 0; i < idxCount; i++)
             {
-                int idx = indices[i] + vOff;
-                gpuIndices[i] = idx;
-                _indexMirror[iOff + i] = idx;
+                _indexMirror[iOff + i] = indices[i] + vOff;
             }
 
-            _indexBuffer.UnlockBufferAfterWrite<int>(idxCount);
+            // Expand dirty ranges
+            int vEnd = vOff + vertCount;
+            int iEnd = iOff + idxCount;
+
+            if (vOff < _dirtyVertexMin) { _dirtyVertexMin = vOff; }
+            if (vEnd > _dirtyVertexMax) { _dirtyVertexMax = vEnd; }
+            if (iOff < _dirtyIndexMin) { _dirtyIndexMin = iOff; }
+            if (iEnd > _dirtyIndexMax) { _dirtyIndexMax = iEnd; }
 
             PipelineStats.AddGpuUpload(vertCount * _vertexStride + idxCount * sizeof(int));
+        }
+
+        /// <summary>
+        /// Uploads all dirty vertex/index ranges to the GPU in a single Lock/Unlock pair
+        /// per buffer. Call once per frame, after all AllocateOrUpdate calls are done,
+        /// but before FlushArgs(). Reduces 6 Lock/Unlock per chunk to 2 total per layer.
+        /// </summary>
+        public void FlushDirtyToGpu()
+        {
+            if (_dirtyVertexMin < _dirtyVertexMax)
+            {
+                int count = _dirtyVertexMax - _dirtyVertexMin;
+                NativeArray<PackedMeshVertex> gpu = _vertexBuffer.LockBufferForWrite<PackedMeshVertex>(
+                    _dirtyVertexMin, count);
+
+                unsafe
+                {
+                    void* dst = NativeArrayUnsafeUtility.GetUnsafePtr(gpu);
+
+                    fixed (PackedMeshVertex* src = &_vertexMirror[_dirtyVertexMin])
+                    {
+                        UnsafeUtility.MemCpy(dst, src, (long)count * _vertexStride);
+                    }
+                }
+
+                _vertexBuffer.UnlockBufferAfterWrite<PackedMeshVertex>(count);
+
+                _dirtyVertexMin = int.MaxValue;
+                _dirtyVertexMax = -1;
+            }
+
+            if (_dirtyIndexMin < _dirtyIndexMax)
+            {
+                int count = _dirtyIndexMax - _dirtyIndexMin;
+                NativeArray<int> gpu = _indexBuffer.LockBufferForWrite<int>(
+                    _dirtyIndexMin, count);
+
+                unsafe
+                {
+                    void* dst = NativeArrayUnsafeUtility.GetUnsafePtr(gpu);
+
+                    fixed (int* src = &_indexMirror[_dirtyIndexMin])
+                    {
+                        UnsafeUtility.MemCpy(dst, src, (long)count * sizeof(int));
+                    }
+                }
+
+                _indexBuffer.UnlockBufferAfterWrite<int>(count);
+
+                _dirtyIndexMin = int.MaxValue;
+                _dirtyIndexMax = -1;
+            }
         }
 
         /// <summary>
@@ -463,13 +469,11 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private void FreeSlot(int3 coord, SlotInfo slot)
         {
-            // Zero indices in CPU mirror, defer GPU upload
+            // Zero indices in CPU mirror, extend dirty range for GPU upload
             Array.Clear(_indexMirror, slot.IndexOffset, slot.IndexCount);
-            _pendingZeros.Add(new PendingZero
-            {
-                IndexOffset = slot.IndexOffset,
-                IndexCount = slot.IndexCount,
-            });
+            int zeroEnd = slot.IndexOffset + slot.IndexCount;
+            if (slot.IndexOffset < _dirtyIndexMin) { _dirtyIndexMin = slot.IndexOffset; }
+            if (zeroEnd > _dirtyIndexMax) { _dirtyIndexMax = zeroEnd; }
             _slots.Remove(coord);
 
             // Insert into free-list sorted by VertexOffset
@@ -623,7 +627,7 @@ namespace Lithforge.Runtime.Rendering
                 sizeof(int));
 
             // Re-upload current data to the new GPU buffers via bulk memcpy.
-            // The vertex mirror stores world-offset vertices (applied during WriteData),
+            // The vertex mirror stores world-offset vertices (applied during WriteDataToMirror),
             // so no per-element transform is needed here — straight copy is correct.
             if (_usedVertices > 0)
             {
@@ -662,6 +666,13 @@ namespace Lithforge.Runtime.Rendering
             _vertexCapacity = newVertCap;
             _indexCapacity = newIdxCap;
             _argsDirty = true;
+
+            // Grow re-uploaded everything — reset dirty ranges
+            _dirtyVertexMin = int.MaxValue;
+            _dirtyVertexMax = -1;
+            _dirtyIndexMin = int.MaxValue;
+            _dirtyIndexMax = -1;
+
             PipelineStats.IncrGrow();
 
 #if LITHFORGE_DEBUG
@@ -736,10 +747,5 @@ namespace Lithforge.Runtime.Rendering
             public int IndexCapacity;
         }
 
-        private struct PendingZero
-        {
-            public int IndexOffset;
-            public int IndexCount;
-        }
     }
 }

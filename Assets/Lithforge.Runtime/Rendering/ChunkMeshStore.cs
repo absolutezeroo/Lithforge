@@ -293,6 +293,11 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void RenderAll(Camera camera)
         {
+            // Batch-upload all dirty ranges (one Lock/Unlock per buffer, not per chunk)
+            _opaqueBuffer.FlushDirtyToGpu();
+            _cutoutBuffer.FlushDirtyToGpu();
+            _translucentBuffer.FlushDirtyToGpu();
+
             _opaqueBuffer.FlushArgs();
             _cutoutBuffer.FlushArgs();
             _translucentBuffer.FlushArgs();
