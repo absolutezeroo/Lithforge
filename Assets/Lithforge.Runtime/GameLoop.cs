@@ -32,7 +32,6 @@ namespace Lithforge.Runtime
         private BiomeTintManager _biomeTintManager;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
-        private bool _initialLoadBypassActive = true;
 
         public int PendingGenerationCount
         {
@@ -196,12 +195,6 @@ namespace Lithforge.Runtime
             if (_spawnManager != null && !_spawnManager.IsComplete)
             {
                 _spawnManager.Tick();
-            }
-
-            if (_spawnManager != null && _spawnManager.IsComplete && _initialLoadBypassActive)
-            {
-                _meshScheduler.EndInitialLoadBypass();
-                _initialLoadBypassActive = false;
             }
 
             for (int i = 0; i < _unloadedCoords.Count; i++)
