@@ -337,6 +337,25 @@ namespace Lithforge.Runtime.Input
                     }
                 }
 
+                // Apply modular tool traits (Tinkers-like system)
+                if (!heldItem.IsEmpty && heldItem.HasCustomData)
+                {
+                    ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
+                    if (tool != null)
+                    {
+                        ctx.ToolSpeed = tool.GetEffectiveSpeed(entry.MaterialType);
+                        ctx.ToolLevel = tool.GetEffectiveToolLevel();
+                        ctx.SpeedMultiplier *= tool.DurabilityState.GetEffectiveSpeedMultiplier();
+
+                        IToolTrait[] traits = tool.GetAllTraits();
+                        Array.Sort(traits, (IToolTrait a, IToolTrait b) => a.Priority.CompareTo(b.Priority));
+                        for (int i = 0; i < traits.Length; i++)
+                        {
+                            ctx = traits[i].Apply(ctx);
+                        }
+                    }
+                }
+
                 float effectiveSpeed = (ctx.ToolSpeed + ctx.FlatSpeedBonus) * ctx.SpeedMultiplier;
                 float effectiveHardness = Mathf.Max(0f, ctx.Hardness - ctx.HardnessReduction);
 

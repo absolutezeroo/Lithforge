@@ -16,3 +16,8 @@ MonoBehaviour:
   _builtInParent: 0
   _textures: []
   _elements: []
+  _firstPersonRightHand:
+    _hasValue: 1
+    _rotation: {x: 0, y: 45, z: 0}
+    _translation: {x: 0, y: 0, z: 0}
+    _scale: {x: 0.4, y: 0.4, z: 0.4}

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content.WorldGen;
+using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Block;
@@ -33,6 +34,7 @@ namespace Lithforge.Runtime.Bootstrap
         public ItemSpriteAtlas ItemSpriteAtlas { get; }
         public BlockEntityRegistry BlockEntityRegistry { get; }
         public SmeltingRecipeRegistry SmeltingRecipeRegistry { get; }
+        public ItemDisplayTransformLookup DisplayTransformLookup { get; }
 
         public ContentPipelineResult(
             StateRegistry stateRegistry,
@@ -48,7 +50,8 @@ namespace Lithforge.Runtime.Bootstrap
             CraftingEngine craftingEngine,
             ItemSpriteAtlas itemSpriteAtlas,
             BlockEntityRegistry blockEntityRegistry,
-            SmeltingRecipeRegistry smeltingRecipeRegistry)
+            SmeltingRecipeRegistry smeltingRecipeRegistry,
+            ItemDisplayTransformLookup displayTransformLookup)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -64,6 +67,7 @@ namespace Lithforge.Runtime.Bootstrap
             ItemSpriteAtlas = itemSpriteAtlas;
             BlockEntityRegistry = blockEntityRegistry;
             SmeltingRecipeRegistry = smeltingRecipeRegistry;
+            DisplayTransformLookup = displayTransformLookup;
         }
     }
 }

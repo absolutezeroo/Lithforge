@@ -9,12 +9,10 @@ namespace Lithforge.Runtime.Player
     /// Builds vertex and index data for held items in first-person view.
     /// Block items are rendered as a 6-face cube with atlas textures.
     /// Flat items are rendered as a 2-face quad with the item sprite.
+    /// Display transforms are read from BlockModel assets via ItemDisplayTransformLookup.
     /// </summary>
     public static class HeldItemMeshBuilder
     {
-        /// <summary>Block scale in the hand (Minecraft-style 0.4 blocks).</summary>
-        private const float BlockScale = 0.4f;
-
         /// <summary>
         /// Right hand attachment point in model space (classic arm).
         /// Matches the spec: [-6, 15, 1] scaled to block units.
@@ -23,13 +21,13 @@ namespace Lithforge.Runtime.Player
 
         /// <summary>
         /// Builds a 6-face cube for a held block item.
-        /// Display transform from Minecraft block.json firstperson_righthand:
-        ///   rotation [0, 45, 0], translation [0, 0, 0], scale [0.40, 0.40, 0.40]
-        /// Minecraft transform order: Translate → RotateY → RotateX → RotateZ → Scale
+        /// The displayMatrix comes from the item's BlockModel parent chain
+        /// (resolved via ItemDisplayTransformLookup during the content pipeline).
         /// </summary>
         public static void BuildBlockItem(
             StateRegistry stateRegistry,
             ResourceId blockId,
+            float4x4 displayMatrix,
             out HeldItemVertex[] vertices,
             out int[] indices)
         {
@@ -51,11 +49,7 @@ namespace Lithforge.Runtime.Player
 
             float3 handOffset = RightHandLocator;
 
-            // Minecraft block.json firstperson_righthand display transform:
-            // translation [0, 0, 0], rotation [0, 45, 0], scale [0.40, 0.40, 0.40]
-            float4x4 displayMat = math.mul(
-                float4x4.RotateY(math.radians(45f)),
-                float4x4.Scale(BlockScale));
+            float4x4 displayMat = displayMatrix;
             float3x3 displayRot = new float3x3(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
 
             // Unit cube: 1x1x1 centered at origin (Minecraft blocks are 16x16x16 = 1 block)
@@ -168,12 +162,11 @@ namespace Lithforge.Runtime.Player
         /// <summary>
         /// Builds a 2-face quad for a flat held item (tools, sticks, etc.).
         /// The quad faces forward from the hand with both sides visible.
-        /// Display transform from Minecraft generated.json firstperson_righthand:
-        ///   rotation [0, -90, 25], translation [1.13, 3.2, 1.13], scale [0.68, 0.68, 0.68]
-        /// Minecraft transform order: Translate → RotateY → RotateX → RotateZ → Scale
-        /// Translation units: 1/16 of a block.
+        /// The displayMatrix comes from the item's BlockModel parent chain
+        /// (resolved via ItemDisplayTransformLookup during the content pipeline).
         /// </summary>
         public static void BuildFlatItem(
+            float4x4 displayMatrix,
             out HeldItemVertex[] vertices,
             out int[] indices)
         {
@@ -183,19 +176,7 @@ namespace Lithforge.Runtime.Player
 
             float3 handOffset = RightHandLocator;
 
-            // Minecraft generated.json firstperson_righthand display transform
-            float3 displayTranslation = new float3(1.13f, 3.2f, 1.13f) / 16f; // convert to block units
-            float displayScale = 0.68f;
-
-            // Build the display transform matrix: Translate → RotateY → RotateX → Scale
-            // rotation [0, -90, 25] = RotateY(-90) then RotateX(25)
-            float4x4 displayMat = math.mul(
-                math.mul(
-                    float4x4.Translate(displayTranslation),
-                    float4x4.RotateY(math.radians(-90f))),
-                math.mul(
-                    float4x4.RotateX(math.radians(25f)),
-                    float4x4.Scale(displayScale)));
+            float4x4 displayMat = displayMatrix;
 
             // Unit quad: 1x1 block centered at origin, bottom at y=0
             // (Minecraft item sprites are 16x16 pixels = 1x1 block)

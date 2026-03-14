@@ -1,0 +1,16 @@
+namespace Lithforge.Voxel.Item
+{
+    /// <summary>
+    /// Extends IMiningModifier for tool-specific traits.
+    /// Future: ICombatModifier will be added here.
+    /// </summary>
+    public interface IToolTrait : IMiningModifier
+    {
+        string TraitId { get; }
+
+        /// <summary>
+        /// Allows duplicate detection — only the highest level wins.
+        /// </summary>
+        int TraitLevel { get; }
+    }
+}

@@ -26,6 +26,10 @@ namespace Lithforge.Runtime.Content.Models
         [Tooltip("Model geometry elements (optional, for custom shapes)")]
         [SerializeField] private List<ModelElement> _elements = new List<ModelElement>();
 
+        [Header("Display")]
+        [Tooltip("First-person right hand display transform (rotation, translation, scale).")]
+        [SerializeField] private ModelDisplayTransform _firstPersonRightHand;
+
         public BlockModel Parent
         {
             get { return _parent; }
@@ -44,6 +48,11 @@ namespace Lithforge.Runtime.Content.Models
         public IReadOnlyList<ModelElement> Elements
         {
             get { return _elements; }
+        }
+
+        public ModelDisplayTransform FirstPersonRightHand
+        {
+            get { return _firstPersonRightHand; }
         }
     }
 }

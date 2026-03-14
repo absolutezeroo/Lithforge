@@ -367,6 +367,44 @@ namespace Lithforge.Runtime.Content.Models
             return fallback;
         }
 
+        /// <summary>
+        /// Resolves the first-person right hand display transform by walking the parent chain.
+        /// Returns the first ModelDisplayTransform with HasValue=true (leaf wins over root).
+        /// Returns null if no display transform is found in the chain.
+        /// </summary>
+        public ModelDisplayTransform ResolveFirstPersonRightHand(BlockModel model)
+        {
+            if (model == null)
+            {
+                return null;
+            }
+
+            HashSet<BlockModel> visited = new HashSet<BlockModel>();
+            BlockModel current = model;
+
+            for (int depth = 0; depth <= MaxParentDepth; depth++)
+            {
+                if (current == null)
+                {
+                    break;
+                }
+
+                if (!visited.Add(current))
+                {
+                    break;
+                }
+
+                if (current.FirstPersonRightHand != null && current.FirstPersonRightHand.HasValue)
+                {
+                    return current.FirstPersonRightHand;
+                }
+
+                current = current.Parent;
+            }
+
+            return null;
+        }
+
         private static ResolvedFaceTextures2D CreateMissing()
         {
             return new ResolvedFaceTextures2D

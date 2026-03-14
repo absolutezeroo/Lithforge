@@ -60,6 +60,7 @@ namespace Lithforge.Runtime.Player
         private readonly Inventory _inventory;
         private readonly ItemRegistry _itemRegistry;
         private readonly StateRegistry _stateRegistry;
+        private readonly ItemDisplayTransformLookup _displayTransformLookup;
         private ResourceId _lastHeldItemId;
         private bool _hasLastHeldItem;
         private int _lastSelectedSlot = -1;
@@ -77,12 +78,14 @@ namespace Lithforge.Runtime.Player
             Transform playerTransform,
             Inventory inventory,
             ItemRegistry itemRegistry,
-            StateRegistry stateRegistry)
+            StateRegistry stateRegistry,
+            ItemDisplayTransformLookup displayTransformLookup)
         {
             _skinTexture = skinTexture;
             _inventory = inventory;
             _itemRegistry = itemRegistry;
             _stateRegistry = stateRegistry;
+            _displayTransformLookup = displayTransformLookup;
             _animator = new ArmAnimator(playerTransform);
 
             // Build arm mesh (static geometry)
@@ -303,18 +306,20 @@ namespace Lithforge.Runtime.Player
 
             HeldItemVertex[] vertices;
             int[] indices;
+            float4x4 displayMatrix = _displayTransformLookup.Get(itemId);
 
             if (itemEntry.IsBlockItem)
             {
                 HeldItemMeshBuilder.BuildBlockItem(
                     _stateRegistry,
                     itemEntry.BlockId,
+                    displayMatrix,
                     out vertices,
                     out indices);
             }
             else
             {
-                HeldItemMeshBuilder.BuildFlatItem(out vertices, out indices);
+                HeldItemMeshBuilder.BuildFlatItem(displayMatrix, out vertices, out indices);
             }
 
             if (vertices.Length == 0 || indices.Length == 0)

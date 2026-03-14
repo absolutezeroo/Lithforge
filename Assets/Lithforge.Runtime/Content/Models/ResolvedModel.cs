@@ -18,5 +18,11 @@ namespace Lithforge.Runtime.Content.Models
         /// Built during parent chain walk; exposed to avoid redundant re-resolution.
         /// </summary>
         public Dictionary<string, Texture2D> ResolvedTextureDictionary { get; set; }
+
+        /// <summary>
+        /// Resolved first-person right hand display transform from the model chain.
+        /// Null if no display transform is defined in the chain.
+        /// </summary>
+        public ModelDisplayTransform FirstPersonRightHand { get; set; }
     }
 }

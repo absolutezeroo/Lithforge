@@ -19,6 +19,7 @@ using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.Factories;
 using Lithforge.Runtime.BlockEntity.ScriptableObjects;
+using Lithforge.Runtime.Player;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Crafting;
@@ -358,6 +359,82 @@ namespace Lithforge.Runtime.Bootstrap
                 itemEntries, stateRegistry, resolvedFaces);
             _logger.LogInfo($"Built item sprite atlas: {itemSpriteAtlas.Count} sprites.");
 
+            // Phase 15.5: Build item display transform lookup for first-person held items
+            ItemDisplayTransformLookup displayTransformLookup = new ItemDisplayTransformLookup();
+
+            // Load base model assets for fallback display transforms
+            BlockModel blockBaseModel = Resources.Load<BlockModel>("Content/Models/block");
+            BlockModel generatedBaseModel = Resources.Load<BlockModel>("Content/ItemModels/generated");
+
+            ModelDisplayTransform blockBaseDt = blockBaseModel != null
+                ? modelResolver.ResolveFirstPersonRightHand(blockBaseModel)
+                : null;
+            ModelDisplayTransform generatedBaseDt = generatedBaseModel != null
+                ? modelResolver.ResolveFirstPersonRightHand(generatedBaseModel)
+                : null;
+
+            // Block items: resolve display transform from block variant model chain
+            for (int i = 0; i < entries.Count; i++)
+            {
+                StateRegistryEntry entry = entries[i];
+
+                if (entry.BaseStateId == 0)
+                {
+                    continue;
+                }
+
+                if (!blockLookup.TryGetValue(entry.Id.ToString(), out BlockDefinition block))
+                {
+                    continue;
+                }
+
+                BlockStateMapping mapping = block.BlockStateMapping;
+
+                if (mapping == null || mapping.Variants.Count == 0)
+                {
+                    continue;
+                }
+
+                BlockModel variantModel = mapping.Variants[0].Model;
+                ModelDisplayTransform dt = modelResolver.ResolveFirstPersonRightHand(variantModel);
+
+                // Fallback to block.asset display transform if model chain has none
+                if (dt == null)
+                {
+                    dt = blockBaseDt;
+                }
+
+                if (dt != null)
+                {
+                    displayTransformLookup.Register(entry.Id, ItemDisplayTransformLookup.BuildMatrix(dt));
+                }
+            }
+
+            // Standalone items: resolve display transform from item model chain
+            for (int i = 0; i < items.Length; i++)
+            {
+                ItemDefinition item = items[i];
+
+                if (item.ItemModel == null)
+                {
+                    continue;
+                }
+
+                ModelDisplayTransform dt = modelResolver.ResolveFirstPersonRightHand(item.ItemModel);
+
+                // Fallback to generated.asset display transform if model chain has none
+                if (dt == null)
+                {
+                    dt = generatedBaseDt;
+                }
+
+                if (dt != null)
+                {
+                    ResourceId itemId = new ResourceId(item.Namespace, item.ItemName);
+                    displayTransformLookup.Register(itemId, ItemDisplayTransformLookup.BuildMatrix(dt));
+                }
+            }
+
             // Phase 16: Load smelting recipes and register block entity factories
             yield return "Loading smelting recipes...";
             SmeltingRecipeRegistry smeltingRecipeRegistry = new SmeltingRecipeRegistry();
@@ -406,7 +483,8 @@ namespace Lithforge.Runtime.Bootstrap
                 craftingEngine,
                 itemSpriteAtlas,
                 blockEntityRegistry,
-                smeltingRecipeRegistry);
+                smeltingRecipeRegistry,
+                displayTransformLookup);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

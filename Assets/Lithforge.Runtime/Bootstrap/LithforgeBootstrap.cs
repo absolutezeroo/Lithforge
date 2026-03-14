@@ -529,7 +529,8 @@ namespace Lithforge.Runtime.Bootstrap
                         playerObject.transform,
                         playerInventory,
                         _contentResult.ItemRegistry,
-                        _contentResult.StateRegistry);
+                        _contentResult.StateRegistry,
+                        _contentResult.DisplayTransformLookup);
 
                     _gameLoop.SetArmRenderer(armRenderer, playerController, blockInteraction);
                 }

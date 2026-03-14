@@ -14,6 +14,13 @@ namespace Lithforge.Voxel.Item
 
         public int Durability { get; set; }
 
+        public byte[] CustomData { get; set; }
+
+        public bool HasCustomData
+        {
+            get { return CustomData != null && CustomData.Length > 0; }
+        }
+
         public static readonly ItemStack Empty = default;
 
         public ItemStack(ResourceId itemId, int count)
@@ -21,6 +28,7 @@ namespace Lithforge.Voxel.Item
             ItemId = itemId;
             Count = count;
             Durability = -1;
+            CustomData = null;
         }
 
         public ItemStack(ResourceId itemId, int count, int durability)
@@ -28,6 +36,7 @@ namespace Lithforge.Voxel.Item
             ItemId = itemId;
             Count = count;
             Durability = durability;
+            CustomData = null;
         }
 
         public bool IsEmpty
