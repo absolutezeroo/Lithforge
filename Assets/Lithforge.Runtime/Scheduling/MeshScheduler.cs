@@ -87,11 +87,14 @@ namespace Lithforge.Runtime.Scheduling
                 // Don't poll IsCompleted on jobs younger than 1 frame.
                 // Avoids Unity work-stealing the job + its border extraction deps
                 // on the main thread (measured: up to 134ms stalls).
+                bool forceComplete = false;
+
                 if (pending.FrameAge > 300)
                 {
                     UnityEngine.Debug.LogWarning(
                         $"[MeshScheduler] Force-completing stale mesh job for chunk " +
                         $"{pending.Coord} after {pending.FrameAge} frames");
+                    forceComplete = true;
                 }
                 else if (pending.FrameAge < 1)
                 {
@@ -103,7 +106,11 @@ namespace Lithforge.Runtime.Scheduling
 
                 bool isCompleted;
 
-                if (firstCheck)
+                if (forceComplete)
+                {
+                    isCompleted = true;
+                }
+                else if (firstCheck)
                 {
                     long tf0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     isCompleted = pending.Handle.IsCompleted;

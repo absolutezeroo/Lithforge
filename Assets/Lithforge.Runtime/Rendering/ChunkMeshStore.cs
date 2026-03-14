@@ -48,7 +48,7 @@ namespace Lithforge.Runtime.Rendering
         private readonly ComputeShader _frustumCullShader;
         private readonly int _resetCullKernel;
         private readonly int _frustumCullKernel;
-        private readonly int _maxChunkSlots;
+        private int _maxChunkSlots;
 
         // --- Hi-Z occlusion culling ---
         private readonly HiZPyramid _hiZPyramid;
@@ -58,7 +58,7 @@ namespace Lithforge.Runtime.Rendering
         /// Shared bounds buffer: same AABB regardless of render layer.
         /// Slot IDs are keyed to the opaque buffer's coordToSlotId.
         /// </summary>
-        private readonly GraphicsBuffer _chunkBoundsBuffer;
+        private GraphicsBuffer _chunkBoundsBuffer;
         private readonly ChunkBoundsGPU[] _boundsUpload = new ChunkBoundsGPU[1];
 
         /// <summary>Cached frustum plane vectors to avoid per-frame array allocation.</summary>
@@ -239,6 +239,7 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>
         /// Ensures a shared slot ID exists for the given chunk coordinate.
         /// Allocates one from the free pool if this is a new chunk.
+        /// Grows the slot infrastructure if the pool is exhausted.
         /// </summary>
         private int EnsureSlotId(int3 coord)
         {
@@ -249,15 +250,52 @@ namespace Lithforge.Runtime.Rendering
 
             if (_freeSlotIds.Count == 0)
             {
-                UnityEngine.Debug.LogError(
-                    $"[ChunkMeshStore] No free per-chunk slots (max={_maxChunkSlots}). " +
-                    "This should not happen — slots are computed from render distance.");
-                return -1;
+                GrowSlotCapacity();
             }
 
             slotId = _freeSlotIds.Pop();
             _coordToSlotId[coord] = slotId;
             return slotId;
+        }
+
+        /// <summary>
+        /// Doubles the slot capacity for per-chunk indirect draw. Grows the shared
+        /// bounds buffer and per-chunk args in all three MegaMeshBuffers. Called when
+        /// render distance increases at runtime and the original slot count is exceeded.
+        /// </summary>
+        private void GrowSlotCapacity()
+        {
+            int oldMax = _maxChunkSlots;
+            int newMax = ((oldMax * 2 + 63) / 64) * 64;
+
+            // Grow per-chunk args in all 3 MegaMeshBuffers
+            _opaqueBuffer.GrowSlots(newMax);
+            _cutoutBuffer.GrowSlots(newMax);
+            _translucentBuffer.GrowSlots(newMax);
+
+            // Grow chunk bounds buffer
+            GraphicsBuffer newBoundsBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.Structured,
+                newMax,
+                Marshal.SizeOf<ChunkBoundsGPU>());
+
+            ChunkBoundsGPU[] boundsCopy = new ChunkBoundsGPU[newMax];
+            _chunkBoundsBuffer.GetData(boundsCopy, 0, 0, oldMax);
+            newBoundsBuffer.SetData(boundsCopy);
+
+            _chunkBoundsBuffer.Dispose();
+            _chunkBoundsBuffer = newBoundsBuffer;
+
+            // Push new slot IDs (reverse order so Pop returns lowest first)
+            for (int i = newMax - 1; i >= oldMax; i--)
+            {
+                _freeSlotIds.Push(i);
+            }
+
+            _maxChunkSlots = newMax;
+
+            UnityEngine.Debug.Log(
+                $"[ChunkMeshStore] Grew slot capacity: {oldMax} → {newMax}");
         }
 
         /// <summary>

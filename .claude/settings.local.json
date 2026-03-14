@@ -29,7 +29,10 @@
       "Skill(code-review:code-review)",
       "Bash(where gh:*)",
       "Bash(xargs:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.unity3d.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

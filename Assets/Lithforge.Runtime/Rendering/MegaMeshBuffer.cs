@@ -57,7 +57,7 @@ namespace Lithforge.Runtime.Rendering
 
         // --- Per-chunk indirect draw support ---
         private GraphicsBuffer _perChunkArgsBuffer;
-        private readonly int _maxChunkSlots;
+        private int _maxChunkSlots;
 
         /// <summary>
         /// Cached single-element array for per-slot args upload, avoiding per-call allocation.
@@ -712,6 +712,36 @@ namespace Lithforge.Runtime.Rendering
             }
 
             _perChunkArgsBuffer.SetData(_slotArgsUpload, 0, slotId, 1);
+        }
+
+        /// <summary>
+        /// Grows the per-chunk args buffer to accommodate more chunk slots.
+        /// Copies existing args data to the new buffer. Called by ChunkMeshStore
+        /// when the slot pool is exhausted due to render distance increase.
+        /// </summary>
+        public void GrowSlots(int newMaxSlots)
+        {
+            if (newMaxSlots <= _maxChunkSlots)
+            {
+                return;
+            }
+
+            int oldMax = _maxChunkSlots;
+
+            GraphicsBuffer newArgsBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Raw,
+                newMaxSlots,
+                GraphicsBuffer.IndirectDrawIndexedArgs.size);
+
+            // Copy old args data and zero-initialize new slots
+            GraphicsBuffer.IndirectDrawIndexedArgs[] argsCopy =
+                new GraphicsBuffer.IndirectDrawIndexedArgs[newMaxSlots];
+            _perChunkArgsBuffer.GetData(argsCopy, 0, 0, oldMax);
+            newArgsBuffer.SetData(argsCopy);
+
+            _perChunkArgsBuffer.Dispose();
+            _perChunkArgsBuffer = newArgsBuffer;
+            _maxChunkSlots = newMaxSlots;
         }
 
         /// <summary>

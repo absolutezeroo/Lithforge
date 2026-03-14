@@ -740,6 +740,7 @@ namespace Lithforge.Voxel.Chunk
             }
 
             _chunks.Clear();
+            _chunksNeedingLightUpdate.Clear();
         }
     }
 }
