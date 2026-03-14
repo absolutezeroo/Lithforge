@@ -521,8 +521,7 @@ namespace Lithforge.Runtime.Scheduling
                         Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
                     if (_worldStorage.LoadChunk(chunk.Coord, chunk.Data, lightData,
-                        _blockEntityRegistry,
-                        out Dictionary<int, IBlockEntity> loadedEntities))
+                        out Dictionary<int, IBlockEntity> loadedEntities, _blockEntityRegistry))
                     {
                         chunk.LightData = lightData;
                         chunk.State = ChunkState.Generated;

@@ -47,12 +47,11 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
-        public bool LoadChunk(
-            int3 chunkCoord,
+        public bool LoadChunk(int3 chunkCoord,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
-            BlockEntityRegistry blockEntityRegistry = null,
-            out Dictionary<int, IBlockEntity> blockEntities)
+            out Dictionary<int, IBlockEntity> blockEntities,
+            BlockEntityRegistry blockEntityRegistry = null)
         {
             blockEntities = null;
 
@@ -87,7 +86,7 @@ namespace Lithforge.Voxel.Storage
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
         {
-            return LoadChunk(chunkCoord, chunkData, lightData, null, out Dictionary<int, IBlockEntity> _);
+            return LoadChunk(chunkCoord, chunkData, lightData, out Dictionary<int, IBlockEntity> _, null);
         }
 
         public void SaveChunk(
