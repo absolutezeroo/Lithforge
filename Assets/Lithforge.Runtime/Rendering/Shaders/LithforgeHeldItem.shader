@@ -23,7 +23,7 @@ Shader "Lithforge/HeldItem"
 
             Cull Back
             ZWrite On
-            ZTest LEqual
+            ZTest Always
 
             HLSLPROGRAM
             #pragma target 4.5
@@ -33,6 +33,7 @@ Shader "Lithforge/HeldItem"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "LithforgePlayerArmCommon.hlsl"
 
             struct HeldItemVertexData
             {
@@ -85,14 +86,8 @@ Shader "Lithforge/HeldItem"
                 half4 texColor = SAMPLE_TEXTURE2D_ARRAY(
                     _AtlasArray, sampler_AtlasArray, i.uv, i.texIndex);
 
-                Light mainLight = GetMainLight();
-                float ndotl = saturate(dot(i.normalWS, mainLight.direction));
-                half lambert = (half)(ndotl * 0.6 + 0.4);
-
-                half sunFactor = (half)_SunLightFactor;
-                half3 directColor = texColor.rgb * lambert * mainLight.color.rgb * sunFactor;
-                half3 ambientColor = texColor.rgb * (half)_AmbientLight;
-                half3 finalColor = directColor + ambientColor;
+                half3 finalColor = ComputeFirstPersonLighting(
+                    texColor.rgb, i.normalWS, _SunLightFactor, _AmbientLight);
 
                 return half4(finalColor, 1.0h);
             }

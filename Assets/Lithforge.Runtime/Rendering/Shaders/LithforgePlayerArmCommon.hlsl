@@ -51,4 +51,18 @@ ArmVaryings ArmVert(uint svVertexID : SV_VertexID)
     return o;
 }
 
+// Shared first-person lighting: lambert (ndotl * 0.6 + 0.4) with sun factor and ambient.
+// Requires Lighting.hlsl to be included before calling this function.
+half3 ComputeFirstPersonLighting(half3 albedo, float3 normalWS, float sunLightFactor, float ambientLight)
+{
+    Light mainLight = GetMainLight();
+    float ndotl = saturate(dot(normalWS, mainLight.direction));
+    half lambert = (half)(ndotl * 0.6 + 0.4);
+
+    half sunFactor = (half)sunLightFactor;
+    half3 directColor = albedo * lambert * mainLight.color.rgb * sunFactor;
+    half3 ambientColor = albedo * (half)ambientLight;
+    return directColor + ambientColor;
+}
+
 #endif // LITHFORGE_PLAYER_ARM_COMMON

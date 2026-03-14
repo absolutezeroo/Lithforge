@@ -22,7 +22,7 @@ Shader "Lithforge/PlayerArm"
 
             Cull Back
             ZWrite On
-            ZTest LEqual
+            ZTest Always
 
             HLSLPROGRAM
             #pragma target 4.5
@@ -45,15 +45,8 @@ Shader "Lithforge/PlayerArm"
                 float2 skinUV = float2(i.uv.x, 1.0 - i.uv.y);
                 half4 col = SAMPLE_TEXTURE2D(_SkinTex, sampler_SkinTex, skinUV);
 
-                // Simple directional lighting matching voxel shader style
-                Light mainLight = GetMainLight();
-                float ndotl = saturate(dot(i.normalWS, mainLight.direction));
-                half lambert = (half)(ndotl * 0.6 + 0.4);
-
-                half sunFactor = (half)_SunLightFactor;
-                half3 directColor = col.rgb * lambert * mainLight.color.rgb * sunFactor;
-                half3 ambientColor = col.rgb * (half)_AmbientLight;
-                half3 finalColor = directColor + ambientColor;
+                half3 finalColor = ComputeFirstPersonLighting(
+                    col.rgb, i.normalWS, _SunLightFactor, _AmbientLight);
 
                 return half4(finalColor, 1.0h);
             }

@@ -38,7 +38,7 @@ namespace Lithforge.Runtime.Player
         // Swing state
         private bool _isSwinging;
         private float _swingTimer;
-        private bool _wasMinig;
+        private bool _wasMining;
 
         // Equip state
         private bool _isEquipping;
@@ -91,11 +91,11 @@ namespace Lithforge.Runtime.Player
         public void Update(float deltaTime, bool isMining, bool isOnGround, bool isFlying)
         {
             // Detect mining start for swing trigger
-            if (isMining && !_wasMinig)
+            if (isMining && !_wasMining)
             {
                 TriggerSwing();
             }
-            _wasMinig = isMining;
+            _wasMining = isMining;
 
             // Re-trigger swing while mining
             if (isMining && !_isSwinging)
@@ -127,8 +127,9 @@ namespace Lithforge.Runtime.Player
             }
             else
             {
-                // Slowly decay walk distance so bob eases out
-                _walkDistance += deltaTime * 0.5f;
+                // Decay walk distance toward nearest whole number so bob eases to rest
+                float target = math.round(_walkDistance);
+                _walkDistance = math.lerp(_walkDistance, target, math.saturate(deltaTime * 5f));
             }
         }
 

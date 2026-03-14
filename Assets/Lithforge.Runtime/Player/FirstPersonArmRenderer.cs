@@ -13,7 +13,7 @@ namespace Lithforge.Runtime.Player
     /// Renders first-person arms and held items using GPU-driven indirect draw calls.
     /// Owns all GPU buffers for the arm mesh (static) and held item mesh (rebuilt on change).
     /// Called from GameLoop.LateUpdate after ChunkMeshStore.RenderAll to render on top
-    /// of the world via a depth-clear CommandBuffer.
+    /// of the world via ZTest Always in the arm shaders.
     ///
     /// Owner: GameLoop (via LithforgeBootstrap). Lifetime: application session.
     /// </summary>
@@ -49,10 +49,6 @@ namespace Lithforge.Runtime.Player
         private readonly RenderParams _baseArmParams;
         private readonly RenderParams _overlayArmParams;
         private readonly RenderParams _heldItemParams;
-
-        // Depth clear command buffer
-        private CommandBuffer _depthClearCmd;
-        private Camera _attachedCamera;
 
         // Skin texture
         private readonly Texture2D _skinTexture;
@@ -179,7 +175,7 @@ namespace Lithforge.Runtime.Player
 
         /// <summary>
         /// Main render call. Must be called from LateUpdate after ChunkMeshStore.RenderAll.
-        /// Clears depth, updates animations, and issues draw calls for arm + held item.
+        /// Updates animations and issues draw calls for arm + held item.
         /// </summary>
         public void Render(Camera camera, bool isOnGround, bool isFlying, bool isMining)
         {
@@ -207,9 +203,6 @@ namespace Lithforge.Runtime.Player
             Matrix4x4 armProjection = Matrix4x4.Perspective(ArmFov, camera.aspect, ArmNearClip, ArmFarClip);
             armProjection = GL.GetGPUProjectionMatrix(armProjection, true);
             Matrix4x4 armToClip = armProjection * camera.worldToCameraMatrix;
-
-            // Ensure depth clear command buffer is attached
-            EnsureDepthClear(camera);
 
             // Draw arm base layer
             _baseArmParams.matProps.SetBuffer(s_armVertexBufferId, _armVertexBuffer);
@@ -362,31 +355,6 @@ namespace Lithforge.Runtime.Player
             _hasHeldItemMesh = true;
         }
 
-        /// <summary>
-        /// Ensures a depth-clear CommandBuffer is attached to the camera.
-        /// This clears the depth buffer before arm rendering so the arm draws on top of the world.
-        /// </summary>
-        private void EnsureDepthClear(Camera camera)
-        {
-            if (_attachedCamera == camera && _depthClearCmd != null)
-            {
-                return;
-            }
-
-            // Detach from old camera
-            if (_attachedCamera != null && _depthClearCmd != null)
-            {
-                _attachedCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _depthClearCmd);
-            }
-
-            _depthClearCmd?.Dispose();
-            _depthClearCmd = new CommandBuffer { name = "ClearDepthForArm" };
-            _depthClearCmd.ClearRenderTarget(true, false, Color.clear);
-
-            camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, _depthClearCmd);
-            _attachedCamera = camera;
-        }
-
         private void DisposeHeldItemBuffers()
         {
             _heldItemVertexBuffer?.Dispose();
@@ -400,12 +368,6 @@ namespace Lithforge.Runtime.Player
 
         public void Dispose()
         {
-            if (_attachedCamera != null && _depthClearCmd != null)
-            {
-                _attachedCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, _depthClearCmd);
-            }
-
-            _depthClearCmd?.Dispose();
             _armVertexBuffer?.Dispose();
             _armIndexBuffer?.Dispose();
             _armArgsBuffer?.Dispose();

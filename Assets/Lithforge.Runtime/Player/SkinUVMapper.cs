@@ -4,57 +4,12 @@ using UnityEngine;
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Box face direction for skin UV mapping.
-    /// </summary>
-    public enum SkinFaceDirection
-    {
-        Top = 0,
-        Bottom = 1,
-        Right = 2,
-        Front = 3,
-        Left = 4,
-        Back = 5,
-    }
-
-    /// <summary>
-    /// Defines a body part's region in the 64x64 Minecraft skin texture.
-    /// </summary>
-    public readonly struct SkinPartDefinition
-    {
-        /// <summary>Pixel X origin of the T-shaped strip (top-left origin).</summary>
-        public readonly int OriginU;
-
-        /// <summary>Pixel Y origin of the T-shaped strip (top-left origin).</summary>
-        public readonly int OriginV;
-
-        /// <summary>Box width in pixels.</summary>
-        public readonly int W;
-
-        /// <summary>Box height in pixels.</summary>
-        public readonly int H;
-
-        /// <summary>Box depth in pixels.</summary>
-        public readonly int D;
-
-        public SkinPartDefinition(int originU, int originV, int w, int h, int d)
-        {
-            OriginU = originU;
-            OriginV = originV;
-            W = w;
-            H = h;
-            D = d;
-        }
-    }
-
-    /// <summary>
     /// Computes UV rectangles for body part faces in a 64x64 Minecraft skin texture.
     /// Minecraft skin layout: each part is a T-shaped strip of 6 faces packed at a known origin.
     /// </summary>
     public static class SkinUVMapper
     {
         private const float TexSize = 64f;
-
-        // --- Part definitions (complete table for future expansion) ---
 
         // Right Arm (classic 4px wide)
         public static readonly SkinPartDefinition RightArmBase4 = new SkinPartDefinition(40, 16, 4, 12, 4);
