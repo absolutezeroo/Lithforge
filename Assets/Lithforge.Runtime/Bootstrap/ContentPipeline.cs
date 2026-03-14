@@ -16,7 +16,11 @@ using Lithforge.Runtime.Content.Tags;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Runtime.UI.Sprites;
+using Lithforge.Runtime.BlockEntity;
+using Lithforge.Runtime.BlockEntity.Factories;
+using Lithforge.Runtime.BlockEntity.ScriptableObjects;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
@@ -113,6 +117,19 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo(
                 $"Registered {blocks.Length} blocks, {stateRegistry.TotalStateCount} states.");
+
+            // Phase 2.5: Load block entity definitions and patch StateRegistry
+            yield return "Loading block entities...";
+            BlockEntityDefinitionSO[] blockEntityDefs =
+                Resources.LoadAll<BlockEntityDefinitionSO>("Content/BlockEntities");
+
+            for (int i = 0; i < blockEntityDefs.Length; i++)
+            {
+                BlockEntityDefinitionSO beDef = blockEntityDefs[i];
+                stateRegistry.PatchBlockEntityType(beDef.BlockIdString, beDef.BlockEntityTypeId);
+            }
+
+            _logger.LogInfo($"Patched {blockEntityDefs.Length} block entity definitions.");
 
             // Phase 3: Resolve block models via ContentModelResolver
             yield return "Resolving models...";
@@ -341,6 +358,40 @@ namespace Lithforge.Runtime.Bootstrap
                 itemEntries, stateRegistry, resolvedFaces);
             _logger.LogInfo($"Built item sprite atlas: {itemSpriteAtlas.Count} sprites.");
 
+            // Phase 16: Load smelting recipes and register block entity factories
+            yield return "Loading smelting recipes...";
+            SmeltingRecipeRegistry smeltingRecipeRegistry = new SmeltingRecipeRegistry();
+            SmeltingRecipeDefinition[] smeltingRecipes =
+                Resources.LoadAll<SmeltingRecipeDefinition>("Content/Recipes/Smelting");
+
+            for (int i = 0; i < smeltingRecipes.Length; i++)
+            {
+                SmeltingRecipeDefinition sr = smeltingRecipes[i];
+
+                if (!string.IsNullOrEmpty(sr.InputItemId) && !string.IsNullOrEmpty(sr.ResultItemId))
+                {
+                    ResourceId inputId = ResourceId.Parse(sr.InputItemId);
+                    ResourceId resultId = ResourceId.Parse(sr.ResultItemId);
+                    SmeltingRecipeEntry entry = new SmeltingRecipeEntry(
+                        inputId, resultId, sr.ResultCount, sr.ExperienceReward);
+                    smeltingRecipeRegistry.Register(entry);
+                }
+            }
+
+            _logger.LogInfo($"Loaded {smeltingRecipeRegistry.Count} smelting recipes.");
+
+            // Register block entity factories
+            BlockEntityRegistry blockEntityRegistry = new BlockEntityRegistry();
+            blockEntityRegistry.Register(new BlockEntityType(
+                ChestBlockEntity.TypeIdValue,
+                new ChestBlockEntityFactory()));
+            blockEntityRegistry.Register(new BlockEntityType(
+                FurnaceBlockEntity.TypeIdValue,
+                new FurnaceBlockEntityFactory(smeltingRecipeRegistry, itemRegistry)));
+            blockEntityRegistry.Freeze();
+
+            _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
+
             Result = new ContentPipelineResult(
                 stateRegistry,
                 nativeStateRegistry,
@@ -353,7 +404,9 @@ namespace Lithforge.Runtime.Bootstrap
                 tagRegistry,
                 itemRegistry,
                 craftingEngine,
-                itemSpriteAtlas);
+                itemSpriteAtlas,
+                blockEntityRegistry,
+                smeltingRecipeRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)
@@ -513,6 +566,7 @@ namespace Lithforge.Runtime.Bootstrap
             def.AttackSpeed = item.AttackSpeed;
             def.MiningSpeed = item.MiningSpeed;
 
+            def.FuelTime = item.FuelTime;
             def.ToolSpeedProfile = item.ToolSpeedProfile;
 
             AffixDefinition[] sourceAffixes = item.Affixes ?? Array.Empty<AffixDefinition>();

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Lithforge.Core.Logging;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -49,8 +50,12 @@ namespace Lithforge.Voxel.Storage
         public bool LoadChunk(
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
-            NativeArray<byte> lightData)
+            NativeArray<byte> lightData,
+            BlockEntityRegistry blockEntityRegistry = null,
+            out Dictionary<int, IBlockEntity> blockEntities)
         {
+            blockEntities = null;
+
             try
             {
                 GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
@@ -63,7 +68,8 @@ namespace Lithforge.Voxel.Storage
                     return false;
                 }
 
-                return ChunkSerializer.Deserialize(serialized, chunkData, lightData);
+                return ChunkSerializer.Deserialize(serialized, chunkData, lightData,
+                    blockEntityRegistry, out blockEntities);
             }
             catch (Exception ex)
             {
@@ -73,17 +79,29 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
-        public void SaveChunk(
+        /// <summary>
+        /// Backward-compatible overload without block entity support.
+        /// </summary>
+        public bool LoadChunk(
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
+        {
+            return LoadChunk(chunkCoord, chunkData, lightData, null, out Dictionary<int, IBlockEntity> _);
+        }
+
+        public void SaveChunk(
+            int3 chunkCoord,
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            Dictionary<int, IBlockEntity> blockEntities = null)
         {
             try
             {
                 GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
                 RegionFile region = GetOrOpenRegion(regionCoord);
 
-                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData);
+                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData, blockEntities);
                 region.SaveChunk(localX, localZ, serialized);
             }
             catch (Exception ex)

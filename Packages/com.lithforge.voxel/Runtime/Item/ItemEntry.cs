@@ -24,6 +24,12 @@ namespace Lithforge.Voxel.Item
         public List<string> Tags { get; set; }
 
         /// <summary>
+        /// Fuel burn time in seconds. 0 = not a fuel item.
+        /// Used by FuelBurnBehavior in furnace block entities.
+        /// </summary>
+        public float FuelTime { get; set; }
+
+        /// <summary>
         /// Tool speed profile (stored as object to avoid Tier 3 dependency).
         /// Cast to ToolSpeedProfile in Tier 3 consuming code.
         /// </summary>

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Physics;
+using Lithforge.Runtime.BlockEntity;
+using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Rendering;
@@ -77,6 +79,11 @@ namespace Lithforge.Runtime.Input
         // Placement cooldown
         private float _placeCooldown;
 
+        // Block entity references
+        private BlockEntityTickScheduler _blockEntityTickScheduler;
+        private ChestScreen _chestScreen;
+        private FurnaceScreen _furnaceScreen;
+
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
 
@@ -114,6 +121,19 @@ namespace Lithforge.Runtime.Input
             _playerController = playerController;
             _lootRandom = new Random(Environment.TickCount);
             _isSolidDelegate = SolidBlockQuery.CreateDelegate(_chunkManager, _nativeStateRegistry);
+        }
+
+        /// <summary>
+        /// Sets block entity system references. Call after block entity system is initialized.
+        /// </summary>
+        public void SetBlockEntityReferences(
+            BlockEntityTickScheduler scheduler,
+            ChestScreen chestScreen,
+            FurnaceScreen furnaceScreen)
+        {
+            _blockEntityTickScheduler = scheduler;
+            _chestScreen = chestScreen;
+            _furnaceScreen = furnaceScreen;
         }
 
         private void Update()
@@ -345,8 +365,50 @@ namespace Lithforge.Runtime.Input
 
         private void BreakBlock(int3 blockCoord)
         {
-            // Resolve loot table before breaking (only if player can harvest this block)
+            // Drop block entity inventory items before breaking
             StateId stateId = _chunkManager.GetBlock(blockCoord);
+
+            if (_blockEntityTickScheduler != null &&
+                _nativeStateRegistry.States.IsCreated &&
+                stateId.Value < _nativeStateRegistry.States.Length &&
+                _nativeStateRegistry.States[stateId.Value].HasBlockEntity)
+            {
+                int3 chunkCoord = new int3(
+                    FloorDiv(blockCoord.x, ChunkConstants.Size),
+                    FloorDiv(blockCoord.y, ChunkConstants.Size),
+                    FloorDiv(blockCoord.z, ChunkConstants.Size));
+                int localX = blockCoord.x - chunkCoord.x * ChunkConstants.Size;
+                int localY = blockCoord.y - chunkCoord.y * ChunkConstants.Size;
+                int localZ = blockCoord.z - chunkCoord.z * ChunkConstants.Size;
+                int flatIndex = ChunkData.GetIndex(localX, localY, localZ);
+
+                Lithforge.Runtime.BlockEntity.BlockEntity entity =
+                    _blockEntityTickScheduler.GetEntity(chunkCoord, flatIndex);
+
+                if (entity != null)
+                {
+                    Lithforge.Runtime.BlockEntity.Behaviors.InventoryBehavior entityInv =
+                        entity.GetBehavior<Lithforge.Runtime.BlockEntity.Behaviors.InventoryBehavior>();
+
+                    if (entityInv != null)
+                    {
+                        for (int i = 0; i < entityInv.SlotCount; i++)
+                        {
+                            ItemStack slot = entityInv.GetSlot(i);
+
+                            if (!slot.IsEmpty)
+                            {
+                                ItemEntry itemDef = _itemRegistry.Get(slot.ItemId);
+                                int maxStack = itemDef != null
+                                    ? itemDef.MaxStackSize : _defaultMaxStackSize;
+                                _inventory.AddItem(slot.ItemId, slot.Count, maxStack);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Resolve loot table before breaking (only if player can harvest this block)
             StateRegistryEntry entry = _stateRegistry.GetEntryForState(stateId);
 
             if (_canHarvest && entry != null && !string.IsNullOrEmpty(entry.LootTable))
@@ -398,6 +460,46 @@ namespace Lithforge.Runtime.Input
             if (!mouse.rightButton.wasPressedThisFrame || _placeCooldown > 0f)
             {
                 return;
+            }
+
+            // Check if the targeted block has a block entity (right-click to open UI)
+            if (_blockEntityTickScheduler != null)
+            {
+                StateId targetState = _chunkManager.GetBlock(hit.BlockCoord);
+
+                if (_nativeStateRegistry.States.IsCreated &&
+                    targetState.Value < _nativeStateRegistry.States.Length &&
+                    _nativeStateRegistry.States[targetState.Value].HasBlockEntity)
+                {
+                    int3 chunkCoord = new int3(
+                        FloorDiv(hit.BlockCoord.x, ChunkConstants.Size),
+                        FloorDiv(hit.BlockCoord.y, ChunkConstants.Size),
+                        FloorDiv(hit.BlockCoord.z, ChunkConstants.Size));
+                    int localX = hit.BlockCoord.x - chunkCoord.x * ChunkConstants.Size;
+                    int localY = hit.BlockCoord.y - chunkCoord.y * ChunkConstants.Size;
+                    int localZ = hit.BlockCoord.z - chunkCoord.z * ChunkConstants.Size;
+                    int flatIndex = ChunkData.GetIndex(localX, localY, localZ);
+
+                    Lithforge.Runtime.BlockEntity.BlockEntity entity =
+                        _blockEntityTickScheduler.GetEntity(chunkCoord, flatIndex);
+
+                    if (entity != null)
+                    {
+                        if (entity is ChestBlockEntity chest && _chestScreen != null)
+                        {
+                            _chestScreen.OpenForEntity(chest);
+                            _placeCooldown = _placeCooldownTime;
+                            return;
+                        }
+
+                        if (entity is FurnaceBlockEntity furnace && _furnaceScreen != null)
+                        {
+                            _furnaceScreen.OpenForEntity(furnace);
+                            _placeCooldown = _placeCooldownTime;
+                            return;
+                        }
+                    }
+                }
             }
 
             // Get block to place from selected inventory slot
@@ -479,6 +581,11 @@ namespace Lithforge.Runtime.Input
             }
 
             return StateId.Air;
+        }
+
+        private static int FloorDiv(int a, int b)
+        {
+            return a >= 0 ? a / b : (a - b + 1) / b;
         }
 
         private void ResetMining()

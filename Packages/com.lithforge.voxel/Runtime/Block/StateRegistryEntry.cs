@@ -18,6 +18,12 @@ namespace Lithforge.Voxel.Block
         public BlockMaterialType MaterialType { get; }
         public int RequiredToolLevel { get; }
 
+        /// <summary>
+        /// The block entity type identifier for this block, or null if none.
+        /// Set via StateRegistry.PatchBlockEntityType() after registration.
+        /// </summary>
+        public string BlockEntityTypeId { get; internal set; }
+
         internal StateRegistryEntry(
             ResourceId id,
             ushort baseStateId,

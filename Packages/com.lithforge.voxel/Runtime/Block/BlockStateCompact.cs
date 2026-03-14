@@ -56,12 +56,19 @@ namespace Lithforge.Voxel.Block
 
         public const byte FlagFluid = 16;
 
-        // Bits 5-6 of Flags are reserved (formerly V1 tint type, now unused).
+        public const byte FlagHasBlockEntity = 32;
+
+        // Bit 6 of Flags is reserved (formerly V1 tint type, now unused).
         // Per-face tint is stored in AtlasEntry.BaseTintPacked / OverlayTintPacked.
 
         public bool IsFluid
         {
             get { return (Flags & FlagFluid) != 0; }
+        }
+
+        public bool HasBlockEntity
+        {
+            get { return (Flags & FlagHasBlockEntity) != 0; }
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Decoration;
@@ -92,6 +93,19 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private BiomeTintManager _biomeTintManager;
 
+        /// <summary>
+        /// Optional block entity registry for deserializing block entities from storage.
+        /// Set via SetBlockEntityRegistry after construction.
+        /// </summary>
+        private BlockEntityRegistry _blockEntityRegistry;
+
+        /// <summary>
+        /// Called after a chunk with block entities is loaded from storage.
+        /// Parameters: chunkCoord, ManagedChunk.
+        /// Used by BlockEntityTickScheduler to register entities for ticking.
+        /// </summary>
+        public System.Action<int3, ManagedChunk> OnChunkEntitiesLoaded;
+
         public int PendingCount
         {
             get { return _pendingGenerations.Count; }
@@ -100,6 +114,11 @@ namespace Lithforge.Runtime.Scheduling
         public void SetBiomeTintManager(BiomeTintManager manager)
         {
             _biomeTintManager = manager;
+        }
+
+        public void SetBlockEntityRegistry(BlockEntityRegistry registry)
+        {
+            _blockEntityRegistry = registry;
         }
 
         public GenerationScheduler(
@@ -501,11 +520,28 @@ namespace Lithforge.Runtime.Scheduling
                         ChunkConstants.Volume,
                         Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-                    if (_worldStorage.LoadChunk(chunk.Coord, chunk.Data, lightData))
+                    if (_worldStorage.LoadChunk(chunk.Coord, chunk.Data, lightData,
+                        _blockEntityRegistry,
+                        out Dictionary<int, IBlockEntity> loadedEntities))
                     {
                         chunk.LightData = lightData;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
+
+                        // Attach loaded block entities to the chunk
+                        if (loadedEntities != null && loadedEntities.Count > 0)
+                        {
+                            Dictionary<int, IBlockEntity> chunkEntities =
+                                chunk.GetOrCreateBlockEntities();
+
+                            foreach (KeyValuePair<int, IBlockEntity> kvp in loadedEntities)
+                            {
+                                chunkEntities[kvp.Key] = kvp.Value;
+                            }
+
+                            OnChunkEntitiesLoaded?.Invoke(chunk.Coord, chunk);
+                        }
+
                         PipelineStats.IncrGenCompleted();
 
                         _chunkManager.InvalidateReadyNeighbors(chunk.Coord);

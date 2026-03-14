@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 
@@ -11,9 +12,12 @@ namespace Lithforge.Voxel.Storage
     public static class ChunkSerializer
     {
         private static readonly byte[] _magic = { (byte)'L', (byte)'F', (byte)'C', (byte)'H' };
-        private const byte _version = 1;
+        private const byte _version = 2;
 
-        public static byte[] Serialize(NativeArray<StateId> chunkData, NativeArray<byte> lightData)
+        public static byte[] Serialize(
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            Dictionary<int, IBlockEntity> blockEntities = null)
         {
             using (MemoryStream ms = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(ms))
@@ -90,6 +94,33 @@ namespace Lithforge.Voxel.Storage
                     writer.Write(0);
                 }
 
+                // Block entity section (version 2+)
+                if (blockEntities != null && blockEntities.Count > 0)
+                {
+                    writer.Write(blockEntities.Count);
+
+                    foreach (KeyValuePair<int, IBlockEntity> kvp in blockEntities)
+                    {
+                        writer.Write(kvp.Key); // flat index
+                        writer.Write(kvp.Value.TypeId); // type ID string
+
+                        // Length-prefixed entity payload
+                        using (MemoryStream entityMs = new MemoryStream())
+                        using (BinaryWriter entityWriter = new BinaryWriter(entityMs))
+                        {
+                            kvp.Value.Serialize(entityWriter);
+                            entityWriter.Flush();
+                            byte[] entityData = entityMs.ToArray();
+                            writer.Write(entityData.Length);
+                            writer.Write(entityData);
+                        }
+                    }
+                }
+                else
+                {
+                    writer.Write(0);
+                }
+
                 return ms.ToArray();
             }
         }
@@ -97,8 +128,12 @@ namespace Lithforge.Voxel.Storage
         public static bool Deserialize(
             byte[] data,
             NativeArray<StateId> chunkData,
-            NativeArray<byte> lightData)
+            NativeArray<byte> lightData,
+            BlockEntityRegistry blockEntityRegistry = null,
+            out Dictionary<int, IBlockEntity> blockEntities)
         {
+            blockEntities = null;
+
             using (MemoryStream ms = new MemoryStream(data))
             using (BinaryReader reader = new BinaryReader(ms))
             {
@@ -114,7 +149,7 @@ namespace Lithforge.Voxel.Storage
 
                 byte version = reader.ReadByte();
 
-                if (version != _version)
+                if (version < 1 || version > 2)
                 {
                     return false;
                 }
@@ -169,6 +204,49 @@ namespace Lithforge.Voxel.Storage
                         }
 
                         lightData.CopyFrom(raw);
+                    }
+                }
+
+                // Block entity section (version 2 only)
+                if (version >= 2 && ms.Position < ms.Length)
+                {
+                    int entityCount = reader.ReadInt32();
+
+                    if (entityCount > 0 && blockEntityRegistry != null)
+                    {
+                        blockEntities = new Dictionary<int, IBlockEntity>(entityCount);
+
+                        for (int i = 0; i < entityCount; i++)
+                        {
+                            int flatIndex = reader.ReadInt32();
+                            string typeId = reader.ReadString();
+                            int payloadLength = reader.ReadInt32();
+                            byte[] payload = reader.ReadBytes(payloadLength);
+
+                            IBlockEntity entity = blockEntityRegistry.CreateEntity(typeId);
+
+                            if (entity != null)
+                            {
+                                using (MemoryStream entityMs = new MemoryStream(payload))
+                                using (BinaryReader entityReader = new BinaryReader(entityMs))
+                                {
+                                    entity.Deserialize(entityReader);
+                                }
+
+                                blockEntities[flatIndex] = entity;
+                            }
+                        }
+                    }
+                    else if (entityCount > 0)
+                    {
+                        // Skip entity data if no registry provided
+                        for (int i = 0; i < entityCount; i++)
+                        {
+                            reader.ReadInt32(); // flatIndex
+                            reader.ReadString(); // typeId
+                            int payloadLength = reader.ReadInt32();
+                            reader.ReadBytes(payloadLength);
+                        }
                     }
                 }
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
@@ -30,6 +31,7 @@ namespace Lithforge.Runtime
         private WorldStorage _worldStorage;
 
         private BiomeTintManager _biomeTintManager;
+        private BlockEntityTickScheduler _blockEntityTickScheduler;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
 
@@ -144,6 +146,26 @@ namespace Lithforge.Runtime
             _generationScheduler.SetBiomeTintManager(biomeTintManager);
         }
 
+        /// <summary>
+        /// Sets the BlockEntityTickScheduler for ticking and unload cleanup.
+        /// Wires the generation scheduler's entity load delegate.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetBlockEntityTickScheduler(BlockEntityTickScheduler scheduler)
+        {
+            _blockEntityTickScheduler = scheduler;
+            _generationScheduler.OnChunkEntitiesLoaded += scheduler.RegisterEntitiesForChunk;
+        }
+
+        /// <summary>
+        /// Sets the BlockEntityRegistry on the generation scheduler for chunk deserialization.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetBlockEntityRegistry(Lithforge.Voxel.BlockEntity.BlockEntityRegistry registry)
+        {
+            _generationScheduler.SetBlockEntityRegistry(registry);
+        }
+
         private void Update()
         {
             if (!_initialized)
@@ -160,6 +182,12 @@ namespace Lithforge.Runtime
             _generationScheduler.PollCompleted();
             FrameProfiler.End(FrameProfiler.PollGen);
             Profiler.EndSample();
+
+            // Tick block entities before polling mesh results
+            if (_blockEntityTickScheduler != null)
+            {
+                _blockEntityTickScheduler.Tick(Time.deltaTime);
+            }
 
             Profiler.BeginSample("GL.PollRelight");
             _relightScheduler.PollCompleted();
@@ -204,6 +232,9 @@ namespace Lithforge.Runtime
                 // Force-complete any in-flight border extraction jobs that read this
                 // chunk's NativeArray, so the pool can safely recycle it.
                 _meshScheduler.ForceCompleteNeighborDeps(coord);
+
+                // Clean up block entity scheduler tracking for the unloaded chunk
+                _blockEntityTickScheduler?.OnChunkUnloaded(coord);
 
                 _chunkMeshStore.DestroyRenderer(coord);
                 _biomeTintManager?.OnChunkUnloaded(coord);

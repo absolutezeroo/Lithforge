@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Storage;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -23,6 +24,24 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int3> _toRemoveCache = new List<int3>();
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new HashSet<int3>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
+
+        /// <summary>
+        /// Called when a block with FlagHasBlockEntity is placed.
+        /// Parameters: chunkCoord, flatIndex, stateId.
+        /// </summary>
+        public Action<int3, int, StateId> OnBlockEntityPlaced;
+
+        /// <summary>
+        /// Called when a block with FlagHasBlockEntity is broken (replaced by air).
+        /// Parameters: chunkCoord, flatIndex, oldStateId.
+        /// </summary>
+        public Action<int3, int, StateId> OnBlockEntityRemoved;
+
+        /// <summary>
+        /// NativeStateRegistry reference for checking HasBlockEntity flag during SetBlock.
+        /// Must be set after content pipeline completes.
+        /// </summary>
+        private NativeStateRegistry _nativeStateRegistry;
 
         /// <summary>
         /// Schwartzian transform caches for forward-weighted queue sort.
@@ -55,6 +74,15 @@ namespace Lithforge.Voxel.Chunk
         public void SetRenderDistance(int distance)
         {
             _renderDistance = math.max(1, distance);
+        }
+
+        /// <summary>
+        /// Sets the NativeStateRegistry for block entity flag checks in SetBlock.
+        /// Must be called after content pipeline completes and before gameplay starts.
+        /// </summary>
+        public void SetNativeStateRegistry(NativeStateRegistry nativeStateRegistry)
+        {
+            _nativeStateRegistry = nativeStateRegistry;
         }
 
         public ChunkManager(
@@ -471,6 +499,15 @@ namespace Lithforge.Voxel.Chunk
 
             chunk.IsDirty = true;
 
+            // Check block entity flags for old and new states
+            StateId oldState = chunk.Data[index];
+            bool oldHasEntity = _nativeStateRegistry.States.IsCreated &&
+                oldState.Value < _nativeStateRegistry.States.Length &&
+                _nativeStateRegistry.States[oldState.Value].HasBlockEntity;
+            bool newHasEntity = _nativeStateRegistry.States.IsCreated &&
+                state.Value < _nativeStateRegistry.States.Length &&
+                _nativeStateRegistry.States[state.Value].HasBlockEntity;
+
             if (chunk.State == ChunkState.Meshing)
             {
                 // Defer the edit — do NOT write to ChunkData while the mesh job is
@@ -489,6 +526,17 @@ namespace Lithforge.Voxel.Chunk
                 data[index] = state;
                 chunk.PendingEditIndices.Add(index);
                 chunk.State = ChunkState.RelightPending;
+            }
+
+            // Fire block entity events after state write
+            if (oldHasEntity && !newHasEntity)
+            {
+                OnBlockEntityRemoved?.Invoke(chunkCoord, index, oldState);
+            }
+
+            if (newHasEntity && !oldHasEntity)
+            {
+                OnBlockEntityPlaced?.Invoke(chunkCoord, index, state);
             }
 
             dirtiedChunks.Add(chunkCoord);
@@ -585,11 +633,21 @@ namespace Lithforge.Voxel.Chunk
                 {
                     kvp.Value.ActiveJobHandle.Complete();
 
+                    // Notify block entities of unload
+                    if (kvp.Value.BlockEntities != null)
+                    {
+                        foreach (KeyValuePair<int, IBlockEntity> bePair in kvp.Value.BlockEntities)
+                        {
+                            bePair.Value.OnChunkUnload();
+                        }
+                    }
+
                     // Save modified chunks before unloading
                     if (kvp.Value.IsDirty && worldStorage != null &&
                         kvp.Value.Data.IsCreated)
                     {
-                        worldStorage.SaveChunk(kvp.Value.Coord, kvp.Value.Data, kvp.Value.LightData);
+                        worldStorage.SaveChunk(kvp.Value.Coord, kvp.Value.Data,
+                            kvp.Value.LightData, kvp.Value.BlockEntities);
                         kvp.Value.IsDirty = false;
                     }
 
@@ -629,7 +687,7 @@ namespace Lithforge.Voxel.Chunk
                 if (chunk.IsDirty && chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated)
                 {
                     chunk.ActiveJobHandle.Complete();
-                    storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData);
+                    storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
                 }
             }
         }

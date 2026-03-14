@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -97,6 +98,27 @@ namespace Lithforge.Voxel.Chunk
         /// Used to trigger save-on-unload for modified chunks.
         /// </summary>
         public bool IsDirty { get; set; }
+
+        /// <summary>
+        /// Sparse per-block entity storage, keyed by flat voxel index.
+        /// Null until a block entity is first placed or loaded in this chunk.
+        /// Owner: ManagedChunk. Populated by BlockEntityTickScheduler on placement
+        /// or by ChunkSerializer on load. Entities are unloaded via OnChunkUnload().
+        /// </summary>
+        public Dictionary<int, IBlockEntity> BlockEntities { get; private set; }
+
+        /// <summary>
+        /// Lazily creates the BlockEntities dictionary and returns it.
+        /// </summary>
+        public Dictionary<int, IBlockEntity> GetOrCreateBlockEntities()
+        {
+            if (BlockEntities == null)
+            {
+                BlockEntities = new Dictionary<int, IBlockEntity>();
+            }
+
+            return BlockEntities;
+        }
 
         public ManagedChunk(int3 coord, NativeArray<StateId> data)
         {

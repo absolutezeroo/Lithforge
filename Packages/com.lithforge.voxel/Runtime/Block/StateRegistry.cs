@@ -157,6 +157,39 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
+        /// Patches the block entity type on a block's states, setting FlagHasBlockEntity
+        /// and storing the type ID on the entry. Must be called before BakeNative().
+        /// </summary>
+        public void PatchBlockEntityType(string blockIdString, string blockEntityTypeId)
+        {
+            if (_frozen)
+            {
+                throw new InvalidOperationException(
+                    "Cannot patch block entity type — state registry has been frozen.");
+            }
+
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                StateRegistryEntry entry = _entries[i];
+
+                if (entry.Id.ToString() == blockIdString)
+                {
+                    entry.BlockEntityTypeId = blockEntityTypeId;
+
+                    for (int offset = 0; offset < entry.StateCount; offset++)
+                    {
+                        int stateIndex = entry.BaseStateId + offset;
+                        BlockStateCompact state = _states[stateIndex];
+                        state.Flags |= BlockStateCompact.FlagHasBlockEntity;
+                        _states[stateIndex] = state;
+                    }
+
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
         /// Patches the per-face texture indices on a state before BakeNative().
         /// Must be called after Register() and before BakeNative().
         /// </summary>
@@ -208,6 +241,11 @@ namespace Lithforge.Voxel.Block
             if (data.IsFluid)
             {
                 flags |= BlockStateCompact.FlagFluid;
+            }
+
+            if (data.HasBlockEntity)
+            {
+                flags |= BlockStateCompact.FlagHasBlockEntity;
             }
 
             return flags;

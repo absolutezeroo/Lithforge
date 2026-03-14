@@ -54,6 +54,11 @@ namespace Lithforge.Runtime.Content.Items
         [SerializeField] private AffixDefinition[] affixes
             = System.Array.Empty<AffixDefinition>();
 
+        [Header("Fuel")]
+        [Tooltip("Fuel burn time in seconds (0 = not a fuel item)")]
+        [Min(0f)]
+        [SerializeField] private float fuelTime;
+
         [Header("Block Placement")]
         [Tooltip("Block this item places when used")]
         [SerializeField] private BlockDefinition placesBlock;
@@ -119,6 +124,11 @@ namespace Lithforge.Runtime.Content.Items
         public AffixDefinition[] Affixes
         {
             get { return affixes; }
+        }
+
+        public float FuelTime
+        {
+            get { return fuelTime; }
         }
 
         public BlockDefinition PlacesBlock

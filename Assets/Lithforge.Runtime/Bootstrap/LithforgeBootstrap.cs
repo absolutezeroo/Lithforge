@@ -5,6 +5,8 @@ using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Physics;
+using Lithforge.Runtime.BlockEntity;
+using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Content.WorldGen;
@@ -461,6 +463,21 @@ namespace Lithforge.Runtime.Bootstrap
                     playerObject.transform,
                     _settings.Physics,
                     playerController);
+
+                // Set NativeStateRegistry on ChunkManager for block entity flag checks
+                _chunkManager.SetNativeStateRegistry(_contentResult.NativeStateRegistry);
+
+                // Initialize block entity tick scheduler
+                BlockEntityTickScheduler blockEntityTickScheduler = new BlockEntityTickScheduler(
+                    _chunkManager,
+                    _contentResult.BlockEntityRegistry,
+                    _contentResult.StateRegistry);
+
+                _gameLoop.SetBlockEntityTickScheduler(blockEntityTickScheduler);
+
+                // Wire block entity registry to generation scheduler for deserialization
+                _gameLoop.SetBlockEntityRegistry(_contentResult.BlockEntityRegistry);
+
                 // PanelSettings already loaded by Start() coroutine
                 if (panelSettings == null)
                 {
@@ -490,6 +507,28 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.CraftingEngine,
                     panelSettings,
                     _contentResult.ItemSpriteAtlas);
+
+                // Add ChestScreen
+                GameObject chestScreenObject = new GameObject("ChestScreen");
+                ChestScreen chestScreen = chestScreenObject.AddComponent<ChestScreen>();
+                chestScreen.Initialize(
+                    playerInventory,
+                    _contentResult.ItemRegistry,
+                    panelSettings,
+                    _contentResult.ItemSpriteAtlas);
+
+                // Add FurnaceScreen
+                GameObject furnaceScreenObject = new GameObject("FurnaceScreen");
+                FurnaceScreen furnaceScreen = furnaceScreenObject.AddComponent<FurnaceScreen>();
+                furnaceScreen.Initialize(
+                    playerInventory,
+                    _contentResult.ItemRegistry,
+                    panelSettings,
+                    _contentResult.ItemSpriteAtlas);
+
+                // Wire block entity screens to BlockInteraction
+                blockInteraction.SetBlockEntityReferences(
+                    blockEntityTickScheduler, chestScreen, furnaceScreen);
                 // Add SettingsScreen (initialized after TimeOfDayController is created below)
                 GameObject settingsObject = new GameObject("SettingsScreen");
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();
