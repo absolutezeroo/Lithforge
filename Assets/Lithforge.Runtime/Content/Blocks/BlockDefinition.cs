@@ -13,73 +13,91 @@ namespace Lithforge.Runtime.Content.Blocks
         [Tooltip("Namespace for the resource id (e.g. 'lithforge')")]
         [SerializeField] private string @namespace = "lithforge";
 
+        [FormerlySerializedAs("blockName")]
         [Tooltip("Block name (e.g. 'stone')")]
-        [SerializeField] private string blockName = "";
+        [SerializeField] private string _blockName = "";
 
         [Header("Gameplay")]
+        [FormerlySerializedAs("hardness")]
         [Tooltip("Time to break in seconds")]
         [Min(0f)]
-        [SerializeField] private double hardness = 1.0;
+        [SerializeField] private double _hardness = 1.0;
 
+        [FormerlySerializedAs("blastResistance")]
         [Tooltip("Resistance to explosions")]
         [Min(0f)]
-        [SerializeField] private double blastResistance = 1.0;
+        [SerializeField] private double _blastResistance = 1.0;
 
+        [FormerlySerializedAs("requiresTool")]
         [Tooltip("Whether a tool is required to get drops")]
-        [SerializeField] private bool requiresTool;
+        [SerializeField] private bool _requiresTool;
 
+        [FormerlySerializedAs("materialType")]
         [Tooltip("Physical material of the block (determines mining speed per tool)")]
-        [SerializeField] private BlockMaterialType materialType = BlockMaterialType.Stone;
+        [SerializeField] private BlockMaterialType _materialType = BlockMaterialType.Stone;
 
+        [FormerlySerializedAs("requiredToolLevel")]
         [Tooltip("Minimum tool level required (0 = none, 1 = wood, 2 = stone...)")]
         [Min(0)]
-        [SerializeField] private int requiredToolLevel = 0;
+        [SerializeField] private int _requiredToolLevel = 0;
 
+        [FormerlySerializedAs("soundGroup")]
         [Tooltip("Sound group for block sounds")]
-        [SerializeField] private string soundGroup = "stone";
+        [SerializeField] private string _soundGroup = "stone";
 
         [Header("Physics")]
+        [FormerlySerializedAs("collisionShape")]
         [Tooltip("Collision shape type")]
-        [SerializeField] private CollisionShapeType collisionShape = CollisionShapeType.FullCube;
+        [SerializeField] private CollisionShapeType _collisionShape = CollisionShapeType.FullCube;
 
         [Header("Rendering")]
+        [FormerlySerializedAs("renderLayer")]
         [Tooltip("Render layer for transparency sorting")]
-        [SerializeField] private RenderLayerType renderLayer = RenderLayerType.Opaque;
+        [SerializeField] private RenderLayerType _renderLayer = RenderLayerType.Opaque;
 
+        [FormerlySerializedAs("isFluid")]
         [Tooltip("Whether this block is a fluid (water, lava) — affects top-face height")]
-        [SerializeField] private bool isFluid;
+        [SerializeField] private bool _isFluid;
 
+        [FormerlySerializedAs("defaultTintType")]
         [Tooltip("Default biome tint type applied to all faces when the model has no per-face tintIndex. " +
                  "-1 = use model tintIndex only (default), 0 = no tint, 1 = grass colormap, " +
                  "2 = foliage colormap, 3 = water (per-biome color)")]
         [Range(-1, 3)]
-        [SerializeField] private int defaultTintType = -1;
+        [SerializeField] private int _defaultTintType = -1;
 
+        [FormerlySerializedAs("lightEmission")]
         [Tooltip("Light emitted by this block (0-15)")]
         [Range(0, 15)]
-        [SerializeField] private int lightEmission;
+        [SerializeField] private int _lightEmission;
 
+        [FormerlySerializedAs("lightFilter")]
         [Tooltip("Light absorbed by this block (0-15)")]
         [Range(0, 15)]
-        [SerializeField] private int lightFilter = 15;
+        [SerializeField] private int _lightFilter = 15;
 
+        [FormerlySerializedAs("mapColor")]
         [Tooltip("Color shown on the map (#RRGGBB or #RRGGBBAA)")]
-        [SerializeField] private string mapColor = "#808080";
+        [SerializeField] private string _mapColor = "#808080";
 
         [Header("References")]
+        [FormerlySerializedAs("lootTable")]
         [Tooltip("Loot table for this block")]
-        [SerializeField] private LootTable lootTable;
+        [SerializeField] private LootTable _lootTable;
 
+        [FormerlySerializedAs("blockStateMapping")]
         [Tooltip("Block state mapping (variants)")]
-        [SerializeField] private BlockStateMapping blockStateMapping;
+        [SerializeField] private BlockStateMapping _blockStateMapping;
 
         [Header("Properties")]
+        [FormerlySerializedAs("properties")]
         [Tooltip("Block state properties (axis, facing, lit, etc.)")]
-        [SerializeField] private List<BlockPropertyEntry> properties = new List<BlockPropertyEntry>();
+        [SerializeField] private List<BlockPropertyEntry> _properties = new List<BlockPropertyEntry>();
 
         [Header("Tags")]
+        [FormerlySerializedAs("tags")]
         [Tooltip("Tags this block belongs to (string ids for backward compatibility)")]
-        [SerializeField] private List<string> tags = new List<string>();
+        [SerializeField] private List<string> _tags = new List<string>();
 
         public string Namespace
         {
@@ -88,99 +106,99 @@ namespace Lithforge.Runtime.Content.Blocks
 
         public string BlockName
         {
-            get { return blockName; }
+            get { return _blockName; }
         }
 
         public double Hardness
         {
-            get { return hardness; }
+            get { return _hardness; }
         }
 
         public double BlastResistance
         {
-            get { return blastResistance; }
+            get { return _blastResistance; }
         }
 
         public bool RequiresTool
         {
-            get { return requiresTool; }
+            get { return _requiresTool; }
         }
 
         public BlockMaterialType MaterialType
         {
-            get { return materialType; }
+            get { return _materialType; }
         }
 
         public int RequiredToolLevel
         {
-            get { return requiredToolLevel; }
+            get { return _requiredToolLevel; }
         }
 
         public string SoundGroup
         {
-            get { return soundGroup; }
+            get { return _soundGroup; }
         }
 
         public CollisionShapeType CollisionShape
         {
-            get { return collisionShape; }
+            get { return _collisionShape; }
         }
 
         public RenderLayerType RenderLayer
         {
-            get { return renderLayer; }
+            get { return _renderLayer; }
         }
 
         public bool IsFluid
         {
-            get { return isFluid; }
+            get { return _isFluid; }
         }
 
         public int DefaultTintType
         {
-            get { return defaultTintType; }
+            get { return _defaultTintType; }
         }
 
         public int LightEmission
         {
-            get { return lightEmission; }
+            get { return _lightEmission; }
         }
 
         public int LightFilter
         {
-            get { return lightFilter; }
+            get { return _lightFilter; }
         }
 
         public string MapColor
         {
-            get { return mapColor; }
+            get { return _mapColor; }
         }
 
         public LootTable LootTable
         {
-            get { return lootTable; }
+            get { return _lootTable; }
         }
 
         public BlockStateMapping BlockStateMapping
         {
-            get { return blockStateMapping; }
+            get { return _blockStateMapping; }
         }
 
         public IReadOnlyList<BlockPropertyEntry> Properties
         {
-            get { return properties; }
+            get { return _properties; }
         }
 
         public IReadOnlyList<string> Tags
         {
-            get { return tags; }
+            get { return _tags; }
         }
 
         public string CollisionShapeString
         {
             get
             {
-                return collisionShape switch
+                return _collisionShape switch
                 {
                     CollisionShapeType.None => "none",
                     CollisionShapeType.FullCube => "full_cube",
@@ -196,7 +214,7 @@ namespace Lithforge.Runtime.Content.Blocks
         {
             get
             {
-                return renderLayer switch
+                return _renderLayer switch
                 {
                     RenderLayerType.Opaque => "opaque",
                     RenderLayerType.Cutout => "cutout",
@@ -208,16 +226,16 @@ namespace Lithforge.Runtime.Content.Blocks
 
         public int ComputeStateCount()
         {
-            if (properties.Count == 0)
+            if (_properties.Count == 0)
             {
                 return 1;
             }
 
             int count = 1;
 
-            for (int i = 0; i < properties.Count; i++)
+            for (int i = 0; i < _properties.Count; i++)
             {
-                count *= properties[i].ValueCount;
+                count *= _properties[i].ValueCount;
             }
 
             return count;
@@ -225,9 +243,9 @@ namespace Lithforge.Runtime.Content.Blocks
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(blockName))
+            if (string.IsNullOrEmpty(_blockName))
             {
-                blockName = name;
+                _blockName = name;
             }
         }
     }

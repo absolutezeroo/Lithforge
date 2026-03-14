@@ -1,43 +1,48 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Loot
 {
     [System.Serializable]
     public sealed class LootPoolEntry
     {
+        [FormerlySerializedAs("rollsMin")]
         [Tooltip("Minimum rolls")]
         [Min(0)]
-        [SerializeField] private int rollsMin = 1;
+        [SerializeField] private int _rollsMin = 1;
 
+        [FormerlySerializedAs("rollsMax")]
         [Tooltip("Maximum rolls")]
         [Min(0)]
-        [SerializeField] private int rollsMax = 1;
+        [SerializeField] private int _rollsMax = 1;
 
+        [FormerlySerializedAs("entries")]
         [Tooltip("Entries in this pool")]
-        [SerializeField] private List<LootItemEntry> entries = new List<LootItemEntry>();
+        [SerializeField] private List<LootItemEntry> _entries = new List<LootItemEntry>();
 
+        [FormerlySerializedAs("conditions")]
         [Tooltip("Conditions for this pool")]
-        [SerializeField] private List<LootConditionEntry> conditions = new List<LootConditionEntry>();
+        [SerializeField] private List<LootConditionEntry> _conditions = new List<LootConditionEntry>();
 
         public int RollsMin
         {
-            get { return rollsMin; }
+            get { return _rollsMin; }
         }
 
         public int RollsMax
         {
-            get { return rollsMax; }
+            get { return _rollsMax; }
         }
 
         public IReadOnlyList<LootItemEntry> Entries
         {
-            get { return entries; }
+            get { return _entries; }
         }
 
         public IReadOnlyList<LootConditionEntry> Conditions
         {
-            get { return conditions; }
+            get { return _conditions; }
         }
     }
 }

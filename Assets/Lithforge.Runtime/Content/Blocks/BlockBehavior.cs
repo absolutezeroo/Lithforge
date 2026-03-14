@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Runtime.Content.Behaviors;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Blocks
 {
@@ -8,21 +9,23 @@ namespace Lithforge.Runtime.Content.Blocks
     public sealed class BlockBehavior : ScriptableObject
     {
         [Header("Trigger")]
+        [FormerlySerializedAs("trigger")]
         [Tooltip("When this behavior is triggered")]
-        [SerializeField] private BlockBehaviorTrigger trigger;
+        [SerializeField] private BlockBehaviorTrigger _trigger;
 
         [Header("Actions")]
+        [FormerlySerializedAs("actions")]
         [Tooltip("Actions to execute when triggered")]
-        [SerializeField] private List<BehaviorAction> actions = new List<BehaviorAction>();
+        [SerializeField] private List<BehaviorAction> _actions = new List<BehaviorAction>();
 
         public BlockBehaviorTrigger Trigger
         {
-            get { return trigger; }
+            get { return _trigger; }
         }
 
         public IReadOnlyList<BehaviorAction> Actions
         {
-            get { return actions; }
+            get { return _actions; }
         }
     }
 

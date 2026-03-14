@@ -11,16 +11,19 @@ namespace Lithforge.Runtime.Content.Loot
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
+        [FormerlySerializedAs("tableName")]
         [Tooltip("Loot table name (e.g. 'blocks/stone')")]
-        [SerializeField] private string tableName = "";
+        [SerializeField] private string _tableName = "";
 
+        [FormerlySerializedAs("type")]
         [Header("Type")]
         [Tooltip("Loot table type")]
-        [SerializeField] private string type = "block";
+        [SerializeField] private string _type = "block";
 
+        [FormerlySerializedAs("pools")]
         [Header("Pools")]
         [Tooltip("Loot pools — each pool is rolled independently")]
-        [SerializeField] private List<LootPoolEntry> pools = new List<LootPoolEntry>();
+        [SerializeField] private List<LootPoolEntry> _pools = new List<LootPoolEntry>();
 
         public string Namespace
         {
@@ -29,24 +32,24 @@ namespace Lithforge.Runtime.Content.Loot
 
         public string TableName
         {
-            get { return tableName; }
+            get { return _tableName; }
         }
 
         public string Type
         {
-            get { return type; }
+            get { return _type; }
         }
 
         public IReadOnlyList<LootPoolEntry> Pools
         {
-            get { return pools; }
+            get { return _pools; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(tableName))
+            if (string.IsNullOrEmpty(_tableName))
             {
-                tableName = name;
+                _tableName = name;
             }
         }
     }

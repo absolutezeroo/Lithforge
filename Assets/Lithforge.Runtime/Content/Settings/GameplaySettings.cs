@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Settings
 {
@@ -9,41 +10,45 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Inventory")]
         [Tooltip("Total inventory slot count (advisory — Inventory.SlotCount is the runtime constant)")]
         [Min(9)]
-        [SerializeField] private int inventorySlotCount = 36;
+        [FormerlySerializedAs("inventorySlotCount")]
+        [SerializeField] private int _inventorySlotCount = 36;
 
         [Tooltip("Hotbar size (advisory — Inventory.HotbarSize is the runtime constant)")]
         [Min(1)]
-        [SerializeField] private int hotbarSize = 9;
+        [FormerlySerializedAs("hotbarSize")]
+        [SerializeField] private int _hotbarSize = 9;
 
         [Tooltip("Player crafting grid dimension (2 = 2x2)")]
         [Range(2, 3)]
-        [SerializeField] private int craftingGridSize = 2;
+        [FormerlySerializedAs("craftingGridSize")]
+        [SerializeField] private int _craftingGridSize = 2;
 
         [Header("Starting Items")]
         [Tooltip("Items granted to the player at first spawn")]
-        [SerializeField] private StartingItemEntry[] startingItems = new StartingItemEntry[]
+        [FormerlySerializedAs("startingItems")]
+        [SerializeField] private StartingItemEntry[] _startingItems = new StartingItemEntry[]
         {
             new StartingItemEntry { itemNamespace = "lithforge", itemName = "cobblestone", count = 64 },
         };
 
         public int InventorySlotCount
         {
-            get { return inventorySlotCount; }
+            get { return _inventorySlotCount; }
         }
 
         public int HotbarSize
         {
-            get { return hotbarSize; }
+            get { return _hotbarSize; }
         }
 
         public int CraftingGridSize
         {
-            get { return craftingGridSize; }
+            get { return _craftingGridSize; }
         }
 
         public IReadOnlyList<StartingItemEntry> StartingItems
         {
-            get { return startingItems; }
+            get { return _startingItems; }
         }
     }
 }

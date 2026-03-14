@@ -1,22 +1,25 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Loot
 {
     [System.Serializable]
     public sealed class StringPair
     {
-        [SerializeField] private string key;
+        [FormerlySerializedAs("key")]
+        [SerializeField] private string _key;
 
-        [SerializeField] private string value;
+        [FormerlySerializedAs("value")]
+        [SerializeField] private string _value;
 
         public string Key
         {
-            get { return key; }
+            get { return _key; }
         }
 
         public string Value
         {
-            get { return value; }
+            get { return _value; }
         }
     }
 }

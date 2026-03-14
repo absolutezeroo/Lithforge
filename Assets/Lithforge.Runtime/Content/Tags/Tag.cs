@@ -11,19 +11,23 @@ namespace Lithforge.Runtime.Content.Tags
         [Tooltip("Namespace for the resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
+        [FormerlySerializedAs("tagName")]
         [Tooltip("Tag name (e.g. 'blocks/mineable_pickaxe')")]
-        [SerializeField] private string tagName = "";
+        [SerializeField] private string _tagName = "";
 
         [Header("Behavior")]
+        [FormerlySerializedAs("replace")]
         [Tooltip("If true, this tag replaces any existing entries instead of appending")]
-        [SerializeField] private bool replace;
+        [SerializeField] private bool _replace;
 
         [Header("Entries")]
+        [FormerlySerializedAs("entries")]
         [Tooltip("ScriptableObject entries (blocks, items, etc.) that belong to this tag")]
-        [SerializeField] private List<ScriptableObject> entries = new List<ScriptableObject>();
+        [SerializeField] private List<ScriptableObject> _entries = new List<ScriptableObject>();
 
+        [FormerlySerializedAs("entryIds")]
         [Tooltip("String entry ids (for backward compatibility or cross-reference)")]
-        [SerializeField] private List<string> entryIds = new List<string>();
+        [SerializeField] private List<string> _entryIds = new List<string>();
 
         public string Namespace
         {
@@ -32,29 +36,29 @@ namespace Lithforge.Runtime.Content.Tags
 
         public string TagName
         {
-            get { return tagName; }
+            get { return _tagName; }
         }
 
         public bool Replace
         {
-            get { return replace; }
+            get { return _replace; }
         }
 
         public IReadOnlyList<ScriptableObject> Entries
         {
-            get { return entries; }
+            get { return _entries; }
         }
 
         public IReadOnlyList<string> EntryIds
         {
-            get { return entryIds; }
+            get { return _entryIds; }
         }
 
         private void OnValidate()
         {
-            if (string.IsNullOrEmpty(tagName))
+            if (string.IsNullOrEmpty(_tagName))
             {
-                tagName = name;
+                _tagName = name;
             }
         }
     }

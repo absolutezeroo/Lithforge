@@ -22,17 +22,19 @@ namespace Lithforge.Runtime.Content.Items.Enchantments
         [FormerlySerializedAs("Category")]
         public EnchantmentCategory category;
 
-        [FormerlySerializedAs("_levels"),Header("Levels")]
-        [SerializeField] private EnchantmentLevelData[] levels;
+        [FormerlySerializedAs("_levels")]
+        [FormerlySerializedAs("levels")]
+        [Header("Levels")]
+        [SerializeField] private EnchantmentLevelData[] _levels;
 
         public MiningContext Apply(MiningContext ctx, int level)
         {
-            if (levels == null || level < 1 || level > levels.Length)
+            if (_levels == null || level < 1 || level > _levels.Length)
             {
                 return ctx;
             }
 
-            return levels[level - 1].Apply(ctx);
+            return _levels[level - 1].Apply(ctx);
         }
     }
 }

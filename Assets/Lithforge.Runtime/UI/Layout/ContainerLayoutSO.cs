@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.UI.Layout
 {
@@ -10,17 +11,19 @@ namespace Lithforge.Runtime.UI.Layout
     [CreateAssetMenu(menuName = "Lithforge/UI/Container Layout")]
     public sealed class ContainerLayoutSo : ScriptableObject
     {
-        [SerializeField] private List<SlotGroupDefinition> slotGroups = new List<SlotGroupDefinition>();
-        [SerializeField] private string screenTitle = "Container";
+        [FormerlySerializedAs("slotGroups")]
+        [SerializeField] private List<SlotGroupDefinition> _slotGroups = new List<SlotGroupDefinition>();
+        [FormerlySerializedAs("screenTitle")]
+        [SerializeField] private string _screenTitle = "Container";
 
         public IReadOnlyList<SlotGroupDefinition> SlotGroups
         {
-            get { return slotGroups; }
+            get { return _slotGroups; }
         }
 
         public string ScreenTitle
         {
-            get { return screenTitle; }
+            get { return _screenTitle; }
         }
     }
 }

@@ -19,11 +19,13 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         [FormerlySerializedAs("_namespace"),Tooltip("Namespace for the block resource id")]
         [SerializeField] private string @namespace = "lithforge";
 
+        [FormerlySerializedAs("blockName")]
         [Tooltip("Block name (must match a registered block)")]
-        [SerializeField] private string blockName = "";
+        [SerializeField] private string _blockName = "";
 
+        [FormerlySerializedAs("blockEntityTypeId")]
         [Tooltip("Block entity type ID (e.g. lithforge:chest)")]
-        [SerializeField] private string blockEntityTypeId = "";
+        [SerializeField] private string _blockEntityTypeId = "";
 
         public string Namespace
         {
@@ -32,12 +34,12 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
 
         public string BlockName
         {
-            get { return blockName; }
+            get { return _blockName; }
         }
 
         public string BlockEntityTypeId
         {
-            get { return blockEntityTypeId; }
+            get { return _blockEntityTypeId; }
         }
 
         /// <summary>
@@ -45,7 +47,7 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         /// </summary>
         public string BlockIdString
         {
-            get { return @namespace + ":" + blockName; }
+            get { return @namespace + ":" + _blockName; }
         }
     }
 }

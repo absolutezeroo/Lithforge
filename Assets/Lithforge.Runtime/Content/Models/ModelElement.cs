@@ -1,76 +1,89 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Models
 {
     [System.Serializable]
     public sealed class ModelElement
     {
+        [FormerlySerializedAs("from")]
         [Tooltip("From corner position (0-16 range)")]
-        [SerializeField] private Vector3 from;
+        [SerializeField] private Vector3 _from;
 
+        [FormerlySerializedAs("to")]
         [Tooltip("To corner position (0-16 range)")]
-        [SerializeField] private Vector3 to;
+        [SerializeField] private Vector3 _to;
 
+        [FormerlySerializedAs("north")]
         [Header("Faces")]
-        [SerializeField] private ModelFaceEntry north;
+        [SerializeField] private ModelFaceEntry _north;
 
-        [SerializeField] private ModelFaceEntry south;
+        [FormerlySerializedAs("south")]
+        [SerializeField] private ModelFaceEntry _south;
 
-        [SerializeField] private ModelFaceEntry east;
+        [FormerlySerializedAs("east")]
+        [SerializeField] private ModelFaceEntry _east;
 
-        [SerializeField] private ModelFaceEntry west;
+        [FormerlySerializedAs("west")]
+        [SerializeField] private ModelFaceEntry _west;
 
-        [SerializeField] private ModelFaceEntry up;
+        [FormerlySerializedAs("up")]
+        [SerializeField] private ModelFaceEntry _up;
 
-        [SerializeField] private ModelFaceEntry down;
+        [FormerlySerializedAs("down")]
+        [SerializeField] private ModelFaceEntry _down;
 
+        [FormerlySerializedAs("rotationOrigin")]
         [Header("Rotation")]
-        [SerializeField] private Vector3 rotationOrigin;
+        [SerializeField] private Vector3 _rotationOrigin;
 
-        [SerializeField] private ModelRotationAxis rotationAxis;
+        [FormerlySerializedAs("rotationAxis")]
+        [SerializeField] private ModelRotationAxis _rotationAxis;
 
-        [SerializeField] private float rotationAngle;
+        [FormerlySerializedAs("rotationAngle")]
+        [SerializeField] private float _rotationAngle;
 
-        [SerializeField] private bool rotationRescale;
+        [FormerlySerializedAs("rotationRescale")]
+        [SerializeField] private bool _rotationRescale;
 
         public Vector3 From
         {
-            get { return from; }
+            get { return _from; }
         }
 
         public Vector3 To
         {
-            get { return to; }
+            get { return _to; }
         }
 
         public ModelFaceEntry North
         {
-            get { return north; }
+            get { return _north; }
         }
 
         public ModelFaceEntry South
         {
-            get { return south; }
+            get { return _south; }
         }
 
         public ModelFaceEntry East
         {
-            get { return east; }
+            get { return _east; }
         }
 
         public ModelFaceEntry West
         {
-            get { return west; }
+            get { return _west; }
         }
 
         public ModelFaceEntry Up
         {
-            get { return up; }
+            get { return _up; }
         }
 
         public ModelFaceEntry Down
         {
-            get { return down; }
+            get { return _down; }
         }
     }
 }

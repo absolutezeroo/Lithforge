@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Settings
 {
@@ -6,7 +7,8 @@ namespace Lithforge.Runtime.Content.Settings
     public sealed class WorldGenSettings : ScriptableObject
     {
         [Header("Terrain Noise")]
-        [SerializeField] private NoiseLayerConfig terrainNoise = new NoiseLayerConfig
+        [FormerlySerializedAs("terrainNoise")]
+        [SerializeField] private NoiseLayerConfig _terrainNoise = new NoiseLayerConfig
         {
             frequency = 0.008f,
             lacunarity = 2.0f,
@@ -17,7 +19,8 @@ namespace Lithforge.Runtime.Content.Settings
         };
 
         [Header("Temperature Noise")]
-        [SerializeField] private NoiseLayerConfig temperatureNoise = new NoiseLayerConfig
+        [FormerlySerializedAs("temperatureNoise")]
+        [SerializeField] private NoiseLayerConfig _temperatureNoise = new NoiseLayerConfig
         {
             frequency = 0.002f,
             lacunarity = 2.0f,
@@ -28,7 +31,8 @@ namespace Lithforge.Runtime.Content.Settings
         };
 
         [Header("Humidity Noise")]
-        [SerializeField] private NoiseLayerConfig humidityNoise = new NoiseLayerConfig
+        [FormerlySerializedAs("humidityNoise")]
+        [SerializeField] private NoiseLayerConfig _humidityNoise = new NoiseLayerConfig
         {
             frequency = 0.002f,
             lacunarity = 2.0f,
@@ -39,7 +43,8 @@ namespace Lithforge.Runtime.Content.Settings
         };
 
         [Header("Continentalness Noise")]
-        [SerializeField] private NoiseLayerConfig continentalnessNoise = new NoiseLayerConfig
+        [FormerlySerializedAs("continentalnessNoise")]
+        [SerializeField] private NoiseLayerConfig _continentalnessNoise = new NoiseLayerConfig
         {
             frequency = 0.002f,
             lacunarity = 2.0f,
@@ -50,7 +55,8 @@ namespace Lithforge.Runtime.Content.Settings
         };
 
         [Header("Erosion Noise")]
-        [SerializeField] private NoiseLayerConfig erosionNoise = new NoiseLayerConfig
+        [FormerlySerializedAs("erosionNoise")]
+        [SerializeField] private NoiseLayerConfig _erosionNoise = new NoiseLayerConfig
         {
             frequency = 0.003f,
             lacunarity = 2.0f,
@@ -61,7 +67,8 @@ namespace Lithforge.Runtime.Content.Settings
         };
 
         [Header("Cave Noise")]
-        [SerializeField] private NoiseLayerConfig caveNoise = new NoiseLayerConfig
+        [FormerlySerializedAs("caveNoise")]
+        [SerializeField] private NoiseLayerConfig _caveNoise = new NoiseLayerConfig
         {
             frequency = 0.03f,
             lacunarity = 2.0f,
@@ -74,99 +81,107 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Cave Carving")]
         [Tooltip("Squared noise threshold for cave carving (smaller = fewer caves)")]
         [Min(0.001f)]
-        [SerializeField] private float caveThreshold = 0.03f;
+        [FormerlySerializedAs("caveThreshold")]
+        [SerializeField] private float _caveThreshold = 0.03f;
 
         [Tooltip("Minimum world-Y below which caves are not carved")]
-        [SerializeField] private int minCarveY = 5;
+        [FormerlySerializedAs("minCarveY")]
+        [SerializeField] private int _minCarveY = 5;
 
         [Tooltip("First cave noise layer seed offset")]
-        [SerializeField] private int caveSeedOffset1 = 0;
+        [FormerlySerializedAs("caveSeedOffset1")]
+        [SerializeField] private int _caveSeedOffset1 = 0;
 
         [Tooltip("Second cave noise layer seed offset")]
-        [SerializeField] private int caveSeedOffset2 = 31337;
+        [FormerlySerializedAs("caveSeedOffset2")]
+        [SerializeField] private int _caveSeedOffset2 = 31337;
 
         [Tooltip("Y buffer below sea level that prevents cave carving")]
-        [SerializeField] private int seaLevelCarveBuffer = 4;
+        [FormerlySerializedAs("seaLevelCarveBuffer")]
+        [SerializeField] private int _seaLevelCarveBuffer = 4;
 
         [Header("World")]
         [Tooltip("World generation seed")]
-        [SerializeField] private long seed = 42L;
+        [FormerlySerializedAs("seed")]
+        [SerializeField] private long _seed = 42L;
 
         [Tooltip("Sea level in world Y coordinates")]
-        [SerializeField] private int seaLevel = 64;
+        [FormerlySerializedAs("seaLevel")]
+        [SerializeField] private int _seaLevel = 64;
 
         [Header("Height Curve")]
         [Tooltip("Custom height distribution curve (optional)")]
-        [SerializeField] private AnimationCurve heightCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+        [FormerlySerializedAs("heightCurve")]
+        [SerializeField] private AnimationCurve _heightCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
         public NoiseLayerConfig TerrainNoise
         {
-            get { return terrainNoise; }
+            get { return _terrainNoise; }
         }
 
         public NoiseLayerConfig TemperatureNoise
         {
-            get { return temperatureNoise; }
+            get { return _temperatureNoise; }
         }
 
         public NoiseLayerConfig HumidityNoise
         {
-            get { return humidityNoise; }
+            get { return _humidityNoise; }
         }
 
         public NoiseLayerConfig ContinentalnessNoise
         {
-            get { return continentalnessNoise; }
+            get { return _continentalnessNoise; }
         }
 
         public NoiseLayerConfig ErosionNoise
         {
-            get { return erosionNoise; }
+            get { return _erosionNoise; }
         }
 
         public NoiseLayerConfig CaveNoise
         {
-            get { return caveNoise; }
+            get { return _caveNoise; }
         }
 
         public float CaveThreshold
         {
-            get { return caveThreshold; }
+            get { return _caveThreshold; }
         }
 
         public int MinCarveY
         {
-            get { return minCarveY; }
+            get { return _minCarveY; }
         }
 
         public int CaveSeedOffset1
         {
-            get { return caveSeedOffset1; }
+            get { return _caveSeedOffset1; }
         }
 
         public int CaveSeedOffset2
         {
-            get { return caveSeedOffset2; }
+            get { return _caveSeedOffset2; }
         }
 
         public int SeaLevelCarveBuffer
         {
-            get { return seaLevelCarveBuffer; }
+            get { return _seaLevelCarveBuffer; }
         }
 
         public long Seed
         {
-            get { return seed; }
+            get { return _seed; }
         }
 
         public int SeaLevel
         {
-            get { return seaLevel; }
+            get { return _seaLevel; }
         }
 
         public AnimationCurve HeightCurve
         {
-            get { return heightCurve; }
+            get { return _heightCurve; }
         }
     }
 }

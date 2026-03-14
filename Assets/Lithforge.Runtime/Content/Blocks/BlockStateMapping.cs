@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Blocks
 {
@@ -7,12 +8,13 @@ namespace Lithforge.Runtime.Content.Blocks
     public sealed class BlockStateMapping : ScriptableObject
     {
         [Header("Variants")]
+        [FormerlySerializedAs("variants")]
         [Tooltip("Property string → model reference mappings")]
-        [SerializeField] private List<BlockStateVariantEntry> variants = new List<BlockStateVariantEntry>();
+        [SerializeField] private List<BlockStateVariantEntry> _variants = new List<BlockStateVariantEntry>();
 
         public IReadOnlyList<BlockStateVariantEntry> Variants
         {
-            get { return variants; }
+            get { return _variants; }
         }
     }
 }

@@ -1,13 +1,17 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Input
 {
     public sealed class FPSCameraController : MonoBehaviour
     {
-        [SerializeField] private float moveSpeed = 10f;
-        [SerializeField] private float fastMoveSpeed = 50f;
-        [SerializeField] private float lookSensitivity = 0.1f;
+        [FormerlySerializedAs("moveSpeed")]
+        [SerializeField] private float _moveSpeed = 10f;
+        [FormerlySerializedAs("fastMoveSpeed")]
+        [SerializeField] private float _fastMoveSpeed = 50f;
+        [FormerlySerializedAs("lookSensitivity")]
+        [SerializeField] private float _lookSensitivity = 0.1f;
 
         private float _pitch;
         private float _yaw;
@@ -51,8 +55,8 @@ namespace Lithforge.Runtime.Input
 
             Vector2 delta = mouse.delta.ReadValue();
 
-            _yaw += delta.x * lookSensitivity;
-            _pitch -= delta.y * lookSensitivity;
+            _yaw += delta.x * _lookSensitivity;
+            _pitch -= delta.y * _lookSensitivity;
             _pitch = Mathf.Clamp(_pitch, -89f, 89f);
 
             transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
@@ -60,7 +64,7 @@ namespace Lithforge.Runtime.Input
 
         private void HandleMovement(Keyboard keyboard)
         {
-            float speed = keyboard.leftShiftKey.isPressed ? fastMoveSpeed : moveSpeed;
+            float speed = keyboard.leftShiftKey.isPressed ? _fastMoveSpeed : _moveSpeed;
 
             Vector3 direction = Vector3.zero;
 

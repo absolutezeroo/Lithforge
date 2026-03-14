@@ -1,33 +1,37 @@
 using Lithforge.Runtime.Content.Items;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Recipes
 {
     [System.Serializable]
     public sealed class RecipeIngredient
     {
+        [FormerlySerializedAs("item")]
         [Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition item;
+        [SerializeField] private ItemDefinition _item;
 
+        [FormerlySerializedAs("itemId")]
         [Tooltip("Item id (fallback)")]
-        [SerializeField] private string itemId;
+        [SerializeField] private string _itemId;
 
+        [FormerlySerializedAs("tagId")]
         [Tooltip("Tag reference (alternative to item)")]
-        [SerializeField] private string tagId;
+        [SerializeField] private string _tagId;
 
         public ItemDefinition Item
         {
-            get { return item; }
+            get { return _item; }
         }
 
         public string ItemId
         {
-            get { return itemId; }
+            get { return _itemId; }
         }
 
         public string TagId
         {
-            get { return tagId; }
+            get { return _tagId; }
         }
     }
 }

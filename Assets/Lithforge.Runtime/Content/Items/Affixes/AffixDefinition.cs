@@ -19,24 +19,28 @@ namespace Lithforge.Runtime.Content.Items.Affixes
         [FormerlySerializedAs("Tier")]
         public int tier;
 
-        [FormerlySerializedAs("_priority"),Header("Priority")]
+        [FormerlySerializedAs("_priority")]
+        [FormerlySerializedAs("priority")]
+        [Header("Priority")]
         [Tooltip("Application order: Additive=0-9, Multiplicative=10-19, Override=20+")]
-        [SerializeField] private int priority = 10;
+        [SerializeField] private int _priority = 10;
 
         public int Priority
         {
-            get { return priority; }
+            get { return _priority; }
         }
 
-        [FormerlySerializedAs("_effects"),Header("Mining Effects")]
-        [SerializeField] private AffixMiningEffect[] effects
+        [FormerlySerializedAs("_effects")]
+        [FormerlySerializedAs("effects")]
+        [Header("Mining Effects")]
+        [SerializeField] private AffixMiningEffect[] _effects
             = System.Array.Empty<AffixMiningEffect>();
 
         public MiningContext Apply(MiningContext ctx)
         {
-            for (int i = 0; i < effects.Length; i++)
+            for (int i = 0; i < _effects.Length; i++)
             {
-                ctx = effects[i].Apply(ctx);
+                ctx = _effects[i].Apply(ctx);
             }
 
             return ctx;
