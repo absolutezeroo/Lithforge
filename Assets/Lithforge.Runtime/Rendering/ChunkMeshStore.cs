@@ -68,6 +68,7 @@ namespace Lithforge.Runtime.Rendering
         // --- Shared slot ID space (same slot ID for a chunk across all 3 layers) ---
         private readonly Dictionary<int3, int> _coordToSlotId = new Dictionary<int3, int>();
         private readonly Stack<int> _freeSlotIds = new Stack<int>();
+        private readonly SortedSet<int> _activeSlotIds = new SortedSet<int>();
 
         public int RendererCount
         {
@@ -255,6 +256,7 @@ namespace Lithforge.Runtime.Rendering
 
             slotId = _freeSlotIds.Pop();
             _coordToSlotId[coord] = slotId;
+            _activeSlotIds.Add(slotId);
             return slotId;
         }
 
@@ -341,7 +343,9 @@ namespace Lithforge.Runtime.Rendering
             _translucentBuffer.FlushArgs();
 
             // GPU culling: frustum + optional Hi-Z occlusion
-            if (_frustumCullShader != null)
+            int activeSlotCount = _activeSlotIds.Count > 0 ? _activeSlotIds.Max + 1 : 0;
+
+            if (_frustumCullShader != null && activeSlotCount > 0)
             {
                 GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
 
@@ -355,10 +359,10 @@ namespace Lithforge.Runtime.Rendering
                 }
 
                 _frustumCullShader.SetVectorArray(_frustumPlanesId, _frustumPlaneVectors);
-                _frustumCullShader.SetInt(_slotCountId, _maxChunkSlots);
+                _frustumCullShader.SetInt(_slotCountId, activeSlotCount);
                 _frustumCullShader.SetBuffer(_resetCullKernel, _chunkBoundsBufferId, _chunkBoundsBuffer);
 
-                int threadGroups = (_maxChunkSlots + 63) / 64;
+                int threadGroups = (activeSlotCount + 63) / 64;
 
                 // Try Hi-Z occlusion from previous frame's depth
                 bool useOcclusion = false;
@@ -399,9 +403,9 @@ namespace Lithforge.Runtime.Rendering
                 }
             }
 
-            DrawLayer(_opaqueBuffer, _opaqueParams);
-            DrawLayer(_cutoutBuffer, _cutoutParams);
-            DrawLayer(_translucentBuffer, _translucentParams);
+            DrawLayer(_opaqueBuffer, _opaqueParams, activeSlotCount);
+            DrawLayer(_cutoutBuffer, _cutoutParams, activeSlotCount);
+            DrawLayer(_translucentBuffer, _translucentParams, activeSlotCount);
         }
 
         /// <summary>
@@ -445,9 +449,9 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>
         /// Issues one RenderPrimitivesIndexedIndirect draw with per-chunk multi-draw.
         /// </summary>
-        private void DrawLayer(MegaMeshBuffer buffer, RenderParams rp)
+        private void DrawLayer(MegaMeshBuffer buffer, RenderParams rp, int commandCount)
         {
-            if (!buffer.HasGeometry)
+            if (!buffer.HasGeometry || commandCount <= 0)
             {
                 return;
             }
@@ -458,7 +462,7 @@ namespace Lithforge.Runtime.Rendering
                 MeshTopology.Triangles,
                 buffer.IndexBuffer,
                 buffer.PerChunkArgsBuffer,
-                _maxChunkSlots,
+                commandCount,
                 0);
         }
 
@@ -476,6 +480,7 @@ namespace Lithforge.Runtime.Rendering
                 _translucentBuffer.ZeroPerChunkArgs(slotId);
                 _coordToSlotId.Remove(coord);
                 _freeSlotIds.Push(slotId);
+                _activeSlotIds.Remove(slotId);
             }
         }
 
@@ -485,6 +490,7 @@ namespace Lithforge.Runtime.Rendering
             _activeChunks.Clear();
             _coordToSlotId.Clear();
             _freeSlotIds.Clear();
+            _activeSlotIds.Clear();
             _opaqueBuffer.Dispose();
             _cutoutBuffer.Dispose();
             _translucentBuffer.Dispose();
