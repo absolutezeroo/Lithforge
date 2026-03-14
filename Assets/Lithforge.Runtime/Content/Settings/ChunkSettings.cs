@@ -87,6 +87,11 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(1, 16)]
         [SerializeField] private int maxLODMeshesPerFrame = 4;
 
+        [Header("GPU Culling")]
+        [Tooltip("Maximum number of chunk render slots in the per-chunk indirect args buffer")]
+        [Range(256, 8192)]
+        [SerializeField] private int maxChunkRenderSlots = 4096;
+
         [Header("Spawn")]
         [Tooltip("Fallback world Y for player if no solid block is found during spawn scan")]
         [SerializeField] private int spawnFallbackY = 65;
@@ -192,6 +197,11 @@ namespace Lithforge.Runtime.Content.Settings
         public float LodCompletionBudgetMs
         {
             get { return lodCompletionBudgetMs; }
+        }
+
+        public int MaxChunkRenderSlots
+        {
+            get { return maxChunkRenderSlots; }
         }
 
         public int SpawnFallbackY

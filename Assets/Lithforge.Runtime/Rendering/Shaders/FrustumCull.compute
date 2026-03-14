@@ -1,0 +1,99 @@
+// FrustumCull.compute
+// GPU frustum culling for per-chunk indirect draw.
+// Two kernels:
+//   CSResetCull — restores instanceCount=1 for all active slots (indexCount > 0)
+//   CSFrustumCull — sets instanceCount=0 for chunks outside the camera frustum
+
+#pragma kernel CSResetCull
+#pragma kernel CSFrustumCull
+
+struct ChunkBoundsGPU
+{
+    float3 worldMin;
+    float  _pad0;
+    float3 worldMax;
+    float  _pad1;
+};
+
+// IndirectDrawIndexedArgs layout (20 bytes per entry, 5 uints):
+//   [0] indexCountPerInstance
+//   [1] instanceCount
+//   [2] startIndex
+//   [3] baseVertexIndex
+//   [4] startInstance
+
+StructuredBuffer<ChunkBoundsGPU> _ChunkBoundsBuffer;
+RWByteAddressBuffer _PerChunkArgsBuffer;
+
+float4 _FrustumPlanes[6]; // xyz=normal, w=distance
+uint _SlotCount;
+
+// ---------------------------------------------------------------------------
+// CSResetCull: Restore instanceCount=1 for all slots with indexCount > 0.
+// Must run before CSFrustumCull each frame because the previous frame's cull
+// may have zeroed instanceCount for chunks that are now visible.
+// ---------------------------------------------------------------------------
+[numthreads(64, 1, 1)]
+void CSResetCull(uint3 id : SV_DispatchThreadID)
+{
+    uint slot = id.x;
+    if (slot >= _SlotCount)
+        return;
+
+    // Each IndirectDrawIndexedArgs is 20 bytes (5 x uint4)
+    uint baseAddr = slot * 20;
+    uint indexCount = _PerChunkArgsBuffer.Load(baseAddr);
+
+    // Only activate slots that have geometry
+    uint newInstanceCount = (indexCount > 0) ? 1u : 0u;
+    _PerChunkArgsBuffer.Store(baseAddr + 4, newInstanceCount);
+}
+
+// ---------------------------------------------------------------------------
+// CSFrustumCull: Test chunk AABB against 6 frustum planes.
+// Sets instanceCount=0 for chunks fully outside any plane.
+// ---------------------------------------------------------------------------
+[numthreads(64, 1, 1)]
+void CSFrustumCull(uint3 id : SV_DispatchThreadID)
+{
+    uint slot = id.x;
+    if (slot >= _SlotCount)
+        return;
+
+    uint baseAddr = slot * 20;
+
+    // Skip slots with no geometry (indexCount == 0)
+    uint indexCount = _PerChunkArgsBuffer.Load(baseAddr);
+    if (indexCount == 0)
+        return;
+
+    // Skip already-culled slots (instanceCount == 0 from prior step — shouldn't happen
+    // after reset, but guard anyway)
+    uint instanceCount = _PerChunkArgsBuffer.Load(baseAddr + 4);
+    if (instanceCount == 0)
+        return;
+
+    ChunkBoundsGPU bounds = _ChunkBoundsBuffer[slot];
+    float3 bMin = bounds.worldMin;
+    float3 bMax = bounds.worldMax;
+
+    // Test against each frustum plane using the "positive vertex" method:
+    // For each plane, select the AABB corner that is farthest along the plane normal.
+    // If that corner is behind the plane, the entire AABB is outside the frustum.
+    [unroll]
+    for (uint i = 0; i < 6; i++)
+    {
+        float4 plane = _FrustumPlanes[i];
+        float3 pVertex;
+        pVertex.x = (plane.x >= 0.0) ? bMax.x : bMin.x;
+        pVertex.y = (plane.y >= 0.0) ? bMax.y : bMin.y;
+        pVertex.z = (plane.z >= 0.0) ? bMax.z : bMin.z;
+
+        if (dot(plane.xyz, pVertex) + plane.w < 0.0)
+        {
+            _PerChunkArgsBuffer.Store(baseAddr + 4, 0u);
+            return;
+        }
+    }
+    // Chunk is inside frustum — instanceCount remains 1 (set by reset pass)
+}

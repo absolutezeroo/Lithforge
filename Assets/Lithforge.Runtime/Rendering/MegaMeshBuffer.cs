@@ -51,6 +51,16 @@ namespace Lithforge.Runtime.Rendering
         private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _argsUploadBuffer =
             new GraphicsBuffer.IndirectDrawIndexedArgs[1];
 
+        // --- Per-chunk indirect draw support ---
+        private GraphicsBuffer _perChunkArgsBuffer;
+        private readonly int _maxChunkSlots;
+
+        /// <summary>
+        /// Cached single-element array for per-slot args upload, avoiding per-call allocation.
+        /// </summary>
+        private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _slotArgsUpload =
+            new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+
         public GraphicsBuffer VertexBuffer
         {
             get { return _vertexBuffer; }
@@ -86,13 +96,27 @@ namespace Lithforge.Runtime.Rendering
             get { return _freeRegions.Count; }
         }
 
+        /// <summary>Per-chunk indirect args buffer for GPU-driven drawing.</summary>
+        public GraphicsBuffer PerChunkArgsBuffer
+        {
+            get { return _perChunkArgsBuffer; }
+        }
+
+        /// <summary>Maximum number of per-chunk draw slots.</summary>
+        public int MaxChunkSlots
+        {
+            get { return _maxChunkSlots; }
+        }
+
         /// <summary>
         /// Creates a MegaMeshBuffer with the given initial capacities.
         /// The buffer grows automatically by doubling when capacity is exceeded.
         /// </summary>
-        public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity)
+        public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity,
+            int maxChunkSlots)
         {
             _name = bufferName;
+            _maxChunkSlots = maxChunkSlots;
             _vertexCapacity = initialVertexCapacity;
             _indexCapacity = initialIndexCapacity;
             _vertexMirror = new MeshVertex[initialVertexCapacity];
@@ -126,6 +150,18 @@ namespace Lithforge.Runtime.Rendering
             };
             _argsBuffer.SetData(_argsUploadBuffer);
 
+            // Per-chunk indirect args buffer: one IndirectDrawIndexedArgs per slot.
+            // No LockBufferForWrite — the compute shader needs RW access via RWByteAddressBuffer.
+            _perChunkArgsBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Raw,
+                maxChunkSlots,
+                GraphicsBuffer.IndirectDrawIndexedArgs.size);
+
+            // Zero-initialize all per-chunk args slots
+            GraphicsBuffer.IndirectDrawIndexedArgs[] zeroArgs =
+                new GraphicsBuffer.IndirectDrawIndexedArgs[maxChunkSlots];
+            _perChunkArgsBuffer.SetData(zeroArgs);
+
             _argsDirty = false;
         }
 
@@ -134,10 +170,12 @@ namespace Lithforge.Runtime.Rendering
             _vertexBuffer?.Dispose();
             _indexBuffer?.Dispose();
             _argsBuffer?.Dispose();
+            _perChunkArgsBuffer?.Dispose();
 
             _vertexBuffer = null;
             _indexBuffer = null;
             _argsBuffer = null;
+            _perChunkArgsBuffer = null;
 
             _slots.Clear();
             _freeRegions.Clear();
@@ -629,6 +667,53 @@ namespace Lithforge.Runtime.Rendering
                 $"[MegaMeshBuffer] {_name}: grew to " +
                 $"{newVertCap} vertices, {newIdxCap} indices capacity");
 #endif
+        }
+
+        /// <summary>
+        /// Updates the per-chunk indirect args entry at the given slot index.
+        /// Called by ChunkMeshStore after AllocateOrUpdate to sync the per-chunk draw.
+        /// The slot ID is managed externally by ChunkMeshStore (shared across all 3 layers).
+        /// </summary>
+        public void UpdatePerChunkArgs(int slotId, int3 coord)
+        {
+            if (slotId < 0 || slotId >= _maxChunkSlots)
+            {
+                return;
+            }
+
+            if (_slots.TryGetValue(coord, out SlotInfo slot))
+            {
+                _slotArgsUpload[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
+                {
+                    indexCountPerInstance = (uint)slot.IndexCount,
+                    instanceCount = 1,
+                    startIndex = (uint)slot.IndexOffset,
+                    baseVertexIndex = 0,
+                    startInstance = 0,
+                };
+            }
+            else
+            {
+                // No slot for this coord in this layer — zero the draw
+                _slotArgsUpload[0] = default;
+            }
+
+            _perChunkArgsBuffer.SetData(_slotArgsUpload, 0, slotId, 1);
+        }
+
+        /// <summary>
+        /// Zeroes the per-chunk indirect args entry at the given slot index.
+        /// Called when a chunk is being destroyed.
+        /// </summary>
+        public void ZeroPerChunkArgs(int slotId)
+        {
+            if (slotId < 0 || slotId >= _maxChunkSlots)
+            {
+                return;
+            }
+
+            _slotArgsUpload[0] = default;
+            _perChunkArgsBuffer.SetData(_slotArgsUpload, 0, slotId, 1);
         }
 
         private struct SlotInfo

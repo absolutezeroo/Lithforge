@@ -32,6 +32,7 @@ namespace Lithforge.Runtime.Bootstrap
     public sealed class LithforgeBootstrap : MonoBehaviour
     {
         [SerializeField] private Material voxelMaterial;
+        [SerializeField] private ComputeShader frustumCullShader;
 
         private LoadedSettings _settings;
         private ContentPipelineResult _contentResult;
@@ -300,11 +301,28 @@ namespace Lithforge.Runtime.Bootstrap
                 cutoutMaterial.SetTexture("_AtlasArray", _contentResult.AtlasResult.TextureArray);
             }
 
+            // Load frustum cull compute shader from Resources if not assigned in Inspector
+            ComputeShader cullShader = frustumCullShader;
+
+            if (cullShader == null)
+            {
+                cullShader = Resources.Load<ComputeShader>("FrustumCull");
+            }
+
+            if (cullShader == null)
+            {
+                UnityEngine.Debug.LogWarning(
+                    "[Lithforge] FrustumCull compute shader not found. " +
+                    "GPU frustum culling will be disabled.");
+            }
+
             _chunkMeshStore = new ChunkMeshStore(
                 opaqueMaterial, cutoutMaterial, translucentMaterial,
                 _settings.Chunk.RenderDistance,
                 _settings.Chunk.YLoadMin,
-                _settings.Chunk.YLoadMax);
+                _settings.Chunk.YLoadMax,
+                _settings.Chunk.MaxChunkRenderSlots,
+                cullShader);
 
             // Build water color array indexed by biomeId
             BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;
