@@ -1,0 +1,47 @@
+// HiZGenerate.compute
+// Hierarchical Z-buffer mipmap pyramid generation for occlusion culling.
+// Two kernels:
+//   CSHiZCopy       — Copies _CameraDepthTexture to Hi-Z mip 0
+//   CSHiZDownsample — Reduces previous mip to next mip (2x2 → 1, taking MIN)
+//
+// Unity uses reversed-Z: near=1.0, far=0.0.
+// MIN of 2x2 block = farthest surface = conservative for occlusion testing.
+
+#pragma kernel CSHiZCopy
+#pragma kernel CSHiZDownsample
+
+// --- CSHiZCopy: Copy depth texture to Hi-Z mip 0 ---
+Texture2D<float> _DepthSource;
+RWTexture2D<float> _HiZMip0;
+uint2 _CopySize;
+
+[numthreads(8, 8, 1)]
+void CSHiZCopy(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _CopySize.x || id.y >= _CopySize.y)
+        return;
+
+    _HiZMip0[id.xy] = _DepthSource[id.xy];
+}
+
+// --- CSHiZDownsample: 2x2 reduction taking MIN (reversed-Z conservative) ---
+Texture2D<float> _HiZPrevMip;
+RWTexture2D<float> _HiZNextMip;
+uint2 _DownsampleSize;
+
+[numthreads(8, 8, 1)]
+void CSHiZDownsample(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _DownsampleSize.x || id.y >= _DownsampleSize.y)
+        return;
+
+    uint2 srcCoord = id.xy * 2;
+
+    float d0 = _HiZPrevMip[srcCoord];
+    float d1 = _HiZPrevMip[srcCoord + uint2(1, 0)];
+    float d2 = _HiZPrevMip[srcCoord + uint2(0, 1)];
+    float d3 = _HiZPrevMip[srcCoord + uint2(1, 1)];
+
+    // Reversed-Z: min = farthest occluder surface = conservative for occlusion
+    _HiZNextMip[id.xy] = min(min(d0, d1), min(d2, d3));
+}

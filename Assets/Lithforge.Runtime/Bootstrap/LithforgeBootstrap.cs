@@ -33,6 +33,7 @@ namespace Lithforge.Runtime.Bootstrap
     {
         [SerializeField] private Material voxelMaterial;
         [SerializeField] private ComputeShader frustumCullShader;
+        [SerializeField] private ComputeShader hiZGenerateShader;
 
         private LoadedSettings _settings;
         private ContentPipelineResult _contentResult;
@@ -316,13 +317,29 @@ namespace Lithforge.Runtime.Bootstrap
                     "GPU frustum culling will be disabled.");
             }
 
+            // Load Hi-Z pyramid generation compute shader
+            ComputeShader hiZShader = hiZGenerateShader;
+
+            if (hiZShader == null)
+            {
+                hiZShader = Resources.Load<ComputeShader>("HiZGenerate");
+            }
+
+            if (hiZShader == null)
+            {
+                UnityEngine.Debug.LogWarning(
+                    "[Lithforge] HiZGenerate compute shader not found. " +
+                    "Hi-Z occlusion culling will be disabled.");
+            }
+
             _chunkMeshStore = new ChunkMeshStore(
                 opaqueMaterial, cutoutMaterial, translucentMaterial,
                 _settings.Chunk.RenderDistance,
                 _settings.Chunk.YLoadMin,
                 _settings.Chunk.YLoadMax,
                 _settings.Chunk.MaxChunkRenderSlots,
-                cullShader);
+                cullShader,
+                hiZShader);
 
             // Build water color array indexed by biomeId
             BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;

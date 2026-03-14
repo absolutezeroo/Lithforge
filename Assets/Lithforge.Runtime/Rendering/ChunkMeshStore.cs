@@ -26,6 +26,10 @@ namespace Lithforge.Runtime.Rendering
         private static readonly int _perChunkArgsBufferId = Shader.PropertyToID("_PerChunkArgsBuffer");
         private static readonly int _frustumPlanesId = Shader.PropertyToID("_FrustumPlanes");
         private static readonly int _slotCountId = Shader.PropertyToID("_SlotCount");
+        private static readonly int _hiZTextureId = Shader.PropertyToID("_HiZTexture");
+        private static readonly int _viewProjMatrixId = Shader.PropertyToID("_ViewProjMatrix");
+        private static readonly int _hiZSizeId = Shader.PropertyToID("_HiZSize");
+        private static readonly int _hiZMipCountId = Shader.PropertyToID("_HiZMipCount");
 
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
         private static readonly Bounds _worldBounds =
@@ -45,6 +49,10 @@ namespace Lithforge.Runtime.Rendering
         private readonly int _resetCullKernel;
         private readonly int _frustumCullKernel;
         private readonly int _maxChunkSlots;
+
+        // --- Hi-Z occlusion culling ---
+        private readonly HiZPyramid _hiZPyramid;
+        private readonly int _occlusionCullKernel;
 
         /// <summary>
         /// Shared bounds buffer: same AABB regardless of render layer.
@@ -90,7 +98,7 @@ namespace Lithforge.Runtime.Rendering
         public ChunkMeshStore(
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
             int renderDistance, int yLoadMin, int yLoadMax,
-            int maxChunkSlots, ComputeShader frustumCullShader)
+            int maxChunkSlots, ComputeShader frustumCullShader, ComputeShader hiZGenerateShader)
         {
             OpaqueMaterial = opaqueMaterial;
             CutoutMaterial = cutoutMaterial;
@@ -103,6 +111,12 @@ namespace Lithforge.Runtime.Rendering
             {
                 _resetCullKernel = _frustumCullShader.FindKernel("CSResetCull");
                 _frustumCullKernel = _frustumCullShader.FindKernel("CSFrustumCull");
+
+                if (hiZGenerateShader != null)
+                {
+                    _hiZPyramid = new HiZPyramid(hiZGenerateShader);
+                    _occlusionCullKernel = _frustumCullShader.FindKernel("CSOcclusionCull");
+                }
             }
 
             // Build RenderParams with MaterialPropertyBlock for buffer binding.
@@ -269,7 +283,7 @@ namespace Lithforge.Runtime.Rendering
             _cutoutBuffer.FlushArgs();
             _translucentBuffer.FlushArgs();
 
-            // GPU frustum culling: extract planes, dispatch reset + cull, then draw
+            // GPU culling: frustum + optional Hi-Z occlusion
             if (_frustumCullShader != null)
             {
                 GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
@@ -286,13 +300,46 @@ namespace Lithforge.Runtime.Rendering
                 _frustumCullShader.SetVectorArray(_frustumPlanesId, _frustumPlaneVectors);
                 _frustumCullShader.SetInt(_slotCountId, _maxChunkSlots);
                 _frustumCullShader.SetBuffer(_resetCullKernel, _chunkBoundsBufferId, _chunkBoundsBuffer);
-                _frustumCullShader.SetBuffer(_frustumCullKernel, _chunkBoundsBufferId, _chunkBoundsBuffer);
 
                 int threadGroups = (_maxChunkSlots + 63) / 64;
 
-                DispatchResetAndCull(_opaqueBuffer, threadGroups);
-                DispatchResetAndCull(_cutoutBuffer, threadGroups);
-                DispatchResetAndCull(_translucentBuffer, threadGroups);
+                // Try Hi-Z occlusion from previous frame's depth
+                bool useOcclusion = false;
+
+                if (_hiZPyramid != null)
+                {
+                    Texture depthTexture = Shader.GetGlobalTexture("_CameraDepthTexture");
+                    _hiZPyramid.Generate(depthTexture);
+                    useOcclusion = _hiZPyramid.IsValid;
+                }
+
+                if (useOcclusion)
+                {
+                    // Set occlusion uniforms (global to compute shader)
+                    Matrix4x4 vpMatrix =
+                        GL.GetGPUProjectionMatrix(camera.projectionMatrix, true)
+                        * camera.worldToCameraMatrix;
+                    _frustumCullShader.SetMatrix(_viewProjMatrixId, vpMatrix);
+                    _frustumCullShader.SetInts(_hiZSizeId, _hiZPyramid.Width, _hiZPyramid.Height);
+                    _frustumCullShader.SetInt(_hiZMipCountId, _hiZPyramid.MipCount);
+                    _frustumCullShader.SetBuffer(
+                        _occlusionCullKernel, _chunkBoundsBufferId, _chunkBoundsBuffer);
+                    _frustumCullShader.SetTexture(
+                        _occlusionCullKernel, _hiZTextureId, _hiZPyramid.CombinedTexture);
+
+                    DispatchResetAndOcclusionCull(_opaqueBuffer, threadGroups);
+                    DispatchResetAndOcclusionCull(_cutoutBuffer, threadGroups);
+                    DispatchResetAndOcclusionCull(_translucentBuffer, threadGroups);
+                }
+                else
+                {
+                    _frustumCullShader.SetBuffer(
+                        _frustumCullKernel, _chunkBoundsBufferId, _chunkBoundsBuffer);
+
+                    DispatchResetAndCull(_opaqueBuffer, threadGroups);
+                    DispatchResetAndCull(_cutoutBuffer, threadGroups);
+                    DispatchResetAndCull(_translucentBuffer, threadGroups);
+                }
             }
 
             DrawLayer(_opaqueBuffer, _opaqueParams);
@@ -317,6 +364,25 @@ namespace Lithforge.Runtime.Rendering
             // Frustum cull: set instanceCount=0 for chunks outside frustum
             _frustumCullShader.SetBuffer(_frustumCullKernel, _perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
             _frustumCullShader.Dispatch(_frustumCullKernel, threadGroups, 1, 1);
+        }
+
+        /// <summary>
+        /// Dispatches the reset-cull and combined frustum+occlusion compute kernels for one layer.
+        /// </summary>
+        private void DispatchResetAndOcclusionCull(MegaMeshBuffer buffer, int threadGroups)
+        {
+            if (!buffer.HasGeometry)
+            {
+                return;
+            }
+
+            // Reset: restore instanceCount=1 for all slots with indexCount > 0
+            _frustumCullShader.SetBuffer(_resetCullKernel, _perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
+            _frustumCullShader.Dispatch(_resetCullKernel, threadGroups, 1, 1);
+
+            // Occlusion cull: combined frustum + Hi-Z test
+            _frustumCullShader.SetBuffer(_occlusionCullKernel, _perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
+            _frustumCullShader.Dispatch(_occlusionCullKernel, threadGroups, 1, 1);
         }
 
         /// <summary>
@@ -358,6 +424,7 @@ namespace Lithforge.Runtime.Rendering
 
         public void Dispose()
         {
+            _hiZPyramid?.Dispose();
             _activeChunks.Clear();
             _coordToSlotId.Clear();
             _freeSlotIds.Clear();

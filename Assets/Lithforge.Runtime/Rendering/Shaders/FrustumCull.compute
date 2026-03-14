@@ -1,11 +1,13 @@
 // FrustumCull.compute
-// GPU frustum culling for per-chunk indirect draw.
-// Two kernels:
-//   CSResetCull — restores instanceCount=1 for all active slots (indexCount > 0)
-//   CSFrustumCull — sets instanceCount=0 for chunks outside the camera frustum
+// GPU culling for per-chunk indirect draw.
+// Three kernels:
+//   CSResetCull     — restores instanceCount=1 for all active slots (indexCount > 0)
+//   CSFrustumCull   — sets instanceCount=0 for chunks outside the camera frustum
+//   CSOcclusionCull — combined frustum + Hi-Z occlusion test (uses previous frame depth)
 
 #pragma kernel CSResetCull
 #pragma kernel CSFrustumCull
+#pragma kernel CSOcclusionCull
 
 struct ChunkBoundsGPU
 {
@@ -96,4 +98,127 @@ void CSFrustumCull(uint3 id : SV_DispatchThreadID)
         }
     }
     // Chunk is inside frustum — instanceCount remains 1 (set by reset pass)
+}
+
+// ---------------------------------------------------------------------------
+// CSOcclusionCull: Combined frustum + Hi-Z occlusion test.
+// Projects chunk AABB to screen space, selects appropriate Hi-Z mip level,
+// and tests whether the chunk is entirely behind previously-rendered geometry.
+// Reversed-Z: near=1.0, far=0.0. MIN in Hi-Z = farthest occluder surface.
+// ---------------------------------------------------------------------------
+Texture2D<float> _HiZTexture;
+float4x4 _ViewProjMatrix;
+uint2 _HiZSize;
+uint _HiZMipCount;
+
+[numthreads(64, 1, 1)]
+void CSOcclusionCull(uint3 id : SV_DispatchThreadID)
+{
+    uint slot = id.x;
+    if (slot >= _SlotCount)
+        return;
+
+    uint baseAddr = slot * 20;
+    uint indexCount = _PerChunkArgsBuffer.Load(baseAddr);
+    if (indexCount == 0)
+        return;
+
+    ChunkBoundsGPU bounds = _ChunkBoundsBuffer[slot];
+    float3 bMin = bounds.worldMin;
+    float3 bMax = bounds.worldMax;
+
+    // --- Frustum test (cheap, do first) ---
+    [unroll]
+    for (uint i = 0; i < 6; i++)
+    {
+        float4 plane = _FrustumPlanes[i];
+        float3 pVertex;
+        pVertex.x = (plane.x >= 0.0) ? bMax.x : bMin.x;
+        pVertex.y = (plane.y >= 0.0) ? bMax.y : bMin.y;
+        pVertex.z = (plane.z >= 0.0) ? bMax.z : bMin.z;
+
+        if (dot(plane.xyz, pVertex) + plane.w < 0.0)
+        {
+            _PerChunkArgsBuffer.Store(baseAddr + 4, 0u);
+            return;
+        }
+    }
+
+    // --- Hi-Z occlusion test ---
+    // Project all 8 AABB corners to clip/NDC space
+    float minScreenX = 1e10;
+    float maxScreenX = -1e10;
+    float minScreenY = 1e10;
+    float maxScreenY = -1e10;
+    float maxDepth = 0.0; // nearest point in reversed-Z (larger = closer)
+    bool behindCamera = false;
+
+    [unroll]
+    for (uint c = 0; c < 8; c++)
+    {
+        float3 corner = float3(
+            (c & 1) ? bMax.x : bMin.x,
+            (c & 2) ? bMax.y : bMin.y,
+            (c & 4) ? bMax.z : bMin.z
+        );
+
+        float4 clip = mul(_ViewProjMatrix, float4(corner, 1.0));
+        if (clip.w <= 0.0)
+        {
+            behindCamera = true;
+            break;
+        }
+
+        float3 ndc = clip.xyz / clip.w;
+        float2 screen = ndc.xy * 0.5 + 0.5;
+
+        minScreenX = min(minScreenX, screen.x);
+        maxScreenX = max(maxScreenX, screen.x);
+        minScreenY = min(minScreenY, screen.y);
+        maxScreenY = max(maxScreenY, screen.y);
+        maxDepth = max(maxDepth, ndc.z); // reversed-Z: max = nearest
+    }
+
+    // If any corner is behind camera, chunk straddles near plane — not occluded
+    if (behindCamera)
+    {
+        _PerChunkArgsBuffer.Store(baseAddr + 4, 1u);
+        return;
+    }
+
+    // Clamp screen rect to [0,1]
+    minScreenX = saturate(minScreenX);
+    maxScreenX = saturate(maxScreenX);
+    minScreenY = saturate(minScreenY);
+    maxScreenY = saturate(maxScreenY);
+
+    // Select mip level where AABB screen extent covers ~2x2 texels
+    float2 extent = float2(maxScreenX - minScreenX, maxScreenY - minScreenY)
+                    * float2(_HiZSize);
+    float maxExtent = max(extent.x, extent.y);
+    uint mipLevel = (uint)clamp(ceil(log2(max(maxExtent, 1.0))), 0, _HiZMipCount - 1);
+
+    // Compute texel coords at selected mip level
+    uint2 mipSize = max(_HiZSize >> mipLevel, uint2(1, 1));
+    uint2 minCoord = uint2(minScreenX * (float)(mipSize.x - 1),
+                           minScreenY * (float)(mipSize.y - 1));
+    uint2 maxCoord = uint2(maxScreenX * (float)(mipSize.x - 1),
+                           maxScreenY * (float)(mipSize.y - 1));
+    minCoord = clamp(minCoord, uint2(0, 0), mipSize - uint2(1, 1));
+    maxCoord = clamp(maxCoord, uint2(0, 0), mipSize - uint2(1, 1));
+
+    // Sample Hi-Z at 4 corners of bounding rect, take MIN (farthest occluder in reversed-Z)
+    float hiZDepth = _HiZTexture.Load(int3(minCoord, mipLevel));
+    hiZDepth = min(hiZDepth, _HiZTexture.Load(int3(uint2(maxCoord.x, minCoord.y), mipLevel)));
+    hiZDepth = min(hiZDepth, _HiZTexture.Load(int3(uint2(minCoord.x, maxCoord.y), mipLevel)));
+    hiZDepth = min(hiZDepth, _HiZTexture.Load(int3(maxCoord, mipLevel)));
+
+    // Reversed-Z: chunk occluded if nearest point (maxDepth) < farthest occluder (hiZDepth)
+    if (maxDepth < hiZDepth)
+    {
+        _PerChunkArgsBuffer.Store(baseAddr + 4, 0u);
+        return;
+    }
+
+    // Chunk is visible — instanceCount stays 1 (set by reset pass)
 }
