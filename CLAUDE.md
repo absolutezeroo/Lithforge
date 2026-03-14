@@ -36,6 +36,8 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 
 ### Code Conventions (All Tiers)
 
+> Full naming conventions reference: **`Docs/CONVENTIONS.md`** (C#, Unity APIs, DOTS/ECS, assets, shaders, namespaces).
+
 1. **No `var`** — explicit types everywhere, enforced by `.editorconfig` as error.
 2. **Allman braces** — opening brace on new line, always.
 3. **One file per type** — each class, interface, enum, struct gets its own file.
@@ -269,4 +271,5 @@ All documentation lives in `Docs/`:
 | `Docs/10_ERROR_HANDLING.md` | Error categories, fallbacks, save recovery |
 | `Docs/11_PLATFORM_ARCHITECTURE.md` | Game/mod/content pack hierarchy, version compat |
 | `Docs/12_OBSERVABILITY.md` | Metrics, ProfilerMarker, logging, benchmarks |
+| `Docs/CONVENTIONS.md` | Naming conventions: C#, Unity, DOTS/ECS, assets, shaders, namespaces |
 | `Docs/adr/` | Architecture Decision Records |
