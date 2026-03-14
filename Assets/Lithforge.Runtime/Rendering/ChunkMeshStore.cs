@@ -104,12 +104,20 @@ namespace Lithforge.Runtime.Rendering
         public ChunkMeshStore(
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
             int renderDistance, int yLoadMin, int yLoadMax,
-            int maxChunkSlots, ComputeShader frustumCullShader, ComputeShader hiZGenerateShader)
+            int yUnloadMin, int yUnloadMax,
+            ComputeShader frustumCullShader, ComputeShader hiZGenerateShader)
         {
             OpaqueMaterial = opaqueMaterial;
             CutoutMaterial = cutoutMaterial;
             TranslucentMaterial = translucentMaterial;
 
+            // Compute max chunk slots from unload boundaries (worst-case loaded chunks).
+            // Unload radius is renderDistance + 1 on XZ; Y uses the unload range.
+            int unloadDiameter = (renderDistance + 1) * 2 + 1;
+            int yUnloadLevels = yUnloadMax - yUnloadMin + 1;
+            int maxLoadedChunks = unloadDiameter * unloadDiameter * yUnloadLevels;
+            int maxChunkSlots = ((maxLoadedChunks + 63) / 64) * 64; // align to compute group size
+            maxChunkSlots = math.max(maxChunkSlots, 256);
             _maxChunkSlots = maxChunkSlots;
             _frustumCullShader = frustumCullShader;
 
@@ -243,7 +251,7 @@ namespace Lithforge.Runtime.Rendering
             {
                 UnityEngine.Debug.LogError(
                     $"[ChunkMeshStore] No free per-chunk slots (max={_maxChunkSlots}). " +
-                    "Increase ChunkSettings.MaxChunkRenderSlots.");
+                    "This should not happen — slots are computed from render distance.");
                 return -1;
             }
 

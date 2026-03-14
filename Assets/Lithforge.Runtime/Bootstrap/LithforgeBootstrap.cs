@@ -337,7 +337,8 @@ namespace Lithforge.Runtime.Bootstrap
                 _settings.Chunk.RenderDistance,
                 _settings.Chunk.YLoadMin,
                 _settings.Chunk.YLoadMax,
-                _settings.Chunk.MaxChunkRenderSlots,
+                _settings.Chunk.YUnloadMin,
+                _settings.Chunk.YUnloadMax,
                 cullShader,
                 hiZShader);
 
