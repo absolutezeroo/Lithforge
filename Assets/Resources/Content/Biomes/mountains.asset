@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.WorldGen.BiomeDefinition
   _namespace: lithforge
   biomeName: mountains
-  temperatureMin: 0
+  temperatureMin: 0.0
   temperatureMax: 0.35
   temperatureCenter: 0.2
-  humidityMin: 0
+  humidityMin: 0.0
   humidityMax: 0.6
   humidityCenter: 0.35
   topBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
@@ -26,9 +26,14 @@ MonoBehaviour:
   underwaterBlock: {fileID: 11400000, guid: 6dc247b419379ea4f985e2ab04f7ab37, type: 2}
   fillerDepth: 2
   treeDensity: 0.01
-  treeType: 0
-  continentalnessCenter: 0.75
+  treeType: 2
+  continentalnessCenter: 0.82
   erosionCenter: 0.15
   baseHeight: 22
   heightAmplitude: 28
-  mapColor: {r: 0, g: 1, b: 0, a: 1}
+  _weightSharpness: 8
+  _isOcean: 0
+  _isFrozen: 0
+  _isBeach: 0
+  waterColor: {r: 0.247, g: 0.463, b: 0.894, a: 1.0}
+  mapColor: {r: 0.5, g: 0.5, b: 0.5, a: 1.0}

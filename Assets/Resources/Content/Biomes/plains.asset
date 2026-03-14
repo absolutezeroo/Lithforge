@@ -31,4 +31,9 @@ MonoBehaviour:
   erosionCenter: 0.75
   baseHeight: 4
   heightAmplitude: 6
-  mapColor: {r: 0, g: 1, b: 0, a: 1}
+  _weightSharpness: 7
+  _isOcean: 0
+  _isFrozen: 0
+  _isBeach: 0
+  waterColor: {r: 0.247, g: 0.463, b: 0.894, a: 1.0}
+  mapColor: {r: 0.55, g: 0.78, b: 0.35, a: 1.0}

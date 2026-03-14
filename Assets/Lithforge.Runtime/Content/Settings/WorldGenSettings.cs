@@ -78,6 +78,19 @@ namespace Lithforge.Runtime.Content.Settings
             seedOffset = 0,
         };
 
+        [Header("River Noise")]
+        [SerializeField] private RiverNoiseConfig _riverNoise = new RiverNoiseConfig
+        {
+            frequency = 0.003f,
+            warpFrequency = 0.006f,
+            warpStrength = 80f,
+            baseThreshold = 0.04f,
+            seedOffset = 7777,
+            oceanContinentalnessCutoff = 0.3f,
+            maxCarveDepthPlains = 4f,
+            maxCarveDepthMountain = 22f,
+        };
+
         [Header("Cave Carving")]
         [Tooltip("Squared noise threshold for cave carving (smaller = fewer caves)")]
         [Min(0.001f)]
@@ -142,6 +155,11 @@ namespace Lithforge.Runtime.Content.Settings
         public NoiseLayerConfig CaveNoise
         {
             get { return _caveNoise; }
+        }
+
+        public RiverNoiseConfig RiverNoise
+        {
+            get { return _riverNoise; }
         }
 
         public float CaveThreshold

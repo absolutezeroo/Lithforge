@@ -18,7 +18,7 @@ MonoBehaviour:
   temperatureMax: 0.65
   temperatureCenter: 0.45
   humidityMin: 0.55
-  humidityMax: 1
+  humidityMax: 1.0
   humidityCenter: 0.75
   topBlock: {fileID: 11400000, guid: 6939bb7628794ae4ea5b7f11fc81faa6, type: 2}
   fillerBlock: {fileID: 11400000, guid: 91c83ab8bf0318041b36b318c08acb6f, type: 2}
@@ -31,4 +31,9 @@ MonoBehaviour:
   erosionCenter: 0.55
   baseHeight: 6
   heightAmplitude: 8
-  mapColor: {r: 0, g: 1, b: 0, a: 1}
+  _weightSharpness: 7
+  _isOcean: 0
+  _isFrozen: 0
+  _isBeach: 0
+  waterColor: {r: 0.247, g: 0.463, b: 0.894, a: 1.0}
+  mapColor: {r: 0.22, g: 0.55, b: 0.15, a: 1.0}

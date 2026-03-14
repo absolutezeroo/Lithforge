@@ -511,11 +511,12 @@ namespace Lithforge.Voxel.Chunk
             if (chunk.State == ChunkState.Meshing)
             {
                 // Defer the edit — do NOT write to ChunkData while the mesh job is
-                // reading it. The edit will be applied in MeshScheduler.PollCompleted
-                // after the job finishes and the mesh is uploaded.
+                // reading it. The edit will be applied in ApplyDeferredEdits() after
+                // the job finishes. Block entity events are also deferred.
                 chunk.DeferredEdits.Add(new DeferredEdit
                 {
                     FlatIndex = index,
+                    OldState = oldState,
                     NewState = state,
                 });
             }
@@ -526,21 +527,59 @@ namespace Lithforge.Voxel.Chunk
                 data[index] = state;
                 chunk.PendingEditIndices.Add(index);
                 chunk.State = ChunkState.RelightPending;
-            }
 
-            // Fire block entity events after state write
-            if (oldHasEntity && !newHasEntity)
-            {
-                OnBlockEntityRemoved?.Invoke(chunkCoord, index, oldState);
-            }
+                // Fire block entity events only on the immediate path
+                if (oldHasEntity && !newHasEntity)
+                {
+                    OnBlockEntityRemoved?.Invoke(chunkCoord, index, oldState);
+                }
 
-            if (newHasEntity && !oldHasEntity)
-            {
-                OnBlockEntityPlaced?.Invoke(chunkCoord, index, state);
+                if (newHasEntity && !oldHasEntity)
+                {
+                    OnBlockEntityPlaced?.Invoke(chunkCoord, index, state);
+                }
             }
 
             dirtiedChunks.Add(chunkCoord);
             DirtyNeighborBorders(chunkCoord, localX, localY, localZ, dirtiedChunks);
+        }
+
+        /// <summary>
+        /// Applies deferred edits that arrived while a chunk was in Meshing state.
+        /// Writes the edits to ChunkData and fires block entity events for each edit.
+        /// Called by MeshScheduler.PollCompleted after the mesh job finishes.
+        /// </summary>
+        public void ApplyDeferredEdits(ManagedChunk chunk)
+        {
+            NativeArray<StateId> chunkData = chunk.Data;
+
+            for (int di = 0; di < chunk.DeferredEdits.Count; di++)
+            {
+                DeferredEdit edit = chunk.DeferredEdits[di];
+                chunkData[edit.FlatIndex] = edit.NewState;
+                chunk.PendingEditIndices.Add(edit.FlatIndex);
+
+                // Fire block entity events now that the voxel write has happened
+                bool editOldHasEntity = _nativeStateRegistry.States.IsCreated &&
+                    edit.OldState.Value < _nativeStateRegistry.States.Length &&
+                    _nativeStateRegistry.States[edit.OldState.Value].HasBlockEntity;
+                bool editNewHasEntity = _nativeStateRegistry.States.IsCreated &&
+                    edit.NewState.Value < _nativeStateRegistry.States.Length &&
+                    _nativeStateRegistry.States[edit.NewState.Value].HasBlockEntity;
+
+                if (editOldHasEntity && !editNewHasEntity)
+                {
+                    OnBlockEntityRemoved?.Invoke(chunk.Coord, edit.FlatIndex, edit.OldState);
+                }
+
+                if (editNewHasEntity && !editOldHasEntity)
+                {
+                    OnBlockEntityPlaced?.Invoke(chunk.Coord, edit.FlatIndex, edit.NewState);
+                }
+            }
+
+            chunk.DeferredEdits.Clear();
+            chunk.State = ChunkState.RelightPending;
         }
 
         /// <summary>
@@ -666,6 +705,11 @@ namespace Lithforge.Voxel.Chunk
                         kvp.Value.HeightMap.Dispose();
                     }
 
+                    if (kvp.Value.RiverFlags.IsCreated)
+                    {
+                        kvp.Value.RiverFlags.Dispose();
+                    }
+
                     _toRemoveCache.Add(kvp.Key);
                     unloaded.Add(kvp.Key);
                 }
@@ -688,6 +732,7 @@ namespace Lithforge.Voxel.Chunk
                 {
                     chunk.ActiveJobHandle.Complete();
                     storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                    chunk.IsDirty = false;
                 }
             }
         }
@@ -794,6 +839,11 @@ namespace Lithforge.Voxel.Chunk
                 if (kvp.Value.HeightMap.IsCreated)
                 {
                     kvp.Value.HeightMap.Dispose();
+                }
+
+                if (kvp.Value.RiverFlags.IsCreated)
+                {
+                    kvp.Value.RiverFlags.Dispose();
                 }
             }
 

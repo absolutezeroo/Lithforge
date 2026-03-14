@@ -98,6 +98,20 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Tooltip("Terrain noise amplitude scale for this biome")]
         [SerializeField] private float _heightAmplitude = 12f;
 
+        [Tooltip("Sharpness of the exponential weight falloff (higher = harder edges)")]
+        [Range(1f, 32f)]
+        [SerializeField] private float _weightSharpness = 8.0f;
+
+        [Header("Surface Behavior")]
+        [Tooltip("Ocean biome: suppresses trees, uses UnderwaterBlock for floor")]
+        [SerializeField] private bool _isOcean;
+
+        [Tooltip("Frozen biome: places ice at water surface")]
+        [SerializeField] private bool _isFrozen;
+
+        [Tooltip("Beach biome: reserved for future shore-specific behavior")]
+        [SerializeField] private bool _isBeach;
+
         [Header("Tinting")]
         [FormerlySerializedAs("waterColor")]
         [Tooltip("Water tint color for this biome")]
@@ -201,6 +215,26 @@ namespace Lithforge.Runtime.Content.WorldGen
         public float HeightAmplitude
         {
             get { return _heightAmplitude; }
+        }
+
+        public float WeightSharpness
+        {
+            get { return _weightSharpness; }
+        }
+
+        public bool IsOcean
+        {
+            get { return _isOcean; }
+        }
+
+        public bool IsFrozen
+        {
+            get { return _isFrozen; }
+        }
+
+        public bool IsBeach
+        {
+            get { return _isBeach; }
         }
 
         public Color WaterColor

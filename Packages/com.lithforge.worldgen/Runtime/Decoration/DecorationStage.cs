@@ -11,6 +11,7 @@ namespace Lithforge.WorldGen.Decoration
         private readonly NativeArray<NativeBiomeData> _biomeData;
         private readonly TreeBlock[][] _treeTemplates;
         private readonly StateId _airId;
+        private readonly int _seaLevel;
         private readonly PendingDecorationStore _pendingStore;
 
         public PendingDecorationStore PendingStore
@@ -22,7 +23,8 @@ namespace Lithforge.WorldGen.Decoration
             NativeArray<NativeBiomeData> biomeData,
             StateId oakLogId,
             StateId oakLeavesId,
-            StateId airId)
+            StateId airId,
+            int seaLevel)
         {
             _biomeData = biomeData;
             _treeTemplates = new TreeBlock[][]
@@ -32,6 +34,7 @@ namespace Lithforge.WorldGen.Decoration
                 TreeTemplate.SpruceTree(oakLogId, oakLeavesId),  // index 2: spruce (conical)
             };
             _airId = airId;
+            _seaLevel = seaLevel;
             _pendingStore = new PendingDecorationStore();
         }
 
@@ -60,6 +63,13 @@ namespace Lithforge.WorldGen.Decoration
                     NativeBiomeData biome = GetBiome(biomeId);
 
                     if (biome.TreeDensity <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    // Suppress trees in ocean biomes and on underwater columns
+                    bool isOcean = (biome.SurfaceFlags & NativeBiomeSurfaceFlags.IsOcean) != 0;
+                    if (isOcean || surfaceY < _seaLevel)
                     {
                         continue;
                     }

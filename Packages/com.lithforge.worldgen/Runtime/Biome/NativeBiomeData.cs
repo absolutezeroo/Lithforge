@@ -25,5 +25,7 @@ namespace Lithforge.WorldGen.Biome
         public float BaseHeight;
         public float HeightAmplitude;
         public uint WaterColorPacked;
+        public float WeightSharpness;
+        public byte SurfaceFlags;
     }
 }

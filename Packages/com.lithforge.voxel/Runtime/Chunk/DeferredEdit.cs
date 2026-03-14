@@ -9,6 +9,7 @@ namespace Lithforge.Voxel.Chunk
     public struct DeferredEdit
     {
         public int FlatIndex;
+        public StateId OldState;
         public StateId NewState;
     }
 }

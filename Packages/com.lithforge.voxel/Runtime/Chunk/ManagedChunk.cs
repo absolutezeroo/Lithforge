@@ -24,6 +24,14 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public NativeArray<int> HeightMap { get; set; }
 
+        /// <summary>
+        /// Per-column river presence flags from RiverNoiseJob. Size: ChunkConstants.SizeSquared (1024).
+        /// Index: z * ChunkConstants.Size + x. Value: 0 = no river, 1 = river column.
+        /// Used by SurfaceBuilderJob for river bed material and by DecorationStage for tree suppression.
+        /// Owner: ManagedChunk. Dispose: ChunkManager on unload/shutdown.
+        /// </summary>
+        public NativeArray<byte> RiverFlags { get; set; }
+
         public JobHandle ActiveJobHandle { get; set; }
 
         public bool NeedsRemesh { get; set; }

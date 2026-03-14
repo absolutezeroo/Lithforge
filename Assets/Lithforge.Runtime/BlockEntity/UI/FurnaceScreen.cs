@@ -61,10 +61,15 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             InventoryBehavior inv = furnace.Inventory;
 
-            // Create single-slot adapters for input, fuel, output
-            _furnaceInputAdapter = new BlockEntityContainerAdapter(inv, false);
-            _furnaceFuelAdapter = new BlockEntityContainerAdapter(inv, false);
-            _furnaceOutputAdapter = new BlockEntityContainerAdapter(inv, true);
+            // Create single-slot adapters for input, fuel, output.
+            // Each adapter exposes exactly 1 slot to prevent cross-slot corruption
+            // during shift-click transfers via TryFillContainer.
+            _furnaceInputAdapter = new BlockEntityContainerAdapter(
+                inv, FurnaceBlockEntity.InputSlot, 1, false);
+            _furnaceFuelAdapter = new BlockEntityContainerAdapter(
+                inv, FurnaceBlockEntity.FuelSlot, 1, false);
+            _furnaceOutputAdapter = new BlockEntityContainerAdapter(
+                inv, FurnaceBlockEntity.OutputSlot, 1, true);
 
             RebuildUI();
             Open();
@@ -103,7 +108,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Label inputLabel = new Label("Input");
             inputLabel.AddToClassList("lf-section-label");
             inputCol.Add(inputLabel);
-            BuildSingleSlot(_furnaceInputAdapter, FurnaceBlockEntity.InputSlot, inputCol);
+            BuildSingleSlot(_furnaceInputAdapter, 0, inputCol);
             furnaceSection.Add(inputCol);
 
             // Fuel slot + burn bar
@@ -111,7 +116,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Label fuelLabel = new Label("Fuel");
             fuelLabel.AddToClassList("lf-section-label");
             fuelCol.Add(fuelLabel);
-            BuildSingleSlot(_furnaceFuelAdapter, FurnaceBlockEntity.FuelSlot, fuelCol);
+            BuildSingleSlot(_furnaceFuelAdapter, 0, fuelCol);
 
             _burnBar = new ProgressBar();
             _burnBar.title = "Burn";
@@ -141,7 +146,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Label outputLabel = new Label("Output");
             outputLabel.AddToClassList("lf-section-label");
             outputCol.Add(outputLabel);
-            BuildSingleSlot(_furnaceOutputAdapter, FurnaceBlockEntity.OutputSlot, outputCol);
+            BuildSingleSlot(_furnaceOutputAdapter, 0, outputCol);
             furnaceSection.Add(outputCol);
 
             // Separator

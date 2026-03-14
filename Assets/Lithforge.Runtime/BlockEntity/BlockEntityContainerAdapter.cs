@@ -12,11 +12,13 @@ namespace Lithforge.Runtime.BlockEntity
     public sealed class BlockEntityContainerAdapter : ISlotContainer
     {
         private readonly InventoryBehavior _inventory;
+        private readonly int _slotOffset;
+        private readonly int _slotCount;
         private readonly bool _isReadOnly;
 
         public int SlotCount
         {
-            get { return _inventory.SlotCount; }
+            get { return _slotCount; }
         }
 
         public bool IsReadOnly
@@ -24,20 +26,38 @@ namespace Lithforge.Runtime.BlockEntity
             get { return _isReadOnly; }
         }
 
+        /// <summary>
+        /// Wraps the full inventory (all slots).
+        /// </summary>
         public BlockEntityContainerAdapter(InventoryBehavior inventory, bool isReadOnly = false)
         {
             _inventory = inventory;
+            _slotOffset = 0;
+            _slotCount = inventory.SlotCount;
+            _isReadOnly = isReadOnly;
+        }
+
+        /// <summary>
+        /// Wraps a sub-range of the inventory (slotOffset .. slotOffset+slotCount-1).
+        /// Used by FurnaceScreen to expose one slot per adapter.
+        /// </summary>
+        public BlockEntityContainerAdapter(
+            InventoryBehavior inventory, int slotOffset, int slotCount, bool isReadOnly = false)
+        {
+            _inventory = inventory;
+            _slotOffset = slotOffset;
+            _slotCount = slotCount;
             _isReadOnly = isReadOnly;
         }
 
         public ItemStack GetSlot(int index)
         {
-            return _inventory.GetSlot(index);
+            return _inventory.GetSlot(_slotOffset + index);
         }
 
         public void SetSlot(int index, ItemStack stack)
         {
-            _inventory.SetSlot(index, stack);
+            _inventory.SetSlot(_slotOffset + index, stack);
         }
 
         public void OnSlotChanged(int index)

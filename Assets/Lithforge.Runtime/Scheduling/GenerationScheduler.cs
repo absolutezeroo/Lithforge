@@ -192,9 +192,10 @@ namespace Lithforge.Runtime.Scheduling
                             PipelineStats.AddDecorate(decorMs);
                         }
 
-                        // Transfer LightData and HeightMap ownership to chunk
+                        // Transfer LightData, HeightMap, and RiverFlags ownership to chunk
                         chunk.LightData = pending.Handle.LightData;
                         chunk.HeightMap = pending.Handle.HeightMap;
+                        chunk.RiverFlags = pending.Handle.RiverFlags;
                         chunk.State = ChunkState.Generated;
                         chunk.ActiveJobHandle = default;
                         PipelineStats.IncrGenCompleted();

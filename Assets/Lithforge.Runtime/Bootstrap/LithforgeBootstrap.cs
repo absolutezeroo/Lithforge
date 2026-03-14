@@ -182,6 +182,8 @@ namespace Lithforge.Runtime.Bootstrap
                     BaseHeight = def.BaseHeight,
                     HeightAmplitude = def.HeightAmplitude,
                     WaterColorPacked = PackColor(def.WaterColor),
+                    WeightSharpness = def.WeightSharpness,
+                    SurfaceFlags = BuildSurfaceFlags(def),
                 };
             }
 
@@ -213,6 +215,11 @@ namespace Lithforge.Runtime.Bootstrap
                 };
             }
 
+            StateId iceId = FindStateId("lithforge:ice");
+            StateId gravelId = FindStateId("lithforge:gravel");
+            StateId sandId = FindStateId("lithforge:sand");
+            Lithforge.WorldGen.River.NativeRiverConfig riverConfig = wg.RiverNoise.ToNativeConfig();
+
             _generationPipeline = new GenerationPipeline(
                 terrainNoise,
                 temperatureNoise,
@@ -229,12 +236,14 @@ namespace Lithforge.Runtime.Bootstrap
                 _nativeOreConfigs,
                 _contentResult.NativeStateRegistry.States,
                 stoneId, airId, waterId,
-                wg.SeaLevel);
+                iceId, gravelId, sandId,
+                wg.SeaLevel,
+                riverConfig);
 
             // Build decoration stage
             StateId oakLogId = FindStateId("lithforge:oak_log");
             StateId oakLeavesId = FindStateId("lithforge:oak_leaves");
-            _decorationStage = new DecorationStage(_nativeBiomeData, oakLogId, oakLeavesId, airId);
+            _decorationStage = new DecorationStage(_nativeBiomeData, oakLogId, oakLeavesId, airId, wg.SeaLevel);
 
         }
 
@@ -609,6 +618,24 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkMeshStore,
                     panelSettings);
             }
+        }
+
+        private static byte BuildSurfaceFlags(BiomeDefinition def)
+        {
+            byte flags = 0;
+            if (def.IsOcean)
+            {
+                flags |= NativeBiomeSurfaceFlags.IsOcean;
+            }
+            if (def.IsFrozen)
+            {
+                flags |= NativeBiomeSurfaceFlags.IsFrozen;
+            }
+            if (def.IsBeach)
+            {
+                flags |= NativeBiomeSurfaceFlags.IsBeach;
+            }
+            return flags;
         }
 
         private static uint PackColor(Color c)

@@ -32,7 +32,8 @@
       "Bash(mv:*)",
       "WebSearch",
       "WebFetch(domain:docs.unity3d.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(export:*)"
     ]
   }
 }

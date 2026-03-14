@@ -5,6 +5,7 @@ using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Ore;
 using Lithforge.WorldGen.Lighting;
+using Lithforge.WorldGen.River;
 using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
@@ -31,7 +32,11 @@ namespace Lithforge.WorldGen.Pipeline
         private readonly StateId _stoneId;
         private readonly StateId _airId;
         private readonly StateId _waterId;
+        private readonly StateId _iceId;
+        private readonly StateId _gravelId;
+        private readonly StateId _sandId;
         private readonly int _seaLevel;
+        private readonly NativeRiverConfig _riverConfig;
 
         public GenerationPipeline(
             NativeNoiseConfig terrainNoise,
@@ -51,7 +56,11 @@ namespace Lithforge.WorldGen.Pipeline
             StateId stoneId,
             StateId airId,
             StateId waterId,
-            int seaLevel)
+            StateId iceId,
+            StateId gravelId,
+            StateId sandId,
+            int seaLevel,
+            NativeRiverConfig riverConfig)
         {
             _terrainNoise = terrainNoise;
             _temperatureNoise = temperatureNoise;
@@ -70,7 +79,11 @@ namespace Lithforge.WorldGen.Pipeline
             _stoneId = stoneId;
             _airId = airId;
             _waterId = waterId;
+            _iceId = iceId;
+            _gravelId = gravelId;
+            _sandId = sandId;
             _seaLevel = seaLevel;
+            _riverConfig = riverConfig;
         }
 
         public GenerationHandle Schedule(int3 coord, long seed, NativeArray<StateId> chunkData)
@@ -86,6 +99,14 @@ namespace Lithforge.WorldGen.Pipeline
 
             NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
+            // River arrays: flags are Persistent (transferred to ManagedChunk),
+            // carve depth is TempJob (transient, consumed by RiverCarveJob only).
+            NativeArray<byte> riverFlags = new NativeArray<byte>(
+                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+
+            NativeArray<float> riverCarveDepth = new NativeArray<float>(
+                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
             // Stage 1: Climate noise sampling (4 parameters per column)
             ClimateNoiseJob climateJob = new ClimateNoiseJob
@@ -120,7 +141,37 @@ namespace Lithforge.WorldGen.Pipeline
 
             JobHandle terrainHandle = terrainJob.Schedule(climateHandle);
 
-            // Stage 3: Cave carving
+            // Stage 3: River noise (2D per-column, domain-warped threshold band)
+            RiverNoiseJob riverNoiseJob = new RiverNoiseJob
+            {
+                ClimateMap = climateMap,
+                HeightMap = heightMap,
+                Config = _riverConfig,
+                Seed = seed,
+                ChunkCoord = coord,
+                SeaLevel = _seaLevel,
+                RiverCarveDepth = riverCarveDepth,
+                RiverFlags = riverFlags,
+            };
+
+            JobHandle riverNoiseHandle = riverNoiseJob.Schedule(terrainHandle);
+
+            // Stage 4: River carving (3D, applies carve depth to voxel array)
+            RiverCarveJob riverCarveJob = new RiverCarveJob
+            {
+                ChunkData = chunkData,
+                RiverCarveDepth = riverCarveDepth,
+                HeightMap = heightMap,
+                ChunkCoord = coord,
+                AirId = _airId,
+                WaterId = _waterId,
+                StoneId = _stoneId,
+                SeaLevel = _seaLevel,
+            };
+
+            JobHandle riverCarveHandle = riverCarveJob.Schedule(riverNoiseHandle);
+
+            // Stage 5: Cave carving
             CaveCarverJob caveJob = new CaveCarverJob
             {
                 ChunkData = chunkData,
@@ -137,24 +188,30 @@ namespace Lithforge.WorldGen.Pipeline
                 SeaLevelCarveBuffer = _seaLevelCarveBuffer,
             };
 
-            JobHandle caveHandle = caveJob.Schedule(terrainHandle);
+            JobHandle caveHandle = caveJob.Schedule(riverCarveHandle);
 
-            // Stage 4: Surface builder (biome-driven)
+            // Stage 6: Surface builder (biome-driven, reads river flags)
             SurfaceBuilderJob surfaceJob = new SurfaceBuilderJob
             {
                 ChunkData = chunkData,
                 HeightMap = heightMap,
                 BiomeMap = biomeMap,
                 BiomeData = _biomeData,
+                RiverFlags = riverFlags,
                 ChunkCoord = coord,
                 SeaLevel = _seaLevel,
+                Seed = seed,
                 StoneId = _stoneId,
                 AirId = _airId,
+                WaterId = _waterId,
+                IceId = _iceId,
+                GravelId = _gravelId,
+                SandId = _sandId,
             };
 
             JobHandle surfaceHandle = surfaceJob.Schedule(caveHandle);
 
-            // Stage 5: Ore generation
+            // Stage 7: Ore generation
             OreGenerationJob oreJob = new OreGenerationJob
             {
                 ChunkData = chunkData,
@@ -166,7 +223,7 @@ namespace Lithforge.WorldGen.Pipeline
 
             JobHandle oreHandle = oreJob.Schedule(surfaceHandle);
 
-            // Stage 6: Initial lighting
+            // Stage 8: Initial lighting
             InitialLightingJob lightingJob = new InitialLightingJob
             {
                 HeightMap = heightMap,
@@ -178,7 +235,7 @@ namespace Lithforge.WorldGen.Pipeline
 
             JobHandle lightingHandle = lightingJob.Schedule(oreHandle);
 
-            // Stage 7: Light propagation (BFS flood fill)
+            // Stage 9: Light propagation (BFS flood fill)
             // Border light output for cross-chunk propagation.
             // Owner: GenerationHandle. Dispose: GenerationScheduler after reading.
             NativeList<NativeBorderLightEntry> borderLightOutput =
@@ -202,6 +259,8 @@ namespace Lithforge.WorldGen.Pipeline
                 BiomeMap = biomeMap,
                 ClimateMap = climateMap,
                 BorderLightOutput = borderLightOutput,
+                RiverFlags = riverFlags,
+                RiverCarveDepth = riverCarveDepth,
             };
         }
     }

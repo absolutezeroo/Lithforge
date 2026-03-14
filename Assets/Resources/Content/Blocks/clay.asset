@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
+  m_Name: clay
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
+  _namespace: lithforge
+  blockName: clay
+  hardness: 0.6
+  blastResistance: 0.6
+  requiresTool: 0
+  materialType: 3
+  requiredToolLevel: 0
+  soundGroup: gravel
+  collisionShape: 0
+  renderLayer: 0
+  isFluid: 0
+  defaultTintType: -1
+  lightEmission: 0
+  lightFilter: 15
+  mapColor: '#9FA4B0'
+  lootTable: {fileID: 11400000, guid: e3b38eda1a6f42e2a991ee1fc8a1f49f, type: 2}
+  blockStateMapping: {fileID: 11400000, guid: 2ada63b52c32aef281ac9edd4c457d20, type: 2}
+  properties: []
+  tags:
+  - lithforge:mineable_shovel

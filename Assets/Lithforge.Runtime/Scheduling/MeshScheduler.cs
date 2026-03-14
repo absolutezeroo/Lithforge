@@ -161,18 +161,8 @@ namespace Lithforge.Runtime.Scheduling
                             Profiler.BeginSample("MS.DeferredEdits");
                             // Apply deferred edits that arrived while the mesh job was in-flight.
                             // This writes to ChunkData now that the job is complete and no
-                            // worker thread is reading it.
-                            NativeArray<StateId> chunkData = chunk.Data;
-
-                            for (int di = 0; di < chunk.DeferredEdits.Count; di++)
-                            {
-                                DeferredEdit edit = chunk.DeferredEdits[di];
-                                chunkData[edit.FlatIndex] = edit.NewState;
-                                chunk.PendingEditIndices.Add(edit.FlatIndex);
-                            }
-
-                            chunk.DeferredEdits.Clear();
-                            chunk.State = ChunkState.RelightPending;
+                            // worker thread is reading it. Also fires block entity events.
+                            _chunkManager.ApplyDeferredEdits(chunk);
                             Profiler.EndSample();
                         }
                         else if (chunk.NeedsRemesh)

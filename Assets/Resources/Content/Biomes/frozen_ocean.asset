@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee2bcbfe9d845f842a4bfdde0bc5c656, type: 3}
+  m_Name: frozen_ocean
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.WorldGen.BiomeDefinition
+  _namespace: lithforge
+  biomeName: frozen_ocean
+  temperatureMin: 0.0
+  temperatureMax: 0.15
+  temperatureCenter: 0.08
+  humidityMin: 0.0
+  humidityMax: 1.0
+  humidityCenter: 0.5
+  topBlock: {fileID: 11400000, guid: 6dc247b419379ea4f985e2ab04f7ab37, type: 2}
+  fillerBlock: {fileID: 11400000, guid: 6dc247b419379ea4f985e2ab04f7ab37, type: 2}
+  stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
+  underwaterBlock: {fileID: 11400000, guid: 6dc247b419379ea4f985e2ab04f7ab37, type: 2}
+  fillerDepth: 2
+  treeDensity: 0.0
+  treeType: 0
+  continentalnessCenter: 0.15
+  erosionCenter: 0.5
+  baseHeight: -17
+  heightAmplitude: 5
+  _weightSharpness: 20
+  _isOcean: 1
+  _isFrozen: 1
+  _isBeach: 0
+  waterColor: {r: 0.224, g: 0.22, b: 0.788, a: 1.0}
+  mapColor: {r: 0.55, g: 0.6, b: 0.75, a: 1.0}

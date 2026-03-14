@@ -15,9 +15,9 @@ MonoBehaviour:
   _namespace: lithforge
   biomeName: desert
   temperatureMin: 0.65
-  temperatureMax: 1
+  temperatureMax: 1.0
   temperatureCenter: 0.85
-  humidityMin: 0
+  humidityMin: 0.0
   humidityMax: 0.3
   humidityCenter: 0.15
   topBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
@@ -25,10 +25,15 @@ MonoBehaviour:
   stoneBlock: {fileID: 11400000, guid: 9d87edab4555d3e48ac224061aeb0a6e, type: 2}
   underwaterBlock: {fileID: 11400000, guid: 5a73cb824f577a94491f6cccba616bdd, type: 2}
   fillerDepth: 4
-  treeDensity: 0
+  treeDensity: 0.0
   treeType: 0
-  continentalnessCenter: 0.35
+  continentalnessCenter: 0.55
   erosionCenter: 0.85
   baseHeight: 2
   heightAmplitude: 3
-  mapColor: {r: 0, g: 1, b: 0, a: 1}
+  _weightSharpness: 8
+  _isOcean: 0
+  _isFrozen: 0
+  _isBeach: 0
+  waterColor: {r: 0.247, g: 0.463, b: 0.894, a: 1.0}
+  mapColor: {r: 0.85, g: 0.78, b: 0.5, a: 1.0}

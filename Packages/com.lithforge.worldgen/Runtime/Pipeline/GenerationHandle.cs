@@ -1,7 +1,6 @@
 using System;
 using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Lighting;
-using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
 
@@ -28,9 +27,29 @@ namespace Lithforge.WorldGen.Pipeline
         /// </summary>
         public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
+        /// <summary>
+        /// Per-column river presence flags produced by RiverNoiseJob.
+        /// 0 = no river, 1 = river column.
+        /// Owner: GenerationHandle (allocated in GenerationPipeline.Schedule).
+        /// Dispose: NOT disposed in Dispose() — transferred to ManagedChunk on completion.
+        ///          Disposed in DisposeAll() for cancelled generation.
+        /// </summary>
+        public NativeArray<byte> RiverFlags;
+
+        /// <summary>
+        /// Per-column river carve depth produced by RiverNoiseJob, consumed by RiverCarveJob.
+        /// Transient — not needed after generation completes.
+        /// Owner: GenerationHandle (allocated in GenerationPipeline.Schedule).
+        /// Dispose: GenerationHandle.Dispose after RiverCarveJob consumes it.
+        /// </summary>
+        public NativeArray<float> RiverCarveDepth;
+
         public void Dispose()
         {
             // HeightMap is not disposed here — it is transferred to ManagedChunk
+            // when the generation completes. Only dispose if the generation was cancelled (DisposeAll).
+
+            // RiverFlags is not disposed here — it is transferred to ManagedChunk
             // when the generation completes. Only dispose if the generation was cancelled (DisposeAll).
 
             if (BiomeMap.IsCreated)
@@ -46,6 +65,11 @@ namespace Lithforge.WorldGen.Pipeline
             if (BorderLightOutput.IsCreated)
             {
                 BorderLightOutput.Dispose();
+            }
+
+            if (RiverCarveDepth.IsCreated)
+            {
+                RiverCarveDepth.Dispose();
             }
 
             // LightData is not disposed here — it is transferred to ManagedChunk
@@ -77,6 +101,16 @@ namespace Lithforge.WorldGen.Pipeline
             if (BorderLightOutput.IsCreated)
             {
                 BorderLightOutput.Dispose();
+            }
+
+            if (RiverFlags.IsCreated)
+            {
+                RiverFlags.Dispose();
+            }
+
+            if (RiverCarveDepth.IsCreated)
+            {
+                RiverCarveDepth.Dispose();
             }
         }
     }
