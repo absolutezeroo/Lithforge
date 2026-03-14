@@ -125,12 +125,11 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
-        public static bool Deserialize(
-            byte[] data,
+        public static bool Deserialize(byte[] data,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
-            BlockEntityRegistry blockEntityRegistry = null,
-            out Dictionary<int, IBlockEntity> blockEntities)
+            out Dictionary<int, IBlockEntity> blockEntities,
+            BlockEntityRegistry blockEntityRegistry = null)
         {
             blockEntities = null;
 

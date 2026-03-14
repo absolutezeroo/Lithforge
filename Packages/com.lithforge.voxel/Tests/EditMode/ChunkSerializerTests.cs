@@ -32,7 +32,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, null, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -73,7 +73,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, null, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -117,7 +117,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, null, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -147,7 +147,7 @@ namespace Lithforge.Voxel.Tests
             try
             {
                 byte[] badData = new byte[] { 0, 0, 0, 0, 1 };
-                bool success = ChunkSerializer.Deserialize(badData, chunkData, lightData, null, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _);
+                bool success = ChunkSerializer.Deserialize(badData, chunkData, lightData, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
 
                 Assert.IsFalse(success, "Invalid magic should return false");
             }
@@ -182,7 +182,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, null, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -224,7 +224,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, null, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 

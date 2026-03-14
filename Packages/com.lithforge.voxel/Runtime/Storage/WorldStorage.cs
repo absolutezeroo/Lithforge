@@ -67,8 +67,7 @@ namespace Lithforge.Voxel.Storage
                     return false;
                 }
 
-                return ChunkSerializer.Deserialize(serialized, chunkData, lightData,
-                    blockEntityRegistry, out blockEntities);
+                return ChunkSerializer.Deserialize(serialized, chunkData, lightData, out blockEntities, blockEntityRegistry);
             }
             catch (Exception ex)
             {
