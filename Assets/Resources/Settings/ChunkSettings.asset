@@ -16,7 +16,7 @@ MonoBehaviour:
   renderDistance: 4
   spawnLoadRadius: 3
   maxGenerationsPerFrame: 16
-  maxMeshesPerFrame: 12
+  maxMeshesPerFrame: 16
   maxGenCompletionsPerFrame: 8
   maxMeshCompletionsPerFrame: 16
   maxLightUpdatesPerFrame: 6
@@ -31,6 +31,6 @@ MonoBehaviour:
   lod1Distance: 6
   lod2Distance: 10
   lod3Distance: 16
-  maxLODMeshesPerFrame: 4
+  maxLODMeshesPerFrame: 8
   spawnFallbackY: 62
   initialSpawnYOffset: 32
