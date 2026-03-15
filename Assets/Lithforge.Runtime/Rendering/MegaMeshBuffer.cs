@@ -20,7 +20,8 @@ namespace Lithforge.Runtime.Rendering
     /// re-meshed and the new data fits in the existing slot, it is rewritten in-place
     /// with no free-list interaction. Indices of freed regions are zeroed (batched per
     /// frame) to produce degenerate triangles until the slot is reclaimed.
-    /// A CPU-side mirror of the vertex and index data avoids GPU readback.
+    /// CPU-side NativeArray mirrors avoid GPU readback. Dirty sub-ranges are tracked
+    /// as disjoint intervals and uploaded via SetData(NativeArray) to VRAM-resident buffers.
     /// Owner: ChunkMeshStore. Lifetime: application session.
     /// </summary>
     public sealed class MegaMeshBuffer : IDisposable
@@ -33,18 +34,16 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
         private readonly List<FreeRegion> _freeRegions = new List<FreeRegion>();
 
-        private PackedMeshVertex[] _vertexMirror;
-        private int[] _indexMirror;
+        private NativeArray<PackedMeshVertex> _vertexMirror;
+        private NativeArray<int> _indexMirror;
         private int _vertexCapacity;
         private int _indexCapacity;
         private int _usedVertices;
         private int _usedIndices;
         private bool _argsDirty;
 
-        private int _dirtyVertexMin = int.MaxValue;
-        private int _dirtyVertexMax = -1;
-        private int _dirtyIndexMin = int.MaxValue;
-        private int _dirtyIndexMax = -1;
+        private DirtyRangeList _dirtyVertexRanges;
+        private DirtyRangeList _dirtyIndexRanges;
 
         private GraphicsBuffer _vertexBuffer;
         private GraphicsBuffer _indexBuffer;
@@ -129,18 +128,18 @@ namespace Lithforge.Runtime.Rendering
             _maxChunkSlots = maxChunkSlots;
             _vertexCapacity = initialVertexCapacity;
             _indexCapacity = initialIndexCapacity;
-            _vertexMirror = new PackedMeshVertex[initialVertexCapacity];
-            _indexMirror = new int[initialIndexCapacity];
+            _vertexMirror = new NativeArray<PackedMeshVertex>(initialVertexCapacity, Allocator.Persistent);
+            _indexMirror = new NativeArray<int>(initialIndexCapacity, Allocator.Persistent);
 
             _vertexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Structured,
-                GraphicsBuffer.UsageFlags.LockBufferForWrite,
+                GraphicsBuffer.UsageFlags.None,
                 initialVertexCapacity,
                 s_vertexStride);
 
             _indexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
-                GraphicsBuffer.UsageFlags.LockBufferForWrite,
+                GraphicsBuffer.UsageFlags.None,
                 initialIndexCapacity,
                 sizeof(int));
 
@@ -189,8 +188,16 @@ namespace Lithforge.Runtime.Rendering
 
             _slots.Clear();
             _freeRegions.Clear();
-            _vertexMirror = null;
-            _indexMirror = null;
+
+            if (_vertexMirror.IsCreated)
+            {
+                _vertexMirror.Dispose();
+            }
+
+            if (_indexMirror.IsCreated)
+            {
+                _indexMirror.Dispose();
+            }
         }
 
         /// <summary>
@@ -230,12 +237,15 @@ namespace Lithforge.Runtime.Rendering
                     {
                         int tailOffset = slot.IndexOffset + idxCount;
                         int tailCount = slot.IndexCount - idxCount;
-                        Array.Clear(_indexMirror, tailOffset, tailCount);
 
-                        // Extend dirty range to cover the zeroed tail
+                        unsafe
+                        {
+                            int* ptr = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(_indexMirror) + tailOffset;
+                            UnsafeUtility.MemClear(ptr, (long)tailCount * sizeof(int));
+                        }
+
                         int tailEnd = tailOffset + tailCount;
-                        if (tailOffset < _dirtyIndexMin) { _dirtyIndexMin = tailOffset; }
-                        if (tailEnd > _dirtyIndexMax) { _dirtyIndexMax = tailEnd; }
+                        _dirtyIndexRanges.Add(tailOffset, tailEnd);
                     }
 
                     WriteDataToMirror(slot.VertexOffset, slot.IndexOffset, vertices, indices);
@@ -372,8 +382,8 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Writes vertex + index data to the CPU mirror only (no GPU upload).
-        /// Expands the dirty ranges so FlushDirtyToGpu() uploads them in a single
-        /// Lock/Unlock pair per buffer at the end of the frame.
+        /// Adds dirty sub-ranges so FlushDirtyToGpu() uploads only the modified
+        /// regions via SetData(NativeArray) at the end of the frame.
         /// </summary>
         private void WriteDataToMirror(
             int vOff, int iOff,
@@ -382,88 +392,58 @@ namespace Lithforge.Runtime.Rendering
             int vertCount = vertices.Length;
             int idxCount = indices.Length;
 
-            // Vertices: bulk memcpy to CPU mirror (world offset encoded in packed vertex)
             unsafe
             {
-                void* src = vertices.GetUnsafeReadOnlyPtr();
-                long byteCount = (long)vertCount * s_vertexStride;
+                // Vertices: bulk memcpy to CPU mirror (world offset encoded in packed vertex)
+                void* vertSrc = vertices.GetUnsafeReadOnlyPtr();
+                PackedMeshVertex* vertDst =
+                    (PackedMeshVertex*)NativeArrayUnsafeUtility.GetUnsafePtr(_vertexMirror) + vOff;
+                UnsafeUtility.MemCpy(vertDst, vertSrc, (long)vertCount * s_vertexStride);
 
-                fixed (PackedMeshVertex* mirrorPtr = &_vertexMirror[vOff])
+                // Indices: apply global vertex offset, write to CPU mirror
+                int* idxDst = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(_indexMirror) + iOff;
+                int* idxSrc = (int*)indices.GetUnsafeReadOnlyPtr();
+
+                for (int i = 0; i < idxCount; i++)
                 {
-                    UnsafeUtility.MemCpy(mirrorPtr, src, byteCount);
+                    idxDst[i] = idxSrc[i] + vOff;
                 }
             }
 
-            // Indices: apply global vertex offset, write to CPU mirror only
-            for (int i = 0; i < idxCount; i++)
-            {
-                _indexMirror[iOff + i] = indices[i] + vOff;
-            }
-
-            // Expand dirty ranges
-            int vEnd = vOff + vertCount;
-            int iEnd = iOff + idxCount;
-
-            if (vOff < _dirtyVertexMin) { _dirtyVertexMin = vOff; }
-            if (vEnd > _dirtyVertexMax) { _dirtyVertexMax = vEnd; }
-            if (iOff < _dirtyIndexMin) { _dirtyIndexMin = iOff; }
-            if (iEnd > _dirtyIndexMax) { _dirtyIndexMax = iEnd; }
+            // Track dirty sub-ranges for per-range SetData upload
+            _dirtyVertexRanges.Add(vOff, vOff + vertCount);
+            _dirtyIndexRanges.Add(iOff, iOff + idxCount);
 
             PipelineStats.AddGpuUpload(vertCount * s_vertexStride + idxCount * sizeof(int));
         }
 
         /// <summary>
-        /// Uploads all dirty vertex/index ranges to the GPU in a single Lock/Unlock pair
-        /// per buffer. Call once per frame, after all AllocateOrUpdate calls are done,
-        /// but before FlushArgs(). Reduces 6 Lock/Unlock per chunk to 2 total per layer.
+        /// Uploads dirty vertex/index sub-ranges to the GPU via SetData(NativeArray).
+        /// Each disjoint dirty interval produces one SetData call, avoiding upload of
+        /// untouched gaps between distant dirty chunks. Call once per frame after all
+        /// AllocateOrUpdate calls are done, but before FlushArgs().
         /// </summary>
         public void FlushDirtyToGpu()
         {
             Profiler.BeginSample("MMB.Upload");
 
-            if (_dirtyVertexMin < _dirtyVertexMax)
+            for (int i = 0; i < _dirtyVertexRanges.Count; i++)
             {
-                int count = _dirtyVertexMax - _dirtyVertexMin;
-                NativeArray<PackedMeshVertex> gpu = _vertexBuffer.LockBufferForWrite<PackedMeshVertex>(
-                    _dirtyVertexMin, count);
-
-                unsafe
-                {
-                    void* dst = NativeArrayUnsafeUtility.GetUnsafePtr(gpu);
-
-                    fixed (PackedMeshVertex* src = &_vertexMirror[_dirtyVertexMin])
-                    {
-                        UnsafeUtility.MemCpy(dst, src, (long)count * s_vertexStride);
-                    }
-                }
-
-                _vertexBuffer.UnlockBufferAfterWrite<PackedMeshVertex>(count);
-
-                _dirtyVertexMin = int.MaxValue;
-                _dirtyVertexMax = -1;
+                DirtyRange range = _dirtyVertexRanges[i];
+                int count = range.End - range.Start;
+                _vertexBuffer.SetData(_vertexMirror, range.Start, range.Start, count);
             }
 
-            if (_dirtyIndexMin < _dirtyIndexMax)
+            _dirtyVertexRanges.Clear();
+
+            for (int i = 0; i < _dirtyIndexRanges.Count; i++)
             {
-                int count = _dirtyIndexMax - _dirtyIndexMin;
-                NativeArray<int> gpu = _indexBuffer.LockBufferForWrite<int>(
-                    _dirtyIndexMin, count);
-
-                unsafe
-                {
-                    void* dst = NativeArrayUnsafeUtility.GetUnsafePtr(gpu);
-
-                    fixed (int* src = &_indexMirror[_dirtyIndexMin])
-                    {
-                        UnsafeUtility.MemCpy(dst, src, (long)count * sizeof(int));
-                    }
-                }
-
-                _indexBuffer.UnlockBufferAfterWrite<int>(count);
-
-                _dirtyIndexMin = int.MaxValue;
-                _dirtyIndexMax = -1;
+                DirtyRange range = _dirtyIndexRanges[i];
+                int count = range.End - range.Start;
+                _indexBuffer.SetData(_indexMirror, range.Start, range.Start, count);
             }
+
+            _dirtyIndexRanges.Clear();
 
             Profiler.EndSample();
         }
@@ -476,11 +456,15 @@ namespace Lithforge.Runtime.Rendering
         {
             Profiler.BeginSample("MMB.FreeSlot");
 
-            // Zero indices in CPU mirror, extend dirty range for GPU upload
-            Array.Clear(_indexMirror, slot.IndexOffset, slot.IndexCount);
+            // Zero indices in CPU mirror, track dirty range for GPU upload
+            unsafe
+            {
+                int* ptr = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(_indexMirror) + slot.IndexOffset;
+                UnsafeUtility.MemClear(ptr, (long)slot.IndexCount * sizeof(int));
+            }
+
             int zeroEnd = slot.IndexOffset + slot.IndexCount;
-            if (slot.IndexOffset < _dirtyIndexMin) { _dirtyIndexMin = slot.IndexOffset; }
-            if (zeroEnd > _dirtyIndexMax) { _dirtyIndexMax = zeroEnd; }
+            _dirtyIndexRanges.Add(slot.IndexOffset, zeroEnd);
             _slots.Remove(coord);
 
             // Insert into free-list sorted by VertexOffset
@@ -616,60 +600,71 @@ namespace Lithforge.Runtime.Rendering
             int newVertCap = math.max(_vertexCapacity * 2, _usedVertices + extraVertices);
             int newIdxCap = math.max(_indexCapacity * 2, _usedIndices + extraIndices);
 
-            Array.Resize(ref _vertexMirror, newVertCap);
-            Array.Resize(ref _indexMirror, newIdxCap);
+            // Resize vertex mirror: allocate new, copy used portion, dispose old
+            NativeArray<PackedMeshVertex> newVertexMirror =
+                new NativeArray<PackedMeshVertex>(newVertCap, Allocator.Persistent,
+                    NativeArrayOptions.UninitializedMemory);
 
-            // Dispose old GPU buffers and create new ones with larger capacity
+            if (_usedVertices > 0)
+            {
+                unsafe
+                {
+                    UnsafeUtility.MemCpy(
+                        NativeArrayUnsafeUtility.GetUnsafePtr(newVertexMirror),
+                        NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(_vertexMirror),
+                        (long)_usedVertices * s_vertexStride);
+                }
+            }
+
+            _vertexMirror.Dispose();
+            _vertexMirror = newVertexMirror;
+
+            // Resize index mirror: allocate new, copy used portion, dispose old
+            NativeArray<int> newIndexMirror =
+                new NativeArray<int>(newIdxCap, Allocator.Persistent,
+                    NativeArrayOptions.UninitializedMemory);
+
+            if (_usedIndices > 0)
+            {
+                unsafe
+                {
+                    UnsafeUtility.MemCpy(
+                        NativeArrayUnsafeUtility.GetUnsafePtr(newIndexMirror),
+                        NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(_indexMirror),
+                        (long)_usedIndices * sizeof(int));
+                }
+            }
+
+            _indexMirror.Dispose();
+            _indexMirror = newIndexMirror;
+
+            // Dispose old GPU buffers and create new VRAM-resident ones
             _vertexBuffer?.Dispose();
             _indexBuffer?.Dispose();
 
             _vertexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Structured,
-                GraphicsBuffer.UsageFlags.LockBufferForWrite,
+                GraphicsBuffer.UsageFlags.None,
                 newVertCap,
                 s_vertexStride);
 
             _indexBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
-                GraphicsBuffer.UsageFlags.LockBufferForWrite,
+                GraphicsBuffer.UsageFlags.None,
                 newIdxCap,
                 sizeof(int));
 
-            // Re-upload current data to the new GPU buffers via bulk memcpy.
+            // Re-upload current data to the new GPU buffers via SetData(NativeArray).
             // The vertex mirror stores world-offset vertices (applied during WriteDataToMirror),
             // so no per-element transform is needed here — straight copy is correct.
             if (_usedVertices > 0)
             {
-                NativeArray<PackedMeshVertex> gpuVerts = _vertexBuffer.LockBufferForWrite<PackedMeshVertex>(0, _usedVertices);
-
-                unsafe
-                {
-                    void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuVerts);
-
-                    fixed (PackedMeshVertex* srcPtr = &_vertexMirror[0])
-                    {
-                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedVertices * s_vertexStride);
-                    }
-                }
-
-                _vertexBuffer.UnlockBufferAfterWrite<PackedMeshVertex>(_usedVertices);
+                _vertexBuffer.SetData(_vertexMirror, 0, 0, _usedVertices);
             }
 
             if (_usedIndices > 0)
             {
-                NativeArray<int> gpuIdx = _indexBuffer.LockBufferForWrite<int>(0, _usedIndices);
-
-                unsafe
-                {
-                    void* dstPtr = NativeArrayUnsafeUtility.GetUnsafePtr(gpuIdx);
-
-                    fixed (int* srcPtr = &_indexMirror[0])
-                    {
-                        UnsafeUtility.MemCpy(dstPtr, srcPtr, (long)_usedIndices * sizeof(int));
-                    }
-                }
-
-                _indexBuffer.UnlockBufferAfterWrite<int>(_usedIndices);
+                _indexBuffer.SetData(_indexMirror, 0, 0, _usedIndices);
             }
 
             _vertexCapacity = newVertCap;
@@ -677,10 +672,8 @@ namespace Lithforge.Runtime.Rendering
             _argsDirty = true;
 
             // Grow re-uploaded everything — reset dirty ranges
-            _dirtyVertexMin = int.MaxValue;
-            _dirtyVertexMax = -1;
-            _dirtyIndexMin = int.MaxValue;
-            _dirtyIndexMax = -1;
+            _dirtyVertexRanges.Clear();
+            _dirtyIndexRanges.Clear();
 
             PipelineStats.IncrGrow();
 
@@ -784,6 +777,115 @@ namespace Lithforge.Runtime.Rendering
             public int VertexCapacity;
             public int IndexOffset;
             public int IndexCapacity;
+        }
+
+        /// <summary>Half-open interval [Start, End) marking a dirty region in the CPU mirror.</summary>
+        private struct DirtyRange
+        {
+            public int Start;
+            public int End;
+        }
+
+        /// <summary>
+        /// Tracks up to 16 disjoint dirty [Start, End) intervals, sorted by Start.
+        /// Overlapping or adjacent ranges are merged on insertion. If the number of
+        /// ranges would exceed the capacity, all ranges collapse into a single
+        /// bounding interval (graceful degradation). Typical frame produces 1–10 ranges.
+        /// </summary>
+        private struct DirtyRangeList
+        {
+            private const int MaxRanges = 16;
+
+            private DirtyRange[] _ranges;
+            private int _count;
+
+            public int Count
+            {
+                get { return _count; }
+            }
+
+            public DirtyRange this[int index]
+            {
+                get { return _ranges[index]; }
+            }
+
+            /// <summary>
+            /// Adds a dirty interval [start, end). Merges with any overlapping or
+            /// adjacent existing ranges. Collapses to one bounding range on overflow.
+            /// </summary>
+            public void Add(int start, int end)
+            {
+                if (start >= end)
+                {
+                    return;
+                }
+
+                if (_ranges == null)
+                {
+                    _ranges = new DirtyRange[MaxRanges];
+                }
+
+                int mergedStart = start;
+                int mergedEnd = end;
+                int writeIdx = 0;
+
+                // Compact: keep non-overlapping ranges, merge overlapping ones
+                for (int i = 0; i < _count; i++)
+                {
+                    DirtyRange r = _ranges[i];
+
+                    if (r.Start <= end && r.End >= start)
+                    {
+                        mergedStart = math.min(mergedStart, r.Start);
+                        mergedEnd = math.max(mergedEnd, r.End);
+                    }
+                    else
+                    {
+                        _ranges[writeIdx] = r;
+                        writeIdx++;
+                    }
+                }
+
+                if (writeIdx < MaxRanges)
+                {
+                    // Insert merged range in sorted position
+                    int insertAt = writeIdx;
+
+                    for (int i = 0; i < writeIdx; i++)
+                    {
+                        if (_ranges[i].Start > mergedStart)
+                        {
+                            insertAt = i;
+                            break;
+                        }
+                    }
+
+                    for (int i = writeIdx; i > insertAt; i--)
+                    {
+                        _ranges[i] = _ranges[i - 1];
+                    }
+
+                    _ranges[insertAt] = new DirtyRange { Start = mergedStart, End = mergedEnd };
+                    _count = writeIdx + 1;
+                }
+                else
+                {
+                    // Overflow: collapse everything into one bounding range
+                    for (int i = 0; i < writeIdx; i++)
+                    {
+                        mergedStart = math.min(mergedStart, _ranges[i].Start);
+                        mergedEnd = math.max(mergedEnd, _ranges[i].End);
+                    }
+
+                    _ranges[0] = new DirtyRange { Start = mergedStart, End = mergedEnd };
+                    _count = 1;
+                }
+            }
+
+            public void Clear()
+            {
+                _count = 0;
+            }
         }
 
     }
