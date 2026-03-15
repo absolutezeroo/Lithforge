@@ -645,7 +645,6 @@ namespace Lithforge.Runtime.Debug.Benchmark
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             string outputDir = Application.persistentDataPath;
             BenchmarkCsvWriter.Write(result, outputDir, timestamp);
-            BenchmarkPngWriter.Write(result, outputDir, timestamp);
 
             // Build and display summary
             string summary = BuildSummary(result);
