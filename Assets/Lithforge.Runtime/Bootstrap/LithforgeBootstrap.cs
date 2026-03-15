@@ -11,6 +11,7 @@ using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.Debug.Benchmark;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
@@ -707,24 +708,54 @@ namespace Lithforge.Runtime.Bootstrap
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();
                 settingsScreenRef = settingsScreen;
 
-                // Add debug HUD
-                DebugOverlayHUD debugHud = gameObject.AddComponent<DebugOverlayHUD>();
-                debugHud.Initialize(
-                    _gameLoop, _chunkManager, _settings.Debug, _chunkMeshStore,
-                    playerController, _chunkPool);
+                // Create MetricsRegistry — shared data source for overlay and benchmarks
+                MetricsRegistry metricsRegistry = new MetricsRegistry();
+                metricsRegistry.Initialize(
+                    _chunkManager,
+                    _chunkMeshStore,
+                    _chunkPool,
+                    playerController,
+                    mainCamera,
+                    _gameLoop,
+                    _settings.Debug.FpsAlpha);
+                _gameLoop.SetMetricsRegistry(metricsRegistry);
 
-                // Add benchmark runner
+                // Add chunk border renderer (F3+G toggle)
+                ChunkBorderRenderer chunkBorderRenderer = gameObject.AddComponent<ChunkBorderRenderer>();
+                chunkBorderRenderer.Initialize(
+                    metricsRegistry,
+                    mainCamera,
+                    _settings.Debug.ChunkBorderRadius);
+                chunkBorderRenderer.SetVisible(false);
+
+                // Add F3 debug overlay (replaces old IMGUI DebugOverlayHUD)
+                F3DebugOverlay debugOverlay = gameObject.AddComponent<F3DebugOverlay>();
+                debugOverlay.Initialize(
+                    metricsRegistry,
+                    chunkBorderRenderer,
+                    _settings.Debug,
+                    panelSettings);
+
+                // Add benchmark runner (F5 trigger, SO-driven scenarios)
+                BenchmarkContext benchmarkContext = new BenchmarkContext();
+                benchmarkContext.Metrics = metricsRegistry;
+                benchmarkContext.ChunkManager = _chunkManager;
+                benchmarkContext.PlayerController = playerController;
+                benchmarkContext.PlayerTransform = playerObject.transform;
+                benchmarkContext.MainCamera = mainCamera;
+                benchmarkContext.GameLoop = _gameLoop;
+                benchmarkContext.BlockInteraction = blockInteraction;
+
                 BenchmarkRunner benchmarkRunner = gameObject.AddComponent<BenchmarkRunner>();
                 benchmarkRunner.Initialize(
-                    playerController,
-                    playerObject.transform,
-                    _gameLoop,
-                    _settings.Debug.BenchmarkFlySpeed,
-                    _settings.Debug.BenchmarkDuration);
+                    benchmarkContext,
+                    _settings.Debug,
+                    metricsRegistry,
+                    playerController);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
-                    crosshairHUD, hotbarDisplay, inventoryScreen, debugHud,
+                    crosshairHUD, hotbarDisplay, inventoryScreen, debugOverlay,
                     settingsScreen, screenManager);
                 hudVisibility.HideAll();
 

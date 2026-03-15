@@ -39,6 +39,7 @@ namespace Lithforge.Runtime
         private PlayerController _playerController;
         private BlockInteraction _blockInteraction;
         private AutoSaveManager _autoSaveManager;
+        private Debug.MetricsRegistry _metricsRegistry;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
 
@@ -192,6 +193,15 @@ namespace Lithforge.Runtime
             _autoSaveManager = autoSaveManager;
         }
 
+        /// <summary>
+        /// Sets the MetricsRegistry for per-frame diagnostic aggregation.
+        /// CommitFrame() is called once per Update after FrameProfiler/PipelineStats have run.
+        /// </summary>
+        public void SetMetricsRegistry(Debug.MetricsRegistry metricsRegistry)
+        {
+            _metricsRegistry = metricsRegistry;
+        }
+
         private void Update()
         {
             if (!_initialized)
@@ -201,6 +211,12 @@ namespace Lithforge.Runtime
 
             FrameProfiler.BeginFrame();
             PipelineStats.BeginFrame();
+
+            if (_metricsRegistry != null)
+            {
+                _metricsRegistry.CommitFrame();
+            }
+
             FrameProfiler.Begin(FrameProfiler.UpdateTotal);
 
             Profiler.BeginSample("GL.PollGen");

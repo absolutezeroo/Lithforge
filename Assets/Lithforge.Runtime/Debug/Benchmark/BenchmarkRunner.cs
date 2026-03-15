@@ -1,0 +1,606 @@
+using System;
+using System.Collections;
+using System.Text;
+using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Input;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace Lithforge.Runtime.Debug.Benchmark
+{
+    /// <summary>
+    /// Coroutine-based benchmark runner that executes BenchmarkScenario assets.
+    /// Activated by F5. Each scenario contains phases with warmup and measurement frames.
+    /// During measurement, per-frame data is recorded into pre-allocated parallel arrays.
+    /// On completion, writes CSV + PNG reports and logs a summary.
+    /// </summary>
+    public sealed class BenchmarkRunner : MonoBehaviour
+    {
+        private BenchmarkContext _context;
+        private DebugSettings _settings;
+        private MetricsRegistry _metrics;
+        private PlayerController _playerController;
+
+        private bool _running;
+        private Coroutine _activeCoroutine;
+
+        // Pre-allocated parallel arrays for per-frame recording
+        private int _capacity;
+        private float[] _frameMs;
+        private float[][] _sectionMs;
+        private int[] _genCompleted;
+        private int[] _meshCompleted;
+        private int[] _lodCompleted;
+        private long[] _gpuUploadBytes;
+        private int[] _gpuUploadCount;
+        private int[] _growEvents;
+        private int[] _gcGen0;
+        private int[] _gcGen1;
+        private int[] _gcGen2;
+
+        // Results display
+        private string _lastSummary;
+        private float _summaryDisplayTimer;
+        private const float SummaryDisplayDuration = 15f;
+
+        // Pre-allocated StringBuilder for summary
+        private readonly StringBuilder _summaryBuilder = new StringBuilder(2048);
+
+        public bool IsRunning
+        {
+            get { return _running; }
+        }
+
+        public string LastSummary
+        {
+            get { return _lastSummary; }
+        }
+
+        public float SummaryDisplayTimer
+        {
+            get { return _summaryDisplayTimer; }
+        }
+
+        public void Initialize(
+            BenchmarkContext context,
+            DebugSettings settings,
+            MetricsRegistry metrics,
+            PlayerController playerController)
+        {
+            _context = context;
+            _settings = settings;
+            _metrics = metrics;
+            _playerController = playerController;
+
+            // Pre-allocate for estimated max frames (e.g., 10 phases * 300 measurement * 200fps)
+            _capacity = 60000;
+            AllocateArrays(_capacity);
+        }
+
+        private void AllocateArrays(int capacity)
+        {
+            _frameMs = new float[capacity];
+            _sectionMs = new float[FrameProfiler.SectionCount][];
+
+            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            {
+                _sectionMs[i] = new float[capacity];
+            }
+
+            _genCompleted = new int[capacity];
+            _meshCompleted = new int[capacity];
+            _lodCompleted = new int[capacity];
+            _gpuUploadBytes = new long[capacity];
+            _gpuUploadCount = new int[capacity];
+            _growEvents = new int[capacity];
+            _gcGen0 = new int[capacity];
+            _gcGen1 = new int[capacity];
+            _gcGen2 = new int[capacity];
+        }
+
+        private void Update()
+        {
+            // Countdown summary display timer
+            if (_summaryDisplayTimer > 0f)
+            {
+                _summaryDisplayTimer -= Time.unscaledDeltaTime;
+            }
+
+            if (_running)
+            {
+                return;
+            }
+
+            // F5 to start benchmark
+            Keyboard keyboard = Keyboard.current;
+
+            if (keyboard != null && keyboard.f5Key.wasPressedThisFrame)
+            {
+                if (_context != null && _context.GameLoop != null && _context.GameLoop.SpawnReady)
+                {
+                    BenchmarkScenario scenario = _settings.DefaultBenchmarkScenario;
+
+                    if (scenario != null)
+                    {
+                        StartScenario(scenario);
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogWarning(
+                            "[Benchmark] No default benchmark scenario configured in DebugSettings.");
+                    }
+                }
+            }
+        }
+
+        public void StartScenario(BenchmarkScenario scenario)
+        {
+            if (_running)
+            {
+                UnityEngine.Debug.LogWarning("[Benchmark] Already running.");
+                return;
+            }
+
+            _running = true;
+            _lastSummary = null;
+            _activeCoroutine = StartCoroutine(RunScenarioCoroutine(scenario));
+        }
+
+        private IEnumerator RunScenarioCoroutine(BenchmarkScenario scenario)
+        {
+            UnityEngine.Debug.Log("[Benchmark] Starting scenario: " + scenario.ScenarioName);
+
+            // Enable profiling
+            FrameProfiler.Enabled = true;
+            PipelineStats.Enabled = true;
+
+            // Disable player controller to prevent input interference
+            bool wasPlayerEnabled = false;
+
+            if (_playerController != null)
+            {
+                wasPlayerEnabled = _playerController.enabled;
+                _playerController.enabled = false;
+            }
+
+            int totalRecordedFrames = 0;
+            BenchmarkPhase[] phases = scenario.Phases;
+
+            if (phases == null || phases.Length == 0)
+            {
+                UnityEngine.Debug.LogWarning("[Benchmark] Scenario has no phases.");
+                FinishRun(null);
+                yield break;
+            }
+
+            for (int p = 0; p < phases.Length; p++)
+            {
+                BenchmarkPhase phase = phases[p];
+                UnityEngine.Debug.Log("[Benchmark] Phase " + (p + 1) + "/" + phases.Length +
+                    ": " + phase.PhaseName);
+
+                // Execute all commands in the phase
+                BenchmarkCommand[] commands = phase.Commands;
+
+                if (commands != null)
+                {
+                    for (int c = 0; c < commands.Length; c++)
+                    {
+                        if (commands[c] != null)
+                        {
+                            IEnumerator exec = commands[c].Execute(_context);
+
+                            while (exec.MoveNext())
+                            {
+                                yield return exec.Current;
+                            }
+                        }
+                    }
+                }
+
+                // Warmup frames — just wait, don't record
+                for (int w = 0; w < phase.WarmupFrames; w++)
+                {
+                    yield return null;
+                }
+
+                // Measurement frames — record per-frame data
+                int measureStart = totalRecordedFrames;
+
+                // Ensure capacity
+                int needed = totalRecordedFrames + phase.MeasurementFrames;
+
+                if (needed > _capacity)
+                {
+                    int newCapacity = Mathf.Max(needed, _capacity * 2);
+                    GrowArrays(newCapacity);
+                }
+
+                for (int m = 0; m < phase.MeasurementFrames; m++)
+                {
+                    yield return null;
+
+                    int f = totalRecordedFrames;
+                    MetricSnapshot snap = _metrics.CurrentSnapshot;
+
+                    _frameMs[f] = snap.FrameMs;
+
+                    for (int i = 0; i < FrameProfiler.SectionCount; i++)
+                    {
+                        _sectionMs[i][f] = snap.GetSectionMs(i);
+                    }
+
+                    _genCompleted[f] = snap.GenCompleted;
+                    _meshCompleted[f] = snap.MeshCompleted;
+                    _lodCompleted[f] = snap.LodCompleted;
+                    _gpuUploadBytes[f] = snap.GpuUploadBytes;
+                    _gpuUploadCount[f] = snap.GpuUploadCount;
+                    _growEvents[f] = snap.GrowEvents;
+                    _gcGen0[f] = snap.GcGen0;
+                    _gcGen1[f] = snap.GcGen1;
+                    _gcGen2[f] = snap.GcGen2;
+
+                    totalRecordedFrames++;
+                }
+            }
+
+            // Re-enable player
+            if (_playerController != null)
+            {
+                _playerController.enabled = wasPlayerEnabled;
+            }
+
+            // Build result
+            BenchmarkResult result = BuildResult(scenario, totalRecordedFrames);
+
+            // Write outputs
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            string outputDir = Application.persistentDataPath;
+            BenchmarkCsvWriter.Write(result, outputDir, timestamp);
+            BenchmarkPngWriter.Write(result, outputDir, timestamp);
+
+            // Build and display summary
+            string summary = BuildSummary(result);
+            _lastSummary = summary;
+            _summaryDisplayTimer = SummaryDisplayDuration;
+            UnityEngine.Debug.Log(summary);
+
+            _running = false;
+            _activeCoroutine = null;
+        }
+
+        private void GrowArrays(int newCapacity)
+        {
+            float[] newFrameMs = new float[newCapacity];
+            Array.Copy(_frameMs, newFrameMs, _capacity);
+            _frameMs = newFrameMs;
+
+            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            {
+                float[] newSection = new float[newCapacity];
+                Array.Copy(_sectionMs[i], newSection, _capacity);
+                _sectionMs[i] = newSection;
+            }
+
+            int[] newGenCompleted = new int[newCapacity];
+            Array.Copy(_genCompleted, newGenCompleted, _capacity);
+            _genCompleted = newGenCompleted;
+
+            int[] newMeshCompleted = new int[newCapacity];
+            Array.Copy(_meshCompleted, newMeshCompleted, _capacity);
+            _meshCompleted = newMeshCompleted;
+
+            int[] newLodCompleted = new int[newCapacity];
+            Array.Copy(_lodCompleted, newLodCompleted, _capacity);
+            _lodCompleted = newLodCompleted;
+
+            long[] newGpuUploadBytes = new long[newCapacity];
+            Array.Copy(_gpuUploadBytes, newGpuUploadBytes, _capacity);
+            _gpuUploadBytes = newGpuUploadBytes;
+
+            int[] newGpuUploadCount = new int[newCapacity];
+            Array.Copy(_gpuUploadCount, newGpuUploadCount, _capacity);
+            _gpuUploadCount = newGpuUploadCount;
+
+            int[] newGrowEvents = new int[newCapacity];
+            Array.Copy(_growEvents, newGrowEvents, _capacity);
+            _growEvents = newGrowEvents;
+
+            int[] newGcGen0 = new int[newCapacity];
+            Array.Copy(_gcGen0, newGcGen0, _capacity);
+            _gcGen0 = newGcGen0;
+
+            int[] newGcGen1 = new int[newCapacity];
+            Array.Copy(_gcGen1, newGcGen1, _capacity);
+            _gcGen1 = newGcGen1;
+
+            int[] newGcGen2 = new int[newCapacity];
+            Array.Copy(_gcGen2, newGcGen2, _capacity);
+            _gcGen2 = newGcGen2;
+
+            _capacity = newCapacity;
+        }
+
+        private BenchmarkResult BuildResult(BenchmarkScenario scenario, int totalFrames)
+        {
+            BenchmarkResult result = new BenchmarkResult();
+            result.ScenarioName = scenario.ScenarioName;
+            result.TotalFrames = totalFrames;
+
+            // Assign array references
+            result.FrameMs = _frameMs;
+            result.SectionMs = _sectionMs;
+            result.GenCompleted = _genCompleted;
+            result.MeshCompleted = _meshCompleted;
+            result.LodCompleted = _lodCompleted;
+            result.GpuUploadBytes = _gpuUploadBytes;
+            result.GpuUploadCount = _gpuUploadCount;
+            result.GrowEvents = _growEvents;
+            result.GcGen0 = _gcGen0;
+            result.GcGen1 = _gcGen1;
+            result.GcGen2 = _gcGen2;
+
+            if (totalFrames == 0)
+            {
+                return result;
+            }
+
+            // Compute timing stats
+            float totalMs = 0f;
+            float minMs = float.MaxValue;
+            float maxMs = 0f;
+
+            for (int i = 0; i < totalFrames; i++)
+            {
+                float ms = _frameMs[i];
+                totalMs += ms;
+
+                if (ms < minMs)
+                {
+                    minMs = ms;
+                }
+
+                if (ms > maxMs)
+                {
+                    maxMs = ms;
+                }
+            }
+
+            float avgMs = Mathf.Max(totalMs / totalFrames, 0.001f);
+            result.DurationSeconds = totalMs / 1000f;
+            result.AvgFrameMs = avgMs;
+            result.MinFrameMs = minMs;
+            result.MaxFrameMs = maxMs;
+
+            // Percentiles (sorted copy)
+            float[] sortedMs = new float[totalFrames];
+            Array.Copy(_frameMs, sortedMs, totalFrames);
+            Array.Sort(sortedMs);
+
+            result.P1FrameMs = Mathf.Max(sortedMs[(int)(totalFrames * 0.01f)], 0.001f);
+            result.P99FrameMs = Mathf.Max(
+                sortedMs[Math.Min((int)(totalFrames * 0.99f), totalFrames - 1)], 0.001f);
+
+            // FPS stats
+            result.AvgFps = 1000f / avgMs;
+            result.MinFps = 1000f / Mathf.Max(maxMs, 0.001f);
+            result.MaxFps = 1000f / Mathf.Max(minMs, 0.001f);
+            result.P1Fps = 1000f / result.P99FrameMs;
+            result.P99Fps = 1000f / result.P1FrameMs;
+
+            // Pipeline totals
+            int totalGen = 0;
+            int totalMesh = 0;
+            long totalGpuBytes = 0;
+            int totalGrow = 0;
+
+            for (int f = 0; f < totalFrames; f++)
+            {
+                totalGen += _genCompleted[f];
+                totalMesh += _meshCompleted[f];
+                totalGpuBytes += _gpuUploadBytes[f];
+                totalGrow += _growEvents[f];
+            }
+
+            result.TotalGenerated = totalGen;
+            result.TotalMeshed = totalMesh;
+            result.TotalGpuUploadBytes = totalGpuBytes;
+            result.TotalGrowEvents = totalGrow;
+
+            // Section averages and top costs
+            float[] sectionAvg = new float[FrameProfiler.SectionCount];
+
+            for (int s = 0; s < FrameProfiler.SectionCount; s++)
+            {
+                float sum = 0f;
+
+                for (int f = 0; f < totalFrames; f++)
+                {
+                    sum += _sectionMs[s][f];
+                }
+
+                sectionAvg[s] = sum / totalFrames;
+            }
+
+            // Sort section indices by avg ms descending
+            int[] sectionOrder = new int[FrameProfiler.SectionCount];
+
+            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            {
+                sectionOrder[i] = i;
+            }
+
+            for (int i = 1; i < sectionOrder.Length; i++)
+            {
+                int key = sectionOrder[i];
+                int j = i - 1;
+
+                while (j >= 0 && sectionAvg[sectionOrder[j]] < sectionAvg[key])
+                {
+                    sectionOrder[j + 1] = sectionOrder[j];
+                    j--;
+                }
+
+                sectionOrder[j + 1] = key;
+            }
+
+            // Top 4 non-aggregate sections
+            int[] topIndices = new int[4];
+            float[] topAvgs = new float[4];
+            int filled = 0;
+
+            for (int i = 0; i < sectionOrder.Length && filled < 4; i++)
+            {
+                int s = sectionOrder[i];
+
+                if (s == FrameProfiler.UpdateTotal || s == FrameProfiler.Frame)
+                {
+                    continue;
+                }
+
+                topIndices[filled] = s;
+                topAvgs[filled] = sectionAvg[s];
+                filled++;
+            }
+
+            result.TopSectionIndices = topIndices;
+            result.TopSectionAvgMs = topAvgs;
+
+            // Bottleneck detection
+            float budgetMs = 16.667f;
+            result.BottleneckDescription = "None detected";
+
+            for (int i = 0; i < sectionOrder.Length; i++)
+            {
+                int s = sectionOrder[i];
+
+                if (s == FrameProfiler.UpdateTotal || s == FrameProfiler.Frame)
+                {
+                    continue;
+                }
+
+                float pct = (sectionAvg[s] / budgetMs) * 100f;
+
+                if (pct >= 15f)
+                {
+                    result.BottleneckDescription = FrameProfiler.SectionNames[s] + " (" +
+                        sectionAvg[s].ToString("F1") + "ms, " +
+                        pct.ToString("F1") + "% of frame)";
+                    break;
+                }
+            }
+
+            // Pass/fail
+            result.MaxAvgFrameTimeMs = scenario.MaxAvgFrameTimeMs;
+            result.Passed = avgMs <= scenario.MaxAvgFrameTimeMs;
+
+            return result;
+        }
+
+        private string BuildSummary(BenchmarkResult result)
+        {
+            if (result.TotalFrames == 0)
+            {
+                return "[Benchmark] No frames recorded.";
+            }
+
+            _summaryBuilder.Clear();
+            _summaryBuilder.AppendLine("=== BENCHMARK RESULTS ===");
+            _summaryBuilder.Append("Scenario:  ");
+            _summaryBuilder.AppendLine(result.ScenarioName);
+
+            _summaryBuilder.Append("Duration:  ");
+            _summaryBuilder.Append(result.DurationSeconds.ToString("F1"));
+            _summaryBuilder.Append("s  |  Frames: ");
+            _summaryBuilder.AppendLine(result.TotalFrames.ToString());
+
+            _summaryBuilder.Append("FPS:       avg ");
+            _summaryBuilder.Append(result.AvgFps.ToString("F1"));
+            _summaryBuilder.Append("  min ");
+            _summaryBuilder.Append(result.MinFps.ToString("F0"));
+            _summaryBuilder.Append("  max ");
+            _summaryBuilder.Append(result.MaxFps.ToString("F0"));
+            _summaryBuilder.Append("  p1 ");
+            _summaryBuilder.Append(result.P1Fps.ToString("F0"));
+            _summaryBuilder.Append("  p99 ");
+            _summaryBuilder.AppendLine(result.P99Fps.ToString("F0"));
+
+            _summaryBuilder.Append("Frame:     avg ");
+            _summaryBuilder.Append(result.AvgFrameMs.ToString("F1"));
+            _summaryBuilder.Append("ms  max ");
+            _summaryBuilder.Append(result.MaxFrameMs.ToString("F1"));
+            _summaryBuilder.Append("ms  p99 ");
+            _summaryBuilder.Append(result.P99FrameMs.ToString("F1"));
+            _summaryBuilder.AppendLine("ms");
+
+            _summaryBuilder.AppendLine("--- Top costs (avg ms) ---");
+
+            for (int i = 0; i < result.TopSectionIndices.Length; i++)
+            {
+                int s = result.TopSectionIndices[i];
+                float avg = result.TopSectionAvgMs[i];
+
+                if (avg < 0.001f)
+                {
+                    break;
+                }
+
+                float pct = (avg / result.AvgFrameMs) * 100f;
+                _summaryBuilder.Append(FrameProfiler.SectionNames[s]);
+                _summaryBuilder.Append(":  ");
+                _summaryBuilder.Append(avg.ToString("F1"));
+                _summaryBuilder.Append("ms (");
+                _summaryBuilder.Append(pct.ToString("F1"));
+                _summaryBuilder.AppendLine("%)");
+            }
+
+            float durationSec = Mathf.Max(result.DurationSeconds, 0.001f);
+            _summaryBuilder.AppendLine("--- Pipeline ---");
+            _summaryBuilder.Append("Generated:  ");
+            _summaryBuilder.Append(result.TotalGenerated);
+            _summaryBuilder.Append(" chunks  (");
+            _summaryBuilder.Append((result.TotalGenerated / durationSec).ToString("F1"));
+            _summaryBuilder.AppendLine("/s)");
+
+            _summaryBuilder.Append("Meshed:     ");
+            _summaryBuilder.Append(result.TotalMeshed);
+            _summaryBuilder.Append(" chunks  (");
+            _summaryBuilder.Append((result.TotalMeshed / durationSec).ToString("F1"));
+            _summaryBuilder.AppendLine("/s)");
+
+            float gpuMb = result.TotalGpuUploadBytes / (1024f * 1024f);
+            _summaryBuilder.Append("GPU Upload: ");
+            _summaryBuilder.Append(gpuMb.ToString("F1"));
+            _summaryBuilder.Append(" MB total  (");
+            _summaryBuilder.Append((gpuMb / durationSec).ToString("F1"));
+            _summaryBuilder.AppendLine(" MB/s)");
+
+            _summaryBuilder.Append("Grow events: ");
+            _summaryBuilder.AppendLine(result.TotalGrowEvents.ToString());
+
+            _summaryBuilder.AppendLine("--- Bottleneck ---");
+            _summaryBuilder.AppendLine(result.BottleneckDescription);
+
+            _summaryBuilder.Append("--- Result: ");
+            _summaryBuilder.Append(result.Passed ? "PASS" : "FAIL");
+            _summaryBuilder.Append(" (threshold: ");
+            _summaryBuilder.Append(result.MaxAvgFrameTimeMs.ToString("F1"));
+            _summaryBuilder.AppendLine("ms avg) ---");
+
+            _summaryBuilder.Append("=========================");
+
+            return _summaryBuilder.ToString();
+        }
+
+        private void FinishRun(BenchmarkResult result)
+        {
+            _running = false;
+            _activeCoroutine = null;
+
+            if (_playerController != null)
+            {
+                _playerController.enabled = true;
+            }
+        }
+    }
+}

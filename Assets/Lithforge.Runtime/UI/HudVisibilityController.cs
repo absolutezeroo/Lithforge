@@ -12,7 +12,7 @@ namespace Lithforge.Runtime.UI
         private readonly CrosshairHUD _crosshairHud;
         private readonly HotbarDisplay _hotbarDisplay;
         private readonly IContainerScreen _inventoryScreen;
-        private readonly DebugOverlayHUD _debugHud;
+        private readonly F3DebugOverlay _debugOverlay;
         private readonly SettingsScreen _settingsScreen;
         private readonly ContainerScreenManager _screenManager;
 
@@ -20,14 +20,14 @@ namespace Lithforge.Runtime.UI
             CrosshairHUD crosshairHud,
             HotbarDisplay hotbarDisplay,
             IContainerScreen inventoryScreen,
-            DebugOverlayHUD debugHud,
+            F3DebugOverlay debugOverlay,
             SettingsScreen settingsScreen,
             ContainerScreenManager screenManager)
         {
             _crosshairHud = crosshairHud;
             _hotbarDisplay = hotbarDisplay;
             _inventoryScreen = inventoryScreen;
-            _debugHud = debugHud;
+            _debugOverlay = debugOverlay;
             _settingsScreen = settingsScreen;
             _screenManager = screenManager;
         }
@@ -52,9 +52,9 @@ namespace Lithforge.Runtime.UI
                 _inventoryScreen.SetVisible(false);
             }
 
-            if (_debugHud != null)
+            if (_debugOverlay != null)
             {
-                _debugHud.SetVisible(false);
+                _debugOverlay.SetVisible(false);
             }
 
             if (_settingsScreen != null)
@@ -86,9 +86,9 @@ namespace Lithforge.Runtime.UI
                 _hotbarDisplay.SetVisible(true);
             }
 
-            if (_debugHud != null)
+            if (_debugOverlay != null)
             {
-                _debugHud.SetVisible(true);
+                _debugOverlay.SetVisible(true);
             }
 
             // Restore InventoryScreen root so the E-key toggle can show _panel.

@@ -1,0 +1,80 @@
+using System.Globalization;
+using System.IO;
+using System.Text;
+using UnityEngine;
+
+namespace Lithforge.Runtime.Debug.Benchmark
+{
+    /// <summary>
+    /// Writes benchmark per-frame data to CSV. Extracts the CSV writing concern
+    /// from the benchmark runner so it can be reused across different output strategies.
+    /// </summary>
+    public static class BenchmarkCsvWriter
+    {
+        public static void Write(BenchmarkResult result, string outputDir, string timestamp)
+        {
+            int count = result.TotalFrames;
+
+            if (count == 0)
+            {
+                return;
+            }
+
+            StringBuilder csv = new StringBuilder(1024 * 64);
+
+            // Header
+            csv.Append("frame_index,frame_ms");
+
+            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            {
+                csv.Append(',');
+                csv.Append(FrameProfiler.SectionNames[i]);
+                csv.Append("_ms");
+            }
+
+            csv.Append(",gen_completed,mesh_completed,lod_completed");
+            csv.Append(",gpu_upload_bytes,gpu_upload_count,grow_events");
+            csv.Append(",gc_gen0,gc_gen1,gc_gen2");
+            csv.AppendLine();
+
+            // Data rows
+            for (int f = 0; f < count; f++)
+            {
+                csv.Append(f);
+                csv.Append(',');
+                csv.Append(result.FrameMs[f].ToString("F3", CultureInfo.InvariantCulture));
+
+                for (int i = 0; i < FrameProfiler.SectionCount; i++)
+                {
+                    csv.Append(',');
+                    csv.Append(result.SectionMs[i][f].ToString("F3", CultureInfo.InvariantCulture));
+                }
+
+                csv.Append(',');
+                csv.Append(result.GenCompleted[f]);
+                csv.Append(',');
+                csv.Append(result.MeshCompleted[f]);
+                csv.Append(',');
+                csv.Append(result.LodCompleted[f]);
+                csv.Append(',');
+                csv.Append(result.GpuUploadBytes[f]);
+                csv.Append(',');
+                csv.Append(result.GpuUploadCount[f]);
+                csv.Append(',');
+                csv.Append(result.GrowEvents[f]);
+                csv.Append(',');
+                csv.Append(result.GcGen0[f]);
+                csv.Append(',');
+                csv.Append(result.GcGen1[f]);
+                csv.Append(',');
+                csv.Append(result.GcGen2[f]);
+                csv.AppendLine();
+            }
+
+            string path = Path.Combine(outputDir,
+                result.ScenarioName.Replace(' ', '_') + "_" + timestamp + ".csv");
+            File.WriteAllText(path, csv.ToString());
+            UnityEngine.Debug.Log("[Benchmark] CSV written to: " + path);
+        }
+    }
+}
