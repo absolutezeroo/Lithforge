@@ -121,7 +121,7 @@ namespace Lithforge.WorldGen.Pipeline
                 ErosionNoise = _erosionNoise,
             };
 
-            JobHandle climateHandle = climateJob.Schedule();
+            JobHandle climateHandle = climateJob.Schedule(ChunkConstants.SizeSquared, 64);
 
             // Stage 2: Terrain shape with biome-weighted height blending
             TerrainShapeJob terrainJob = new TerrainShapeJob
@@ -155,7 +155,7 @@ namespace Lithforge.WorldGen.Pipeline
                 RiverFlags = riverFlags,
             };
 
-            JobHandle riverNoiseHandle = riverNoiseJob.Schedule(terrainHandle);
+            JobHandle riverNoiseHandle = riverNoiseJob.Schedule(ChunkConstants.SizeSquared, 64, terrainHandle);
 
             // Stage 4: River carving (3D, applies carve depth to voxel array)
             RiverCarveJob riverCarveJob = new RiverCarveJob

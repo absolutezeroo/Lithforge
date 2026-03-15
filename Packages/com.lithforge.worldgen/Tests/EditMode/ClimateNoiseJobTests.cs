@@ -84,7 +84,7 @@ namespace Lithforge.WorldGen.Tests
                     ErosionNoise = _erosionNoise,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 64).Complete();
 
                 for (int i = 0; i < ChunkConstants.SizeSquared; i++)
                 {
@@ -137,8 +137,8 @@ namespace Lithforge.WorldGen.Tests
                     ErosionNoise = _erosionNoise,
                 };
 
-                job1.Schedule().Complete();
-                job2.Schedule().Complete();
+                job1.Schedule(ChunkConstants.SizeSquared, 64).Complete();
+                job2.Schedule(ChunkConstants.SizeSquared, 64).Complete();
 
                 for (int i = 0; i < ChunkConstants.SizeSquared; i++)
                 {

@@ -19,7 +19,7 @@ namespace Lithforge.WorldGen.Stages
     /// Dispose: GenerationHandle.Dispose after downstream jobs complete.
     /// </summary>
     [BurstCompile]
-    public struct ClimateNoiseJob : IJob
+    public struct ClimateNoiseJob : IJobParallelFor
     {
         [WriteOnly] public NativeArray<ClimateData> ClimateMap;
 
@@ -30,38 +30,30 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public NativeNoiseConfig ContinentalnessNoise;
         [ReadOnly] public NativeNoiseConfig ErosionNoise;
 
-        public void Execute()
+        public void Execute(int columnIndex)
         {
-            int chunkWorldX = ChunkCoord.x * ChunkConstants.Size;
-            int chunkWorldZ = ChunkCoord.z * ChunkConstants.Size;
+            int x = columnIndex & (ChunkConstants.Size - 1);
+            int z = columnIndex >> 5;
 
-            for (int z = 0; z < ChunkConstants.Size; z++)
+            float worldX = ChunkCoord.x * ChunkConstants.Size + x;
+            float worldZ = ChunkCoord.z * ChunkConstants.Size + z;
+
+            float temperature = NativeNoise.Sample2D(
+                worldX, worldZ, TemperatureNoise, Seed) * 0.5f + 0.5f;
+            float humidity = NativeNoise.Sample2D(
+                worldX, worldZ, HumidityNoise, Seed) * 0.5f + 0.5f;
+            float continentalness = NativeNoise.Sample2DCnoise(
+                worldX, worldZ, ContinentalnessNoise, Seed) * 0.5f + 0.5f;
+            float erosion = NativeNoise.Sample2DCnoise(
+                worldX, worldZ, ErosionNoise, Seed) * 0.5f + 0.5f;
+
+            ClimateMap[columnIndex] = new ClimateData
             {
-                for (int x = 0; x < ChunkConstants.Size; x++)
-                {
-                    float worldX = chunkWorldX + x;
-                    float worldZ = chunkWorldZ + z;
-
-                    float temperature = NativeNoise.Sample2D(
-                        worldX, worldZ, TemperatureNoise, Seed) * 0.5f + 0.5f;
-                    float humidity = NativeNoise.Sample2D(
-                        worldX, worldZ, HumidityNoise, Seed) * 0.5f + 0.5f;
-                    float continentalness = NativeNoise.Sample2DCnoise(
-                        worldX, worldZ, ContinentalnessNoise, Seed) * 0.5f + 0.5f;
-                    float erosion = NativeNoise.Sample2DCnoise(
-                        worldX, worldZ, ErosionNoise, Seed) * 0.5f + 0.5f;
-
-                    int columnIndex = z * ChunkConstants.Size + x;
-
-                    ClimateMap[columnIndex] = new ClimateData
-                    {
-                        Temperature = math.clamp(temperature, 0.0f, 1.0f),
-                        Humidity = math.clamp(humidity, 0.0f, 1.0f),
-                        Continentalness = math.clamp(continentalness, 0.0f, 1.0f),
-                        Erosion = math.clamp(erosion, 0.0f, 1.0f),
-                    };
-                }
-            }
+                Temperature = math.clamp(temperature, 0.0f, 1.0f),
+                Humidity = math.clamp(humidity, 0.0f, 1.0f),
+                Continentalness = math.clamp(continentalness, 0.0f, 1.0f),
+                Erosion = math.clamp(erosion, 0.0f, 1.0f),
+            };
         }
     }
 }

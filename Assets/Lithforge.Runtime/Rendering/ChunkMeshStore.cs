@@ -35,7 +35,6 @@ namespace Lithforge.Runtime.Rendering
         private static readonly Bounds s_worldBounds =
             new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
-        private readonly HashSet<int3> _activeChunks = new HashSet<int3>();
         private readonly MegaMeshBuffer _opaqueBuffer;
         private readonly MegaMeshBuffer _cutoutBuffer;
         private readonly MegaMeshBuffer _translucentBuffer;
@@ -66,13 +65,15 @@ namespace Lithforge.Runtime.Rendering
         private readonly Plane[] _frustumPlanes = new Plane[6];
 
         // --- Shared slot ID space (same slot ID for a chunk across all 3 layers) ---
+        // Swap-and-pop: active slots are always contiguous in 0.._activeCount-1.
+        // When a chunk is destroyed, its slot is swapped with the last active slot.
         private readonly Dictionary<int3, int> _coordToSlotId = new Dictionary<int3, int>();
-        private readonly Stack<int> _freeSlotIds = new Stack<int>();
-        private readonly SortedSet<int> _activeSlotIds = new SortedSet<int>();
+        private int3[] _slotToCoord;
+        private int _activeCount;
 
         public int RendererCount
         {
-            get { return _activeChunks.Count; }
+            get { return _activeCount; }
         }
 
         public MegaMeshBuffer OpaqueBuffer
@@ -188,11 +189,7 @@ namespace Lithforge.Runtime.Rendering
             ChunkBoundsGPU[] zeroBounds = new ChunkBoundsGPU[maxChunkSlots];
             _chunkBoundsBuffer.SetData(zeroBounds);
 
-            // Pre-fill shared free slot IDs (push in reverse so Pop returns 0 first)
-            for (int i = maxChunkSlots - 1; i >= 0; i--)
-            {
-                _freeSlotIds.Push(i);
-            }
+            _slotToCoord = new int3[maxChunkSlots];
         }
 
         /// <summary>
@@ -208,7 +205,6 @@ namespace Lithforge.Runtime.Rendering
             _opaqueBuffer.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
             _cutoutBuffer.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
             _translucentBuffer.AllocateOrUpdate(coord, translucentVerts, translucentIndices);
-            _activeChunks.Add(coord);
 
             int slotId = EnsureSlotId(coord);
             _opaqueBuffer.UpdatePerChunkArgs(slotId, coord);
@@ -228,7 +224,6 @@ namespace Lithforge.Runtime.Rendering
             _opaqueBuffer.AllocateOrUpdate(coord, vertices, indices);
             _cutoutBuffer.Free(coord);
             _translucentBuffer.Free(coord);
-            _activeChunks.Add(coord);
 
             int slotId = EnsureSlotId(coord);
             _opaqueBuffer.UpdatePerChunkArgs(slotId, coord);
@@ -239,8 +234,8 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Ensures a shared slot ID exists for the given chunk coordinate.
-        /// Allocates one from the free pool if this is a new chunk.
-        /// Grows the slot infrastructure if the pool is exhausted.
+        /// New chunks are appended at _activeCount (contiguous packing).
+        /// Grows the slot infrastructure if capacity is exceeded.
         /// </summary>
         private int EnsureSlotId(int3 coord)
         {
@@ -249,14 +244,15 @@ namespace Lithforge.Runtime.Rendering
                 return slotId;
             }
 
-            if (_freeSlotIds.Count == 0)
+            if (_activeCount >= _maxChunkSlots)
             {
                 GrowSlotCapacity();
             }
 
-            slotId = _freeSlotIds.Pop();
+            slotId = _activeCount;
+            _slotToCoord[_activeCount] = coord;
+            _activeCount++;
             _coordToSlotId[coord] = slotId;
-            _activeSlotIds.Add(slotId);
             return slotId;
         }
 
@@ -288,11 +284,7 @@ namespace Lithforge.Runtime.Rendering
             _chunkBoundsBuffer.Dispose();
             _chunkBoundsBuffer = newBoundsBuffer;
 
-            // Push new slot IDs (reverse order so Pop returns lowest first)
-            for (int i = newMax - 1; i >= oldMax; i--)
-            {
-                _freeSlotIds.Push(i);
-            }
+            Array.Resize(ref _slotToCoord, newMax);
 
             _maxChunkSlots = newMax;
 
@@ -343,7 +335,9 @@ namespace Lithforge.Runtime.Rendering
             _translucentBuffer.FlushArgs();
 
             // GPU culling: frustum + optional Hi-Z occlusion
-            int activeSlotCount = _activeSlotIds.Count > 0 ? _activeSlotIds.Max + 1 : 0;
+            // Swap-and-pop keeps active slots contiguous in 0.._activeCount-1,
+            // so commandCount is always exact — no wasted GPU work on empty gaps.
+            int activeSlotCount = _activeCount;
 
             if (_frustumCullShader != null && activeSlotCount > 0)
             {
@@ -471,26 +465,36 @@ namespace Lithforge.Runtime.Rendering
             _opaqueBuffer.Free(coord);
             _cutoutBuffer.Free(coord);
             _translucentBuffer.Free(coord);
-            _activeChunks.Remove(coord);
 
             if (_coordToSlotId.TryGetValue(coord, out int slotId))
             {
-                _opaqueBuffer.ZeroPerChunkArgs(slotId);
-                _cutoutBuffer.ZeroPerChunkArgs(slotId);
-                _translucentBuffer.ZeroPerChunkArgs(slotId);
+                int lastSlot = _activeCount - 1;
+
+                if (slotId != lastSlot)
+                {
+                    // Swap: move the last active chunk's draw data into the freed slot
+                    int3 lastCoord = _slotToCoord[lastSlot];
+
+                    _opaqueBuffer.UpdatePerChunkArgs(slotId, lastCoord);
+                    _cutoutBuffer.UpdatePerChunkArgs(slotId, lastCoord);
+                    _translucentBuffer.UpdatePerChunkArgs(slotId, lastCoord);
+                    UpdateChunkBounds(lastCoord, slotId);
+
+                    _coordToSlotId[lastCoord] = slotId;
+                    _slotToCoord[slotId] = lastCoord;
+                }
+
+                _activeCount--;
                 _coordToSlotId.Remove(coord);
-                _freeSlotIds.Push(slotId);
-                _activeSlotIds.Remove(slotId);
             }
         }
 
         public void Dispose()
         {
             _hiZPyramid?.Dispose();
-            _activeChunks.Clear();
             _coordToSlotId.Clear();
-            _freeSlotIds.Clear();
-            _activeSlotIds.Clear();
+            _slotToCoord = null;
+            _activeCount = 0;
             _opaqueBuffer.Dispose();
             _cutoutBuffer.Dispose();
             _translucentBuffer.Dispose();
