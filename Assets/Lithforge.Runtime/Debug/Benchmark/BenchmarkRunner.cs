@@ -5,6 +5,7 @@ using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Debug.Benchmark
 {
@@ -27,6 +28,13 @@ namespace Lithforge.Runtime.Debug.Benchmark
         // Scenario cycling
         private BenchmarkScenario[] _allScenarios;
         private int _selectedIndex;
+
+        // Toast UI
+        private UIDocument _toastDocument;
+        private VisualElement _toastRoot;
+        private Label _toastLabel;
+        private float _toastTimer;
+        private const float ToastDuration = 2.5f;
 
         // Pre-allocated parallel arrays for per-frame recording
         private int _capacity;
@@ -82,7 +90,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
             BenchmarkContext context,
             DebugSettings settings,
             MetricsRegistry metrics,
-            PlayerController playerController)
+            PlayerController playerController,
+            PanelSettings panelSettings)
         {
             _context = context;
             _settings = settings;
@@ -112,12 +121,63 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
             }
 
+            // Build toast UI
+            BuildToastUI(panelSettings);
+
             if (_allScenarios.Length > 0)
             {
                 UnityEngine.Debug.Log("[Benchmark] Loaded " + _allScenarios.Length +
                     " scenarios. Selected: " + _allScenarios[_selectedIndex].ScenarioName +
                     "  (Shift+F5 to cycle, F5 to run)");
             }
+        }
+
+        private void BuildToastUI(PanelSettings panelSettings)
+        {
+            _toastDocument = gameObject.AddComponent<UIDocument>();
+            _toastDocument.panelSettings = panelSettings;
+            _toastDocument.sortingOrder = 200;
+
+            _toastRoot = _toastDocument.rootVisualElement;
+            _toastRoot.pickingMode = PickingMode.Ignore;
+            _toastRoot.style.position = Position.Absolute;
+            _toastRoot.style.left = 0;
+            _toastRoot.style.top = 0;
+            _toastRoot.style.right = 0;
+            _toastRoot.style.bottom = 0;
+            _toastRoot.style.justifyContent = Justify.Center;
+            _toastRoot.style.alignItems = Align.Center;
+
+            VisualElement toastPanel = new VisualElement();
+            toastPanel.pickingMode = PickingMode.Ignore;
+            toastPanel.style.backgroundColor = new Color(0f, 0f, 0f, 0.8f);
+            toastPanel.style.paddingLeft = 20;
+            toastPanel.style.paddingRight = 20;
+            toastPanel.style.paddingTop = 12;
+            toastPanel.style.paddingBottom = 12;
+            toastPanel.style.borderTopLeftRadius = 6;
+            toastPanel.style.borderTopRightRadius = 6;
+            toastPanel.style.borderBottomLeftRadius = 6;
+            toastPanel.style.borderBottomRightRadius = 6;
+
+            _toastLabel = new Label("");
+            _toastLabel.pickingMode = PickingMode.Ignore;
+            _toastLabel.style.fontSize = 16;
+            _toastLabel.style.color = new Color(1f, 1f, 1f);
+            _toastLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+            toastPanel.Add(_toastLabel);
+            _toastRoot.Add(toastPanel);
+
+            // Start hidden
+            _toastRoot.style.display = DisplayStyle.None;
+        }
+
+        private void ShowToast(string message)
+        {
+            _toastLabel.text = message;
+            _toastRoot.style.display = DisplayStyle.Flex;
+            _toastTimer = ToastDuration;
         }
 
         private void AllocateArrays(int capacity)
@@ -149,6 +209,17 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 _summaryDisplayTimer -= Time.unscaledDeltaTime;
             }
 
+            // Countdown toast timer
+            if (_toastTimer > 0f)
+            {
+                _toastTimer -= Time.unscaledDeltaTime;
+
+                if (_toastTimer <= 0f)
+                {
+                    _toastRoot.style.display = DisplayStyle.None;
+                }
+            }
+
             if (_running)
             {
                 return;
@@ -168,9 +239,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 if (_allScenarios != null && _allScenarios.Length > 1)
                 {
                     _selectedIndex = (_selectedIndex + 1) % _allScenarios.Length;
-                    UnityEngine.Debug.Log("[Benchmark] Selected: " +
-                        _allScenarios[_selectedIndex].ScenarioName +
-                        "  (" + (_selectedIndex + 1) + "/" + _allScenarios.Length + ")");
+                    ShowToast("Benchmark: " + _allScenarios[_selectedIndex].ScenarioName +
+                        "  [" + (_selectedIndex + 1) + "/" + _allScenarios.Length + "]" +
+                        "\nF5 to run");
                 }
 
                 return;
@@ -185,12 +256,12 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
                     if (scenario != null)
                     {
+                        ShowToast("Running: " + scenario.ScenarioName + "...");
                         StartScenario(scenario);
                     }
                     else
                     {
-                        UnityEngine.Debug.LogWarning(
-                            "[Benchmark] No benchmark scenarios found in Resources/Settings/Benchmarks/.");
+                        ShowToast("No benchmark scenarios found.");
                     }
                 }
             }

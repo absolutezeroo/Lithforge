@@ -751,7 +751,8 @@ namespace Lithforge.Runtime.Bootstrap
                     benchmarkContext,
                     _settings.Debug,
                     metricsRegistry,
-                    playerController);
+                    playerController,
+                    panelSettings);
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
