@@ -65,7 +65,7 @@ namespace Lithforge.WorldGen.Tests
                     SeaLevelCarveBuffer = 4,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Count air blocks created by cave carving
                 int airCount = 0;
@@ -118,7 +118,7 @@ namespace Lithforge.WorldGen.Tests
                     SeaLevelCarveBuffer = 4,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // No water blocks should be carved to air
                 for (int i = 0; i < ChunkConstants.Volume; i++)
@@ -166,7 +166,7 @@ namespace Lithforge.WorldGen.Tests
                     SeaLevelCarveBuffer = 4,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Check that blocks near sea level (within 4 blocks) are not carved
                 int chunkWorldY = 2 * ChunkConstants.Size;
@@ -226,7 +226,7 @@ namespace Lithforge.WorldGen.Tests
                     SeaLevelCarveBuffer = 4,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Blocks at worldY < 5 should never be carved
                 for (int z = 0; z < ChunkConstants.Size; z++)
@@ -297,8 +297,8 @@ namespace Lithforge.WorldGen.Tests
                     SeaLevelCarveBuffer = 4,
                 };
 
-                job1.Schedule().Complete();
-                job2.Schedule().Complete();
+                job1.Schedule(ChunkConstants.SizeSquared, 32).Complete();
+                job2.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Results should be identical
                 for (int i = 0; i < ChunkConstants.Volume; i++)

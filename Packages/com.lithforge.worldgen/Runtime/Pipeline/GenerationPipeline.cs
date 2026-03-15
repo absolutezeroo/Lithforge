@@ -169,7 +169,7 @@ namespace Lithforge.WorldGen.Pipeline
                 SeaLevel = _seaLevel,
             };
 
-            JobHandle riverCarveHandle = riverCarveJob.Schedule(riverNoiseHandle);
+            JobHandle riverCarveHandle = riverCarveJob.Schedule(ChunkConstants.SizeSquared, 64, riverNoiseHandle);
 
             // Stage 5: Cave carving
             CaveCarverJob caveJob = new CaveCarverJob
@@ -188,7 +188,7 @@ namespace Lithforge.WorldGen.Pipeline
                 SeaLevelCarveBuffer = _seaLevelCarveBuffer,
             };
 
-            JobHandle caveHandle = caveJob.Schedule(riverCarveHandle);
+            JobHandle caveHandle = caveJob.Schedule(ChunkConstants.SizeSquared, 32, riverCarveHandle);
 
             // Stage 6: Surface builder (biome-driven, reads river flags)
             SurfaceBuilderJob surfaceJob = new SurfaceBuilderJob
@@ -209,7 +209,7 @@ namespace Lithforge.WorldGen.Pipeline
                 SandId = _sandId,
             };
 
-            JobHandle surfaceHandle = surfaceJob.Schedule(caveHandle);
+            JobHandle surfaceHandle = surfaceJob.Schedule(ChunkConstants.SizeSquared, 32, caveHandle);
 
             // Stage 7: Ore generation
             OreGenerationJob oreJob = new OreGenerationJob

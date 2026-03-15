@@ -20,12 +20,13 @@ namespace Lithforge.WorldGen.Stages
     /// Dispose: RiverCarveDepth disposed in GenerationHandle.Dispose.
     /// </summary>
     [BurstCompile]
-    public struct RiverCarveJob : IJob
+    public struct RiverCarveJob : IJobParallelFor
     {
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.
         // NativeDisableContainerSafetyRestriction is the established project precedent
         // (see InitialLightingJob) for this safe aliasing pattern.
         [NativeDisableContainerSafetyRestriction]
+        [NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
         [ReadOnly] public NativeArray<float> RiverCarveDepth;
@@ -35,62 +36,56 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public StateId WaterId;
         [ReadOnly] public int SeaLevel;
 
-        public void Execute()
+        public void Execute(int columnIndex)
         {
-            int chunkWorldY = ChunkCoord.y * ChunkConstants.Size;
+            float carveDepth = RiverCarveDepth[columnIndex];
 
-            for (int z = 0; z < ChunkConstants.Size; z++)
+            if (carveDepth < 0.5f)
             {
-                for (int x = 0; x < ChunkConstants.Size; x++)
+                return;
+            }
+
+            int x = columnIndex & (ChunkConstants.Size - 1);
+            int z = columnIndex >> 5;
+            int chunkWorldY = ChunkCoord.y * ChunkConstants.Size;
+            int surfaceY = HeightMap[columnIndex];
+            int riverBedY = surfaceY - (int)carveDepth;
+
+            // Don't carve too far below sea level to avoid punching through to caves
+            int minBedY = SeaLevel - 6;
+            if (riverBedY < minBedY)
+            {
+                riverBedY = minBedY;
+            }
+
+            // Carve the river channel
+            for (int y = 0; y < ChunkConstants.Size; y++)
+            {
+                int worldY = chunkWorldY + y;
+
+                // Only carve within the river channel (above bed, at or below surface)
+                if (worldY <= riverBedY || worldY > surfaceY)
                 {
-                    int columnIndex = z * ChunkConstants.Size + x;
-                    float carveDepth = RiverCarveDepth[columnIndex];
+                    continue;
+                }
 
-                    if (carveDepth < 0.5f)
-                    {
-                        continue;
-                    }
+                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                StateId current = ChunkData[index];
 
-                    int surfaceY = HeightMap[columnIndex];
-                    int riverBedY = surfaceY - (int)carveDepth;
+                // Only carve solid blocks (not air, not already water)
+                if (current.Equals(AirId) || current.Equals(WaterId))
+                {
+                    continue;
+                }
 
-                    // Don't carve too far below sea level to avoid punching through to caves
-                    int minBedY = SeaLevel - 6;
-                    if (riverBedY < minBedY)
-                    {
-                        riverBedY = minBedY;
-                    }
-
-                    // Carve the river channel
-                    for (int y = 0; y < ChunkConstants.Size; y++)
-                    {
-                        int worldY = chunkWorldY + y;
-
-                        // Only carve within the river channel (above bed, at or below surface)
-                        if (worldY <= riverBedY || worldY > surfaceY)
-                        {
-                            continue;
-                        }
-
-                        int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
-                        StateId current = ChunkData[index];
-
-                        // Only carve solid blocks (not air, not already water)
-                        if (current.Equals(AirId) || current.Equals(WaterId))
-                        {
-                            continue;
-                        }
-
-                        // Fill with water at or below sea level, air above
-                        if (worldY <= SeaLevel)
-                        {
-                            ChunkData[index] = WaterId;
-                        }
-                        else
-                        {
-                            ChunkData[index] = AirId;
-                        }
-                    }
+                // Fill with water at or below sea level, air above
+                if (worldY <= SeaLevel)
+                {
+                    ChunkData[index] = WaterId;
+                }
+                else
+                {
+                    ChunkData[index] = AirId;
                 }
             }
         }

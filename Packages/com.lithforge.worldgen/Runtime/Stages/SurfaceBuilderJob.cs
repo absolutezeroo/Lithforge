@@ -10,10 +10,11 @@ using Unity.Mathematics;
 namespace Lithforge.WorldGen.Stages
 {
     [BurstCompile]
-    public struct SurfaceBuilderJob : IJob
+    public struct SurfaceBuilderJob : IJobParallelFor
     {
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.
         [NativeDisableContainerSafetyRestriction]
+        [NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
         [ReadOnly] public NativeArray<int> HeightMap;
@@ -30,79 +31,75 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public StateId GravelId;
         [ReadOnly] public StateId SandId;
 
-        public void Execute()
+        public void Execute(int columnIndex)
         {
+            int x = columnIndex & (ChunkConstants.Size - 1);
+            int z = columnIndex >> 5;
+
             int chunkWorldX = ChunkCoord.x * ChunkConstants.Size;
             int chunkWorldY = ChunkCoord.y * ChunkConstants.Size;
             int chunkWorldZ = ChunkCoord.z * ChunkConstants.Size;
 
-            for (int z = 0; z < ChunkConstants.Size; z++)
+            int surfaceY = HeightMap[columnIndex];
+            byte biomeId = BiomeMap[columnIndex];
+            byte riverFlag = RiverFlags[columnIndex];
+            bool isRiver = riverFlag != 0;
+
+            NativeBiomeData biome = GetBiome(biomeId);
+            StateId topBlock = biome.TopBlock;
+            StateId fillerBlock = biome.FillerBlock;
+            StateId underwaterBlock = biome.UnderwaterBlock;
+            int fillerDepth = biome.FillerDepth;
+
+            // River bed material override: gravel unless biome surface is sand
+            if (isRiver)
             {
-                for (int x = 0; x < ChunkConstants.Size; x++)
+                bool isSandBiome = topBlock.Equals(SandId);
+                topBlock = isSandBiome ? SandId : GravelId;
+                underwaterBlock = isSandBiome ? SandId : GravelId;
+            }
+
+            bool isFrozen = (biome.SurfaceFlags & NativeBiomeSurfaceFlags.IsFrozen) != 0;
+
+            for (int y = ChunkConstants.Size - 1; y >= 0; y--)
+            {
+                int worldY = chunkWorldY + y;
+                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                StateId current = ChunkData[index];
+
+                // Frozen ocean: replace surface water with ice (patchy)
+                if (isFrozen && current.Equals(WaterId) && worldY == SeaLevel)
                 {
-                    int columnIndex = z * ChunkConstants.Size + x;
-                    int surfaceY = HeightMap[columnIndex];
-                    byte biomeId = BiomeMap[columnIndex];
-                    byte riverFlag = RiverFlags[columnIndex];
-                    bool isRiver = riverFlag != 0;
-
-                    NativeBiomeData biome = GetBiome(biomeId);
-                    StateId topBlock = biome.TopBlock;
-                    StateId fillerBlock = biome.FillerBlock;
-                    StateId underwaterBlock = biome.UnderwaterBlock;
-                    int fillerDepth = biome.FillerDepth;
-
-                    // River bed material override: gravel unless biome surface is sand
-                    if (isRiver)
+                    uint iceHash = HashColumn(chunkWorldX + x, chunkWorldZ + z, Seed);
+                    bool placeIce = (iceHash % 10u) < 8u;
+                    if (placeIce)
                     {
-                        bool isSandBiome = topBlock.Equals(SandId);
-                        topBlock = isSandBiome ? SandId : GravelId;
-                        underwaterBlock = isSandBiome ? SandId : GravelId;
+                        ChunkData[index] = IceId;
                     }
+                    continue;
+                }
 
-                    bool isFrozen = (biome.SurfaceFlags & NativeBiomeSurfaceFlags.IsFrozen) != 0;
+                if (!current.Equals(StoneId))
+                {
+                    continue;
+                }
 
-                    for (int y = ChunkConstants.Size - 1; y >= 0; y--)
+                int depth = surfaceY - worldY;
+
+                if (depth >= 0 && depth <= 1)
+                {
+                    if (surfaceY >= SeaLevel)
                     {
-                        int worldY = chunkWorldY + y;
-                        int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
-                        StateId current = ChunkData[index];
-
-                        // Frozen ocean: replace surface water with ice (patchy)
-                        if (isFrozen && current.Equals(WaterId) && worldY == SeaLevel)
-                        {
-                            uint iceHash = HashColumn(chunkWorldX + x, chunkWorldZ + z, Seed);
-                            bool placeIce = (iceHash % 10u) < 8u;
-                            if (placeIce)
-                            {
-                                ChunkData[index] = IceId;
-                            }
-                            continue;
-                        }
-
-                        if (!current.Equals(StoneId))
-                        {
-                            continue;
-                        }
-
-                        int depth = surfaceY - worldY;
-
-                        if (depth >= 0 && depth <= 1)
-                        {
-                            if (surfaceY >= SeaLevel)
-                            {
-                                ChunkData[index] = topBlock;
-                            }
-                            else
-                            {
-                                ChunkData[index] = underwaterBlock;
-                            }
-                        }
-                        else if (depth > 1 && depth <= fillerDepth + 1)
-                        {
-                            ChunkData[index] = fillerBlock;
-                        }
+                        ChunkData[index] = topBlock;
                     }
+                    else
+                    {
+                        ChunkData[index] = underwaterBlock;
+                    }
+                }
+                else if (depth > 1 && depth <= fillerDepth + 1)
+                {
+                    ChunkData[index] = fillerBlock;
                 }
             }
         }

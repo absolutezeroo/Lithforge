@@ -93,7 +93,7 @@ namespace Lithforge.WorldGen.Tests
                     AirId = StateId.Air,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Top block (y=19) should be grass (above sea level)
                 StateId topState = chunkData[ChunkData.GetIndex(0, 19, 0)];
@@ -167,7 +167,7 @@ namespace Lithforge.WorldGen.Tests
                     AirId = StateId.Air,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Top block (y=9) should be UnderwaterBlock (dirt for plains, below sea level)
                 StateId topState = chunkData[ChunkData.GetIndex(0, 9, 0)];
@@ -223,7 +223,7 @@ namespace Lithforge.WorldGen.Tests
                     AirId = StateId.Air,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // Water blocks should not be replaced
                 StateId state = chunkData[ChunkData.GetIndex(5, 19, 5)];
