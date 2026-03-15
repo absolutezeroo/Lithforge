@@ -64,6 +64,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private int[] _gcGen0;
         private int[] _gcGen1;
         private int[] _gcGen2;
+        private int[] _genScheduled;
+        private int[] _meshScheduled;
+        private int[] _lodScheduled;
+        private int[] _invalidateCount;
+        private float[] _meshCompleteMaxMs;
+        private int[] _meshCompleteStalls;
+        private float[] _genCompleteMaxMs;
+        private int[] _genCompleteStalls;
         private float[] _schedMeshFillMs;
         private float[] _schedMeshFilterMs;
         private float[] _schedMeshAllocMs;
@@ -371,6 +379,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _gcGen0 = new int[capacity];
             _gcGen1 = new int[capacity];
             _gcGen2 = new int[capacity];
+            _genScheduled = new int[capacity];
+            _meshScheduled = new int[capacity];
+            _lodScheduled = new int[capacity];
+            _invalidateCount = new int[capacity];
+            _meshCompleteMaxMs = new float[capacity];
+            _meshCompleteStalls = new int[capacity];
+            _genCompleteMaxMs = new float[capacity];
+            _genCompleteStalls = new int[capacity];
             _schedMeshFillMs = new float[capacity];
             _schedMeshFilterMs = new float[capacity];
             _schedMeshAllocMs = new float[capacity];
@@ -593,6 +609,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
                     _gcGen0[f] = snap.GcGen0;
                     _gcGen1[f] = snap.GcGen1;
                     _gcGen2[f] = snap.GcGen2;
+                    _genScheduled[f] = snap.GenScheduled;
+                    _meshScheduled[f] = snap.MeshScheduled;
+                    _lodScheduled[f] = snap.LodScheduled;
+                    _invalidateCount[f] = snap.InvalidateCount;
+                    _meshCompleteMaxMs[f] = snap.MeshCompleteMaxMs;
+                    _meshCompleteStalls[f] = snap.MeshCompleteStalls;
+                    _genCompleteMaxMs[f] = snap.GenCompleteMaxMs;
+                    _genCompleteStalls[f] = snap.GenCompleteStalls;
                     _schedMeshFillMs[f] = snap.SchedMeshFillMs;
                     _schedMeshFilterMs[f] = snap.SchedMeshFilterMs;
                     _schedMeshAllocMs[f] = snap.SchedMeshAllocMs;
@@ -690,6 +714,38 @@ namespace Lithforge.Runtime.Debug.Benchmark
             Array.Copy(_gcGen2, newGcGen2, _capacity);
             _gcGen2 = newGcGen2;
 
+            int[] newGenScheduled = new int[newCapacity];
+            Array.Copy(_genScheduled, newGenScheduled, _capacity);
+            _genScheduled = newGenScheduled;
+
+            int[] newMeshScheduled = new int[newCapacity];
+            Array.Copy(_meshScheduled, newMeshScheduled, _capacity);
+            _meshScheduled = newMeshScheduled;
+
+            int[] newLodScheduled = new int[newCapacity];
+            Array.Copy(_lodScheduled, newLodScheduled, _capacity);
+            _lodScheduled = newLodScheduled;
+
+            int[] newInvalidateCount = new int[newCapacity];
+            Array.Copy(_invalidateCount, newInvalidateCount, _capacity);
+            _invalidateCount = newInvalidateCount;
+
+            float[] newMeshCompleteMaxMs = new float[newCapacity];
+            Array.Copy(_meshCompleteMaxMs, newMeshCompleteMaxMs, _capacity);
+            _meshCompleteMaxMs = newMeshCompleteMaxMs;
+
+            int[] newMeshCompleteStalls = new int[newCapacity];
+            Array.Copy(_meshCompleteStalls, newMeshCompleteStalls, _capacity);
+            _meshCompleteStalls = newMeshCompleteStalls;
+
+            float[] newGenCompleteMaxMs = new float[newCapacity];
+            Array.Copy(_genCompleteMaxMs, newGenCompleteMaxMs, _capacity);
+            _genCompleteMaxMs = newGenCompleteMaxMs;
+
+            int[] newGenCompleteStalls = new int[newCapacity];
+            Array.Copy(_genCompleteStalls, newGenCompleteStalls, _capacity);
+            _genCompleteStalls = newGenCompleteStalls;
+
             float[] newSchedMeshFillMs = new float[newCapacity];
             Array.Copy(_schedMeshFillMs, newSchedMeshFillMs, _capacity);
             _schedMeshFillMs = newSchedMeshFillMs;
@@ -731,6 +787,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             result.GcGen0 = _gcGen0;
             result.GcGen1 = _gcGen1;
             result.GcGen2 = _gcGen2;
+            result.GenScheduled = _genScheduled;
+            result.MeshScheduled = _meshScheduled;
+            result.LodScheduled = _lodScheduled;
+            result.InvalidateCount = _invalidateCount;
+            result.MeshCompleteMaxMs = _meshCompleteMaxMs;
+            result.MeshCompleteStalls = _meshCompleteStalls;
+            result.GenCompleteMaxMs = _genCompleteMaxMs;
+            result.GenCompleteStalls = _genCompleteStalls;
             result.SchedMeshFillMs = _schedMeshFillMs;
             result.SchedMeshFilterMs = _schedMeshFilterMs;
             result.SchedMeshAllocMs = _schedMeshAllocMs;

@@ -54,6 +54,16 @@ namespace Lithforge.Runtime.Debug.Benchmark
         public int[] GcGen1;
         public int[] GcGen2;
 
+        // Pipeline counters (per-frame)
+        public int[] GenScheduled;
+        public int[] MeshScheduled;
+        public int[] LodScheduled;
+        public int[] InvalidateCount;
+        public float[] MeshCompleteMaxMs;
+        public int[] MeshCompleteStalls;
+        public float[] GenCompleteMaxMs;
+        public int[] GenCompleteStalls;
+
         // SchedMesh sub-timings (per-frame ms)
         public float[] SchedMeshFillMs;
         public float[] SchedMeshFilterMs;

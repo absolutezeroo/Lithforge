@@ -35,8 +35,11 @@ namespace Lithforge.Runtime.Debug.Benchmark
             csv.Append(",gen_completed,mesh_completed,lod_completed");
             csv.Append(",gpu_upload_bytes,gpu_upload_count,grow_events");
             csv.Append(",gc_gen0,gc_gen1,gc_gen2");
-            csv.Append(",SchedMesh_fill_ms,SchedMesh_filter_ms,SchedMesh_alloc_ms");
-            csv.Append(",SchedMesh_schedule_ms,SchedMesh_flush_ms");
+            csv.Append(",gen_scheduled,mesh_scheduled,lod_scheduled,invalidate_count");
+            csv.Append(",mesh_complete_max_ms,mesh_complete_stalls");
+            csv.Append(",gen_complete_max_ms,gen_complete_stalls");
+            csv.Append(",sched_mesh_fill_ms,sched_mesh_filter_ms,sched_mesh_alloc_ms");
+            csv.Append(",sched_mesh_schedule_ms,sched_mesh_flush_ms");
             csv.AppendLine();
 
             // Data rows
@@ -70,6 +73,22 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 csv.Append(result.GcGen1[f]);
                 csv.Append(',');
                 csv.Append(result.GcGen2[f]);
+                csv.Append(',');
+                csv.Append(result.GenScheduled[f]);
+                csv.Append(',');
+                csv.Append(result.MeshScheduled[f]);
+                csv.Append(',');
+                csv.Append(result.LodScheduled[f]);
+                csv.Append(',');
+                csv.Append(result.InvalidateCount[f]);
+                csv.Append(',');
+                csv.Append(result.MeshCompleteMaxMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(result.MeshCompleteStalls[f]);
+                csv.Append(',');
+                csv.Append(result.GenCompleteMaxMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(result.GenCompleteStalls[f]);
                 csv.Append(',');
                 csv.Append(result.SchedMeshFillMs[f].ToString("F3", CultureInfo.InvariantCulture));
                 csv.Append(',');
