@@ -83,6 +83,10 @@ namespace Lithforge.Runtime.Input
         private BlockEntityTickScheduler _blockEntityTickScheduler;
         private ChestScreen _chestScreen;
         private FurnaceScreen _furnaceScreen;
+        private ToolStationScreen _toolStationScreen;
+
+        // Tool system registries
+        private ToolTraitRegistry _toolTraitRegistry;
 
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
@@ -129,11 +133,15 @@ namespace Lithforge.Runtime.Input
         public void SetBlockEntityReferences(
             BlockEntityTickScheduler scheduler,
             ChestScreen chestScreen,
-            FurnaceScreen furnaceScreen)
+            FurnaceScreen furnaceScreen,
+            ToolStationScreen toolStationScreen,
+            ToolTraitRegistry toolTraitRegistry)
         {
             _blockEntityTickScheduler = scheduler;
             _chestScreen = chestScreen;
             _furnaceScreen = furnaceScreen;
+            _toolStationScreen = toolStationScreen;
+            _toolTraitRegistry = toolTraitRegistry;
         }
 
         private void Update()
@@ -343,11 +351,18 @@ namespace Lithforge.Runtime.Input
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
                     if (tool != null)
                     {
+                        ctx.ToolType = tool.ToolType;
                         ctx.ToolSpeed = tool.GetEffectiveSpeed(entry.MaterialType);
                         ctx.ToolLevel = tool.GetEffectiveToolLevel();
                         ctx.SpeedMultiplier *= tool.DurabilityState.GetEffectiveSpeedMultiplier();
 
-                        IToolTrait[] traits = tool.GetAllTraits();
+                        // Re-evaluate correct tool with modular tool's ToolType
+                        if (s_toolTagMap.TryGetValue(tool.ToolType, out ResourceId modularTag))
+                        {
+                            ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, modularTag);
+                        }
+
+                        IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
                         Array.Sort(traits, (IToolTrait a, IToolTrait b) => a.Priority.CompareTo(b.Priority));
                         for (int i = 0; i < traits.Length; i++)
                         {
@@ -452,20 +467,46 @@ namespace Lithforge.Runtime.Input
 
             if (!heldItem.IsEmpty)
             {
-                ItemEntry heldDef = _itemRegistry.Get(heldItem.ItemId);
-
-                if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability != -1)
+                // Modular tool: consume durability from ToolInstance and re-serialize
+                if (heldItem.HasCustomData)
                 {
-                    ItemStack updated = heldItem;
-                    updated.Durability -= 1;
+                    ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
 
-                    if (updated.Durability <= 0)
+                    if (tool != null)
                     {
-                        _inventory.SetSlot(_inventory.SelectedSlot, ItemStack.Empty);
+                        tool.CurrentDurability -= 1;
+
+                        if (tool.CurrentDurability <= 0)
+                        {
+                            _inventory.SetSlot(_inventory.SelectedSlot, ItemStack.Empty);
+                        }
+                        else
+                        {
+                            ItemStack updated = heldItem;
+                            updated.Durability = tool.CurrentDurability;
+                            updated.CustomData = ToolInstanceSerializer.Serialize(tool);
+                            _inventory.SetSlot(_inventory.SelectedSlot, updated);
+                        }
                     }
-                    else
+                }
+                else
+                {
+                    // Standard tool: consume durability from ItemStack.Durability
+                    ItemEntry heldDef = _itemRegistry.Get(heldItem.ItemId);
+
+                    if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability != -1)
                     {
-                        _inventory.SetSlot(_inventory.SelectedSlot, updated);
+                        ItemStack updated = heldItem;
+                        updated.Durability -= 1;
+
+                        if (updated.Durability <= 0)
+                        {
+                            _inventory.SetSlot(_inventory.SelectedSlot, ItemStack.Empty);
+                        }
+                        else
+                        {
+                            _inventory.SetSlot(_inventory.SelectedSlot, updated);
+                        }
                     }
                 }
             }
@@ -514,6 +555,13 @@ namespace Lithforge.Runtime.Input
                         if (entity is FurnaceBlockEntity furnace && _furnaceScreen != null)
                         {
                             _furnaceScreen.OpenForEntity(furnace);
+                            _placeCooldown = _placeCooldownTime;
+                            return;
+                        }
+
+                        if (entity is ToolStationBlockEntity toolStation && _toolStationScreen != null)
+                        {
+                            _toolStationScreen.OpenForEntity(toolStation);
                             _placeCooldown = _placeCooldownTime;
                             return;
                         }

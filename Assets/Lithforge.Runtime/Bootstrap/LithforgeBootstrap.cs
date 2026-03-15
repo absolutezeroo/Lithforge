@@ -651,9 +651,20 @@ namespace Lithforge.Runtime.Bootstrap
                     panelSettings,
                     _contentResult.ItemSpriteAtlas);
 
+                // Add ToolStationScreen
+                GameObject toolStationScreenObject = new GameObject("ToolStationScreen");
+                ToolStationScreen toolStationScreen = toolStationScreenObject.AddComponent<ToolStationScreen>();
+                toolStationScreen.Initialize(
+                    playerInventory,
+                    _contentResult.ItemRegistry,
+                    _contentResult.ToolTraitRegistry,
+                    panelSettings,
+                    _contentResult.ItemSpriteAtlas);
+
                 // Wire block entity screens to BlockInteraction
                 blockInteraction.SetBlockEntityReferences(
-                    blockEntityTickScheduler, chestScreen, furnaceScreen);
+                    blockEntityTickScheduler, chestScreen, furnaceScreen,
+                    toolStationScreen, _contentResult.ToolTraitRegistry);
                 // Add SettingsScreen (initialized after TimeOfDayController is created below)
                 GameObject settingsObject = new GameObject("SettingsScreen");
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();

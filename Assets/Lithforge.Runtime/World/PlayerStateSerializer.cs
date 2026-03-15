@@ -21,6 +21,10 @@ namespace Lithforge.Runtime.World
                 state.PosX = pos.x;
                 state.PosY = pos.y;
                 state.PosZ = pos.z;
+#if LITHFORGE_DEBUG
+                Debug.Log(
+                    $"[PlayerStateSerializer] Capture: pos=({pos.x:F1}, {pos.y:F1}, {pos.z:F1})");
+#endif
             }
 
             if (camera != null)

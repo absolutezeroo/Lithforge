@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
 
 namespace Lithforge.Voxel.Item
@@ -42,8 +44,8 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Returns the effective speed for the given block material.
-        /// Will be enriched by Traits once created.
+        /// Returns the effective mining speed. BaseSpeed is already computed
+        /// from head material + handle multiplier at assembly time.
         /// </summary>
         public float GetEffectiveSpeed(BlockMaterialType mat)
         {
@@ -56,8 +58,64 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Collects all IToolTrait from parts. Stub — will be implemented when
-        /// ToolMaterialDefinitionSO and Trait C# classes exist.
+        /// Collects all IToolTrait from all parts by resolving TraitIds
+        /// through the trait registry. Deduplicates by TraitId, keeping
+        /// only the highest TraitLevel for each.
+        /// </summary>
+        public IToolTrait[] GetAllTraits(ToolTraitRegistry traitRegistry)
+        {
+            if (traitRegistry == null || Parts == null)
+            {
+                return Array.Empty<IToolTrait>();
+            }
+
+            Dictionary<string, ToolTraitData> best = new Dictionary<string, ToolTraitData>();
+
+            for (int p = 0; p < Parts.Length; p++)
+            {
+                ResourceId[] traitIds = Parts[p].TraitIds;
+
+                if (traitIds == null)
+                {
+                    continue;
+                }
+
+                for (int t = 0; t < traitIds.Length; t++)
+                {
+                    ToolTraitData trait = traitRegistry.Get(traitIds[t].ToString());
+
+                    if (trait == null)
+                    {
+                        continue;
+                    }
+
+                    if (!best.TryGetValue(trait.TraitId, out ToolTraitData existing)
+                        || trait.TraitLevel > existing.TraitLevel)
+                    {
+                        best[trait.TraitId] = trait;
+                    }
+                }
+            }
+
+            if (best.Count == 0)
+            {
+                return Array.Empty<IToolTrait>();
+            }
+
+            IToolTrait[] result = new IToolTrait[best.Count];
+            int idx = 0;
+
+            foreach (KeyValuePair<string, ToolTraitData> kvp in best)
+            {
+                result[idx++] = kvp.Value;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Parameterless overload for backward compatibility.
+        /// Returns empty when no registry is available.
         /// </summary>
         public IToolTrait[] GetAllTraits()
         {

@@ -138,14 +138,22 @@ namespace Lithforge.Runtime.Spawn
 
             if (readyCount >= _progress.TotalChunks)
             {
-                if (_skipSpawnSearch)
+                if (_skipSpawnSearch && IsRestoredPositionSafe())
                 {
-                    // Player already at saved position — skip spawn search
+                    // Player already at saved position and not stuck in blocks
                     _progress.Phase = SpawnState.Done;
                     _progress.ReadyChunks = _progress.TotalChunks;
                 }
                 else
                 {
+                    if (_skipSpawnSearch)
+                    {
+#if LITHFORGE_DEBUG
+                        UnityEngine.Debug.LogWarning(
+                            "[SpawnManager] Saved position is inside solid blocks, falling back to FindingY.");
+#endif
+                    }
+
                     _progress.Phase = SpawnState.FindingY;
                 }
             }
@@ -180,6 +188,28 @@ namespace Lithforge.Runtime.Spawn
 
             _progress.Phase = SpawnState.Done;
             _progress.ReadyChunks = _progress.TotalChunks;
+        }
+
+        /// <summary>
+        /// Checks whether the player's current position (restored from save) is safe:
+        /// the block at feet level and head level must both be non-solid.
+        /// </summary>
+        private bool IsRestoredPositionSafe()
+        {
+            Vector3 pos = _playerTransform.position;
+            int3 feetBlock = new int3(
+                (int)math.floor(pos.x),
+                (int)math.floor(pos.y),
+                (int)math.floor(pos.z));
+            int3 headBlock = new int3(feetBlock.x, feetBlock.y + 1, feetBlock.z);
+
+            StateId feetState = _chunkManager.GetBlock(feetBlock);
+            StateId headState = _chunkManager.GetBlock(headBlock);
+
+            BlockStateCompact feetCompact = _nativeStateRegistry.States[feetState.Value];
+            BlockStateCompact headCompact = _nativeStateRegistry.States[headState.Value];
+
+            return feetCompact.CollisionShape == 0 && headCompact.CollisionShape == 0;
         }
 
         /// <summary>

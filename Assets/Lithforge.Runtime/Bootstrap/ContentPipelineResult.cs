@@ -35,6 +35,8 @@ namespace Lithforge.Runtime.Bootstrap
         public BlockEntityRegistry BlockEntityRegistry { get; }
         public SmeltingRecipeRegistry SmeltingRecipeRegistry { get; }
         public ItemDisplayTransformLookup DisplayTransformLookup { get; }
+        public ToolMaterialRegistry ToolMaterialRegistry { get; }
+        public ToolTraitRegistry ToolTraitRegistry { get; }
 
         public ContentPipelineResult(
             StateRegistry stateRegistry,
@@ -51,7 +53,9 @@ namespace Lithforge.Runtime.Bootstrap
             ItemSpriteAtlas itemSpriteAtlas,
             BlockEntityRegistry blockEntityRegistry,
             SmeltingRecipeRegistry smeltingRecipeRegistry,
-            ItemDisplayTransformLookup displayTransformLookup)
+            ItemDisplayTransformLookup displayTransformLookup,
+            ToolMaterialRegistry toolMaterialRegistry,
+            ToolTraitRegistry toolTraitRegistry)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -68,6 +72,8 @@ namespace Lithforge.Runtime.Bootstrap
             BlockEntityRegistry = blockEntityRegistry;
             SmeltingRecipeRegistry = smeltingRecipeRegistry;
             DisplayTransformLookup = displayTransformLookup;
+            ToolMaterialRegistry = toolMaterialRegistry;
+            ToolTraitRegistry = toolTraitRegistry;
         }
     }
 }

@@ -13,6 +13,7 @@ using Lithforge.Runtime.Content.Models;
 using Lithforge.Runtime.Content.Mods;
 using Lithforge.Runtime.Content.Recipes;
 using Lithforge.Runtime.Content.Tags;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Runtime.UI.Sprites;
@@ -233,6 +234,65 @@ namespace Lithforge.Runtime.Bootstrap
             yield return "Loading items...";
             ItemDefinition[] items = Resources.LoadAll<ItemDefinition>("Content/Items");
             _logger.LogInfo($"Loaded {items.Length} item definitions.");
+
+            // Phase 8.5: Load tool material definitions
+            yield return "Loading tool materials...";
+            ToolMaterialDefinition[] toolMaterials =
+                Resources.LoadAll<ToolMaterialDefinition>("Content/ToolMaterials");
+            ToolMaterialRegistry toolMaterialRegistry = new ToolMaterialRegistry();
+
+            for (int i = 0; i < toolMaterials.Length; i++)
+            {
+                ToolMaterialDefinition mat = toolMaterials[i];
+
+                if (string.IsNullOrEmpty(mat.materialId))
+                {
+                    continue;
+                }
+
+                if (!ResourceId.TryParse(mat.materialId, out ResourceId matId))
+                {
+                    _logger.LogWarning($"Invalid tool material id: {mat.materialId}");
+                    continue;
+                }
+
+                ToolMaterialData matData = new ToolMaterialData(
+                    matId,
+                    mat.compatibleParts ?? System.Array.Empty<ToolPartType>(),
+                    mat.headMiningSpeed,
+                    mat.headDurability,
+                    mat.headAttackDamage,
+                    mat.handleDurabilityMultiplier,
+                    mat.handleSpeedMultiplier,
+                    mat.bindingDurabilityBonus,
+                    mat.traitIds ?? System.Array.Empty<string>(),
+                    mat.toolLevel);
+
+                toolMaterialRegistry.Register(matData);
+            }
+
+            _logger.LogInfo($"Loaded {toolMaterialRegistry.Count} tool materials.");
+
+            // Phase 8.6: Load tool trait definitions
+            yield return "Loading tool traits...";
+            ToolTraitDefinitionSO[] toolTraits =
+                Resources.LoadAll<ToolTraitDefinitionSO>("Content/ToolTraits");
+            ToolTraitRegistry toolTraitRegistry = new ToolTraitRegistry();
+
+            for (int i = 0; i < toolTraits.Length; i++)
+            {
+                ToolTraitDefinitionSO traitSO = toolTraits[i];
+
+                if (string.IsNullOrEmpty(traitSO.traitId))
+                {
+                    continue;
+                }
+
+                ToolTraitData traitData = traitSO.ToTier2();
+                toolTraitRegistry.Register(traitData);
+            }
+
+            _logger.LogInfo($"Loaded {toolTraitRegistry.Count} tool traits.");
 
             // Phase 9: Load loot tables and build lookup
             yield return "Loading loot tables...";
@@ -465,6 +525,9 @@ namespace Lithforge.Runtime.Bootstrap
             blockEntityRegistry.Register(new BlockEntityType(
                 FurnaceBlockEntity.TypeIdValue,
                 new FurnaceBlockEntityFactory(smeltingRecipeRegistry, itemRegistry)));
+            blockEntityRegistry.Register(new BlockEntityType(
+                ToolStationBlockEntity.TypeIdValue,
+                new ToolStationBlockEntityFactory(toolMaterialRegistry, itemRegistry)));
             blockEntityRegistry.Freeze();
 
             _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
@@ -484,7 +547,9 @@ namespace Lithforge.Runtime.Bootstrap
                 itemSpriteAtlas,
                 blockEntityRegistry,
                 smeltingRecipeRegistry,
-                displayTransformLookup);
+                displayTransformLookup,
+                toolMaterialRegistry,
+                toolTraitRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)
