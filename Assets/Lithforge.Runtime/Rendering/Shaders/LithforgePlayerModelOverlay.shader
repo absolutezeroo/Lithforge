@@ -22,7 +22,7 @@ Shader "Lithforge/PlayerModelOverlay"
 
             Cull Back
             ZWrite On
-            ZTest Always
+            ZTest LEqual
 
             HLSLPROGRAM
             #pragma target 4.5

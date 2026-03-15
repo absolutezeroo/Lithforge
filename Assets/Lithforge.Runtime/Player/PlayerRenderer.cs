@@ -15,8 +15,8 @@ namespace Lithforge.Runtime.Player
     /// reducing the index count (head indices are at the end of each layer).
     ///
     /// The model is rendered in world space: body anchored at playerTransform.position,
-    /// rotated by camera yaw. A custom _ModelToClip matrix (gpuProj * worldToCamera)
-    /// with near clip 0.05 prevents the body from clipping.
+    /// rotated by camera yaw. Shaders use UNITY_MATRIX_VP so the model renders correctly
+    /// in any camera (game, scene view, future multiplayer spectators).
     ///
     /// Owner: GameLoop (via LithforgeBootstrap). Lifetime: application session.
     /// </summary>
@@ -27,8 +27,6 @@ namespace Lithforge.Runtime.Player
         private static readonly int s_heldItemVertexBufferId = Shader.PropertyToID("_HeldItemVertexBuffer");
         private static readonly int s_partTransformsId = Shader.PropertyToID("_PartTransforms");
         private static readonly int s_skinTexId = Shader.PropertyToID("_SkinTex");
-        private static readonly int s_modelToClipId = Shader.PropertyToID("_ModelToClip");
-
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
         private static readonly Bounds s_worldBounds =
             new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
@@ -67,9 +65,6 @@ namespace Lithforge.Runtime.Player
         private ResourceId _lastHeldItemId;
         private bool _hasLastHeldItem;
         private int _lastSelectedSlot = -1;
-
-        // Near/far clip for model projection (custom near to avoid clipping the body)
-        private const float ModelNearClip = 0.05f;
 
         public PlayerRenderer(
             Material modelBaseMaterial,
@@ -184,14 +179,8 @@ namespace Lithforge.Runtime.Player
         /// Main render call. Must be called from LateUpdate after ChunkMeshStore.RenderAll.
         /// Updates animations and issues draw calls for player model + held item.
         /// </summary>
-        public void Render(Camera camera, Transform playerTransform,
-            bool isOnGround, bool isFlying, bool isMining)
+        public void Render(bool isOnGround, bool isFlying, bool isMining)
         {
-            if (camera == null)
-            {
-                return;
-            }
-
             // Check for held item changes and trigger equip animation
             UpdateHeldItem();
 
@@ -207,23 +196,10 @@ namespace Lithforge.Runtime.Player
             }
             _partTransformsBuffer.SetData(_partTransformUpload);
 
-            // Compute _ModelToClip = gpuProjection * worldToCameraMatrix
-            // Use custom near clip to avoid body clipping
-            Matrix4x4 projection = Matrix4x4.Perspective(
-                camera.fieldOfView, camera.aspect, ModelNearClip, camera.farClipPlane);
-            Matrix4x4 gpuProj = GL.GetGPUProjectionMatrix(projection, true);
-            Matrix4x4 modelToClip = gpuProj * camera.worldToCameraMatrix;
-
-            // Restrict draw calls to this camera only (prevents rendering in scene view)
-            _baseModelParams.camera = camera;
-            _overlayModelParams.camera = camera;
-            _heldItemParams.camera = camera;
-
             // Draw model base layer
             _baseModelParams.matProps.SetBuffer(s_playerVertexBufferId, _playerVertexBuffer);
             _baseModelParams.matProps.SetBuffer(s_partTransformsId, _partTransformsBuffer);
             _baseModelParams.matProps.SetTexture(s_skinTexId, _skinTexture);
-            _baseModelParams.matProps.SetMatrix(s_modelToClipId, modelToClip);
 
             Graphics.RenderPrimitivesIndexedIndirect(
                 _baseModelParams,
@@ -237,7 +213,6 @@ namespace Lithforge.Runtime.Player
             _overlayModelParams.matProps.SetBuffer(s_playerVertexBufferId, _playerVertexBuffer);
             _overlayModelParams.matProps.SetBuffer(s_partTransformsId, _partTransformsBuffer);
             _overlayModelParams.matProps.SetTexture(s_skinTexId, _skinTexture);
-            _overlayModelParams.matProps.SetMatrix(s_modelToClipId, modelToClip);
 
             Graphics.RenderPrimitivesIndexedIndirect(
                 _overlayModelParams,
@@ -252,7 +227,6 @@ namespace Lithforge.Runtime.Player
             {
                 _heldItemParams.matProps.SetBuffer(s_heldItemVertexBufferId, _heldItemVertexBuffer);
                 _heldItemParams.matProps.SetBuffer(s_partTransformsId, _partTransformsBuffer);
-                _heldItemParams.matProps.SetMatrix(s_modelToClipId, modelToClip);
 
                 Graphics.RenderPrimitivesIndexedIndirect(
                     _heldItemParams,

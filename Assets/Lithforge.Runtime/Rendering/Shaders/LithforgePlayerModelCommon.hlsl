@@ -24,7 +24,6 @@ struct PlayerVertex
 
 StructuredBuffer<PlayerVertex>  _PlayerVertexBuffer;
 StructuredBuffer<float4x4>      _PartTransforms;    // 6 matrices (world-space)
-float4x4                        _ModelToClip;        // gpuProj * worldToCamera
 
 TEXTURE2D(_SkinTex);
 SAMPLER(sampler_SkinTex);
@@ -45,7 +44,7 @@ PlayerVaryings PlayerVert(uint svVertexID : SV_VertexID)
     float3 normalWorld = mul((float3x3)partMat, v.normal);
 
     PlayerVaryings o;
-    o.positionCS = mul(_ModelToClip, float4(posWorld, 1.0));
+    o.positionCS = mul(UNITY_MATRIX_VP, float4(posWorld, 1.0));
     o.uv = v.uv;
     o.normalWS = normalize(normalWorld);
     return o;

@@ -332,8 +332,6 @@ namespace Lithforge.Runtime
             if (_playerRenderer != null)
             {
                 _playerRenderer.Render(
-                    _mainCamera,
-                    _playerController != null ? _playerController.transform : null,
                     _playerController != null && _playerController.OnGround,
                     _playerController != null && _playerController.IsFlying,
                     _blockInteraction != null && _blockInteraction.IsMining);

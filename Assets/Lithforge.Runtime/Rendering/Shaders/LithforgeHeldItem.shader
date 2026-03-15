@@ -72,7 +72,7 @@ Shader "Lithforge/HeldItem"
                 float3 normalWorld = mul((float3x3)partMat, v.normal);
 
                 HeldItemVaryings o;
-                o.positionCS = mul(_ModelToClip, float4(posWorld, 1.0));
+                o.positionCS = mul(UNITY_MATRIX_VP, float4(posWorld, 1.0));
                 o.uv = v.uv;
                 o.normalWS = normalize(normalWorld);
                 o.texIndex = v.texIndex;
@@ -119,10 +119,9 @@ Shader "Lithforge/HeldItem"
 
             StructuredBuffer<HeldItemVertexData> _HeldItemVertexBuffer;
 
-            // _PartTransforms and _ModelToClip declared in PlayerModelCommon.hlsl
+            // _PartTransforms declared in PlayerModelCommon.hlsl
             // but depth-only pass does not include it, so redeclare here
             StructuredBuffer<float4x4>           _PartTransforms;
-            float4x4                             _ModelToClip;
 
             struct HeldItemDepthVaryings
             {
@@ -136,7 +135,7 @@ Shader "Lithforge/HeldItem"
                 float3 posWorld = mul(partMat, float4(v.position, 1.0)).xyz;
 
                 HeldItemDepthVaryings o;
-                o.positionCS = mul(_ModelToClip, float4(posWorld, 1.0));
+                o.positionCS = mul(UNITY_MATRIX_VP, float4(posWorld, 1.0));
                 return o;
             }
 
