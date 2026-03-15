@@ -11,22 +11,25 @@ namespace Lithforge.Runtime.UI
     {
         private readonly CrosshairHUD _crosshairHud;
         private readonly HotbarDisplay _hotbarDisplay;
-        private readonly PlayerInventoryScreen _inventoryScreen;
+        private readonly IContainerScreen _inventoryScreen;
         private readonly DebugOverlayHUD _debugHud;
         private readonly SettingsScreen _settingsScreen;
+        private readonly ContainerScreenManager _screenManager;
 
         public HudVisibilityController(
             CrosshairHUD crosshairHud,
             HotbarDisplay hotbarDisplay,
-            PlayerInventoryScreen inventoryScreen,
+            IContainerScreen inventoryScreen,
             DebugOverlayHUD debugHud,
-            SettingsScreen settingsScreen)
+            SettingsScreen settingsScreen,
+            ContainerScreenManager screenManager)
         {
             _crosshairHud = crosshairHud;
             _hotbarDisplay = hotbarDisplay;
             _inventoryScreen = inventoryScreen;
             _debugHud = debugHud;
             _settingsScreen = settingsScreen;
+            _screenManager = screenManager;
         }
 
         /// <summary>
@@ -58,11 +61,18 @@ namespace Lithforge.Runtime.UI
             {
                 _settingsScreen.SetVisible(false);
             }
+
+            if (_screenManager != null)
+            {
+                _screenManager.SetAllVisible(false);
+            }
         }
 
         /// <summary>
         /// Shows gameplay HUD elements after spawn is complete.
         /// InventoryScreen is deliberately left hidden — the player opens it with E.
+        /// Block entity screens are shown lazily by ContainerScreenManager
+        /// when they are first opened — no SetAllVisible(true) needed here.
         /// </summary>
         public void ShowGameplay()
         {

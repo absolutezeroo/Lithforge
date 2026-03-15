@@ -1,10 +1,8 @@
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
-using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -16,7 +14,6 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class PlayerInventoryScreen : ContainerScreen
     {
-        private Inventory _inventory;
         private CraftingGrid _craftingGrid;
 
         private InventoryContainerAdapter _hotbarAdapter;
@@ -30,28 +27,20 @@ namespace Lithforge.Runtime.UI.Screens
             Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
         };
 
-        public void Initialize(
-            Inventory inventory,
-            ItemRegistry itemRegistry,
-            CraftingEngine craftingEngine,
-            PanelSettings panelSettings,
-            ItemSpriteAtlas spriteAtlas)
+        public void Initialize(ScreenContext context)
         {
-            _inventory = inventory;
             _craftingGrid = new CraftingGrid(2, 2);
 
-            // Build container adapters
-            _outputAdapter = new CraftingOutputContainerAdapter(itemRegistry);
-            _hotbarAdapter = new InventoryContainerAdapter(inventory, 0, Inventory.HotbarSize);
-            _mainAdapter = new InventoryContainerAdapter(inventory, Inventory.HotbarSize,
+            _outputAdapter = new CraftingOutputContainerAdapter(context.ItemRegistry);
+            _hotbarAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, 0, Inventory.HotbarSize);
+            _mainAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
-            _craftAdapter = new CraftingGridContainerAdapter(_craftingGrid, craftingEngine, _outputAdapter);
+            _craftAdapter = new CraftingGridContainerAdapter(
+                _craftingGrid, context.CraftingEngine, _outputAdapter);
 
-            // Build interaction controller
-            HeldStack held = new HeldStack();
-            SlotInteractionController interaction = new SlotInteractionController(held, itemRegistry);
-
-            InitializeBase(panelSettings, 200, interaction, spriteAtlas, itemRegistry);
+            InitializeBase(context, 200);
 
             BuildUI();
             Panel.style.display = DisplayStyle.None;
@@ -132,7 +121,7 @@ namespace Lithforge.Runtime.UI.Screens
 
                     if (isShift)
                     {
-                        Interaction.ShiftClickOutput(_outputAdapter, _craftAdapter, _inventory);
+                        Interaction.ShiftClickOutput(_outputAdapter, _craftAdapter, Context.PlayerInventory);
                     }
                     else
                     {
@@ -175,7 +164,7 @@ namespace Lithforge.Runtime.UI.Screens
         protected override void OnClose()
         {
             // Return held items to inventory
-            Interaction.ReturnHeldToInventory(_inventory);
+            Interaction.ReturnHeldToInventory(Context.PlayerInventory);
 
             // Return crafting grid items to inventory
             for (int y = 0; y < _craftingGrid.Height; y++)
@@ -191,7 +180,7 @@ namespace Lithforge.Runtime.UI.Screens
 
                         if (gridStack.Durability > 0)
                         {
-                            int leftOver = _inventory.AddItemWithDurability(
+                            int leftOver = Context.PlayerInventory.AddItemWithDurability(
                                 gridStack.ItemId, gridStack.Durability);
 
                             if (leftOver == 0)
@@ -201,7 +190,7 @@ namespace Lithforge.Runtime.UI.Screens
                         }
                         else
                         {
-                            int leftOver = _inventory.AddItem(
+                            int leftOver = Context.PlayerInventory.AddItem(
                                 gridStack.ItemId, gridStack.Count, maxStack);
 
                             if (leftOver == 0)
@@ -222,7 +211,7 @@ namespace Lithforge.Runtime.UI.Screens
 
         private void Update()
         {
-            if (_inventory == null)
+            if (Context == null)
             {
                 return;
             }

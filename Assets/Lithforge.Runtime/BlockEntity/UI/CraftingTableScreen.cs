@@ -1,12 +1,9 @@
-using Lithforge.Core.Data;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
-using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -19,7 +16,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class CraftingTableScreen : ContainerScreen
     {
-        private Inventory _playerInventory;
         private CraftingGrid _craftingGrid;
 
         private CraftingGridContainerAdapter _craftAdapter;
@@ -27,32 +23,28 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private InventoryContainerAdapter _hotbarAdapter;
         private InventoryContainerAdapter _mainAdapter;
 
-        public void Initialize(
-            Inventory playerInventory,
-            ItemRegistry itemRegistry,
-            CraftingEngine craftingEngine,
-            PanelSettings panelSettings,
-            ItemSpriteAtlas spriteAtlas)
+        public void Initialize(ScreenContext context)
         {
-            _playerInventory = playerInventory;
             _craftingGrid = new CraftingGrid(3, 3);
 
-            _outputAdapter = new CraftingOutputContainerAdapter(itemRegistry);
-            _hotbarAdapter = new InventoryContainerAdapter(playerInventory, 0, Inventory.HotbarSize);
-            _mainAdapter = new InventoryContainerAdapter(playerInventory, Inventory.HotbarSize,
+            _outputAdapter = new CraftingOutputContainerAdapter(context.ItemRegistry);
+            _hotbarAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, 0, Inventory.HotbarSize);
+            _mainAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
-            _craftAdapter = new CraftingGridContainerAdapter(_craftingGrid, craftingEngine, _outputAdapter);
+            _craftAdapter = new CraftingGridContainerAdapter(
+                _craftingGrid, context.CraftingEngine, _outputAdapter);
 
-            HeldStack held = new HeldStack();
-            SlotInteractionController interaction = new SlotInteractionController(held, itemRegistry);
-
-            InitializeBase(panelSettings, 255, interaction, spriteAtlas, itemRegistry);
+            InitializeBase(context, 255);
 
             Panel.style.display = DisplayStyle.None;
         }
 
-        public void OpenForEntity(CraftingTableBlockEntity entity)
+        public void OpenForEntity(BlockEntity entity)
         {
+            // The crafting table entity carries no persistent crafting state.
+            // We just open with a fresh local grid.
             RebuildUI();
             Open();
         }
@@ -132,7 +124,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
                     if (isShift)
                     {
-                        Interaction.ShiftClickOutput(_outputAdapter, _craftAdapter, _playerInventory);
+                        Interaction.ShiftClickOutput(_outputAdapter, _craftAdapter, Context.PlayerInventory);
                     }
                     else
                     {
@@ -151,11 +143,13 @@ namespace Lithforge.Runtime.BlockEntity.UI
             {
                 if (container == _craftAdapter)
                 {
-                    TransferItem(container, slotIndex, _mainAdapter, _hotbarAdapter);
+                    ContainerTransfer.TransferItem(
+                        container, slotIndex, _mainAdapter, _hotbarAdapter, ItemRegistryRef);
                 }
                 else if (container == _mainAdapter || container == _hotbarAdapter)
                 {
-                    TransferItem(container, slotIndex, _craftAdapter, null);
+                    ContainerTransfer.TransferItem(
+                        container, slotIndex, _craftAdapter, null, ItemRegistryRef);
                 }
 
                 evt.StopPropagation();
@@ -175,76 +169,9 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
-        private void TransferItem(
-            ISlotContainer source, int slotIndex,
-            ISlotContainer primaryTarget, ISlotContainer secondaryTarget)
-        {
-            ItemStack stack = source.GetSlot(slotIndex);
-
-            if (stack.IsEmpty)
-            {
-                return;
-            }
-
-            ItemEntry def = ItemRegistryRef.Get(stack.ItemId);
-            int maxStack = def != null ? def.MaxStackSize : 64;
-            int remaining = stack.Count;
-
-            remaining = TryFillContainer(stack.ItemId, remaining, maxStack, primaryTarget);
-
-            if (remaining > 0 && secondaryTarget != null)
-            {
-                remaining = TryFillContainer(stack.ItemId, remaining, maxStack, secondaryTarget);
-            }
-
-            if (remaining == 0)
-            {
-                source.SetSlot(slotIndex, ItemStack.Empty);
-            }
-            else
-            {
-                ItemStack updated = stack;
-                updated.Count = remaining;
-                source.SetSlot(slotIndex, updated);
-            }
-        }
-
-        private static int TryFillContainer(
-            ResourceId itemId, int count, int maxStack, ISlotContainer target)
-        {
-            int remaining = count;
-
-            for (int i = 0; i < target.SlotCount && remaining > 0; i++)
-            {
-                ItemStack slot = target.GetSlot(i);
-
-                if (!slot.IsEmpty && slot.ItemId == itemId && slot.Count < maxStack)
-                {
-                    int space = maxStack - slot.Count;
-                    int toAdd = remaining < space ? remaining : space;
-                    ItemStack updated = slot;
-                    updated.Count += toAdd;
-                    target.SetSlot(i, updated);
-                    remaining -= toAdd;
-                }
-            }
-
-            for (int i = 0; i < target.SlotCount && remaining > 0; i++)
-            {
-                if (target.GetSlot(i).IsEmpty)
-                {
-                    int toAdd = remaining < maxStack ? remaining : maxStack;
-                    target.SetSlot(i, new ItemStack(itemId, toAdd));
-                    remaining -= toAdd;
-                }
-            }
-
-            return remaining;
-        }
-
         protected override void OnClose()
         {
-            Interaction.ReturnHeldToInventory(_playerInventory);
+            Interaction.ReturnHeldToInventory(Context.PlayerInventory);
 
             // Return crafting grid items to player inventory
             for (int y = 0; y < _craftingGrid.Height; y++)
@@ -260,7 +187,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
                         if (gridStack.Durability > 0)
                         {
-                            int leftOver = _playerInventory.AddItemWithDurability(
+                            int leftOver = Context.PlayerInventory.AddItemWithDurability(
                                 gridStack.ItemId, gridStack.Durability);
 
                             if (leftOver == 0)
@@ -270,7 +197,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                         }
                         else
                         {
-                            int leftOver = _playerInventory.AddItem(
+                            int leftOver = Context.PlayerInventory.AddItem(
                                 gridStack.ItemId, gridStack.Count, maxStack);
 
                             if (leftOver == 0)
@@ -291,7 +218,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void Update()
         {
-            if (_playerInventory == null)
+            if (Context == null)
             {
                 return;
             }

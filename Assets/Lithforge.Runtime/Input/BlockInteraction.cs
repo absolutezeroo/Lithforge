@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Physics;
 using Lithforge.Runtime.BlockEntity;
-using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Content.Tools;
+using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.Rendering;
 using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
 using Lithforge.Voxel.Block;
@@ -85,10 +85,7 @@ namespace Lithforge.Runtime.Input
 
         // Block entity references
         private BlockEntityTickScheduler _blockEntityTickScheduler;
-        private ChestScreen _chestScreen;
-        private FurnaceScreen _furnaceScreen;
-        private ToolStationScreen _toolStationScreen;
-        private CraftingTableScreen _craftingTableScreen;
+        private ContainerScreenManager _screenManager;
 
         // Tool system registries
         private ToolTraitRegistry _toolTraitRegistry;
@@ -133,21 +130,15 @@ namespace Lithforge.Runtime.Input
         }
 
         /// <summary>
-        /// Sets block entity system references. Call after block entity system is initialized.
+        /// Sets block entity system references. Call after ContainerScreenManager is initialized.
         /// </summary>
         public void SetBlockEntityReferences(
             BlockEntityTickScheduler scheduler,
-            ChestScreen chestScreen,
-            FurnaceScreen furnaceScreen,
-            ToolStationScreen toolStationScreen,
-            CraftingTableScreen craftingTableScreen,
+            ContainerScreenManager screenManager,
             ToolTraitRegistry toolTraitRegistry)
         {
             _blockEntityTickScheduler = scheduler;
-            _chestScreen = chestScreen;
-            _furnaceScreen = furnaceScreen;
-            _toolStationScreen = toolStationScreen;
-            _craftingTableScreen = craftingTableScreen;
+            _screenManager = screenManager;
             _toolTraitRegistry = toolTraitRegistry;
         }
 
@@ -550,32 +541,10 @@ namespace Lithforge.Runtime.Input
                     Lithforge.Runtime.BlockEntity.BlockEntity entity =
                         _blockEntityTickScheduler.GetEntity(chunkCoord, flatIndex);
 
-                    if (entity != null)
+                    if (entity != null && _screenManager != null)
                     {
-                        if (entity is ChestBlockEntity chest && _chestScreen != null)
+                        if (_screenManager.TryOpenForEntity(entity))
                         {
-                            _chestScreen.OpenForEntity(chest);
-                            _placeCooldown = _placeCooldownTime;
-                            return;
-                        }
-
-                        if (entity is FurnaceBlockEntity furnace && _furnaceScreen != null)
-                        {
-                            _furnaceScreen.OpenForEntity(furnace);
-                            _placeCooldown = _placeCooldownTime;
-                            return;
-                        }
-
-                        if (entity is ToolStationBlockEntity toolStation && _toolStationScreen != null)
-                        {
-                            _toolStationScreen.OpenForEntity(toolStation);
-                            _placeCooldown = _placeCooldownTime;
-                            return;
-                        }
-
-                        if (entity is CraftingTableBlockEntity craftingTable && _craftingTableScreen != null)
-                        {
-                            _craftingTableScreen.OpenForEntity(craftingTable);
                             _placeCooldown = _placeCooldownTime;
                             return;
                         }

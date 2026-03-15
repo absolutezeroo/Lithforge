@@ -1,6 +1,5 @@
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
@@ -18,7 +17,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class FurnaceScreen : ContainerScreen
     {
-        private Inventory _playerInventory;
         private FurnaceBlockEntity _currentFurnace;
 
         private BlockEntityContainerAdapter _furnaceInputAdapter;
@@ -30,33 +28,33 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private ProgressBar _burnBar;
         private ProgressBar _smeltBar;
 
-        public void Initialize(
-            Inventory playerInventory,
-            ItemRegistry itemRegistry,
-            PanelSettings panelSettings,
-            ItemSpriteAtlas spriteAtlas)
+        public void Initialize(ScreenContext context)
         {
-            _playerInventory = playerInventory;
-
-            _hotbarAdapter = new InventoryContainerAdapter(playerInventory, 0, Inventory.HotbarSize);
-            _mainAdapter = new InventoryContainerAdapter(playerInventory, Inventory.HotbarSize,
+            _hotbarAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, 0, Inventory.HotbarSize);
+            _mainAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
-            HeldStack held = new HeldStack();
-            SlotInteractionController interaction = new SlotInteractionController(held, itemRegistry);
-
-            InitializeBase(panelSettings, 250, interaction, spriteAtlas, itemRegistry);
+            InitializeBase(context, 250);
 
             Panel.style.display = DisplayStyle.None;
         }
 
         /// <summary>
-        /// Opens the furnace screen for the given furnace entity.
+        /// Opens the furnace screen for the given entity.
         /// Creates adapters wrapping the 3 furnace slots:
         /// input=slot 0, fuel=slot 1, output=slot 2 (read-only for placement).
         /// </summary>
-        public void OpenForEntity(FurnaceBlockEntity furnace)
+        public void OpenForEntity(BlockEntity entity)
         {
+            FurnaceBlockEntity furnace = entity as FurnaceBlockEntity;
+
+            if (furnace == null)
+            {
+                return;
+            }
+
             _currentFurnace = furnace;
 
             InventoryBehavior inv = furnace.Inventory;
@@ -203,7 +201,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                             // Transfer output to player inventory
                             ItemEntry def = ItemRegistryRef.Get(outputStack.ItemId);
                             int maxStack = def != null ? def.MaxStackSize : 64;
-                            int leftOver = _playerInventory.AddItem(
+                            int leftOver = Context.PlayerInventory.AddItem(
                                 outputStack.ItemId, outputStack.Count, maxStack);
 
                             if (leftOver == 0)
@@ -272,13 +270,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
             {
                 if (container == _furnaceInputAdapter || container == _furnaceFuelAdapter)
                 {
-                    // From furnace → player main, then hotbar
-                    TransferItem(container, slotIndex, _mainAdapter, _hotbarAdapter);
+                    // From furnace -> player main, then hotbar
+                    ContainerTransfer.TransferItem(
+                        container, slotIndex, _mainAdapter, _hotbarAdapter, ItemRegistryRef);
                 }
                 else if (container == _mainAdapter || container == _hotbarAdapter)
                 {
-                    // From player → furnace input slot
-                    TransferItem(container, slotIndex, _furnaceInputAdapter, _furnaceFuelAdapter);
+                    // From player -> furnace input slot
+                    ContainerTransfer.TransferItem(
+                        container, slotIndex, _furnaceInputAdapter, _furnaceFuelAdapter,
+                        ItemRegistryRef);
                 }
 
                 evt.StopPropagation();
@@ -298,83 +299,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
-        private void TransferItem(
-            ISlotContainer source, int slotIndex,
-            ISlotContainer primaryTarget, ISlotContainer secondaryTarget)
-        {
-            ItemStack stack = source.GetSlot(slotIndex);
-
-            if (stack.IsEmpty)
-            {
-                return;
-            }
-
-            ItemEntry def = ItemRegistryRef.Get(stack.ItemId);
-            int maxStack = def != null ? def.MaxStackSize : 64;
-            int remaining = stack.Count;
-
-            remaining = TryFillContainer(stack.ItemId, remaining, maxStack, primaryTarget);
-
-            if (remaining > 0 && secondaryTarget != null)
-            {
-                remaining = TryFillContainer(stack.ItemId, remaining, maxStack, secondaryTarget);
-            }
-
-            if (remaining == 0)
-            {
-                source.SetSlot(slotIndex, ItemStack.Empty);
-            }
-            else
-            {
-                ItemStack updated = stack;
-                updated.Count = remaining;
-                source.SetSlot(slotIndex, updated);
-            }
-        }
-
-        private static int TryFillContainer(
-            Lithforge.Core.Data.ResourceId itemId, int count, int maxStack, ISlotContainer target)
-        {
-            int remaining = count;
-
-            for (int i = 0; i < target.SlotCount && remaining > 0; i++)
-            {
-                ItemStack slot = target.GetSlot(i);
-
-                if (!slot.IsEmpty && slot.ItemId == itemId && slot.Count < maxStack)
-                {
-                    int space = maxStack - slot.Count;
-                    int toAdd = remaining < space ? remaining : space;
-                    ItemStack updated = slot;
-                    updated.Count += toAdd;
-                    target.SetSlot(i, updated);
-                    remaining -= toAdd;
-                }
-            }
-
-            for (int i = 0; i < target.SlotCount && remaining > 0; i++)
-            {
-                if (target.GetSlot(i).IsEmpty)
-                {
-                    int toAdd = remaining < maxStack ? remaining : maxStack;
-                    target.SetSlot(i, new ItemStack(itemId, toAdd));
-                    remaining -= toAdd;
-                }
-            }
-
-            return remaining;
-        }
-
         protected override void OnClose()
         {
             // Return held items to player inventory
-            Interaction.ReturnHeldToInventory(_playerInventory);
+            Interaction.ReturnHeldToInventory(Context.PlayerInventory);
             _currentFurnace = null;
         }
 
         private void Update()
         {
-            if (_playerInventory == null)
+            if (Context == null)
             {
                 return;
             }

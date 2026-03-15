@@ -1,7 +1,6 @@
 using Lithforge.Core.Data;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
@@ -19,7 +18,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class ToolStationScreen : ContainerScreen
     {
-        private Inventory _playerInventory;
         private ToolStationBlockEntity _currentStation;
         private ToolTraitRegistry _traitRegistry;
 
@@ -42,30 +40,30 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private Button _shovelBtn;
         private Button _swordBtn;
 
-        public void Initialize(
-            Inventory playerInventory,
-            ItemRegistry itemRegistry,
-            ToolTraitRegistry traitRegistry,
-            PanelSettings panelSettings,
-            ItemSpriteAtlas spriteAtlas)
+        public void Initialize(ScreenContext context)
         {
-            _playerInventory = playerInventory;
-            _traitRegistry = traitRegistry;
+            _traitRegistry = context.ToolTraitRegistry;
 
-            _hotbarAdapter = new InventoryContainerAdapter(playerInventory, 0, Inventory.HotbarSize);
-            _mainAdapter = new InventoryContainerAdapter(playerInventory, Inventory.HotbarSize,
+            _hotbarAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, 0, Inventory.HotbarSize);
+            _mainAdapter = new InventoryContainerAdapter(
+                context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
-            HeldStack held = new HeldStack();
-            SlotInteractionController interaction = new SlotInteractionController(held, itemRegistry);
-
-            InitializeBase(panelSettings, 260, interaction, spriteAtlas, itemRegistry);
+            InitializeBase(context, 260);
 
             Panel.style.display = DisplayStyle.None;
         }
 
-        public void OpenForEntity(ToolStationBlockEntity station)
+        public void OpenForEntity(BlockEntity entity)
         {
+            ToolStationBlockEntity station = entity as ToolStationBlockEntity;
+
+            if (station == null)
+            {
+                return;
+            }
+
             _currentStation = station;
 
             InventoryBehavior inv = station.Inventory;
@@ -270,12 +268,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 if (container == _headAdapter || container == _handleAdapter
                     || container == _bindingAdapter)
                 {
-                    TransferItem(container, slotIndex, _mainAdapter, _hotbarAdapter);
+                    ContainerTransfer.TransferItem(
+                        container, slotIndex, _mainAdapter, _hotbarAdapter, ItemRegistryRef);
                 }
                 else if (container == _mainAdapter || container == _hotbarAdapter)
                 {
                     // Try to fill part slots in order: head, handle, binding
-                    TransferItem(container, slotIndex, _headAdapter, _handleAdapter);
+                    ContainerTransfer.TransferItem(
+                        container, slotIndex, _headAdapter, _handleAdapter, ItemRegistryRef);
                 }
 
                 evt.StopPropagation();
@@ -329,7 +329,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 // Transfer to player inventory
                 ItemEntry def = ItemRegistryRef.Get(resultItemId);
                 int maxStack = def != null ? def.MaxStackSize : 1;
-                int leftOver = _playerInventory.AddItem(resultItemId, 1, maxStack);
+                int leftOver = Context.PlayerInventory.AddItem(resultItemId, 1, maxStack);
 
                 if (leftOver == 0)
                 {
@@ -363,82 +363,15 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return new ResourceId("lithforge", "modular_" + toolName);
         }
 
-        private void TransferItem(
-            ISlotContainer source, int slotIndex,
-            ISlotContainer primaryTarget, ISlotContainer secondaryTarget)
-        {
-            ItemStack stack = source.GetSlot(slotIndex);
-
-            if (stack.IsEmpty)
-            {
-                return;
-            }
-
-            ItemEntry def = ItemRegistryRef.Get(stack.ItemId);
-            int maxStack = def != null ? def.MaxStackSize : 64;
-            int remaining = stack.Count;
-
-            remaining = TryFillContainer(stack.ItemId, remaining, maxStack, primaryTarget);
-
-            if (remaining > 0 && secondaryTarget != null)
-            {
-                remaining = TryFillContainer(stack.ItemId, remaining, maxStack, secondaryTarget);
-            }
-
-            if (remaining == 0)
-            {
-                source.SetSlot(slotIndex, ItemStack.Empty);
-            }
-            else
-            {
-                ItemStack updated = stack;
-                updated.Count = remaining;
-                source.SetSlot(slotIndex, updated);
-            }
-        }
-
-        private static int TryFillContainer(
-            ResourceId itemId, int count, int maxStack, ISlotContainer target)
-        {
-            int remaining = count;
-
-            for (int i = 0; i < target.SlotCount && remaining > 0; i++)
-            {
-                ItemStack slot = target.GetSlot(i);
-
-                if (!slot.IsEmpty && slot.ItemId == itemId && slot.Count < maxStack)
-                {
-                    int space = maxStack - slot.Count;
-                    int toAdd = remaining < space ? remaining : space;
-                    ItemStack updated = slot;
-                    updated.Count += toAdd;
-                    target.SetSlot(i, updated);
-                    remaining -= toAdd;
-                }
-            }
-
-            for (int i = 0; i < target.SlotCount && remaining > 0; i++)
-            {
-                if (target.GetSlot(i).IsEmpty)
-                {
-                    int toAdd = remaining < maxStack ? remaining : maxStack;
-                    target.SetSlot(i, new ItemStack(itemId, toAdd));
-                    remaining -= toAdd;
-                }
-            }
-
-            return remaining;
-        }
-
         protected override void OnClose()
         {
-            Interaction.ReturnHeldToInventory(_playerInventory);
+            Interaction.ReturnHeldToInventory(Context.PlayerInventory);
             _currentStation = null;
         }
 
         private void Update()
         {
-            if (_playerInventory == null)
+            if (Context == null)
             {
                 return;
             }

@@ -624,58 +624,84 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ItemRegistry,
                     _contentResult.ItemSpriteAtlas);
 
-                // Add PlayerInventoryScreen
+                // Build ScreenContext — single shared context for all container screens
+                ScreenContext screenContext = new ScreenContext(
+                    playerInventory,
+                    _contentResult.ItemRegistry,
+                    _contentResult.ItemSpriteAtlas,
+                    panelSettings,
+                    _contentResult.CraftingEngine,
+                    _contentResult.ToolTraitRegistry);
+
+                // Add PlayerInventoryScreen (not a block entity screen, managed separately)
                 GameObject inventoryObject = new GameObject("PlayerInventoryScreen");
                 PlayerInventoryScreen inventoryScreen = inventoryObject.AddComponent<PlayerInventoryScreen>();
-                inventoryScreen.Initialize(
-                    playerInventory,
-                    _contentResult.ItemRegistry,
-                    _contentResult.CraftingEngine,
-                    panelSettings,
-                    _contentResult.ItemSpriteAtlas);
+                inventoryScreen.Initialize(screenContext);
 
-                // Add ChestScreen
-                GameObject chestScreenObject = new GameObject("ChestScreen");
-                ChestScreen chestScreen = chestScreenObject.AddComponent<ChestScreen>();
-                chestScreen.Initialize(
-                    playerInventory,
-                    _contentResult.ItemRegistry,
-                    panelSettings,
-                    _contentResult.ItemSpriteAtlas);
+                // Create ContainerScreenManager (manages all block entity screens lazily)
+                GameObject screenManagerObject = new GameObject("ContainerScreenManager");
+                ContainerScreenManager screenManager =
+                    screenManagerObject.AddComponent<ContainerScreenManager>();
 
-                // Add FurnaceScreen
-                GameObject furnaceScreenObject = new GameObject("FurnaceScreen");
-                FurnaceScreen furnaceScreen = furnaceScreenObject.AddComponent<FurnaceScreen>();
-                furnaceScreen.Initialize(
-                    playerInventory,
-                    _contentResult.ItemRegistry,
-                    panelSettings,
-                    _contentResult.ItemSpriteAtlas);
+                screenManager.Register(
+                    ChestBlockEntity.TypeIdValue,
+                    () =>
+                    {
+                        GameObject obj = new GameObject("ChestScreen");
+                        ChestScreen screen = obj.AddComponent<ChestScreen>();
+                        screen.Initialize(screenContext);
+                        return screen;
+                    },
+                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    {
+                        ((ChestScreen)s).OpenForEntity(e);
+                    });
 
-                // Add ToolStationScreen
-                GameObject toolStationScreenObject = new GameObject("ToolStationScreen");
-                ToolStationScreen toolStationScreen = toolStationScreenObject.AddComponent<ToolStationScreen>();
-                toolStationScreen.Initialize(
-                    playerInventory,
-                    _contentResult.ItemRegistry,
-                    _contentResult.ToolTraitRegistry,
-                    panelSettings,
-                    _contentResult.ItemSpriteAtlas);
+                screenManager.Register(
+                    FurnaceBlockEntity.TypeIdValue,
+                    () =>
+                    {
+                        GameObject obj = new GameObject("FurnaceScreen");
+                        FurnaceScreen screen = obj.AddComponent<FurnaceScreen>();
+                        screen.Initialize(screenContext);
+                        return screen;
+                    },
+                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    {
+                        ((FurnaceScreen)s).OpenForEntity(e);
+                    });
 
-                // Add CraftingTableScreen
-                GameObject craftingTableScreenObject = new GameObject("CraftingTableScreen");
-                CraftingTableScreen craftingTableScreen = craftingTableScreenObject.AddComponent<CraftingTableScreen>();
-                craftingTableScreen.Initialize(
-                    playerInventory,
-                    _contentResult.ItemRegistry,
-                    _contentResult.CraftingEngine,
-                    panelSettings,
-                    _contentResult.ItemSpriteAtlas);
+                screenManager.Register(
+                    ToolStationBlockEntity.TypeIdValue,
+                    () =>
+                    {
+                        GameObject obj = new GameObject("ToolStationScreen");
+                        ToolStationScreen screen = obj.AddComponent<ToolStationScreen>();
+                        screen.Initialize(screenContext);
+                        return screen;
+                    },
+                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    {
+                        ((ToolStationScreen)s).OpenForEntity(e);
+                    });
 
-                // Wire block entity screens to BlockInteraction
+                screenManager.Register(
+                    CraftingTableBlockEntity.TypeIdValue,
+                    () =>
+                    {
+                        GameObject obj = new GameObject("CraftingTableScreen");
+                        CraftingTableScreen screen = obj.AddComponent<CraftingTableScreen>();
+                        screen.Initialize(screenContext);
+                        return screen;
+                    },
+                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    {
+                        ((CraftingTableScreen)s).OpenForEntity(e);
+                    });
+
+                // Wire screen manager to BlockInteraction (replaces 6-arg SetBlockEntityReferences)
                 blockInteraction.SetBlockEntityReferences(
-                    blockEntityTickScheduler, chestScreen, furnaceScreen,
-                    toolStationScreen, craftingTableScreen, _contentResult.ToolTraitRegistry);
+                    blockEntityTickScheduler, screenManager, _contentResult.ToolTraitRegistry);
                 // Add SettingsScreen (initialized after TimeOfDayController is created below)
                 GameObject settingsObject = new GameObject("SettingsScreen");
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();
@@ -698,7 +724,8 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
-                    crosshairHUD, hotbarDisplay, inventoryScreen, debugHud, settingsScreen);
+                    crosshairHUD, hotbarDisplay, inventoryScreen, debugHud,
+                    settingsScreen, screenManager);
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement

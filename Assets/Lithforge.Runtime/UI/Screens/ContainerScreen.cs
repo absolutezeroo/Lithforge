@@ -14,11 +14,12 @@ namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
     /// Abstract base for all container screens (inventory, chest, furnace, etc.).
-    /// Creates a UIDocument, loads USS themes, builds slot grids from a ContainerLayoutSO,
+    /// Creates a UIDocument, loads USS themes, builds slot grids,
     /// wires pointer events to SlotInteractionController, and runs the per-frame refresh loop.
-    /// Subclasses provide the SlotContainerContext and handle screen-specific logic.
+    /// Subclasses call <see cref="InitializeBase(ScreenContext, int)"/> and handle
+    /// screen-specific logic via <see cref="OnSlotPointerDown"/> and <see cref="OnClose"/>.
     /// </summary>
-    public abstract class ContainerScreen : MonoBehaviour
+    public abstract class ContainerScreen : MonoBehaviour, IContainerScreen
     {
         private UIDocument _document;
         private VisualElement _root;
@@ -29,6 +30,7 @@ namespace Lithforge.Runtime.UI.Screens
         private SlotInteractionController _interaction;
         private ItemSpriteAtlas _spriteAtlas;
         private ItemRegistry _itemRegistry;
+        private ScreenContext _context;
 
         private bool _isOpen;
 
@@ -71,21 +73,31 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Initialize the screen. Call from subclass.
+        /// The shared context carrying all screen dependencies.
+        /// Available after <see cref="InitializeBase"/> has been called.
         /// </summary>
-        protected void InitializeBase(
-            PanelSettings panelSettings,
-            int sortingOrder,
-            SlotInteractionController interaction,
-            ItemSpriteAtlas spriteAtlas,
-            ItemRegistry itemRegistry)
+        protected ScreenContext Context
         {
-            _interaction = interaction;
-            _spriteAtlas = spriteAtlas;
-            _itemRegistry = itemRegistry;
+            get { return _context; }
+        }
+
+        /// <summary>
+        /// Initialize the screen from a shared context. Creates the UIDocument,
+        /// loads USS themes, builds the overlay panel, tooltip, and drag ghost.
+        /// Also creates the <see cref="SlotInteractionController"/> internally.
+        /// Call from subclass <c>Initialize(ScreenContext)</c>.
+        /// </summary>
+        protected void InitializeBase(ScreenContext context, int sortingOrder)
+        {
+            _context = context;
+
+            HeldStack held = new HeldStack();
+            _interaction = new SlotInteractionController(held, context.ItemRegistry);
+            _spriteAtlas = context.ItemSpriteAtlas;
+            _itemRegistry = context.ItemRegistry;
 
             _document = gameObject.AddComponent<UIDocument>();
-            _document.panelSettings = panelSettings;
+            _document.panelSettings = context.PanelSettings;
             _document.sortingOrder = sortingOrder;
 
             _root = _document.rootVisualElement;

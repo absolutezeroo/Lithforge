@@ -25,6 +25,10 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         [FormerlySerializedAs("_blockEntityTypeId"),Tooltip("Block entity type ID (e.g. lithforge:chest)")]
         [SerializeField] private string blockEntityTypeId = "";
 
+        [Tooltip("Screen type ID used to open this block entity's UI (e.g. lithforge:chest_screen). " +
+                 "Must match the entityTypeId registered on the ContainerScreenManager.")]
+        [SerializeField] private string screenTypeId = "";
+
         public string Namespace
         {
             get { return @namespace; }
@@ -38,6 +42,15 @@ namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
         public string BlockEntityTypeId
         {
             get { return blockEntityTypeId; }
+        }
+
+        /// <summary>
+        /// Screen type ID for the container screen associated with this block entity.
+        /// Must match the entityTypeId registered on the ContainerScreenManager.
+        /// </summary>
+        public string ScreenTypeId
+        {
+            get { return screenTypeId; }
         }
 
         /// <summary>
