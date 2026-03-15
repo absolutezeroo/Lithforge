@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa05ebbe113b7294d891c97a207f3a09, type: 3}
+  m_Name: Scenario_ChunkLoad_5000
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Debug.Benchmark.BenchmarkScenario
+  scenarioName: Chunk Load 5000 blocks
+  phases:
+  - phaseName: Baseline
+    commands:
+    - {fileID: 11400000, guid: 8e9ec665e241bdc40b9534af15aa9e25, type: 2}
+    warmupFrames: 120
+    measurementFrames: 300
+  - phaseName: Teleport 5000
+    commands:
+    - {fileID: 11400000, guid: 508cb440f0c041b4395f7086698b34d9, type: 2}
+    - {fileID: 11400000, guid: caa149b52900d1a47831724039ad1468, type: 2}
+    warmupFrames: 60
+    measurementFrames: 900
+  maxAvgFrameTimeMs: 33.33

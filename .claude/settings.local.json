@@ -39,7 +39,9 @@
       "WebFetch(domain:mappings.xhyrom.dev)",
       "WebFetch(domain:www.curseforge.com)",
       "mcp__UnityMCP__batch_execute",
-      "mcp__UnityMCP__manage_scriptable_object"
+      "mcp__UnityMCP__manage_scriptable_object",
+      "mcp__UnityMCP__create_script",
+      "mcp__UnityMCP__delete_script"
     ]
   }
 }
