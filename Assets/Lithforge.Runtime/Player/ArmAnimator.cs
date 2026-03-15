@@ -14,13 +14,9 @@ namespace Lithforge.Runtime.Player
         // Base arm positions in camera-local space (block units)
         private static readonly float3 s_rightArmOffset = new float3(0.56f, -0.52f, -0.72f);
         private static readonly float3 s_leftArmOffset = new float3(-0.56f, -0.52f, -0.72f);
-
-        // Base arm rotation: pitches arm forward from hanging down to reaching forward,
-        // then angles slightly inward. Applied as local transform around the pivot.
-        // Matches Minecraft's first-person arm orientation.
         private static readonly float4x4 s_baseArmRotation = math.mul(
             float4x4.RotateY(math.radians(-45f)),
-            float4x4.RotateX(math.radians(-160f)));
+            float4x4.RotateX(math.radians(-90f)));
 
         // View bob parameters
         private const float BobStrength = 0.015f;

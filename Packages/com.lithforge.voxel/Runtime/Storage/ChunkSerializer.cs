@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
+using K4os.Compression.LZ4;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
@@ -12,7 +12,7 @@ namespace Lithforge.Voxel.Storage
     public static class ChunkSerializer
     {
         private static readonly byte[] s_magic = { (byte)'L', (byte)'F', (byte)'C', (byte)'H' };
-        private const byte Version = 2;
+        private const byte Version = 3;
 
         public static byte[] Serialize(
             NativeArray<StateId> chunkData,
@@ -49,52 +49,36 @@ namespace Lithforge.Voxel.Storage
                     writer.Write(paletteList[i]);
                 }
 
-                // Compress voxel data (palette indices)
-                byte[] voxelBytes;
+                // Compress voxel data (palette indices) with LZ4
+                byte[] voxelRaw = new byte[chunkData.Length * 2];
 
-                using (MemoryStream voxelMs = new MemoryStream())
+                for (int i = 0; i < chunkData.Length; i++)
                 {
-                    using (DeflateStream deflate = new DeflateStream(voxelMs, CompressionLevel.Fastest, true))
-                    using (BinaryWriter voxelWriter = new BinaryWriter(deflate))
-                    {
-                        for (int i = 0; i < chunkData.Length; i++)
-                        {
-                            voxelWriter.Write(paletteMap[chunkData[i].Value]);
-                        }
-                    }
-
-                    voxelBytes = voxelMs.ToArray();
+                    ushort idx = paletteMap[chunkData[i].Value];
+                    voxelRaw[i * 2] = (byte)(idx & 0xFF);
+                    voxelRaw[i * 2 + 1] = (byte)(idx >> 8);
                 }
 
-                writer.Write(voxelBytes.Length);
-                writer.Write(voxelBytes);
+                byte[] voxelCompressed = LZ4Pickler.Pickle(voxelRaw, LZ4Level.L00_FAST);
+                writer.Write(voxelCompressed.Length);
+                writer.Write(voxelCompressed);
 
-                // Compress light data
+                // Compress light data with LZ4
                 if (lightData.IsCreated && lightData.Length > 0)
                 {
-                    byte[] lightBytes;
+                    byte[] lightRaw = new byte[lightData.Length];
+                    lightData.CopyTo(lightRaw);
 
-                    using (MemoryStream lightMs = new MemoryStream())
-                    {
-                        using (DeflateStream deflate = new DeflateStream(lightMs, CompressionLevel.Fastest, true))
-                        {
-                            byte[] raw = new byte[lightData.Length];
-                            lightData.CopyTo(raw);
-                            deflate.Write(raw, 0, raw.Length);
-                        }
-
-                        lightBytes = lightMs.ToArray();
-                    }
-
-                    writer.Write(lightBytes.Length);
-                    writer.Write(lightBytes);
+                    byte[] lightCompressed = LZ4Pickler.Pickle(lightRaw, LZ4Level.L00_FAST);
+                    writer.Write(lightCompressed.Length);
+                    writer.Write(lightCompressed);
                 }
                 else
                 {
                     writer.Write(0);
                 }
 
-                // Block entity section (version 2+)
+                // Block entity section
                 if (blockEntities != null && blockEntities.Count > 0)
                 {
                     writer.Write(blockEntities.Count);
@@ -121,6 +105,13 @@ namespace Lithforge.Voxel.Storage
                     writer.Write(0);
                 }
 
+                // Append CRC32 checksum of all preceding bytes
+                writer.Flush();
+                byte[] payload = ms.ToArray();
+                uint crc = Crc32.Compute(payload, 0, payload.Length);
+
+                writer.Write(crc);
+
                 return ms.ToArray();
             }
         }
@@ -133,7 +124,30 @@ namespace Lithforge.Voxel.Storage
         {
             blockEntities = null;
 
-            using (MemoryStream ms = new MemoryStream(data))
+            if (data == null || data.Length < 9)
+            {
+                return false;
+            }
+
+            // Verify CRC32: last 4 bytes are the checksum
+            if (data.Length < 13) // 4 magic + 1 version + 4 min content + 4 crc
+            {
+                return false;
+            }
+
+            int payloadLength = data.Length - 4;
+            uint storedCrc = (uint)(data[payloadLength] |
+                (data[payloadLength + 1] << 8) |
+                (data[payloadLength + 2] << 16) |
+                (data[payloadLength + 3] << 24));
+            uint computedCrc = Crc32.Compute(data, 0, payloadLength);
+
+            if (storedCrc != computedCrc)
+            {
+                return false;
+            }
+
+            using (MemoryStream ms = new MemoryStream(data, 0, payloadLength))
             using (BinaryReader reader = new BinaryReader(ms))
             {
                 // Verify magic
@@ -148,7 +162,7 @@ namespace Lithforge.Voxel.Storage
 
                 byte version = reader.ReadByte();
 
-                if (version < 1 || version > 2)
+                if (version != 3)
                 {
                     return false;
                 }
@@ -162,52 +176,48 @@ namespace Lithforge.Voxel.Storage
                     palette[i] = reader.ReadUInt16();
                 }
 
-                // Decompress voxel data
+                // Decompress voxel data with LZ4
                 int compressedVoxelLen = reader.ReadInt32();
                 byte[] compressedVoxels = reader.ReadBytes(compressedVoxelLen);
+                byte[] voxelRaw = LZ4Pickler.Unpickle(compressedVoxels);
 
-                using (MemoryStream voxelMs = new MemoryStream(compressedVoxels))
-                using (DeflateStream inflate = new DeflateStream(voxelMs, CompressionMode.Decompress))
-                using (BinaryReader voxelReader = new BinaryReader(inflate))
+                int expectedVoxelBytes = chunkData.Length * 2;
+
+                if (voxelRaw.Length < expectedVoxelBytes)
                 {
-                    for (int i = 0; i < chunkData.Length; i++)
-                    {
-                        ushort paletteIdx = voxelReader.ReadUInt16();
-                        chunkData[i] = new StateId(palette[paletteIdx]);
-                    }
+                    return false;
                 }
 
-                // Decompress light data
+                for (int i = 0; i < chunkData.Length; i++)
+                {
+                    ushort paletteIdx = (ushort)(voxelRaw[i * 2] | (voxelRaw[i * 2 + 1] << 8));
+
+                    if (paletteIdx >= paletteCount)
+                    {
+                        return false;
+                    }
+
+                    chunkData[i] = new StateId(palette[paletteIdx]);
+                }
+
+                // Decompress light data with LZ4
                 int compressedLightLen = reader.ReadInt32();
 
                 if (compressedLightLen > 0 && lightData.IsCreated)
                 {
                     byte[] compressedLight = reader.ReadBytes(compressedLightLen);
+                    byte[] lightRaw = LZ4Pickler.Unpickle(compressedLight);
 
-                    using (MemoryStream lightMs = new MemoryStream(compressedLight))
-                    using (DeflateStream inflate = new DeflateStream(lightMs, CompressionMode.Decompress))
+                    if (lightRaw.Length < lightData.Length)
                     {
-                        byte[] raw = new byte[lightData.Length];
-                        int totalRead = 0;
-
-                        while (totalRead < raw.Length)
-                        {
-                            int bytesRead = inflate.Read(raw, totalRead, raw.Length - totalRead);
-
-                            if (bytesRead == 0)
-                            {
-                                break;
-                            }
-
-                            totalRead += bytesRead;
-                        }
-
-                        lightData.CopyFrom(raw);
+                        return false;
                     }
+
+                    lightData.CopyFrom(lightRaw);
                 }
 
-                // Block entity section (version 2 only)
-                if (version >= 2 && ms.Position < ms.Length)
+                // Block entity section
+                if (ms.Position < ms.Length)
                 {
                     int entityCount = reader.ReadInt32();
 
@@ -219,8 +229,8 @@ namespace Lithforge.Voxel.Storage
                         {
                             int flatIndex = reader.ReadInt32();
                             string typeId = reader.ReadString();
-                            int payloadLength = reader.ReadInt32();
-                            byte[] payload = reader.ReadBytes(payloadLength);
+                            int payloadLen = reader.ReadInt32();
+                            byte[] payload = reader.ReadBytes(payloadLen);
 
                             IBlockEntity entity = blockEntityRegistry.CreateEntity(typeId);
 
@@ -243,8 +253,8 @@ namespace Lithforge.Voxel.Storage
                         {
                             reader.ReadInt32(); // flatIndex
                             reader.ReadString(); // typeId
-                            int payloadLength = reader.ReadInt32();
-                            reader.ReadBytes(payloadLength);
+                            int payloadLen = reader.ReadInt32();
+                            reader.ReadBytes(payloadLen);
                         }
                     }
                 }

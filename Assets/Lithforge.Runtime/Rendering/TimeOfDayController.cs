@@ -41,6 +41,16 @@ namespace Lithforge.Runtime.Rendering
             set { _dayLengthSeconds = Mathf.Max(1.0f, value); }
         }
 
+        public void SetTimeOfDay(float time)
+        {
+            _timeOfDay = time % 1f;
+
+            if (_timeOfDay < 0f)
+            {
+                _timeOfDay += 1f;
+            }
+        }
+
         public void Initialize(
             Material voxelMaterial,
             Material cutoutMaterial,

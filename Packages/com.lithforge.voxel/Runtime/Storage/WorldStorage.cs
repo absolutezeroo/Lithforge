@@ -18,6 +18,11 @@ namespace Lithforge.Voxel.Storage
         private readonly ILogger _logger;
         private bool _disposed;
 
+        public string WorldDir
+        {
+            get { return _worldDir; }
+        }
+
         public WorldStorage(string worldDir, ILogger logger = null)
         {
             _worldDir = worldDir;
@@ -108,10 +113,15 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
-        public void FlushAll()
+        public void FlushAll(bool onlyDirty = false)
         {
             foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
             {
+                if (onlyDirty && !kvp.Value.IsDirty)
+                {
+                    continue;
+                }
+
                 try
                 {
                     kvp.Value.Flush();
@@ -129,6 +139,16 @@ namespace Lithforge.Voxel.Storage
             meta.Seed = seed;
             meta.ContentHash = contentHash;
             meta.Save(Path.Combine(_worldDir, "world.json"));
+        }
+
+        public void SaveMetadataFull(WorldMetadata metadata)
+        {
+            if (metadata == null)
+            {
+                return;
+            }
+
+            metadata.Save(Path.Combine(_worldDir, "world.json"));
         }
 
         public WorldMetadata LoadMetadata()

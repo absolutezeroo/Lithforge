@@ -244,6 +244,39 @@ namespace Lithforge.Voxel.Tests
         }
 
         [Test]
+        public void Deserialize_CorruptedCrc_ReturnsFalse()
+        {
+            NativeArray<StateId> original = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> originalLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> restored = new NativeArray<StateId>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> restoredLight = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            try
+            {
+                byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
+
+                // Flip a byte in the middle of the payload to corrupt it
+                int midpoint = serialized.Length / 2;
+                serialized[midpoint] = (byte)(serialized[midpoint] ^ 0xFF);
+
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+
+                Assert.IsFalse(success, "Corrupted CRC should cause deserialization to return false");
+            }
+            finally
+            {
+                original.Dispose();
+                originalLight.Dispose();
+                restored.Dispose();
+                restoredLight.Dispose();
+            }
+        }
+
+        [Test]
         public void Serialize_Compression_SmallerThanRaw()
         {
             NativeArray<StateId> chunkData = new NativeArray<StateId>(

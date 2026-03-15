@@ -22,6 +22,7 @@ namespace Lithforge.Runtime.Spawn
 
         private int3 _spawnChunkCoord;
         private SpawnProgress _progress;
+        private bool _skipSpawnSearch;
 
         /// <summary>
         /// True once the spawn process is fully complete and the player has been placed.
@@ -62,6 +63,17 @@ namespace Lithforge.Runtime.Spawn
             int yLevels = _yMax - _yMin + 1;
             _progress.TotalChunks = diameter * diameter * yLevels;
             _progress.Phase = SpawnState.Checking;
+        }
+
+        /// <summary>
+        /// Marks this spawn as a restore from saved position.
+        /// When Checking completes, the player is already at the correct position,
+        /// so FindingY and Teleporting are skipped — transition straight to Done.
+        /// Must be called before the first Tick().
+        /// </summary>
+        public void SetSavedPosition()
+        {
+            _skipSpawnSearch = true;
         }
 
         /// <summary>
@@ -126,7 +138,16 @@ namespace Lithforge.Runtime.Spawn
 
             if (readyCount >= _progress.TotalChunks)
             {
-                _progress.Phase = SpawnState.FindingY;
+                if (_skipSpawnSearch)
+                {
+                    // Player already at saved position — skip spawn search
+                    _progress.Phase = SpawnState.Done;
+                    _progress.ReadyChunks = _progress.TotalChunks;
+                }
+                else
+                {
+                    _progress.Phase = SpawnState.FindingY;
+                }
             }
         }
 

@@ -8,6 +8,7 @@ using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
+using Lithforge.Runtime.World;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Storage;
@@ -37,6 +38,7 @@ namespace Lithforge.Runtime
         private FirstPersonArmRenderer _armRenderer;
         private PlayerController _playerController;
         private BlockInteraction _blockInteraction;
+        private AutoSaveManager _autoSaveManager;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private bool _initialized;
 
@@ -185,6 +187,11 @@ namespace Lithforge.Runtime
             _blockInteraction = blockInteraction;
         }
 
+        public void SetAutoSaveManager(AutoSaveManager autoSaveManager)
+        {
+            _autoSaveManager = autoSaveManager;
+        }
+
         private void Update()
         {
             if (!_initialized)
@@ -302,6 +309,12 @@ namespace Lithforge.Runtime
             _lodScheduler.ScheduleJobs();
             FrameProfiler.End(FrameProfiler.SchedLOD);
             Profiler.EndSample();
+
+            // Auto-save: periodic metadata + dirty chunk flush
+            if (_autoSaveManager != null)
+            {
+                _autoSaveManager.Tick(Time.realtimeSinceStartup);
+            }
 
             FrameProfiler.End(FrameProfiler.UpdateTotal);
         }

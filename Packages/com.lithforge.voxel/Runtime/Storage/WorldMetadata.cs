@@ -7,29 +7,80 @@ namespace Lithforge.Voxel.Storage
 {
     public sealed class WorldMetadata
     {
+        public string DisplayName { get; set; }
         public long Seed { get; set; }
-        public int Version { get; set; }
+        public GameMode GameMode { get; set; }
+        public DateTime CreationDate { get; set; }
+        public DateTime LastPlayed { get; set; }
+        public int DataVersion { get; set; }
         public string ContentHash { get; set; }
-        public DateTime LastSaved { get; set; }
+        public WorldPlayerState PlayerState { get; set; }
 
         public WorldMetadata()
         {
-            Version = 1;
+            DisplayName = "New World";
+            GameMode = GameMode.Survival;
+            DataVersion = 2;
             ContentHash = "";
-            LastSaved = DateTime.UtcNow;
+            CreationDate = DateTime.UtcNow;
+            LastPlayed = DateTime.UtcNow;
         }
 
         public void Save(string filePath)
         {
-            LastSaved = DateTime.UtcNow;
+            LastPlayed = DateTime.UtcNow;
 
             JObject root = new JObject
             {
+                ["display_name"] = DisplayName,
                 ["seed"] = Seed,
-                ["version"] = Version,
+                ["game_mode"] = (int)GameMode,
+                ["creation_date"] = CreationDate.ToString("o"),
+                ["last_played"] = LastPlayed.ToString("o"),
+                ["data_version"] = DataVersion,
                 ["content_hash"] = ContentHash,
-                ["last_saved"] = LastSaved.ToString("o"),
             };
+
+            if (PlayerState != null)
+            {
+                JObject player = new JObject
+                {
+                    ["pos_x"] = PlayerState.PosX,
+                    ["pos_y"] = PlayerState.PosY,
+                    ["pos_z"] = PlayerState.PosZ,
+                    ["rot_x"] = PlayerState.RotX,
+                    ["rot_y"] = PlayerState.RotY,
+                    ["time_of_day"] = PlayerState.TimeOfDay,
+                    ["selected_slot"] = PlayerState.SelectedSlot,
+                };
+
+                if (PlayerState.Slots != null && PlayerState.Slots.Length > 0)
+                {
+                    JArray slots = new JArray();
+
+                    for (int i = 0; i < PlayerState.Slots.Length; i++)
+                    {
+                        SavedItemStack stack = PlayerState.Slots[i];
+
+                        if (stack != null && stack.Count > 0)
+                        {
+                            JObject slot = new JObject
+                            {
+                                ["slot"] = stack.Slot,
+                                ["ns"] = stack.Ns,
+                                ["name"] = stack.Name,
+                                ["count"] = stack.Count,
+                                ["durability"] = stack.Durability,
+                            };
+                            slots.Add(slot);
+                        }
+                    }
+
+                    player["slots"] = slots;
+                }
+
+                root["player"] = player;
+            }
 
             string dir = Path.GetDirectoryName(filePath);
 
@@ -38,7 +89,43 @@ namespace Lithforge.Voxel.Storage
                 Directory.CreateDirectory(dir);
             }
 
-            File.WriteAllText(filePath, root.ToString(Formatting.Indented));
+            // Atomic write: write to .tmp then rename
+            string tempPath = filePath + ".tmp";
+
+            try
+            {
+                File.WriteAllText(tempPath, root.ToString(Formatting.Indented));
+
+                if (File.Exists(filePath))
+                {
+                    string backupPath = filePath + ".bak";
+
+                    if (File.Exists(backupPath))
+                    {
+                        File.Delete(backupPath);
+                    }
+
+                    File.Move(filePath, backupPath);
+                }
+
+                File.Move(tempPath, filePath);
+            }
+            catch
+            {
+                if (File.Exists(tempPath))
+                {
+                    try
+                    {
+                        File.Delete(tempPath);
+                    }
+                    catch
+                    {
+                        // Best effort cleanup
+                    }
+                }
+
+                throw;
+            }
         }
 
         public static WorldMetadata Load(string filePath)
@@ -48,23 +135,81 @@ namespace Lithforge.Voxel.Storage
                 return null;
             }
 
-            string json = File.ReadAllText(filePath);
-            JObject root = JObject.Parse(json);
-
-            WorldMetadata meta = new WorldMetadata();
-            meta.Seed = root["seed"]?.Value<long>() ?? 0;
-            meta.Version = root["version"]?.Value<int>() ?? 1;
-            meta.ContentHash = root["content_hash"]?.Value<string>() ?? "";
-
-            string lastSavedStr = root["last_saved"]?.Value<string>();
-
-            if (!string.IsNullOrEmpty(lastSavedStr) &&
-                DateTime.TryParse(lastSavedStr, out DateTime parsed))
+            try
             {
-                meta.LastSaved = parsed;
-            }
+                string json = File.ReadAllText(filePath);
+                JObject root = JObject.Parse(json);
 
-            return meta;
+                WorldMetadata meta = new WorldMetadata();
+                meta.Seed = root["seed"]?.Value<long>() ?? 0;
+                meta.DataVersion = root["data_version"]?.Value<int>() ?? root["version"]?.Value<int>() ?? 1;
+                meta.ContentHash = root["content_hash"]?.Value<string>() ?? "";
+                meta.DisplayName = root["display_name"]?.Value<string>() ?? "";
+                meta.GameMode = (GameMode)(root["game_mode"]?.Value<int>() ?? 0);
+
+                string creationStr = root["creation_date"]?.Value<string>();
+
+                if (!string.IsNullOrEmpty(creationStr) && DateTime.TryParse(creationStr, out DateTime creationParsed))
+                {
+                    meta.CreationDate = creationParsed;
+                }
+
+                string lastPlayedStr = root["last_played"]?.Value<string>() ?? root["last_saved"]?.Value<string>();
+
+                if (!string.IsNullOrEmpty(lastPlayedStr) && DateTime.TryParse(lastPlayedStr, out DateTime lastParsed))
+                {
+                    meta.LastPlayed = lastParsed;
+                }
+
+                // Load player state if present
+                JToken playerToken = root["player"];
+
+                if (playerToken != null && playerToken.Type == JTokenType.Object)
+                {
+                    JObject playerObj = (JObject)playerToken;
+
+                    WorldPlayerState playerState = new WorldPlayerState();
+                    playerState.PosX = playerObj["pos_x"]?.Value<float>() ?? 0f;
+                    playerState.PosY = playerObj["pos_y"]?.Value<float>() ?? 0f;
+                    playerState.PosZ = playerObj["pos_z"]?.Value<float>() ?? 0f;
+                    playerState.RotX = playerObj["rot_x"]?.Value<float>() ?? 0f;
+                    playerState.RotY = playerObj["rot_y"]?.Value<float>() ?? 0f;
+                    playerState.TimeOfDay = playerObj["time_of_day"]?.Value<double>() ?? 0.0;
+                    playerState.SelectedSlot = playerObj["selected_slot"]?.Value<int>() ?? 0;
+
+                    JArray slotsArray = playerObj["slots"] as JArray;
+
+                    if (slotsArray != null && slotsArray.Count > 0)
+                    {
+                        SavedItemStack[] slots = new SavedItemStack[slotsArray.Count];
+
+                        for (int i = 0; i < slotsArray.Count; i++)
+                        {
+                            JObject slotObj = slotsArray[i] as JObject;
+
+                            if (slotObj != null)
+                            {
+                                slots[i] = new SavedItemStack(
+                                    slotObj["slot"]?.Value<int>() ?? 0,
+                                    slotObj["ns"]?.Value<string>() ?? "",
+                                    slotObj["name"]?.Value<string>() ?? "",
+                                    slotObj["count"]?.Value<int>() ?? 0,
+                                    slotObj["durability"]?.Value<int>() ?? -1);
+                            }
+                        }
+
+                        playerState.Slots = slots;
+                    }
+
+                    meta.PlayerState = playerState;
+                }
+
+                return meta;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

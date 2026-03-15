@@ -18,7 +18,8 @@
   "overrideReferences": true,
   "precompiledReferences": [
     "nunit.framework.dll",
-    "Newtonsoft.Json.dll"
+    "Newtonsoft.Json.dll",
+    "K4os.Compression.LZ4.dll"
   ],
   "autoReferenced": false,
   "defineConstraints": [

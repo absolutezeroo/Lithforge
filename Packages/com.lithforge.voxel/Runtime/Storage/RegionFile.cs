@@ -13,6 +13,7 @@ namespace Lithforge.Voxel.Storage
         private readonly string _filePath;
         private readonly Dictionary<int, byte[]> _cache = new Dictionary<int, byte[]>();
         private bool _disposed;
+        private bool _isDirty;
 
         public RegionFile(string filePath)
         {
@@ -92,10 +93,16 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        public bool IsDirty
+        {
+            get { return _isDirty; }
+        }
+
         public void SaveChunk(int localX, int localZ, byte[] data)
         {
             int key = GetKey(localX, localZ);
             _cache[key] = data;
+            _isDirty = true;
         }
 
         public void Flush()
@@ -214,6 +221,7 @@ namespace Lithforge.Voxel.Storage
             }
 
             _cache.Clear();
+            _isDirty = false;
         }
 
         private static int GetKey(int localX, int localZ)

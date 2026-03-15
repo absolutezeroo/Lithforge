@@ -17,6 +17,7 @@ using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Runtime.UI.Screens;
+using Lithforge.Runtime.World;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
@@ -50,6 +51,9 @@ namespace Lithforge.Runtime.Bootstrap
         private NativeArray<NativeOreConfig> _nativeOreConfigs;
         private DecorationStage _decorationStage;
         private WorldStorage _worldStorage;
+        private WorldMetadata _worldMetadata;
+        private SessionLockHandle _sessionLockHandle;
+        private AutoSaveManager _autoSaveManager;
         private Lithforge.Core.Logging.ILogger _logger;
         private TimeOfDayController _timeOfDayController;
         private SkyController _skyController;
@@ -68,10 +72,20 @@ namespace Lithforge.Runtime.Bootstrap
 
         private IEnumerator Start()
         {
-            // Create loading screen early so content phases are visible
             UnityEngine.UIElements.PanelSettings earlyPanelSettings =
                 Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
 
+            // Show world selection screen and wait for user to choose a world
+            GameObject selectionObject = new GameObject("WorldSelectionScreen");
+            WorldSelectionScreen selectionScreen = selectionObject.AddComponent<WorldSelectionScreen>();
+            selectionScreen.Initialize(earlyPanelSettings);
+
+            while (WorldLauncher.SelectedWorldPath == null)
+            {
+                yield return null;
+            }
+
+            // Create loading screen for content pipeline and spawn
             GameObject loadingObject = new GameObject("LoadingScreen");
             LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
             loadingScreen.Initialize(null, earlyPanelSettings, null);
@@ -115,11 +129,32 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeStorage()
         {
-            string worldDir = System.IO.Path.Combine(
-                Application.persistentDataPath, "worlds", "default");
+            string worldDir = WorldLauncher.SelectedWorldPath;
+
+            // Acquire session lock before opening storage
+            if (!SessionLock.TryAcquire(worldDir, out _sessionLockHandle))
+            {
+                UnityEngine.Debug.LogError(
+                    $"[Lithforge] Could not acquire session lock for {worldDir}. World may be open in another instance.");
+            }
+
             _worldStorage = new WorldStorage(worldDir, _logger);
-            _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
-            UnityEngine.Debug.Log($"[Lithforge] World storage: {worldDir}");
+
+            // Load or create world metadata
+            _worldMetadata = _worldStorage.LoadMetadata();
+
+            if (_worldMetadata == null)
+            {
+                // New world or corrupt metadata — create fresh
+                _worldMetadata = new WorldMetadata();
+                _worldMetadata.DisplayName = WorldLauncher.SelectedDisplayName ?? "New World";
+                _worldMetadata.Seed = WorldLauncher.SelectedSeed;
+                _worldMetadata.GameMode = WorldLauncher.SelectedGameMode;
+                _worldStorage.SaveMetadataFull(_worldMetadata);
+            }
+
+            UnityEngine.Debug.Log(
+                $"[Lithforge] World storage: {worldDir} (seed={_worldMetadata.Seed}, mode={_worldMetadata.GameMode})");
         }
 
         private void InitializeChunkSystem()
@@ -383,6 +418,8 @@ namespace Lithforge.Runtime.Bootstrap
             Material armBaseMaterialRef = null;
             Material armOverlayMaterialRef = null;
             Material heldItemMaterialRef = null;
+            bool hasRestoredState = false;
+            float restoredTimeOfDay = 0f;
 
             // Create GameLoop first (needed by PlayerController for spawn readiness)
             _gameLoop = gameObject.AddComponent<GameLoop>();
@@ -394,7 +431,7 @@ namespace Lithforge.Runtime.Bootstrap
                 _chunkMeshStore,
                 _decorationStage,
                 _worldStorage,
-                _settings.WorldGen.Seed,
+                _worldMetadata.Seed,
                 _settings.Chunk);
 
             // Wire biome tint manager to generation scheduler
@@ -449,18 +486,33 @@ namespace Lithforge.Runtime.Bootstrap
                 Inventory playerInventory = new Inventory();
                 LootResolver lootResolver = new LootResolver(_contentResult.LootTables);
 
-                // Grant starting items from GameplaySettings
-                IReadOnlyList<StartingItemEntry> startingItems = _settings.Gameplay.StartingItems;
-
-                for (int i = 0; i < startingItems.Count; i++)
+                // Restore player state from metadata, or grant starting items for new worlds
+                if (_worldMetadata.PlayerState != null && !WorldLauncher.IsNewWorld)
                 {
-                    StartingItemEntry entry = startingItems[i];
-                    ResourceId itemId = new ResourceId(entry.itemNamespace, entry.itemName);
-                    ItemEntry itemDef = _contentResult.ItemRegistry.Get(itemId);
-                    int maxStack = itemDef != null
-                        ? itemDef.MaxStackSize
-                        : _settings.Physics.DefaultMaxStackSize;
-                    playerInventory.AddItem(itemId, entry.count, maxStack);
+                    PlayerStateSerializer.Restore(
+                        _worldMetadata.PlayerState,
+                        playerObject.transform,
+                        mainCamera,
+                        playerInventory,
+                        _contentResult.ItemRegistry,
+                        out restoredTimeOfDay);
+                    hasRestoredState = true;
+                    UnityEngine.Debug.Log("[Lithforge] Player state restored from save.");
+                }
+                else
+                {
+                    IReadOnlyList<StartingItemEntry> startingItems = _settings.Gameplay.StartingItems;
+
+                    for (int i = 0; i < startingItems.Count; i++)
+                    {
+                        StartingItemEntry entry = startingItems[i];
+                        ResourceId itemId = new ResourceId(entry.itemNamespace, entry.itemName);
+                        ItemEntry itemDef = _contentResult.ItemRegistry.Get(itemId);
+                        int maxStack = itemDef != null
+                            ? itemDef.MaxStackSize
+                            : _settings.Physics.DefaultMaxStackSize;
+                        playerInventory.AddItem(itemId, entry.count, maxStack);
+                    }
                 }
 
                 // Add BlockInteraction to camera (raycasts from camera position/direction)
@@ -641,10 +693,25 @@ namespace Lithforge.Runtime.Bootstrap
                     _settings.Chunk.YLoadMin,
                     _settings.Chunk.YLoadMax,
                     _settings.Chunk.SpawnFallbackY);
+                if (hasRestoredState)
+                {
+                    spawnManager.SetSavedPosition();
+                }
+
                 _gameLoop.SetSpawnManager(spawnManager);
 
                 // Connect the existing loading screen to the spawn manager
                 loadingScreen.SetSpawnManager(spawnManager, () => { hudVisibility.ShowGameplay(); });
+
+                // Create auto-save manager — saves metadata every 30s and flushes dirty chunks every 60s
+                _autoSaveManager = new AutoSaveManager(
+                    _worldStorage,
+                    _worldMetadata,
+                    playerObject.transform,
+                    mainCamera,
+                    () => { return _timeOfDayController != null ? _timeOfDayController.TimeOfDay : 0f; },
+                    playerInventory);
+                _gameLoop.SetAutoSaveManager(_autoSaveManager);
             }
 
             // Initialize day/night cycle
@@ -658,6 +725,12 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkMeshStore.CutoutMaterial,
                     _chunkMeshStore.TranslucentMaterial,
                     _settings.Rendering);
+
+                // Restore time of day from saved state
+                if (hasRestoredState)
+                {
+                    _timeOfDayController.SetTimeOfDay(restoredTimeOfDay);
+                }
 
                 // Register arm materials for day/night cycle updates
                 _timeOfDayController.RegisterMaterial(armBaseMaterialRef);
@@ -753,62 +826,100 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void OnDestroy()
         {
-            if (_gameLoop != null)
+            try
             {
-                _gameLoop.Shutdown();
-            }
-
-            // Save all loaded chunks before disposing
-            if (_worldStorage != null && _chunkManager != null)
-            {
-                _chunkManager.SaveAllChunks(_worldStorage);
-                _worldStorage.FlushAll();
-                _worldStorage.SaveMetadata(_settings.WorldGen.Seed, "");
-            }
-
-            if (_biomeTintManager != null)
-            {
-                _biomeTintManager.Dispose();
-            }
-
-            if (_chunkMeshStore != null)
-            {
-                _chunkMeshStore.Dispose();
-            }
-
-            if (_chunkManager != null)
-            {
-                _chunkManager.Dispose();
-            }
-
-            if (_chunkPool != null)
-            {
-                _chunkPool.Dispose();
-            }
-
-            if (_contentResult != null)
-            {
-                if (_contentResult.NativeStateRegistry.States.IsCreated)
+                if (_gameLoop != null)
                 {
-                    _contentResult.NativeStateRegistry.Dispose();
+                    _gameLoop.Shutdown();
                 }
 
-                _contentResult.NativeAtlasLookup.Dispose();
+                // Save player state, serialize all chunks, and flush once
+                if (_autoSaveManager != null)
+                {
+                    _autoSaveManager.SaveMetadataOnly();
+                }
+
+                if (_worldStorage != null && _chunkManager != null)
+                {
+                    _chunkManager.SaveAllChunks(_worldStorage);
+                    _worldStorage.FlushAll();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[Lithforge] Error during shutdown save: {ex}");
             }
 
-            if (_nativeBiomeData.IsCreated)
+            try
             {
-                _nativeBiomeData.Dispose();
-            }
+                if (_biomeTintManager != null)
+                {
+                    _biomeTintManager.Dispose();
+                }
 
-            if (_nativeOreConfigs.IsCreated)
-            {
-                _nativeOreConfigs.Dispose();
-            }
+                if (_chunkMeshStore != null)
+                {
+                    _chunkMeshStore.Dispose();
+                }
 
-            if (_worldStorage != null)
+                if (_chunkManager != null)
+                {
+                    _chunkManager.Dispose();
+                }
+
+                if (_chunkPool != null)
+                {
+                    _chunkPool.Dispose();
+                }
+
+                if (_contentResult != null)
+                {
+                    if (_contentResult.NativeStateRegistry.States.IsCreated)
+                    {
+                        _contentResult.NativeStateRegistry.Dispose();
+                    }
+
+                    _contentResult.NativeAtlasLookup.Dispose();
+                }
+
+                if (_nativeBiomeData.IsCreated)
+                {
+                    _nativeBiomeData.Dispose();
+                }
+
+                if (_nativeOreConfigs.IsCreated)
+                {
+                    _nativeOreConfigs.Dispose();
+                }
+            }
+            catch (System.Exception ex)
             {
-                _worldStorage.Dispose();
+                UnityEngine.Debug.LogError($"[Lithforge] Error during resource disposal: {ex}");
+            }
+            finally
+            {
+                // Always release storage, session lock, and launcher state
+                if (_worldStorage != null)
+                {
+                    try { _worldStorage.Dispose(); }
+                    catch (System.Exception ex)
+                    {
+                        UnityEngine.Debug.LogError($"[Lithforge] Error disposing WorldStorage: {ex}");
+                    }
+                }
+
+                if (_sessionLockHandle != null)
+                {
+                    try { _sessionLockHandle.Dispose(); }
+                    catch (System.Exception ex)
+                    {
+                        UnityEngine.Debug.LogError($"[Lithforge] Error disposing session lock: {ex}");
+                    }
+
+                    _sessionLockHandle = null;
+                }
+
+                WorldLauncher.Clear();
             }
         }
     }
