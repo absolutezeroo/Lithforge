@@ -76,15 +76,6 @@ Shader "Lithforge/VoxelTranslucent"
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
 
-                // Wave animation on water top faces
-                if (dv.fluidTop == 1)
-                {
-                    float3 wp = dv.positionOS;
-                    float phase = wp.x * _WaveFrequency + wp.z * _WaveFrequency * 0.7 + _Time.y * _WaveSpeed;
-                    float wave = sin(phase) * 0.5 + sin(phase * 2.3 + 1.7) * 0.3 + sin(phase * 0.6 + 3.1) * 0.2;
-                    dv.positionOS.y += wave * _WaveAmplitude;
-                }
-
                 Varyings output;
 
                 VertexPositionInputs vertexInput = GetVertexPositionInputs(dv.positionOS);
@@ -149,17 +140,49 @@ Shader "Lithforge/VoxelTranslucent"
 
                 if (input.isWaterTop == 1)
                 {
-                    // View direction for fresnel and specular
-                    float3 viewDir = normalize(_WorldSpaceCameraPos - input.positionWS);
+                    // Compute wave normal via analytical derivatives of sine sum.
+                    // Geometry stays flat (no vertex displacement = no gaps at edges).
+                    // Three overlapping sine waves at different angles for organic look.
+                    float3 wp = input.positionWS;
+                    float t = _Time.y * _WaveSpeed;
 
-                    // Fresnel: more reflective at grazing angles
-                    float ndotv = saturate(dot(float3(0, 1, 0), viewDir));
+                    float phase0 = wp.x * _WaveFrequency + wp.z * _WaveFrequency * 0.7 + t;
+                    float phase1 = phase0 * 2.3 + 1.7;
+                    float phase2 = phase0 * 0.6 + 3.1;
+
+                    // Partial derivatives dHeight/dx and dHeight/dz (chain rule on sin)
+                    float dhdx = cos(phase0) * 0.5 * _WaveFrequency
+                               + cos(phase1) * 0.3 * _WaveFrequency * 2.3
+                               + cos(phase2) * 0.2 * _WaveFrequency * 0.6;
+                    float dhdz = cos(phase0) * 0.5 * _WaveFrequency * 0.7
+                               + cos(phase1) * 0.3 * _WaveFrequency * 2.3 * 0.7
+                               + cos(phase2) * 0.2 * _WaveFrequency * 0.6 * 0.7;
+
+                    // Scale derivatives by amplitude to get tangent-space perturbation
+                    dhdx *= _WaveAmplitude;
+                    dhdz *= _WaveAmplitude;
+
+                    // Perturbed normal: cross(tangentX, tangentZ) where
+                    //   tangentX = (1, dh/dx, 0), tangentZ = (0, dh/dz, 1)
+                    //   normal = (-dh/dx, 1, -dh/dz) (unnormalized)
+                    float3 waveNormal = normalize(float3(-dhdx, 1.0, -dhdz));
+
+                    // Re-light diffuse with wave normal so ripples show in shading
+                    float waveNdotl = saturate(dot(waveNormal, mainLight.direction));
+                    half waveLambert = (half)(waveNdotl * 0.75 + 0.25);
+                    directColor = texColor.rgb * waveLambert * mainLight.color.rgb * input.light;
+                    finalColor = (directColor + ambientColor) * input.ao;
+
+                    float3 viewDir = normalize(_WorldSpaceCameraPos - wp);
+
+                    // Fresnel with perturbed normal
+                    float ndotv = saturate(dot(waveNormal, viewDir));
                     float fresnel = pow(1.0 - ndotv, _FresnelPower);
                     alpha = (half)lerp(_FresnelMin, _FresnelMax, fresnel);
 
-                    // Sun specular highlight (Blinn-Phong)
+                    // Specular with perturbed normal (Blinn-Phong)
                     float3 halfVec = normalize(viewDir + mainLight.direction);
-                    float spec = pow(saturate(dot(float3(0, 1, 0), halfVec)), _SpecularPower);
+                    float spec = pow(saturate(dot(waveNormal, halfVec)), _SpecularPower);
                     finalColor += mainLight.color.rgb * spec * _SpecularIntensity * input.light;
 
                     // Shore fade: reduce alpha where water is shallow (depth-based)
