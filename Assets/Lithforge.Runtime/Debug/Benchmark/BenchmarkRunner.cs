@@ -24,6 +24,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private bool _running;
         private Coroutine _activeCoroutine;
 
+        // Scenario cycling
+        private BenchmarkScenario[] _allScenarios;
+        private int _selectedIndex;
+
         // Pre-allocated parallel arrays for per-frame recording
         private int _capacity;
         private float[] _frameMs;
@@ -61,6 +65,19 @@ namespace Lithforge.Runtime.Debug.Benchmark
             get { return _summaryDisplayTimer; }
         }
 
+        public BenchmarkScenario SelectedScenario
+        {
+            get
+            {
+                if (_allScenarios == null || _allScenarios.Length == 0)
+                {
+                    return null;
+                }
+
+                return _allScenarios[_selectedIndex];
+            }
+        }
+
         public void Initialize(
             BenchmarkContext context,
             DebugSettings settings,
@@ -75,6 +92,32 @@ namespace Lithforge.Runtime.Debug.Benchmark
             // Pre-allocate for estimated max frames (e.g., 10 phases * 300 measurement * 200fps)
             _capacity = 60000;
             AllocateArrays(_capacity);
+
+            // Load all scenario assets from Resources/Settings/Benchmarks
+            _allScenarios = Resources.LoadAll<BenchmarkScenario>("Settings/Benchmarks");
+
+            // Find the default scenario index
+            _selectedIndex = 0;
+            BenchmarkScenario defaultScenario = _settings.DefaultBenchmarkScenario;
+
+            if (defaultScenario != null && _allScenarios.Length > 0)
+            {
+                for (int i = 0; i < _allScenarios.Length; i++)
+                {
+                    if (_allScenarios[i] == defaultScenario)
+                    {
+                        _selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (_allScenarios.Length > 0)
+            {
+                UnityEngine.Debug.Log("[Benchmark] Loaded " + _allScenarios.Length +
+                    " scenarios. Selected: " + _allScenarios[_selectedIndex].ScenarioName +
+                    "  (Shift+F5 to cycle, F5 to run)");
+            }
         }
 
         private void AllocateArrays(int capacity)
@@ -111,14 +154,34 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 return;
             }
 
-            // F5 to start benchmark
             Keyboard keyboard = Keyboard.current;
 
-            if (keyboard != null && keyboard.f5Key.wasPressedThisFrame)
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            // Shift+F5 to cycle scenario
+            if (keyboard.f5Key.wasPressedThisFrame &&
+                (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed))
+            {
+                if (_allScenarios != null && _allScenarios.Length > 1)
+                {
+                    _selectedIndex = (_selectedIndex + 1) % _allScenarios.Length;
+                    UnityEngine.Debug.Log("[Benchmark] Selected: " +
+                        _allScenarios[_selectedIndex].ScenarioName +
+                        "  (" + (_selectedIndex + 1) + "/" + _allScenarios.Length + ")");
+                }
+
+                return;
+            }
+
+            // F5 to run selected scenario
+            if (keyboard.f5Key.wasPressedThisFrame)
             {
                 if (_context != null && _context.GameLoop != null && _context.GameLoop.SpawnReady)
                 {
-                    BenchmarkScenario scenario = _settings.DefaultBenchmarkScenario;
+                    BenchmarkScenario scenario = SelectedScenario;
 
                     if (scenario != null)
                     {
@@ -127,7 +190,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                     else
                     {
                         UnityEngine.Debug.LogWarning(
-                            "[Benchmark] No default benchmark scenario configured in DebugSettings.");
+                            "[Benchmark] No benchmark scenarios found in Resources/Settings/Benchmarks/.");
                     }
                 }
             }
