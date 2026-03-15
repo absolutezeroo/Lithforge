@@ -88,6 +88,7 @@ namespace Lithforge.Runtime.Input
         private ChestScreen _chestScreen;
         private FurnaceScreen _furnaceScreen;
         private ToolStationScreen _toolStationScreen;
+        private CraftingTableScreen _craftingTableScreen;
 
         // Tool system registries
         private ToolTraitRegistry _toolTraitRegistry;
@@ -139,12 +140,14 @@ namespace Lithforge.Runtime.Input
             ChestScreen chestScreen,
             FurnaceScreen furnaceScreen,
             ToolStationScreen toolStationScreen,
+            CraftingTableScreen craftingTableScreen,
             ToolTraitRegistry toolTraitRegistry)
         {
             _blockEntityTickScheduler = scheduler;
             _chestScreen = chestScreen;
             _furnaceScreen = furnaceScreen;
             _toolStationScreen = toolStationScreen;
+            _craftingTableScreen = craftingTableScreen;
             _toolTraitRegistry = toolTraitRegistry;
         }
 
@@ -566,6 +569,13 @@ namespace Lithforge.Runtime.Input
                         if (entity is ToolStationBlockEntity toolStation && _toolStationScreen != null)
                         {
                             _toolStationScreen.OpenForEntity(toolStation);
+                            _placeCooldown = _placeCooldownTime;
+                            return;
+                        }
+
+                        if (entity is CraftingTableBlockEntity craftingTable && _craftingTableScreen != null)
+                        {
+                            _craftingTableScreen.OpenForEntity(craftingTable);
                             _placeCooldown = _placeCooldownTime;
                             return;
                         }

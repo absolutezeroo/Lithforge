@@ -528,6 +528,9 @@ namespace Lithforge.Runtime.Bootstrap
             blockEntityRegistry.Register(new BlockEntityType(
                 ToolStationBlockEntity.TypeIdValue,
                 new ToolStationBlockEntityFactory(toolMaterialRegistry, itemRegistry)));
+            blockEntityRegistry.Register(new BlockEntityType(
+                CraftingTableBlockEntity.TypeIdValue,
+                new CraftingTableBlockEntityFactory()));
             blockEntityRegistry.Freeze();
 
             _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
