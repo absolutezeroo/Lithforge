@@ -66,8 +66,8 @@ Shader "Lithforge/HeldItem"
             {
                 HeldItemVertexData v = _HeldItemVertexBuffer[svVertexID];
 
-                // Transform by right arm part matrix (index 2)
-                float4x4 partMat = _PartTransforms[2];
+                // Transform by main arm part matrix (index 3 = left arm at +X = right side of screen)
+                float4x4 partMat = _PartTransforms[3];
                 float3 posWorld = mul(partMat, float4(v.position, 1.0)).xyz;
                 float3 normalWorld = mul((float3x3)partMat, v.normal);
 
@@ -131,7 +131,7 @@ Shader "Lithforge/HeldItem"
             HeldItemDepthVaryings HeldItemDepthVert(uint svVertexID : SV_VertexID)
             {
                 HeldItemVertexData v = _HeldItemVertexBuffer[svVertexID];
-                float4x4 partMat = _PartTransforms[2];
+                float4x4 partMat = _PartTransforms[3];
                 float3 posWorld = mul(partMat, float4(v.position, 1.0)).xyz;
 
                 HeldItemDepthVaryings o;

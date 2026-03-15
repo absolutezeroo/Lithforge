@@ -5,7 +5,7 @@ namespace Lithforge.Runtime.Player
 {
     /// <summary>
     /// Computes 6 world-space float4x4 matrices per frame for the full player model.
-    /// Parts: 0=head, 1=body, 2=rightArm, 3=leftArm, 4=rightLeg, 5=leftLeg.
+    /// Parts: 0=head, 1=body, 2=rightArm (off-hand, -X), 3=leftArm (main hand, +X), 4=rightLeg, 5=leftLeg.
     ///
     /// Body root is anchored at playerTransform.position in world space, rotated by camera yaw only.
     /// Each part transform: bodyRoot * T(pivot) * animRotation * T(-pivot).
@@ -157,16 +157,16 @@ namespace Lithforge.Runtime.Player
                 bodyRoot, s_bodyPivot,
                 float4x4.identity);
 
-            // Right Arm: walk swing (opposite to left leg) + mining swing + equip
-            float4x4 rightArmAnim = ComputeRightArmAnimation(-armSwingRad);
+            // Right Arm (off-hand, -X = left side of screen): walk swing only
             _partTransforms[2] = ComputePartMatrix(
                 bodyRoot, s_rightArmPivot,
-                rightArmAnim);
+                float4x4.RotateX(armSwingRad));
 
-            // Left Arm: walk swing (opposite to right leg)
+            // Left Arm (main hand, +X = right side of screen): walk swing + mining swing + equip
+            float4x4 mainArmAnim = ComputeMainArmAnimation(-armSwingRad);
             _partTransforms[3] = ComputePartMatrix(
                 bodyRoot, s_leftArmPivot,
-                float4x4.RotateX(armSwingRad));
+                mainArmAnim);
 
             // Right Leg: walk swing
             _partTransforms[4] = ComputePartMatrix(
@@ -245,9 +245,9 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Computes the right arm animation rotation combining walk swing, mining swing, and equip.
+        /// Computes the main arm (partID=3, +X side) animation rotation combining walk swing, mining swing, and equip.
         /// </summary>
-        private float4x4 ComputeRightArmAnimation(float walkSwingRad)
+        private float4x4 ComputeMainArmAnimation(float walkSwingRad)
         {
             float4x4 result = float4x4.RotateX(walkSwingRad);
 

@@ -14,10 +14,10 @@ namespace Lithforge.Runtime.Player
     public static class HeldItemMeshBuilder
     {
         /// <summary>
-        /// Right hand attachment point in model space (classic arm).
-        /// Matches the spec: [-6, 15, 1] scaled to block units.
+        /// Main hand attachment point in pivot-relative space.
+        /// (0, -7, 1)/16 = centered on arm width, 7 model units below pivot, 1 unit forward.
         /// </summary>
-        private static readonly float3 s_rightHandLocator = new float3(-6f, 15f, 1f) / 16f;
+        private static readonly float3 s_mainHandLocator = new float3(0f, -7f, 1f) / 16f;
 
         /// <summary>
         /// Builds a 6-face cube for a held block item.
@@ -47,7 +47,7 @@ namespace Lithforge.Runtime.Player
             vertices = new HeldItemVertex[24];
             indices = new int[36];
 
-            float3 handOffset = s_rightHandLocator;
+            float3 handOffset = s_mainHandLocator;
 
             float4x4 displayMat = displayMatrix;
             float3x3 displayRot = new float3x3(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
@@ -174,7 +174,7 @@ namespace Lithforge.Runtime.Player
             vertices = new HeldItemVertex[8];
             indices = new int[12];
 
-            float3 handOffset = s_rightHandLocator;
+            float3 handOffset = s_mainHandLocator;
 
             float4x4 displayMat = displayMatrix;
 
