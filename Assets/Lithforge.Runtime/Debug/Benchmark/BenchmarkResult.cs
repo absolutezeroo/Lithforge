@@ -70,5 +70,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
         public float[] SchedMeshAllocMs;
         public float[] SchedMeshScheduleMs;
         public float[] SchedMeshFlushMs;
+
+        // Index sizes (per-frame)
+        public int[] GeneratedSetSize;
     }
 }

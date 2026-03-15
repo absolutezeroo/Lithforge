@@ -194,6 +194,7 @@ namespace Lithforge.Runtime.Debug
                 _current.PoolCheckedOut = _chunkPool.CheckedOutCount;
                 _current.PoolTotal = _chunkPool.TotalAllocated;
                 _current.LoadedChunks = _chunkManager.LoadedCount;
+                _current.GeneratedSetSize = _chunkManager.GeneratedChunkCount;
             }
 
             // VRAM stats

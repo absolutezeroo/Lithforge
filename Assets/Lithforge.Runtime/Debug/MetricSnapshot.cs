@@ -113,6 +113,9 @@ namespace Lithforge.Runtime.Debug
         public int PendingMeshCount;
         public int PendingLodMeshCount;
 
+        // --- Index sizes ---
+        public int GeneratedSetSize;
+
         /// <summary>
         /// Retrieves a FrameProfiler section timing by index without array allocation.
         /// </summary>

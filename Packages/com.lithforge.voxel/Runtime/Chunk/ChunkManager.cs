@@ -71,6 +71,11 @@ namespace Lithforge.Voxel.Chunk
             get { return _chunks.Count; }
         }
 
+        public int GeneratedChunkCount
+        {
+            get { return _generatedChunks.Count; }
+        }
+
         public int PendingLoadCount
         {
             get { return _loadQueue.Count - _loadQueueIndex; }
@@ -283,15 +288,46 @@ namespace Lithforge.Voxel.Chunk
             _meshCandidateCache.Clear();
             _neighborCountCache.Clear();
 
+            // --- Single-pass top-K selection over _generatedChunks ---
+            // Buffer stays at most maxCount elements. For each incoming chunk,
+            // we compare against the worst element in the buffer.
+
             foreach (ManagedChunk chunk in _generatedChunks)
             {
-                _meshCandidateCache.Add(chunk);
-                _neighborCountCache.Add(CountReadyNeighbors(chunk.Coord));
+                int nc = CountReadyNeighbors(chunk.Coord);
+                bool neverMeshed = chunk.RenderedLODLevel < 0;
+
+                if (_meshCandidateCache.Count < maxCount)
+                {
+                    // Buffer not full — insert unconditionally
+                    _meshCandidateCache.Add(chunk);
+                    _neighborCountCache.Add(nc);
+                }
+                else
+                {
+                    // Find worst element in buffer
+                    int worstIdx = 0;
+
+                    for (int w = 1; w < _meshCandidateCache.Count; w++)
+                    {
+                        if (IsWorseThan(w, worstIdx))
+                        {
+                            worstIdx = w;
+                        }
+                    }
+
+                    // Compare incoming chunk against worst
+                    bool worstNeverMeshed = _meshCandidateCache[worstIdx].RenderedLODLevel < 0;
+
+                    if (IsBetterPriority(neverMeshed, nc, worstNeverMeshed, _neighborCountCache[worstIdx]))
+                    {
+                        _meshCandidateCache[worstIdx] = chunk;
+                        _neighborCountCache[worstIdx] = nc;
+                    }
+                }
             }
 
-            // Sort: never-meshed chunks first (RenderedLODLevel == -1),
-            // then by neighbor count descending within each group.
-            // Simple insertion sort is fast for typical candidate counts (< 100).
+            // Sort the small buffer (maxCount elements max — insertion sort is fine here)
             for (int i = 1; i < _meshCandidateCache.Count; i++)
             {
                 ManagedChunk tempChunk = _meshCandidateCache[i];
@@ -303,20 +339,18 @@ namespace Lithforge.Voxel.Chunk
                 {
                     bool jNeverMeshed = _meshCandidateCache[j].RenderedLODLevel < 0;
 
-                    // Never-meshed chunks have higher priority than already-meshed
                     if (tempNeverMeshed && !jNeverMeshed)
                     {
                         break;
                     }
 
-                    // Within the same group, sort by neighbor count descending
                     bool sameGroup = tempNeverMeshed == jNeverMeshed;
+
                     if (sameGroup && _neighborCountCache[j] >= tempCount)
                     {
                         break;
                     }
 
-                    // j has higher priority (never-meshed vs already-meshed) — shift right
                     if (!sameGroup)
                     {
                         _meshCandidateCache[j + 1] = _meshCandidateCache[j];
@@ -334,12 +368,43 @@ namespace Lithforge.Voxel.Chunk
                 _neighborCountCache[j + 1] = tempCount;
             }
 
-            int resultCount = math.min(maxCount, _meshCandidateCache.Count);
-
-            for (int i = 0; i < resultCount; i++)
+            for (int i = 0; i < _meshCandidateCache.Count; i++)
             {
                 result.Add(_meshCandidateCache[i]);
             }
+        }
+
+        /// <summary>
+        /// Returns true if buffer element at indexA is worse priority than element at indexB.
+        /// Worse = already-meshed when other is never-meshed, or fewer neighbors in same group.
+        /// </summary>
+        private bool IsWorseThan(int indexA, int indexB)
+        {
+            bool aNeverMeshed = _meshCandidateCache[indexA].RenderedLODLevel < 0;
+            bool bNeverMeshed = _meshCandidateCache[indexB].RenderedLODLevel < 0;
+
+            if (aNeverMeshed != bNeverMeshed)
+            {
+                return !aNeverMeshed;
+            }
+
+            return _neighborCountCache[indexA] < _neighborCountCache[indexB];
+        }
+
+        /// <summary>
+        /// Returns true if (neverMeshed, neighborCount) is strictly better priority
+        /// than (worstNeverMeshed, worstNc).
+        /// </summary>
+        private static bool IsBetterPriority(
+            bool neverMeshed, int neighborCount,
+            bool worstNeverMeshed, int worstNc)
+        {
+            if (neverMeshed != worstNeverMeshed)
+            {
+                return neverMeshed;
+            }
+
+            return neighborCount > worstNc;
         }
 
         /// <summary>

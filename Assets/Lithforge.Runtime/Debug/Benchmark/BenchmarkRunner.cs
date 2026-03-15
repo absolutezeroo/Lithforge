@@ -77,6 +77,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private float[] _schedMeshAllocMs;
         private float[] _schedMeshScheduleMs;
         private float[] _schedMeshFlushMs;
+        private int[] _generatedSetSize;
 
         // Results display
         private string _lastSummary;
@@ -392,6 +393,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _schedMeshAllocMs = new float[capacity];
             _schedMeshScheduleMs = new float[capacity];
             _schedMeshFlushMs = new float[capacity];
+            _generatedSetSize = new int[capacity];
         }
 
         private void Update()
@@ -622,6 +624,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                     _schedMeshAllocMs[f] = snap.SchedMeshAllocMs;
                     _schedMeshScheduleMs[f] = snap.SchedMeshScheduleMs;
                     _schedMeshFlushMs[f] = snap.SchedMeshFlushMs;
+                    _generatedSetSize[f] = snap.GeneratedSetSize;
 
                     totalRecordedFrames++;
                 }
@@ -765,6 +768,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
             Array.Copy(_schedMeshFlushMs, newSchedMeshFlushMs, _capacity);
             _schedMeshFlushMs = newSchedMeshFlushMs;
 
+            int[] newGeneratedSetSize = new int[newCapacity];
+            Array.Copy(_generatedSetSize, newGeneratedSetSize, _capacity);
+            _generatedSetSize = newGeneratedSetSize;
+
             _capacity = newCapacity;
         }
 
@@ -799,6 +806,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             result.SchedMeshAllocMs = _schedMeshAllocMs;
             result.SchedMeshScheduleMs = _schedMeshScheduleMs;
             result.SchedMeshFlushMs = _schedMeshFlushMs;
+            result.GeneratedSetSize = _generatedSetSize;
 
             if (totalFrames == 0)
             {

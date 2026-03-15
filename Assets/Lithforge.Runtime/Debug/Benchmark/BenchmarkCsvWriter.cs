@@ -40,6 +40,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             csv.Append(",gen_complete_max_ms,gen_complete_stalls");
             csv.Append(",sched_mesh_fill_ms,sched_mesh_filter_ms,sched_mesh_alloc_ms");
             csv.Append(",sched_mesh_schedule_ms,sched_mesh_flush_ms");
+            csv.Append(",generated_set_size");
             csv.AppendLine();
 
             // Data rows
@@ -99,6 +100,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 csv.Append(result.SchedMeshScheduleMs[f].ToString("F3", CultureInfo.InvariantCulture));
                 csv.Append(',');
                 csv.Append(result.SchedMeshFlushMs[f].ToString("F3", CultureInfo.InvariantCulture));
+                csv.Append(',');
+                csv.Append(result.GeneratedSetSize[f]);
                 csv.AppendLine();
             }
 
