@@ -24,8 +24,15 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class GenerationScheduler
     {
+        /// <summary>Generation jobs currently running on worker threads.</summary>
         private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
+
+        /// <summary>
+        /// Generation jobs whose chunk was unloaded while in-flight. Polled each frame
+        /// until complete, then all NativeContainers are disposed.
+        /// </summary>
         private readonly List<PendingGeneration> _pendingGenDisposals = new List<PendingGeneration>();
+
         private readonly ChunkManager _chunkManager;
         private readonly GenerationPipeline _generationPipeline;
         private readonly DecorationStage _decorationStage;
@@ -35,6 +42,8 @@ namespace Lithforge.Runtime.Scheduling
         private int _maxGenerationsPerFrame;
         private int _maxGenCompletionsPerFrame;
         private readonly int _maxLightUpdatesPerFrame;
+
+        /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
         private readonly float _completionBudgetMs;
 
         /// <summary>
@@ -107,16 +116,19 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public System.Action<int3, ManagedChunk> OnChunkEntitiesLoaded;
 
+        /// <summary>Number of generation jobs currently in-flight on worker threads.</summary>
         public int PendingCount
         {
             get { return _pendingGenerations.Count; }
         }
 
+        /// <summary>Injects the biome tint manager so completed chunks can write climate data to the GPU texture.</summary>
         public void SetBiomeTintManager(BiomeTintManager manager)
         {
             _biomeTintManager = manager;
         }
 
+        /// <summary>Injects the block entity registry so chunks loaded from storage can deserialize their entities.</summary>
         public void SetBlockEntityRegistry(BlockEntityRegistry registry)
         {
             _blockEntityRegistry = registry;
@@ -146,12 +158,22 @@ namespace Lithforge.Runtime.Scheduling
             _completionBudgetMs = completionBudgetMs;
         }
 
+        /// <summary>
+        /// Re-derives scheduling limits from the current render distance. Called when the
+        /// player changes render distance at runtime.
+        /// </summary>
+        /// <param name="renderDistance">New render distance in chunks.</param>
         public void UpdateConfig(int renderDistance)
         {
             _maxGenerationsPerFrame = SchedulingConfig.MaxGenerationsPerFrame(renderDistance);
             _maxGenCompletionsPerFrame = SchedulingConfig.MaxGenCompletionsPerFrame(renderDistance);
         }
 
+        /// <summary>
+        /// Polls in-flight generation jobs for completion and processes finished chunks:
+        /// runs decoration, transfers ownership of NativeContainers, collects border light
+        /// entries, and marks neighbors for remeshing. Time-budgeted to avoid frame spikes.
+        /// </summary>
         public void PollCompleted()
         {
             Profiler.BeginSample("GS.PollCompleted");
@@ -508,6 +530,11 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>
+        /// Fills available scheduling slots with new generation jobs. Tries storage-load
+        /// first (instant); if no saved data exists, schedules the full generation pipeline
+        /// on worker threads. Calls ScheduleBatchedJobs once at the end to flush.
+        /// </summary>
         public void ScheduleJobs()
         {
             int slotsAvailable = _maxGenerationsPerFrame - _pendingGenerations.Count;
@@ -593,6 +620,12 @@ namespace Lithforge.Runtime.Scheduling
             Profiler.EndSample();
         }
 
+        /// <summary>
+        /// Cancels tracking of a chunk that is being unloaded. Moves in-flight generation
+        /// jobs to the deferred disposal queue and force-completes any light update jobs
+        /// so that the chunk's NativeContainers can be safely disposed.
+        /// </summary>
+        /// <param name="coord">Chunk coordinate being unloaded.</param>
         public void CleanupCoord(int3 coord)
         {
             for (int i = _pendingGenerations.Count - 1; i >= 0; i--)
@@ -620,6 +653,10 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>
+        /// Force-completes all in-flight jobs and disposes every NativeContainer.
+        /// Called during application shutdown or world unload.
+        /// </summary>
         public void Shutdown()
         {
             for (int i = 0; i < _pendingGenerations.Count; i++)

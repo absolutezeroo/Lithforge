@@ -17,26 +17,39 @@ namespace Lithforge.Runtime.Content.Mods
     /// </summary>
     public sealed class ModLoader
     {
+        /// <summary>
+        /// Keeps loaded AssetBundles alive so their assets stay valid until UnloadAll.
+        /// </summary>
         private readonly List<AssetBundle> _loadedBundles = new List<AssetBundle>();
 
+        /// <summary>Block definitions extracted from all loaded mods, ready for StateRegistry.</summary>
         public List<BlockDefinition> LoadedBlocks { get; private set; }
 
+        /// <summary>Block-state property mappings from mods, merged into the cartesian product expansion.</summary>
         public List<BlockStateMapping> LoadedMappings { get; private set; }
 
+        /// <summary>Block models from mods, fed into ContentModelResolver for parent chain resolution.</summary>
         public List<BlockModel> LoadedModels { get; private set; }
 
+        /// <summary>Item definitions from mods, registered into ItemRegistry alongside core items.</summary>
         public List<ItemDefinition> LoadedItems { get; private set; }
 
+        /// <summary>Crafting recipes from mods, added to CraftingEngine during content build.</summary>
         public List<RecipeDefinition> LoadedRecipes { get; private set; }
 
+        /// <summary>Tags from mods (e.g. mineable groups), merged into TagRegistry.</summary>
         public List<Tag> LoadedTags { get; private set; }
 
+        /// <summary>Loot tables from mods, used by LootResolver for block/entity drops.</summary>
         public List<LootTable> LoadedLootTables { get; private set; }
 
+        /// <summary>Biome definitions from mods, registered for world generation.</summary>
         public List<BiomeDefinition> LoadedBiomes { get; private set; }
 
+        /// <summary>Ore definitions from mods, registered for ore generation jobs.</summary>
         public List<OreDefinition> LoadedOres { get; private set; }
 
+        /// <summary>Parsed manifests carrying mod metadata (name, version, dependencies).</summary>
         public List<ModManifest> LoadedManifests { get; private set; }
 
         public ModLoader()
@@ -53,6 +66,11 @@ namespace Lithforge.Runtime.Content.Mods
             LoadedManifests = new List<ModManifest>();
         }
 
+        /// <summary>
+        /// Scans the mods directory for .lithmod files, loads each as an AssetBundle,
+        /// and extracts all recognized ScriptableObject types into the LoadedXxx lists.
+        /// Safe to call when no mods directory exists (logs and returns).
+        /// </summary>
         public void LoadAllMods()
         {
             string modsDir = Path.Combine(Application.persistentDataPath, "mods");
@@ -75,6 +93,10 @@ namespace Lithforge.Runtime.Content.Mods
                 $"{LoadedBiomes.Count} biomes, {LoadedOres.Count} ores.");
         }
 
+        /// <summary>
+        /// Loads a single .lithmod AssetBundle and appends its content to the LoadedXxx lists.
+        /// Logs an error and returns if the bundle fails to open.
+        /// </summary>
         private void LoadMod(string bundlePath)
         {
             AssetBundle bundle = AssetBundle.LoadFromFile(bundlePath);
@@ -102,6 +124,9 @@ namespace Lithforge.Runtime.Content.Mods
             LoadAssetsOfType(bundle, LoadedOres);
         }
 
+        /// <summary>
+        /// Loads all assets of type T from the bundle and appends them to the target list.
+        /// </summary>
         private static void LoadAssetsOfType<T>(AssetBundle bundle, List<T> target) where T : Object
         {
             T[] assets = bundle.LoadAllAssets<T>();
@@ -115,6 +140,10 @@ namespace Lithforge.Runtime.Content.Mods
             }
         }
 
+        /// <summary>
+        /// Unloads every loaded AssetBundle and all assets they provided.
+        /// After this call all LoadedXxx lists are stale and should not be read.
+        /// </summary>
         public void UnloadAll()
         {
             for (int i = 0; i < _loadedBundles.Count; i++)

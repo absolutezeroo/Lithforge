@@ -200,6 +200,7 @@ namespace Lithforge.Runtime.Debug
             SchedMeshFlushMs = 0f;
         }
 
+        /// <summary>Increments the generation-scheduled counter for this frame.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrGenScheduled()
         {
@@ -211,6 +212,7 @@ namespace Lithforge.Runtime.Debug
             GenScheduled++;
         }
 
+        /// <summary>Increments both the per-frame and lifetime generation-completed counters.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrGenCompleted()
         {
@@ -223,6 +225,7 @@ namespace Lithforge.Runtime.Debug
             TotalGenerated++;
         }
 
+        /// <summary>Increments the LOD0 mesh-scheduled counter for this frame.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrMeshScheduled()
         {
@@ -234,6 +237,7 @@ namespace Lithforge.Runtime.Debug
             MeshScheduled++;
         }
 
+        /// <summary>Increments both the per-frame and lifetime LOD0 mesh-completed counters.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrMeshCompleted()
         {
@@ -246,6 +250,7 @@ namespace Lithforge.Runtime.Debug
             TotalMeshed++;
         }
 
+        /// <summary>Increments the LOD>0 mesh-scheduled counter for this frame.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrLODScheduled()
         {
@@ -257,6 +262,7 @@ namespace Lithforge.Runtime.Debug
             LODScheduled++;
         }
 
+        /// <summary>Increments both the per-frame and lifetime LOD>0 mesh-completed counters.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrLODCompleted()
         {
@@ -269,6 +275,8 @@ namespace Lithforge.Runtime.Debug
             TotalLOD++;
         }
 
+        /// <summary>Records one decoration pass, adding its duration to the frame total.</summary>
+        /// <param name="ms">Wall-clock milliseconds the decoration pass took.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void AddDecorate(float ms)
         {
@@ -281,6 +289,8 @@ namespace Lithforge.Runtime.Debug
             DecorateMs += ms;
         }
 
+        /// <summary>Records a GPU buffer upload, accumulating byte count for this frame and lifetime.</summary>
+        /// <param name="bytes">Size of the upload in bytes.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void AddGpuUpload(int bytes)
         {
@@ -294,6 +304,7 @@ namespace Lithforge.Runtime.Debug
             TotalGpuUploadBytes += bytes;
         }
 
+        /// <summary>Records a MegaMeshBuffer grow event (buffer reallocation to increase capacity).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrGrow()
         {
@@ -305,6 +316,11 @@ namespace Lithforge.Runtime.Debug
             GrowEvents++;
         }
 
+        /// <summary>
+        /// Records the time a mesh job Complete() call took. Tracks the per-frame max
+        /// and counts stalls (calls exceeding 1ms).
+        /// </summary>
+        /// <param name="ms">Wall-clock milliseconds the Complete() call blocked.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RecordMeshComplete(float ms)
         {
@@ -324,6 +340,11 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>
+        /// Records the time a generation job Complete() call took. Tracks the per-frame max
+        /// and counts stalls (calls exceeding 1ms).
+        /// </summary>
+        /// <param name="ms">Wall-clock milliseconds the Complete() call blocked.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RecordGenComplete(float ms)
         {
@@ -343,6 +364,7 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>Records a chunk mesh invalidation (triggered by block edits or neighbor changes).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void IncrInvalidate()
         {

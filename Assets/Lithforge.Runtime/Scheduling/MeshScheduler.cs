@@ -18,8 +18,15 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class MeshScheduler
     {
+        /// <summary>Mesh jobs currently running on worker threads.</summary>
         private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+
+        /// <summary>
+        /// Mesh jobs whose chunk was unloaded while in-flight. Polled and disposed
+        /// at most 2 per frame to spread out the disposal cost.
+        /// </summary>
         private readonly List<PendingMesh> _pendingDisposals = new List<PendingMesh>();
+
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
@@ -27,7 +34,14 @@ namespace Lithforge.Runtime.Scheduling
         private readonly ChunkCulling _culling;
         private int _maxMeshesPerFrame;
         private int _maxMeshCompletionsPerFrame;
+
+        /// <summary>
+        /// In-flight job count above which the scheduler linearly ramps down new schedules.
+        /// Derived from render distance via SchedulingConfig.ThrottleThreshold.
+        /// </summary>
         private int _throttleThreshold = 16;
+
+        /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
         private readonly float _completionBudgetMs;
 
         /// <summary>
@@ -43,6 +57,7 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
 
+        /// <summary>Number of mesh jobs currently in-flight on worker threads.</summary>
         public int PendingCount
         {
             get { return _pendingMeshes.Count; }
@@ -69,6 +84,11 @@ namespace Lithforge.Runtime.Scheduling
             _dummyBorder = new NativeArray<StateId>(1, Allocator.Persistent);
         }
 
+        /// <summary>
+        /// Re-derives scheduling and throttle limits from the current render distance.
+        /// Called when the player changes render distance at runtime.
+        /// </summary>
+        /// <param name="renderDistance">New render distance in chunks.</param>
         public void UpdateConfig(int renderDistance)
         {
             _maxMeshesPerFrame = SchedulingConfig.MaxMeshesPerFrame(renderDistance);
@@ -76,6 +96,11 @@ namespace Lithforge.Runtime.Scheduling
             _throttleThreshold = SchedulingConfig.ThrottleThreshold(renderDistance);
         }
 
+        /// <summary>
+        /// Polls in-flight mesh jobs for completion, uploads finished mesh data to
+        /// ChunkMeshStore, handles post-mesh state transitions (relight, deferred edits,
+        /// remesh), and processes deferred disposals. Time-budgeted to avoid frame spikes.
+        /// </summary>
         public void PollCompleted()
         {
             Profiler.BeginSample("MS.PollCompleted");
@@ -381,6 +406,11 @@ namespace Lithforge.Runtime.Scheduling
             Profiler.EndSample();
         }
 
+        /// <summary>
+        /// Moves any in-flight mesh job for the given coord to the deferred disposal queue.
+        /// Called when a chunk is being unloaded so its slot stops consuming completion budget.
+        /// </summary>
+        /// <param name="coord">Chunk coordinate being unloaded.</param>
         public void CleanupCoord(int3 coord)
         {
             for (int i = _pendingMeshes.Count - 1; i >= 0; i--)
@@ -427,6 +457,10 @@ namespace Lithforge.Runtime.Scheduling
             return manhattan == 1;
         }
 
+        /// <summary>
+        /// Force-completes all in-flight mesh and disposal jobs, then disposes their
+        /// NativeContainers and the dummy border array. Called during application shutdown.
+        /// </summary>
         public void Shutdown()
         {
             for (int i = 0; i < _pendingMeshes.Count; i++)
@@ -533,6 +567,11 @@ namespace Lithforge.Runtime.Scheduling
             return job.Schedule();
         }
 
+        /// <summary>
+        /// Returns the neighbor chunk if it exists, has progressed past RelightPending,
+        /// and still owns valid ChunkData. Returns null otherwise, causing the border
+        /// extraction job to skip that face.
+        /// </summary>
         private ManagedChunk GetMeshableNeighbor(int3 coord)
         {
             ManagedChunk c = _chunkManager.GetChunk(coord);
