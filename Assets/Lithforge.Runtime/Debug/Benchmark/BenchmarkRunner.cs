@@ -134,7 +134,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         private void BuildToastUI(PanelSettings panelSettings)
         {
-            _toastDocument = gameObject.AddComponent<UIDocument>();
+            GameObject toastGo = new GameObject("BenchmarkToast");
+            toastGo.transform.SetParent(transform, false);
+            _toastDocument = toastGo.AddComponent<UIDocument>();
             _toastDocument.panelSettings = panelSettings;
             _toastDocument.sortingOrder = 200;
 
