@@ -17,15 +17,7 @@ namespace Lithforge.Runtime.Tick
         private bool _jumpPressed;
         private bool _flyTogglePressed;
         private bool _noclipTogglePressed;
-        private bool _rightClickPressed;
-        private int _hotbarSlotPressed;
         private int _scrollDelta;
-
-        private static readonly Key[] s_digitKeys =
-        {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
-        };
 
         /// <summary>
         /// Called once per frame by GameLoop BEFORE the tick loop.
@@ -57,23 +49,10 @@ namespace Lithforge.Runtime.Tick
                 {
                     _noclipTogglePressed = true;
                 }
-
-                for (int i = 0; i < s_digitKeys.Length; i++)
-                {
-                    if (keyboard[s_digitKeys[i]].wasPressedThisFrame)
-                    {
-                        _hotbarSlotPressed = i + 1;
-                    }
-                }
             }
 
             if (mouse != null)
             {
-                if (mouse.rightButton.wasPressedThisFrame)
-                {
-                    _rightClickPressed = true;
-                }
-
                 float scroll = mouse.scroll.ReadValue().y;
 
                 if (scroll > 0.1f)
@@ -98,16 +77,12 @@ namespace Lithforge.Runtime.Tick
                 JumpPressed = _jumpPressed,
                 FlyTogglePressed = _flyTogglePressed,
                 NoclipTogglePressed = _noclipTogglePressed,
-                RightClickPressed = _rightClickPressed,
-                HotbarSlot = _hotbarSlotPressed,
                 ScrollDelta = _scrollDelta,
             };
 
             _jumpPressed = false;
             _flyTogglePressed = false;
             _noclipTogglePressed = false;
-            _rightClickPressed = false;
-            _hotbarSlotPressed = 0;
             _scrollDelta = 0;
 
             return snap;

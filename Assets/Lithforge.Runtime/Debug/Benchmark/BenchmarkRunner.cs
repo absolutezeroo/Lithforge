@@ -551,8 +551,6 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
 
                 // Measurement frames — record per-frame data
-                int measureStart = totalRecordedFrames;
-
                 // Ensure capacity
                 int needed = totalRecordedFrames + phase.MeasurementFrames;
 
@@ -949,6 +947,27 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _summaryBuilder.Append("=========================");
 
             return _summaryBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Safety net: if the MonoBehaviour is disabled mid-benchmark (e.g. scene change),
+        /// ensure ExternallyControlled is cleared so the player isn't permanently frozen.
+        /// </summary>
+        private void OnDisable()
+        {
+            if (_running)
+            {
+                _running = false;
+                _activeCoroutine = null;
+
+                Tick.PlayerPhysicsBody physicsBody = _playerController != null
+                    ? _playerController.PhysicsBody : null;
+
+                if (physicsBody != null)
+                {
+                    physicsBody.ExternallyControlled = false;
+                }
+            }
         }
 
         private void FinishRun(BenchmarkResult result)

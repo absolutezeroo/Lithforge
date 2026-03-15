@@ -31,6 +31,11 @@ namespace Lithforge.Runtime.Tick
         public void ConsumeOneTick()
         {
             _accumulated -= FixedTickRate.TickDeltaTime;
+
+            if (_accumulated < 0f)
+            {
+                _accumulated = 0f;
+            }
         }
 
         /// <summary>
@@ -38,7 +43,12 @@ namespace Lithforge.Runtime.Tick
         /// </summary>
         public float Alpha
         {
-            get { return _accumulated / FixedTickRate.TickDeltaTime; }
+            get
+            {
+                float alpha = _accumulated / FixedTickRate.TickDeltaTime;
+
+                return alpha < 0f ? 0f : alpha;
+            }
         }
     }
 }

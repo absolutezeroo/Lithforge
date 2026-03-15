@@ -1,7 +1,4 @@
-using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Tick;
-using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Chunk;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Input
@@ -13,7 +10,6 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class PlayerController : MonoBehaviour
     {
-        private GameLoop _gameLoop;
         private PlayerPhysicsBody _physicsBody;
 
         /// <summary>
@@ -60,13 +56,8 @@ namespace Lithforge.Runtime.Input
             }
         }
 
-        public void Initialize(
-            ChunkManager chunkManager,
-            NativeStateRegistry nativeStateRegistry,
-            GameLoop gameLoop,
-            PhysicsSettings physics)
+        public void Initialize()
         {
-            _gameLoop = gameLoop;
         }
 
         /// <summary>

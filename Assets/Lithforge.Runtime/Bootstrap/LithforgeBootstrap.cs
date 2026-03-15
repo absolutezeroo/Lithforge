@@ -482,9 +482,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Add PlayerController to player object
                 PlayerController playerController = playerObject.AddComponent<PlayerController>();
-                playerController.Initialize(
-                    _chunkManager, _contentResult.NativeStateRegistry,
-                    _gameLoop, _settings.Physics);
+                playerController.Initialize();
                 // Add CameraController to camera
                 CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
                 cameraControllerRef = cameraController;
