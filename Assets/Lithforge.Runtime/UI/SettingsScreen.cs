@@ -2,7 +2,6 @@ using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Chunk;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 using Cursor = UnityEngine.Cursor;
@@ -20,6 +19,8 @@ namespace Lithforge.Runtime.UI
         private VisualElement _overlay;
         private VisualElement _panel;
         private bool _isOpen;
+        private bool _openedFromPause;
+        private System.Action _onCloseCallback;
 
         // References to systems we can tweak at runtime
         private ChunkManager _chunkManager;
@@ -231,8 +232,8 @@ namespace Lithforge.Runtime.UI
             AddKeybindRow(scrollView, "Fly Mode", "F");
             AddKeybindRow(scrollView, "Noclip (while flying)", "N");
 
-            // Close button
-            Button closeButton = new Button(() => { Close(); });
+            // Close button — calls Close with returnToPause if opened from pause menu
+            Button closeButton = new Button(() => { Close(_openedFromPause); });
             closeButton.text = "Close";
             closeButton.style.height = 40;
             closeButton.style.marginTop = 15;
@@ -351,48 +352,61 @@ namespace Lithforge.Runtime.UI
             parent.Add(row);
         }
 
-        private void Update()
-        {
-            Keyboard keyboard = Keyboard.current;
-
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            if (keyboard.escapeKey.wasPressedThisFrame)
-            {
-                if (_isOpen)
-                {
-                    Close();
-                }
-                else if (Cursor.lockState == CursorLockMode.Locked)
-                {
-                    Open();
-                }
-            }
-        }
-
         public void Open()
         {
             _isOpen = true;
+            _openedFromPause = false;
             _overlay.style.display = DisplayStyle.Flex;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        public void Close()
+        /// <summary>
+        /// Sets a callback invoked when the settings panel closes back to pause menu.
+        /// </summary>
+        public void SetOnCloseCallback(System.Action callback)
+        {
+            _onCloseCallback = callback;
+        }
+
+        /// <summary>
+        /// Closes the settings panel. When returnToPause is true, the cursor is
+        /// left unlocked so the pause menu can manage cursor state.
+        /// Fires the onCloseCallback if set and returning to pause.
+        /// </summary>
+        public void Close(bool returnToPause = false)
         {
             _isOpen = false;
+            _openedFromPause = false;
             _overlay.style.display = DisplayStyle.None;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+
+            if (!returnToPause)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+
             PlayerPrefs.Save();
+
+            if (returnToPause && _onCloseCallback != null)
+            {
+                _onCloseCallback();
+            }
         }
 
         public bool IsOpen
         {
             get { return _isOpen; }
+        }
+
+        /// <summary>
+        /// When true, the Close button will return to the pause menu
+        /// instead of re-locking the cursor directly.
+        /// </summary>
+        public bool OpenedFromPause
+        {
+            get { return _openedFromPause; }
+            set { _openedFromPause = value; }
         }
 
         /// <summary>

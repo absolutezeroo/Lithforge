@@ -61,6 +61,9 @@ namespace Lithforge.Runtime.Bootstrap
         private SkyController _skyController;
         private BiomeTintManager _biomeTintManager;
         private AsyncChunkSaver _asyncChunkSaver;
+        private PauseMenuScreen _pauseMenuScreen;
+        private bool _quitToTitle;
+        private bool _sessionShutdownComplete;
 
         private void Awake()
         {
@@ -78,20 +81,34 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.UIElements.PanelSettings earlyPanelSettings =
                 Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
 
-            // Show world selection screen and wait for user to choose a world
-            GameObject selectionObject = new GameObject("WorldSelectionScreen");
-            WorldSelectionScreen selectionScreen = selectionObject.AddComponent<WorldSelectionScreen>();
-            selectionScreen.Initialize(earlyPanelSettings);
-
-            while (WorldLauncher.SelectedWorldPath == null)
+            while (true)
             {
-                yield return null;
+                // Show world selection screen and wait for user to choose a world
+                GameObject selectionObject = new GameObject("WorldSelectionScreen");
+                WorldSelectionScreen selectionScreen = selectionObject.AddComponent<WorldSelectionScreen>();
+                selectionScreen.Initialize(earlyPanelSettings);
+
+                while (WorldLauncher.SelectedWorldPath == null)
+                {
+                    yield return null;
+                }
+
+                // Run one game session — returns when _quitToTitle is set
+                yield return StartCoroutine(RunGameSession(earlyPanelSettings));
+
+                // Session ended (quit to title), loop back to world selection
             }
+        }
+
+        private IEnumerator RunGameSession(UnityEngine.UIElements.PanelSettings panelSettings)
+        {
+            _quitToTitle = false;
+            _sessionShutdownComplete = false;
 
             // Create loading screen for content pipeline and spawn
             GameObject loadingObject = new GameObject("LoadingScreen");
             LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
-            loadingScreen.Initialize(null, earlyPanelSettings, null);
+            loadingScreen.Initialize(null, panelSettings, null);
 
             // Run content pipeline as iterator, yielding frames between phases
             ContentValidator validator = new ContentValidator();
@@ -125,9 +142,245 @@ namespace Lithforge.Runtime.Bootstrap
             InitializeChunkSystem();
             InitializeWorldGen();
             InitializeRendering();
-            InitializeGameLoop(loadingScreen, earlyPanelSettings);
+            InitializeGameLoop(loadingScreen, panelSettings);
 
             UnityEngine.Debug.Log("[Lithforge] Bootstrap complete.");
+
+            // Wait until quit-to-title is requested
+            while (!_quitToTitle)
+            {
+                yield return null;
+            }
+        }
+
+        /// <summary>
+        /// Coroutine triggered by PauseMenuScreen "Save and Quit to Title".
+        /// Saves player state, flushes chunks, disposes session resources,
+        /// and signals RunGameSession to return (back to world selection).
+        /// </summary>
+        private IEnumerator QuitToTitleCoroutine()
+        {
+            // Freeze the game immediately
+            if (_gameLoop != null)
+            {
+                _gameLoop.SetGameState(GameState.PausedFull);
+            }
+
+            // Close pause menu
+            if (_pauseMenuScreen != null)
+            {
+                _pauseMenuScreen.Close();
+            }
+
+            // Let the final frame render
+            yield return null;
+
+            // Shut down session resources (save, dispose, cleanup)
+            ShutdownSessionResources();
+
+            // Signal RunGameSession to return
+            _quitToTitle = true;
+        }
+
+        /// <summary>
+        /// Saves all game state, completes in-flight jobs, disposes native resources,
+        /// and destroys all session GameObjects. Called by both QuitToTitleCoroutine
+        /// and OnDestroy. Guarded by _sessionShutdownComplete to prevent double-dispose.
+        /// </summary>
+        private void ShutdownSessionResources()
+        {
+            if (_sessionShutdownComplete)
+            {
+                return;
+            }
+
+            _sessionShutdownComplete = true;
+
+            // Complete all in-flight jobs before saving
+            try
+            {
+                if (_gameLoop != null)
+                {
+                    _gameLoop.Shutdown();
+                }
+
+                // Save player state, serialize all chunks, and flush
+                if (_autoSaveManager != null)
+                {
+                    _autoSaveManager.SaveMetadataOnly();
+                }
+
+                if (_asyncChunkSaver != null)
+                {
+                    _asyncChunkSaver.Flush();
+                }
+
+                if (_worldStorage != null && _chunkManager != null)
+                {
+                    _chunkManager.SaveAllChunks(_worldStorage);
+                    _worldStorage.FlushAll();
+                }
+
+                if (_asyncChunkSaver != null)
+                {
+                    _asyncChunkSaver.Dispose();
+                    _asyncChunkSaver = null;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[Lithforge] Error during shutdown save: {ex}");
+            }
+
+            // Dispose native resources
+            try
+            {
+                if (_biomeTintManager != null)
+                {
+                    _biomeTintManager.Dispose();
+                    _biomeTintManager = null;
+                }
+
+                if (_chunkMeshStore != null)
+                {
+                    _chunkMeshStore.Dispose();
+                    _chunkMeshStore = null;
+                }
+
+                if (_chunkManager != null)
+                {
+                    _chunkManager.Dispose();
+                    _chunkManager = null;
+                }
+
+                if (_chunkPool != null)
+                {
+                    _chunkPool.Dispose();
+                    _chunkPool = null;
+                }
+
+                if (_contentResult != null)
+                {
+                    if (_contentResult.NativeStateRegistry.States.IsCreated)
+                    {
+                        _contentResult.NativeStateRegistry.Dispose();
+                    }
+
+                    _contentResult.NativeAtlasLookup.Dispose();
+                    _contentResult = null;
+                }
+
+                if (_nativeBiomeData.IsCreated)
+                {
+                    _nativeBiomeData.Dispose();
+                }
+
+                if (_nativeOreConfigs.IsCreated)
+                {
+                    _nativeOreConfigs.Dispose();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[Lithforge] Error during resource disposal: {ex}");
+            }
+
+            // Release storage and session lock
+            if (_worldStorage != null)
+            {
+                try
+                {
+                    _worldStorage.Dispose();
+                }
+                catch (System.Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[Lithforge] Error disposing WorldStorage: {ex}");
+                }
+
+                _worldStorage = null;
+            }
+
+            if (_sessionLockHandle != null)
+            {
+                try
+                {
+                    _sessionLockHandle.Dispose();
+                }
+                catch (System.Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[Lithforge] Error disposing session lock: {ex}");
+                }
+
+                _sessionLockHandle = null;
+            }
+
+            // Destroy all session GameObjects (children of this bootstrap object are
+            // cleaned up by Unity, but separately-rooted GameObjects must be destroyed manually)
+            DestroySessionGameObjects();
+
+            // Remove all session components from the bootstrap GameObject
+            DestroyComponentIfPresent<GameLoop>();
+            DestroyComponentIfPresent<TimeOfDayController>();
+            DestroyComponentIfPresent<SkyController>();
+            DestroyComponentIfPresent<ChunkBorderRenderer>();
+            DestroyComponentIfPresent<F3DebugOverlay>();
+            DestroyComponentIfPresent<Debug.Benchmark.BenchmarkRunner>();
+
+            _gameLoop = null;
+            _timeOfDayController = null;
+            _skyController = null;
+            _autoSaveManager = null;
+            _decorationStage = null;
+            _generationPipeline = null;
+            _worldMetadata = null;
+            _pauseMenuScreen = null;
+
+            WorldLauncher.Clear();
+
+            UnityEngine.Debug.Log("[Lithforge] Session resources shut down.");
+        }
+
+        /// <summary>
+        /// Destroys all session GameObjects that were created during InitializeGameLoop.
+        /// These are rooted GameObjects (not children of the bootstrap object).
+        /// </summary>
+        private void DestroySessionGameObjects()
+        {
+            string[] sessionObjectNames = new string[]
+            {
+                "Player",
+                "BlockHighlight",
+                "CrosshairHUD",
+                "HotbarDisplay",
+                "PlayerInventoryScreen",
+                "ContainerScreenManager",
+                "SettingsScreen",
+                "PauseMenuScreen",
+                "ChestScreen",
+                "FurnaceScreen",
+                "ToolStationScreen",
+                "CraftingTableScreen",
+            };
+
+            for (int i = 0; i < sessionObjectNames.Length; i++)
+            {
+                GameObject obj = GameObject.Find(sessionObjectNames[i]);
+
+                if (obj != null)
+                {
+                    Destroy(obj);
+                }
+            }
+        }
+
+        private void DestroyComponentIfPresent<T>() where T : Component
+        {
+            T component = GetComponent<T>();
+
+            if (component != null)
+            {
+                Destroy(component);
+            }
         }
 
         private void InitializeStorage()
@@ -763,10 +1016,15 @@ namespace Lithforge.Runtime.Bootstrap
                     playerController,
                     panelSettings);
 
+                // Create PauseMenuScreen (initialized later after SettingsScreen)
+                GameObject pauseMenuObject = new GameObject("PauseMenuScreen");
+                PauseMenuScreen pauseMenuScreen = pauseMenuObject.AddComponent<PauseMenuScreen>();
+                _pauseMenuScreen = pauseMenuScreen;
+
                 // Hide all gameplay HUD until spawn is complete
                 HudVisibilityController hudVisibility = new HudVisibilityController(
                     crosshairHUD, hotbarDisplay, inventoryScreen, debugOverlay,
-                    settingsScreen, screenManager);
+                    settingsScreen, pauseMenuScreen, screenManager);
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement
@@ -879,6 +1137,45 @@ namespace Lithforge.Runtime.Bootstrap
                     panelSettings,
                     _gameLoop.NotifyRenderDistanceChanged);
             }
+
+            // Initialize PauseMenuScreen with callbacks
+            if (_pauseMenuScreen != null && settingsScreenRef != null)
+            {
+                SettingsScreen settingsCapture = settingsScreenRef;
+
+                _pauseMenuScreen.Initialize(
+                    panelSettings,
+                    settingsCapture,
+                    // onPause: freeze game and show pause menu
+                    () =>
+                    {
+                        _gameLoop.SetGameState(GameState.PausedFull);
+                        _pauseMenuScreen.Open();
+                    },
+                    // onResume: unfreeze game and close pause menu
+                    () =>
+                    {
+                        _pauseMenuScreen.Close();
+                        _gameLoop.SetGameState(GameState.Playing);
+                    },
+                    // onOptions: hide pause overlay, open settings from pause
+                    () =>
+                    {
+                        _pauseMenuScreen.HideOverlay();
+                        settingsCapture.SetOnCloseCallback(() =>
+                        {
+                            _pauseMenuScreen.Open();
+                        });
+                        settingsCapture.Open();
+                        // Mark as opened from pause so Close button returns to pause
+                        settingsCapture.OpenedFromPause = true;
+                    },
+                    // onQuitToTitle: save and return to world selection
+                    () =>
+                    {
+                        StartCoroutine(QuitToTitleCoroutine());
+                    });
+            }
         }
 
         private static byte BuildSurfaceFlags(BiomeDefinition def)
@@ -949,113 +1246,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void OnDestroy()
         {
-            try
-            {
-                if (_gameLoop != null)
-                {
-                    _gameLoop.Shutdown();
-                }
-
-                // Save player state, serialize all chunks, and flush once
-                if (_autoSaveManager != null)
-                {
-                    _autoSaveManager.SaveMetadataOnly();
-                }
-
-                // Drain pending async saves before synchronous shutdown save
-                if (_asyncChunkSaver != null)
-                {
-                    _asyncChunkSaver.Flush();
-                }
-
-                if (_worldStorage != null && _chunkManager != null)
-                {
-                    _chunkManager.SaveAllChunks(_worldStorage);
-                    _worldStorage.FlushAll();
-                }
-
-                if (_asyncChunkSaver != null)
-                {
-                    _asyncChunkSaver.Dispose();
-                    _asyncChunkSaver = null;
-                }
-            }
-            catch (System.Exception ex)
-            {
-                UnityEngine.Debug.LogError($"[Lithforge] Error during shutdown save: {ex}");
-            }
-
-            try
-            {
-                if (_biomeTintManager != null)
-                {
-                    _biomeTintManager.Dispose();
-                }
-
-                if (_chunkMeshStore != null)
-                {
-                    _chunkMeshStore.Dispose();
-                }
-
-                if (_chunkManager != null)
-                {
-                    _chunkManager.Dispose();
-                }
-
-                if (_chunkPool != null)
-                {
-                    _chunkPool.Dispose();
-                }
-
-                if (_contentResult != null)
-                {
-                    if (_contentResult.NativeStateRegistry.States.IsCreated)
-                    {
-                        _contentResult.NativeStateRegistry.Dispose();
-                    }
-
-                    _contentResult.NativeAtlasLookup.Dispose();
-                }
-
-                if (_nativeBiomeData.IsCreated)
-                {
-                    _nativeBiomeData.Dispose();
-                }
-
-                if (_nativeOreConfigs.IsCreated)
-                {
-                    _nativeOreConfigs.Dispose();
-                }
-            }
-            catch (System.Exception ex)
-            {
-                UnityEngine.Debug.LogError($"[Lithforge] Error during resource disposal: {ex}");
-            }
-            finally
-            {
-                // Always release storage, session lock, and launcher state
-                if (_worldStorage != null)
-                {
-                    try { _worldStorage.Dispose(); }
-                    catch (System.Exception ex)
-                    {
-                        UnityEngine.Debug.LogError($"[Lithforge] Error disposing WorldStorage: {ex}");
-                    }
-                }
-
-                if (_sessionLockHandle != null)
-                {
-                    try { _sessionLockHandle.Dispose(); }
-                    catch (System.Exception ex)
-                    {
-                        UnityEngine.Debug.LogError($"[Lithforge] Error disposing session lock: {ex}");
-                    }
-
-                    _sessionLockHandle = null;
-                }
-
-                WorldLauncher.Clear();
-            }
+            ShutdownSessionResources();
         }
     }
 

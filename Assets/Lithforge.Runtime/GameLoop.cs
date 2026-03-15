@@ -44,6 +44,7 @@ namespace Lithforge.Runtime
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private float _unloadBudgetMs;
         private bool _initialized;
+        private GameState _gameState = GameState.Playing;
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
@@ -259,8 +260,8 @@ namespace Lithforge.Runtime
 
             FrameProfiler.Begin(FrameProfiler.UpdateTotal);
 
-            // ── Fixed tick accumulator ──
-            if (_tickRegistry != null)
+            // ── Fixed tick accumulator (skipped when fully paused) ──
+            if (_tickRegistry != null && _gameState != GameState.PausedFull)
             {
                 FrameProfiler.Begin(FrameProfiler.TickLoop);
                 Profiler.BeginSample("GL.TickLoop");
@@ -321,87 +322,93 @@ namespace Lithforge.Runtime
             FrameProfiler.End(FrameProfiler.PollLOD);
             Profiler.EndSample();
 
-            // ── Frustum + load/unload ──
+            // ── Frustum + load/unload (skipped when fully paused) ──
             int3 cameraChunkCoord = GetCameraChunkCoord();
 
-            _culling.UpdateFrustum(_mainCamera);
-
-            Profiler.BeginSample("GL.LoadQueue");
-            FrameProfiler.Begin(FrameProfiler.LoadQueue);
-            _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
-            FrameProfiler.End(FrameProfiler.LoadQueue);
-            Profiler.EndSample();
-
-            Profiler.BeginSample("GL.Unload");
-            FrameProfiler.Begin(FrameProfiler.Unload);
-            _chunkManager.UnloadDistantChunks(
-                cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
-
-            // Advance spawn state machine until complete
-            if (_spawnManager != null && !_spawnManager.IsComplete)
+            if (_gameState != GameState.PausedFull)
             {
-                _spawnManager.Tick();
+                _culling.UpdateFrustum(_mainCamera);
+
+                Profiler.BeginSample("GL.LoadQueue");
+                FrameProfiler.Begin(FrameProfiler.LoadQueue);
+                _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
+                FrameProfiler.End(FrameProfiler.LoadQueue);
+                Profiler.EndSample();
+
+                Profiler.BeginSample("GL.Unload");
+                FrameProfiler.Begin(FrameProfiler.Unload);
+                _chunkManager.UnloadDistantChunks(
+                    cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
+
+                // Advance spawn state machine until complete
+                if (_spawnManager != null && !_spawnManager.IsComplete)
+                {
+                    _spawnManager.Tick();
+                }
+
+                for (int i = 0; i < _unloadedCoords.Count; i++)
+                {
+                    int3 coord = _unloadedCoords[i];
+
+                    // Force-complete any in-flight border extraction jobs that read this
+                    // chunk's NativeArray, so the pool can safely recycle it.
+                    _meshScheduler.ForceCompleteNeighborDeps(coord);
+
+                    // Clean up block entity scheduler tracking for the unloaded chunk
+                    _blockEntityTickScheduler?.OnChunkUnloaded(coord);
+
+                    _chunkMeshStore.DestroyRenderer(coord);
+                    _biomeTintManager?.OnChunkUnloaded(coord);
+                    _generationScheduler.CleanupCoord(coord);
+                    _relightScheduler.CleanupCoord(coord);
+                    _meshScheduler.CleanupCoord(coord);
+                    _lodScheduler.CleanupCoord(coord);
+                }
+                FrameProfiler.End(FrameProfiler.Unload);
+                Profiler.EndSample();
             }
 
-            for (int i = 0; i < _unloadedCoords.Count; i++)
+            // ── Schedule jobs (skipped when fully paused) ──
+            if (_gameState != GameState.PausedFull)
             {
-                int3 coord = _unloadedCoords[i];
+                Profiler.BeginSample("GL.SchedGen");
+                FrameProfiler.Begin(FrameProfiler.SchedGen);
+                _generationScheduler.ScheduleJobs();
+                FrameProfiler.End(FrameProfiler.SchedGen);
+                Profiler.EndSample();
 
-                // Force-complete any in-flight border extraction jobs that read this
-                // chunk's NativeArray, so the pool can safely recycle it.
-                _meshScheduler.ForceCompleteNeighborDeps(coord);
+                Profiler.BeginSample("GL.CrossLight");
+                FrameProfiler.Begin(FrameProfiler.CrossLight);
+                _generationScheduler.ProcessCrossChunkLightUpdates();
+                FrameProfiler.End(FrameProfiler.CrossLight);
+                Profiler.EndSample();
 
-                // Clean up block entity scheduler tracking for the unloaded chunk
-                _blockEntityTickScheduler?.OnChunkUnloaded(coord);
+                Profiler.BeginSample("GL.Relight");
+                FrameProfiler.Begin(FrameProfiler.Relight);
+                _relightScheduler.ScheduleJobs();
+                FrameProfiler.End(FrameProfiler.Relight);
+                Profiler.EndSample();
 
-                _chunkMeshStore.DestroyRenderer(coord);
-                _biomeTintManager?.OnChunkUnloaded(coord);
-                _generationScheduler.CleanupCoord(coord);
-                _relightScheduler.CleanupCoord(coord);
-                _meshScheduler.CleanupCoord(coord);
-                _lodScheduler.CleanupCoord(coord);
+                // LOD level assignment must run BEFORE mesh scheduling
+                // so chunks get their LOD level before MeshScheduler decides who to mesh
+                Profiler.BeginSample("GL.LODLevels");
+                FrameProfiler.Begin(FrameProfiler.LODLevels);
+                _lodScheduler.UpdateLODLevels(cameraChunkCoord);
+                FrameProfiler.End(FrameProfiler.LODLevels);
+                Profiler.EndSample();
+
+                Profiler.BeginSample("GL.SchedMesh");
+                FrameProfiler.Begin(FrameProfiler.SchedMesh);
+                _meshScheduler.ScheduleJobs(SpawnReady);
+                FrameProfiler.End(FrameProfiler.SchedMesh);
+                Profiler.EndSample();
+
+                Profiler.BeginSample("GL.SchedLOD");
+                FrameProfiler.Begin(FrameProfiler.SchedLOD);
+                _lodScheduler.ScheduleJobs();
+                FrameProfiler.End(FrameProfiler.SchedLOD);
+                Profiler.EndSample();
             }
-            FrameProfiler.End(FrameProfiler.Unload);
-            Profiler.EndSample();
-
-            // ── Schedule jobs ──
-            Profiler.BeginSample("GL.SchedGen");
-            FrameProfiler.Begin(FrameProfiler.SchedGen);
-            _generationScheduler.ScheduleJobs();
-            FrameProfiler.End(FrameProfiler.SchedGen);
-            Profiler.EndSample();
-
-            Profiler.BeginSample("GL.CrossLight");
-            FrameProfiler.Begin(FrameProfiler.CrossLight);
-            _generationScheduler.ProcessCrossChunkLightUpdates();
-            FrameProfiler.End(FrameProfiler.CrossLight);
-            Profiler.EndSample();
-
-            Profiler.BeginSample("GL.Relight");
-            FrameProfiler.Begin(FrameProfiler.Relight);
-            _relightScheduler.ScheduleJobs();
-            FrameProfiler.End(FrameProfiler.Relight);
-            Profiler.EndSample();
-
-            // LOD level assignment must run BEFORE mesh scheduling
-            // so chunks get their LOD level before MeshScheduler decides who to mesh
-            Profiler.BeginSample("GL.LODLevels");
-            FrameProfiler.Begin(FrameProfiler.LODLevels);
-            _lodScheduler.UpdateLODLevels(cameraChunkCoord);
-            FrameProfiler.End(FrameProfiler.LODLevels);
-            Profiler.EndSample();
-
-            Profiler.BeginSample("GL.SchedMesh");
-            FrameProfiler.Begin(FrameProfiler.SchedMesh);
-            _meshScheduler.ScheduleJobs(SpawnReady);
-            FrameProfiler.End(FrameProfiler.SchedMesh);
-            Profiler.EndSample();
-
-            Profiler.BeginSample("GL.SchedLOD");
-            FrameProfiler.Begin(FrameProfiler.SchedLOD);
-            _lodScheduler.ScheduleJobs();
-            FrameProfiler.End(FrameProfiler.SchedLOD);
-            Profiler.EndSample();
 
             // Auto-save: periodic metadata + dirty chunk flush
             if (_autoSaveManager != null)
@@ -461,6 +468,15 @@ namespace Lithforge.Runtime
                 (int)math.floor(camPos.x / ChunkConstants.Size),
                 (int)math.floor(camPos.y / ChunkConstants.Size),
                 (int)math.floor(camPos.z / ChunkConstants.Size));
+        }
+
+        /// <summary>
+        /// Sets the game state, which gates the tick loop and job scheduling.
+        /// PausedFull stops ticks and scheduling; PausedOverlay allows them to continue.
+        /// </summary>
+        public void SetGameState(GameState state)
+        {
+            _gameState = state;
         }
 
         public void Shutdown()

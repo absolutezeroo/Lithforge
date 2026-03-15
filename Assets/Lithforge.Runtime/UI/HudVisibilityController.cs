@@ -14,6 +14,7 @@ namespace Lithforge.Runtime.UI
         private readonly IContainerScreen _inventoryScreen;
         private readonly F3DebugOverlay _debugOverlay;
         private readonly SettingsScreen _settingsScreen;
+        private readonly PauseMenuScreen _pauseMenuScreen;
         private readonly ContainerScreenManager _screenManager;
 
         public HudVisibilityController(
@@ -22,6 +23,7 @@ namespace Lithforge.Runtime.UI
             IContainerScreen inventoryScreen,
             F3DebugOverlay debugOverlay,
             SettingsScreen settingsScreen,
+            PauseMenuScreen pauseMenuScreen,
             ContainerScreenManager screenManager)
         {
             _crosshairHud = crosshairHud;
@@ -29,6 +31,7 @@ namespace Lithforge.Runtime.UI
             _inventoryScreen = inventoryScreen;
             _debugOverlay = debugOverlay;
             _settingsScreen = settingsScreen;
+            _pauseMenuScreen = pauseMenuScreen;
             _screenManager = screenManager;
         }
 
@@ -60,6 +63,11 @@ namespace Lithforge.Runtime.UI
             if (_settingsScreen != null)
             {
                 _settingsScreen.SetVisible(false);
+            }
+
+            if (_pauseMenuScreen != null)
+            {
+                _pauseMenuScreen.SetVisible(false);
             }
 
             if (_screenManager != null)
@@ -98,10 +106,16 @@ namespace Lithforge.Runtime.UI
                 _inventoryScreen.SetVisible(true);
             }
 
-            // Restore SettingsScreen root so the Escape key toggle can show _panel.
+            // Restore SettingsScreen root so the pause menu can open it.
             if (_settingsScreen != null)
             {
                 _settingsScreen.SetVisible(true);
+            }
+
+            // Restore PauseMenuScreen root so the Escape key toggle can show it.
+            if (_pauseMenuScreen != null)
+            {
+                _pauseMenuScreen.SetVisible(true);
             }
         }
     }
