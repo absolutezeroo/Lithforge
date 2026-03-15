@@ -140,7 +140,7 @@ namespace Lithforge.WorldGen.Pipeline
                 AirId = _airId,
             };
 
-            JobHandle terrainHandle = terrainJob.Schedule(climateHandle);
+            JobHandle terrainHandle = terrainJob.Schedule(ChunkConstants.SizeSquared, 32, climateHandle);
 
             // Stage 3: River noise (2D per-column, domain-warped threshold band)
             RiverNoiseJob riverNoiseJob = new RiverNoiseJob

@@ -114,7 +114,7 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // With BaseHeight=0 and HeightAmplitude=0, surface = SeaLevel.
                 // Stone at y <= seaLevel, air above.
@@ -174,7 +174,7 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // With BaseHeight=0 and HeightAmplitude=0, all heights = SeaLevel
                 for (int i = 0; i < ChunkConstants.SizeSquared; i++)
@@ -262,7 +262,7 @@ namespace Lithforge.WorldGen.Tests
                     AirId = _airId,
                 };
 
-                job.Schedule().Complete();
+                job.Schedule(ChunkConstants.SizeSquared, 32).Complete();
 
                 // All columns should select desert (biome 2) as dominant
                 for (int i = 0; i < ChunkConstants.SizeSquared; i++)
