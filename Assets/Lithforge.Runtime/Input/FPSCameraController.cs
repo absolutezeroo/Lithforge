@@ -4,10 +4,19 @@ using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Input
 {
+    /// <summary>
+    /// Legacy free-fly camera used before the player physics body existed.
+    /// Provides WASD+Space/Ctrl movement and mouse look without collision.
+    /// Replaced at runtime by <see cref="Player.PlayerController"/> and
+    /// <see cref="CameraController"/>; kept for editor-only scene testing.
+    /// </summary>
     public sealed class FPSCameraController : MonoBehaviour
     {
+        /// <summary>Base movement speed in units per second.</summary>
         [FormerlySerializedAs("_moveSpeed"),SerializeField] private float moveSpeed = 10f;
+        /// <summary>Movement speed when Left Shift is held.</summary>
         [FormerlySerializedAs("_fastMoveSpeed"),SerializeField] private float fastMoveSpeed = 50f;
+        /// <summary>Degrees of rotation per pixel of mouse movement.</summary>
         [FormerlySerializedAs("_lookSensitivity"),SerializeField] private float lookSensitivity = 0.1f;
 
         private float _pitch;

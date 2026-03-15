@@ -9,6 +9,13 @@ using Cursor = UnityEngine.Cursor;
 
 namespace Lithforge.Runtime.World
 {
+    /// <summary>
+    /// Full-screen UI Toolkit overlay that lets the player browse, create, and delete
+    /// world saves before entering a game session. Scans the worlds directory on a
+    /// background thread, then populates a scrollable list on the main thread.
+    /// Sets <see cref="WorldLauncher"/> fields and destroys itself once the player
+    /// picks a world.
+    /// </summary>
     public sealed class WorldSelectionScreen : MonoBehaviour
     {
         private static readonly Color s_backgroundColor = new Color(0.08f, 0.08f, 0.10f, 1.0f);
@@ -52,6 +59,11 @@ namespace Lithforge.Runtime.World
             Cursor.visible = true;
         }
 
+        /// <summary>
+        /// Builds the UI hierarchy and kicks off an asynchronous world-directory scan.
+        /// Must be called exactly once after the component is added.
+        /// </summary>
+        /// <param name="panelSettings">Shared panel settings for the UIDocument (sortingOrder 600).</param>
         public void Initialize(PanelSettings panelSettings)
         {
             _worldsRoot = System.IO.Path.Combine(Application.persistentDataPath, "worlds");

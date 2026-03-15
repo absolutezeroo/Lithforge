@@ -1,5 +1,9 @@
 namespace Lithforge.Runtime.Bootstrap
 {
+    /// <summary>
+    /// Bridges <see cref="Lithforge.Core.Logging.ILogger"/> to Unity's Debug.Log system,
+    /// applying level filtering and appropriate severity routing (Log vs LogWarning vs LogError).
+    /// </summary>
     internal sealed class UnityLogger : Lithforge.Core.Logging.ILogger
     {
         private readonly Lithforge.Core.Logging.LogLevel _minLevel;

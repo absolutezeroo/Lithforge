@@ -36,10 +36,27 @@ using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Bootstrap
 {
+    /// <summary>
+    /// Top-level MonoBehaviour that orchestrates the entire game lifecycle.
+    /// On Start it loops between the world-selection screen and game sessions:
+    /// each session runs ContentPipeline, creates the chunk system, schedulers,
+    /// rendering, UI, and player, then yields until a quit-to-title request
+    /// triggers save, dispose, and a return to world selection.
+    /// </summary>
+    /// <remarks>
+    /// This component lives on a single root GameObject that persists for the
+    /// application lifetime. Per-session systems are attached as child components
+    /// or separate GameObjects and torn down by <c>ShutdownSessionResources</c>.
+    /// Native containers allocated here (biome data, ore configs, chunk pool) are
+    /// disposed in a strict order to avoid double-free or use-after-free.
+    /// </remarks>
     public sealed class LithforgeBootstrap : MonoBehaviour
     {
+        /// <summary>Optional inspector-assigned opaque voxel material. Falls back to Shader.Find at runtime.</summary>
         [FormerlySerializedAs("_voxelMaterial"),SerializeField] private Material voxelMaterial;
+        /// <summary>Optional inspector-assigned compute shader for GPU frustum culling. Falls back to Resources.Load.</summary>
         [FormerlySerializedAs("_frustumCullShader"),SerializeField] private ComputeShader frustumCullShader;
+        /// <summary>Optional inspector-assigned compute shader for Hi-Z mipmap generation. Falls back to Resources.Load.</summary>
         [FormerlySerializedAs("_hiZGenerateShader"),SerializeField] private ComputeShader hiZGenerateShader;
 
         private LoadedSettings _settings;
@@ -63,6 +80,7 @@ namespace Lithforge.Runtime.Bootstrap
         private AsyncChunkSaver _asyncChunkSaver;
         private PauseMenuScreen _pauseMenuScreen;
         private bool _quitToTitle;
+        private bool _quitInProgress;
         private bool _sessionShutdownComplete;
 
         private void Awake()
@@ -93,6 +111,12 @@ namespace Lithforge.Runtime.Bootstrap
                     yield return null;
                 }
 
+                // WorldSelectionScreen destroys itself on selection, but ensure cleanup
+                if (selectionObject != null)
+                {
+                    Destroy(selectionObject);
+                }
+
                 // Run one game session — returns when _quitToTitle is set
                 yield return StartCoroutine(RunGameSession(earlyPanelSettings));
 
@@ -103,6 +127,7 @@ namespace Lithforge.Runtime.Bootstrap
         private IEnumerator RunGameSession(UnityEngine.UIElements.PanelSettings panelSettings)
         {
             _quitToTitle = false;
+            _quitInProgress = false;
             _sessionShutdownComplete = false;
 
             // Create loading screen for content pipeline and spawn
@@ -160,16 +185,23 @@ namespace Lithforge.Runtime.Bootstrap
         /// </summary>
         private IEnumerator QuitToTitleCoroutine()
         {
+            if (_quitInProgress)
+            {
+                yield break;
+            }
+
+            _quitInProgress = true;
+
             // Freeze the game immediately
             if (_gameLoop != null)
             {
                 _gameLoop.SetGameState(GameState.PausedFull);
             }
 
-            // Close pause menu
+            // Hide pause menu without locking cursor (world selection needs cursor free)
             if (_pauseMenuScreen != null)
             {
-                _pauseMenuScreen.Close();
+                _pauseMenuScreen.HideOverlay();
             }
 
             // Let the final frame render

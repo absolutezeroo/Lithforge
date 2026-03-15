@@ -135,13 +135,12 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Hides the pause overlay without re-locking the cursor.
-        /// Used when transitioning to another screen (e.g. settings) that
-        /// manages its own cursor state.
+        /// Hides the pause overlay without re-locking the cursor or clearing
+        /// the open state. Used when transitioning to another screen (e.g. settings)
+        /// that manages its own cursor state. The pause is still logically active.
         /// </summary>
         public void HideOverlay()
         {
-            _isOpen = false;
             _overlay.style.display = DisplayStyle.None;
         }
 

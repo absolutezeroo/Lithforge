@@ -28,25 +28,46 @@ namespace Lithforge.Runtime.Rendering
     {
         private static readonly int s_vertexStride = Marshal.SizeOf<PackedMeshVertex>();
 
+        /// <summary>Debug/log label identifying this layer (e.g. "Opaque", "Cutout").</summary>
         private readonly string _name;
+
+        /// <summary>Maps chunk coord to its vertex/index region in the shared buffers.</summary>
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
 
         /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
         private readonly List<FreeRegion> _freeRegions = new List<FreeRegion>();
 
+        /// <summary>CPU-side mirror of GPU vertex data, enabling sub-range uploads without GPU readback.</summary>
         private NativeArray<PackedMeshVertex> _vertexMirror;
+
+        /// <summary>CPU-side mirror of GPU index data, with global vertex offsets already applied.</summary>
         private NativeArray<int> _indexMirror;
+
         private int _vertexCapacity;
         private int _indexCapacity;
+
+        /// <summary>High-water mark in vertex space -- next append goes here.</summary>
         private int _usedVertices;
+
+        /// <summary>High-water mark in index space -- next append goes here.</summary>
         private int _usedIndices;
+
+        /// <summary>Set when any slot changes; cleared after FlushArgs uploads the indirect args.</summary>
         private bool _argsDirty;
 
+        /// <summary>Disjoint dirty intervals in the vertex mirror awaiting GPU upload.</summary>
         private DirtyRangeList _dirtyVertexRanges;
+
+        /// <summary>Disjoint dirty intervals in the index mirror awaiting GPU upload.</summary>
         private DirtyRangeList _dirtyIndexRanges;
 
+        /// <summary>VRAM-resident structured buffer holding PackedMeshVertex data.</summary>
         private GraphicsBuffer _vertexBuffer;
+
+        /// <summary>VRAM-resident index buffer (also Raw-flagged for compute access).</summary>
         private GraphicsBuffer _indexBuffer;
+
+        /// <summary>Single-element indirect args buffer for the whole-layer draw call.</summary>
         private GraphicsBuffer _argsBuffer;
 
         /// <summary>
@@ -56,7 +77,11 @@ namespace Lithforge.Runtime.Rendering
             new GraphicsBuffer.IndirectDrawIndexedArgs[1];
 
         // --- Per-chunk indirect draw support ---
+
+        /// <summary>One IndirectDrawIndexedArgs per chunk slot, written by the compute culling shader.</summary>
         private GraphicsBuffer _perChunkArgsBuffer;
+
+        /// <summary>Current capacity of the per-chunk args buffer, grown by GrowSlots.</summary>
         private int _maxChunkSlots;
 
         /// <summary>
