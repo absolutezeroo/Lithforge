@@ -208,8 +208,16 @@ namespace Lithforge.Runtime.Debug.Benchmark
             byte[] png = tex.EncodeToPNG();
             Object.DestroyImmediate(tex);
 
-            string path = Path.Combine(outputDir,
-                result.ScenarioName.Replace(' ', '_') + "_" + timestamp + ".png");
+            string safeName = result.ScenarioName.Replace(' ', '_');
+
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                safeName = safeName.Replace(c, '_');
+            }
+
+            string path = Path.Combine(outputDir, safeName + "_" + timestamp + ".png");
+
+            Directory.CreateDirectory(outputDir);
             File.WriteAllBytes(path, png);
             UnityEngine.Debug.Log("[Benchmark] PNG written to: " + path);
         }

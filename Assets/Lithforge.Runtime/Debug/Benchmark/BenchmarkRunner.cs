@@ -11,7 +11,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 {
     /// <summary>
     /// Coroutine-based benchmark runner that executes BenchmarkScenario assets.
-    /// Activated by F5. Each scenario contains phases with warmup and measurement frames.
+    /// F5 opens a visual scenario picker. Arrow keys navigate, Enter runs, Escape closes.
     /// During measurement, per-frame data is recorded into pre-allocated parallel arrays.
     /// On completion, writes CSV + PNG reports and logs a summary.
     /// </summary>
@@ -25,16 +25,31 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private bool _running;
         private Coroutine _activeCoroutine;
 
-        // Scenario cycling
+        // Scenario selection
         private BenchmarkScenario[] _allScenarios;
         private int _selectedIndex;
+        private bool _menuOpen;
 
-        // Toast UI
-        private UIDocument _toastDocument;
-        private VisualElement _toastRoot;
-        private Label _toastLabel;
-        private float _toastTimer;
-        private const float ToastDuration = 2.5f;
+        // UI
+        private UIDocument _uiDocument;
+        private VisualElement _uiRoot;
+        private VisualElement _menuPanel;
+        private Label _titleLabel;
+        private Label[] _scenarioLabels;
+        private Label _hintLabel;
+        private VisualElement _statusPanel;
+        private Label _statusLabel;
+        private float _statusTimer;
+        private const float StatusDuration = 3f;
+
+        // Colors
+        private static readonly Color s_selectedBg = new Color(0.15f, 0.4f, 0.7f, 0.9f);
+        private static readonly Color s_normalBg = new Color(0f, 0f, 0f, 0f);
+        private static readonly Color s_selectedText = new Color(1f, 1f, 1f);
+        private static readonly Color s_normalText = new Color(0.78f, 0.78f, 0.78f);
+        private static readonly Color s_titleColor = new Color(0.4f, 0.8f, 1f);
+        private static readonly Color s_hintColor = new Color(0.5f, 0.5f, 0.5f);
+        private static readonly Color s_runningColor = new Color(1f, 0.8f, 0.2f);
 
         // Pre-allocated parallel arrays for per-frame recording
         private int _capacity;
@@ -98,12 +113,15 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _metrics = metrics;
             _playerController = playerController;
 
-            // Pre-allocate for estimated max frames (e.g., 10 phases * 300 measurement * 200fps)
+            // Pre-allocate for estimated max frames
             _capacity = 60000;
             AllocateArrays(_capacity);
 
             // Load all scenario assets from Resources/Settings/Benchmarks
             _allScenarios = Resources.LoadAll<BenchmarkScenario>("Settings/Benchmarks");
+
+            // Sort alphabetically for consistent ordering
+            Array.Sort(_allScenarios, (a, b) => string.Compare(a.ScenarioName, b.ScenarioName, StringComparison.Ordinal));
 
             // Find the default scenario index
             _selectedIndex = 0;
@@ -121,65 +139,212 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
             }
 
-            // Build toast UI
-            BuildToastUI(panelSettings);
+            BuildUI(panelSettings);
 
             if (_allScenarios.Length > 0)
             {
                 UnityEngine.Debug.Log("[Benchmark] Loaded " + _allScenarios.Length +
-                    " scenarios. Selected: " + _allScenarios[_selectedIndex].ScenarioName +
-                    "  (Shift+F5 to cycle, F5 to run)");
+                    " scenarios. Press F5 to open picker.");
             }
         }
 
-        private void BuildToastUI(PanelSettings panelSettings)
+        private void BuildUI(PanelSettings panelSettings)
         {
-            GameObject toastGo = new GameObject("BenchmarkToast");
-            toastGo.transform.SetParent(transform, false);
-            _toastDocument = toastGo.AddComponent<UIDocument>();
-            _toastDocument.panelSettings = panelSettings;
-            _toastDocument.sortingOrder = 200;
+            GameObject uiGo = new GameObject("BenchmarkUI");
+            uiGo.transform.SetParent(transform, false);
+            _uiDocument = uiGo.AddComponent<UIDocument>();
+            _uiDocument.panelSettings = panelSettings;
+            _uiDocument.sortingOrder = 200;
 
-            _toastRoot = _toastDocument.rootVisualElement;
-            _toastRoot.pickingMode = PickingMode.Ignore;
-            _toastRoot.style.position = Position.Absolute;
-            _toastRoot.style.left = 0;
-            _toastRoot.style.top = 0;
-            _toastRoot.style.right = 0;
-            _toastRoot.style.bottom = 0;
-            _toastRoot.style.justifyContent = Justify.Center;
-            _toastRoot.style.alignItems = Align.Center;
+            _uiRoot = _uiDocument.rootVisualElement;
+            _uiRoot.pickingMode = PickingMode.Ignore;
+            _uiRoot.style.position = Position.Absolute;
+            _uiRoot.style.left = 0;
+            _uiRoot.style.top = 0;
+            _uiRoot.style.right = 0;
+            _uiRoot.style.bottom = 0;
 
-            VisualElement toastPanel = new VisualElement();
-            toastPanel.pickingMode = PickingMode.Ignore;
-            toastPanel.style.backgroundColor = new Color(0f, 0f, 0f, 0.8f);
-            toastPanel.style.paddingLeft = 20;
-            toastPanel.style.paddingRight = 20;
-            toastPanel.style.paddingTop = 12;
-            toastPanel.style.paddingBottom = 12;
-            toastPanel.style.borderTopLeftRadius = 6;
-            toastPanel.style.borderTopRightRadius = 6;
-            toastPanel.style.borderBottomLeftRadius = 6;
-            toastPanel.style.borderBottomRightRadius = 6;
-
-            _toastLabel = new Label("");
-            _toastLabel.pickingMode = PickingMode.Ignore;
-            _toastLabel.style.fontSize = 16;
-            _toastLabel.style.color = new Color(1f, 1f, 1f);
-            _toastLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-
-            toastPanel.Add(_toastLabel);
-            _toastRoot.Add(toastPanel);
+            BuildMenuPanel();
+            BuildStatusPanel();
 
             // Start hidden
-            _toastRoot.style.display = DisplayStyle.None;
+            _menuPanel.style.display = DisplayStyle.None;
+            _statusPanel.style.display = DisplayStyle.None;
         }
 
-        private void ShowToast(string message)
+        private void BuildMenuPanel()
         {
-            _toastLabel.text = message;
-            _toastRoot.style.display = DisplayStyle.Flex;
-            _toastTimer = ToastDuration;
+            // Centered container
+            VisualElement centerContainer = new VisualElement();
+            centerContainer.pickingMode = PickingMode.Ignore;
+            centerContainer.style.position = Position.Absolute;
+            centerContainer.style.left = 0;
+            centerContainer.style.top = 0;
+            centerContainer.style.right = 0;
+            centerContainer.style.bottom = 0;
+            centerContainer.style.justifyContent = Justify.Center;
+            centerContainer.style.alignItems = Align.Center;
+            _uiRoot.Add(centerContainer);
+
+            // Menu panel
+            _menuPanel = new VisualElement();
+            _menuPanel.pickingMode = PickingMode.Ignore;
+            _menuPanel.style.backgroundColor = new Color(0.05f, 0.05f, 0.1f, 0.92f);
+            _menuPanel.style.paddingLeft = 16;
+            _menuPanel.style.paddingRight = 16;
+            _menuPanel.style.paddingTop = 12;
+            _menuPanel.style.paddingBottom = 12;
+            _menuPanel.style.borderTopLeftRadius = 8;
+            _menuPanel.style.borderTopRightRadius = 8;
+            _menuPanel.style.borderBottomLeftRadius = 8;
+            _menuPanel.style.borderBottomRightRadius = 8;
+            _menuPanel.style.minWidth = 340;
+            _menuPanel.style.borderLeftWidth = 1;
+            _menuPanel.style.borderRightWidth = 1;
+            _menuPanel.style.borderTopWidth = 1;
+            _menuPanel.style.borderBottomWidth = 1;
+            _menuPanel.style.borderLeftColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
+            _menuPanel.style.borderRightColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
+            _menuPanel.style.borderTopColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
+            _menuPanel.style.borderBottomColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
+            centerContainer.Add(_menuPanel);
+
+            // Title
+            _titleLabel = CreateLabel("BENCHMARKS", 15, s_titleColor);
+            _titleLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _titleLabel.style.marginBottom = 8;
+            _menuPanel.Add(_titleLabel);
+
+            // Separator
+            VisualElement sep = new VisualElement();
+            sep.pickingMode = PickingMode.Ignore;
+            sep.style.height = 1;
+            sep.style.backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
+            sep.style.marginBottom = 6;
+            _menuPanel.Add(sep);
+
+            // Scenario rows
+            if (_allScenarios != null && _allScenarios.Length > 0)
+            {
+                _scenarioLabels = new Label[_allScenarios.Length];
+
+                for (int i = 0; i < _allScenarios.Length; i++)
+                {
+                    Label row = CreateLabel("  " + _allScenarios[i].ScenarioName, 14, s_normalText);
+                    row.style.paddingLeft = 8;
+                    row.style.paddingRight = 8;
+                    row.style.paddingTop = 4;
+                    row.style.paddingBottom = 4;
+                    row.style.borderTopLeftRadius = 4;
+                    row.style.borderTopRightRadius = 4;
+                    row.style.borderBottomLeftRadius = 4;
+                    row.style.borderBottomRightRadius = 4;
+                    row.style.marginTop = 1;
+                    row.style.marginBottom = 1;
+                    _scenarioLabels[i] = row;
+                    _menuPanel.Add(row);
+                }
+            }
+
+            // Separator
+            VisualElement sep2 = new VisualElement();
+            sep2.pickingMode = PickingMode.Ignore;
+            sep2.style.height = 1;
+            sep2.style.backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
+            sep2.style.marginTop = 6;
+            sep2.style.marginBottom = 4;
+            _menuPanel.Add(sep2);
+
+            // Hint
+            _hintLabel = CreateLabel("\u2191\u2193 Select   Enter Run   Esc Close", 12, s_hintColor);
+            _hintLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _menuPanel.Add(_hintLabel);
+        }
+
+        private void BuildStatusPanel()
+        {
+            // Status toast — top-center
+            VisualElement topContainer = new VisualElement();
+            topContainer.pickingMode = PickingMode.Ignore;
+            topContainer.style.position = Position.Absolute;
+            topContainer.style.left = 0;
+            topContainer.style.right = 0;
+            topContainer.style.top = 16;
+            topContainer.style.alignItems = Align.Center;
+            _uiRoot.Add(topContainer);
+
+            _statusPanel = new VisualElement();
+            _statusPanel.pickingMode = PickingMode.Ignore;
+            _statusPanel.style.backgroundColor = new Color(0.05f, 0.05f, 0.1f, 0.85f);
+            _statusPanel.style.paddingLeft = 16;
+            _statusPanel.style.paddingRight = 16;
+            _statusPanel.style.paddingTop = 8;
+            _statusPanel.style.paddingBottom = 8;
+            _statusPanel.style.borderTopLeftRadius = 6;
+            _statusPanel.style.borderTopRightRadius = 6;
+            _statusPanel.style.borderBottomLeftRadius = 6;
+            _statusPanel.style.borderBottomRightRadius = 6;
+            topContainer.Add(_statusPanel);
+
+            _statusLabel = CreateLabel("", 14, s_runningColor);
+            _statusLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _statusPanel.Add(_statusLabel);
+        }
+
+        private void ShowStatus(string message, Color color)
+        {
+            _statusLabel.text = message;
+            _statusLabel.style.color = color;
+            _statusPanel.style.display = DisplayStyle.Flex;
+            _statusTimer = StatusDuration;
+        }
+
+        private void OpenMenu()
+        {
+            if (_allScenarios == null || _allScenarios.Length == 0)
+            {
+                return;
+            }
+
+            _menuOpen = true;
+            _menuPanel.style.display = DisplayStyle.Flex;
+            RefreshMenuHighlight();
+        }
+
+        private void CloseMenu()
+        {
+            _menuOpen = false;
+            _menuPanel.style.display = DisplayStyle.None;
+        }
+
+        private void RefreshMenuHighlight()
+        {
+            if (_scenarioLabels == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _scenarioLabels.Length; i++)
+            {
+                bool selected = i == _selectedIndex;
+                _scenarioLabels[i].style.backgroundColor = selected ? s_selectedBg : s_normalBg;
+                _scenarioLabels[i].style.color = selected ? s_selectedText : s_normalText;
+                _scenarioLabels[i].text = (selected ? "\u25b6 " : "  ") + _allScenarios[i].ScenarioName;
+            }
+        }
+
+        private static Label CreateLabel(string text, int fontSize, Color color)
+        {
+            Label label = new Label(text);
+            label.pickingMode = PickingMode.Ignore;
+            label.style.fontSize = fontSize;
+            label.style.color = color;
+            label.style.unityTextAlign = TextAnchor.UpperLeft;
+            label.style.marginTop = 0;
+            label.style.marginBottom = 0;
+            label.style.paddingTop = 0;
+            label.style.paddingBottom = 0;
+            return label;
         }
 
         private void AllocateArrays(int capacity)
@@ -211,20 +376,15 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 _summaryDisplayTimer -= Time.unscaledDeltaTime;
             }
 
-            // Countdown toast timer
-            if (_toastTimer > 0f)
+            // Countdown status timer
+            if (_statusTimer > 0f)
             {
-                _toastTimer -= Time.unscaledDeltaTime;
+                _statusTimer -= Time.unscaledDeltaTime;
 
-                if (_toastTimer <= 0f)
+                if (_statusTimer <= 0f)
                 {
-                    _toastRoot.style.display = DisplayStyle.None;
+                    _statusPanel.style.display = DisplayStyle.None;
                 }
-            }
-
-            if (_running)
-            {
-                return;
             }
 
             Keyboard keyboard = Keyboard.current;
@@ -234,37 +394,85 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 return;
             }
 
-            // Shift+F5 to cycle scenario
-            if (keyboard.f5Key.wasPressedThisFrame &&
-                (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed))
+            if (_menuOpen)
             {
-                if (_allScenarios != null && _allScenarios.Length > 1)
-                {
-                    _selectedIndex = (_selectedIndex + 1) % _allScenarios.Length;
-                    ShowToast("Benchmark: " + _allScenarios[_selectedIndex].ScenarioName +
-                        "  [" + (_selectedIndex + 1) + "/" + _allScenarios.Length + "]" +
-                        "\nF5 to run");
-                }
-
+                HandleMenuInput(keyboard);
                 return;
             }
 
-            // F5 to run selected scenario
+            if (_running)
+            {
+                return;
+            }
+
+            // F5 to open menu
             if (keyboard.f5Key.wasPressedThisFrame)
             {
                 if (_context != null && _context.GameLoop != null && _context.GameLoop.SpawnReady)
                 {
-                    BenchmarkScenario scenario = SelectedScenario;
+                    OpenMenu();
+                }
+            }
+        }
 
-                    if (scenario != null)
-                    {
-                        ShowToast("Running: " + scenario.ScenarioName + "...");
-                        StartScenario(scenario);
-                    }
-                    else
-                    {
-                        ShowToast("No benchmark scenarios found.");
-                    }
+        private void HandleMenuInput(Keyboard keyboard)
+        {
+            // Escape to close
+            if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                CloseMenu();
+                return;
+            }
+
+            // F5 also closes
+            if (keyboard.f5Key.wasPressedThisFrame)
+            {
+                CloseMenu();
+                return;
+            }
+
+            // Up arrow
+            if (keyboard.upArrowKey.wasPressedThisFrame)
+            {
+                if (_selectedIndex > 0)
+                {
+                    _selectedIndex--;
+                }
+                else
+                {
+                    _selectedIndex = _allScenarios.Length - 1;
+                }
+
+                RefreshMenuHighlight();
+                return;
+            }
+
+            // Down arrow
+            if (keyboard.downArrowKey.wasPressedThisFrame)
+            {
+                if (_selectedIndex < _allScenarios.Length - 1)
+                {
+                    _selectedIndex++;
+                }
+                else
+                {
+                    _selectedIndex = 0;
+                }
+
+                RefreshMenuHighlight();
+                return;
+            }
+
+            // Enter to run
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            {
+                BenchmarkScenario scenario = SelectedScenario;
+
+                if (scenario != null)
+                {
+                    CloseMenu();
+                    ShowStatus("Running: " + scenario.ScenarioName + "...", s_runningColor);
+                    StartScenario(scenario);
                 }
             }
         }
@@ -314,6 +522,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 BenchmarkPhase phase = phases[p];
                 UnityEngine.Debug.Log("[Benchmark] Phase " + (p + 1) + "/" + phases.Length +
                     ": " + phase.PhaseName);
+
+                ShowStatus("Phase " + (p + 1) + "/" + phases.Length + ": " + phase.PhaseName, s_runningColor);
 
                 // Execute all commands in the phase
                 BenchmarkCommand[] commands = phase.Commands;
@@ -400,6 +610,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _lastSummary = summary;
             _summaryDisplayTimer = SummaryDisplayDuration;
             UnityEngine.Debug.Log(summary);
+
+            // Show completion status
+            string passText = result.Passed ? "PASS" : "FAIL";
+            Color passColor = result.Passed ? new Color(0.2f, 0.9f, 0.2f) : new Color(0.9f, 0.2f, 0.2f);
+            ShowStatus(scenario.ScenarioName + " — " + passText +
+                "  (avg " + result.AvgFrameMs.ToString("F1") + "ms, " +
+                result.AvgFps.ToString("F0") + " FPS)", passColor);
+            _statusTimer = 8f;
 
             _running = false;
             _activeCoroutine = null;
