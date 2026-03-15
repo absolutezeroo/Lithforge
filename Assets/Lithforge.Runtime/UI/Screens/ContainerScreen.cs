@@ -141,6 +141,16 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
+        /// Clears all tracked slot widget bindings. Must be called at the top of
+        /// <c>RebuildUI()</c> before building new slot groups, so stale bindings
+        /// from a previous open do not accumulate.
+        /// </summary>
+        protected void ClearSlotBindings()
+        {
+            _allBindings.Clear();
+        }
+
+        /// <summary>
         /// Builds a slot group from a SlotGroupDefinition and wires pointer events.
         /// Returns the container VisualElement holding the slot rows.
         /// </summary>

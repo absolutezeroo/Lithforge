@@ -83,6 +83,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
+            ClearSlotBindings();
             Panel.Clear();
             Panel.AddToClassList("lf-overlay");
 

@@ -221,14 +221,15 @@ namespace Lithforge.Runtime.Player
 
         /// <summary>
         /// Computes the final world-space matrix for a body part.
-        /// Formula: bodyRoot * T(pivot) * animRotation * T(-pivot)
+        /// Formula: bodyRoot * T(pivot) * animRotation
+        /// Vertices are stored pivot-relative in the mesh (position - pivot) / 16,
+        /// so T(-pivot) is NOT needed — the pivot offset is already baked out.
         /// </summary>
         private static float4x4 ComputePartMatrix(float4x4 bodyRoot, float3 pivot, float4x4 animRotation)
         {
             float4x4 toPivot = float4x4.Translate(pivot);
-            float4x4 fromPivot = float4x4.Translate(-pivot);
 
-            return math.mul(bodyRoot, math.mul(toPivot, math.mul(animRotation, fromPivot)));
+            return math.mul(bodyRoot, math.mul(toPivot, animRotation));
         }
 
         /// <summary>

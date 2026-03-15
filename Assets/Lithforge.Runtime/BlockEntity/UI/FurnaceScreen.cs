@@ -75,6 +75,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
+            ClearSlotBindings();
             Panel.Clear();
 
             // Re-add overlay class after clear
@@ -84,12 +85,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
             VisualElement container = new VisualElement();
             container.AddToClassList("lf-panel");
             Panel.Add(container);
-
-            // Re-wire panel events
-            Panel.RegisterCallback<PointerUpEvent>(evt =>
-            {
-                Interaction.OnPointerUp(evt.button);
-            });
 
             // Title
             Label title = new Label("Furnace");
