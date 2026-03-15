@@ -304,9 +304,15 @@ namespace Lithforge.Runtime.Bootstrap
                 }
                 else
                 {
-                    UnityEngine.Debug.LogWarning("[Lithforge] VoxelOpaque shader not found, using default.");
+                    Shader fallbackShader = Shader.Find("Universal Render Pipeline/Lit");
 
-                    opaqueMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                    if (fallbackShader == null)
+                    {
+                        fallbackShader = Shader.Find("Hidden/InternalErrorShader");
+                    }
+
+                    UnityEngine.Debug.LogError("[Lithforge] VoxelOpaque shader not found! Shaders must be in Always Included Shaders or referenced by a scene material. Using fallback.");
+                    opaqueMaterial = new Material(fallbackShader);
                 }
             }
 
