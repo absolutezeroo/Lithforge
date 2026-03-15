@@ -33,7 +33,7 @@ Shader "Lithforge/HeldItem"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-            #include "LithforgePlayerArmCommon.hlsl"
+            #include "LithforgePlayerModelCommon.hlsl"
 
             struct HeldItemVertexData
             {
@@ -45,8 +45,6 @@ Shader "Lithforge/HeldItem"
             };
 
             StructuredBuffer<HeldItemVertexData> _HeldItemVertexBuffer;
-            StructuredBuffer<float4x4>           _PartTransforms;
-            float4x4                             _ArmToClip;
 
             TEXTURE2D_ARRAY(_AtlasArray);
             SAMPLER(sampler_AtlasArray);
@@ -70,13 +68,13 @@ Shader "Lithforge/HeldItem"
 
                 // Transform by right arm part matrix (index 2)
                 float4x4 partMat = _PartTransforms[2];
-                float3 posModel = mul(partMat, float4(v.position, 1.0)).xyz;
-                float3 normalModel = mul((float3x3)partMat, v.normal);
+                float3 posWorld = mul(partMat, float4(v.position, 1.0)).xyz;
+                float3 normalWorld = mul((float3x3)partMat, v.normal);
 
                 HeldItemVaryings o;
-                o.positionCS = mul(_ArmToClip, float4(posModel, 1.0));
+                o.positionCS = mul(_ModelToClip, float4(posWorld, 1.0));
                 o.uv = v.uv;
-                o.normalWS = normalize(normalModel);
+                o.normalWS = normalize(normalWorld);
                 o.texIndex = v.texIndex;
                 return o;
             }
@@ -120,8 +118,11 @@ Shader "Lithforge/HeldItem"
             };
 
             StructuredBuffer<HeldItemVertexData> _HeldItemVertexBuffer;
+
+            // _PartTransforms and _ModelToClip declared in PlayerModelCommon.hlsl
+            // but depth-only pass does not include it, so redeclare here
             StructuredBuffer<float4x4>           _PartTransforms;
-            float4x4                             _ArmToClip;
+            float4x4                             _ModelToClip;
 
             struct HeldItemDepthVaryings
             {
@@ -132,10 +133,10 @@ Shader "Lithforge/HeldItem"
             {
                 HeldItemVertexData v = _HeldItemVertexBuffer[svVertexID];
                 float4x4 partMat = _PartTransforms[2];
-                float3 posModel = mul(partMat, float4(v.position, 1.0)).xyz;
+                float3 posWorld = mul(partMat, float4(v.position, 1.0)).xyz;
 
                 HeldItemDepthVaryings o;
-                o.positionCS = mul(_ArmToClip, float4(posModel, 1.0));
+                o.positionCS = mul(_ModelToClip, float4(posWorld, 1.0));
                 return o;
             }
 

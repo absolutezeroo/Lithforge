@@ -539,8 +539,8 @@ namespace Lithforge.Runtime.Bootstrap
                     skinTexture = skinLoader.CreateDefaultSkin();
                 }
 
-                Shader armBaseShader = Shader.Find("Lithforge/PlayerArm");
-                Shader armOverlayShader = Shader.Find("Lithforge/PlayerArmOverlay");
+                Shader armBaseShader = Shader.Find("Lithforge/PlayerModel");
+                Shader armOverlayShader = Shader.Find("Lithforge/PlayerModelOverlay");
                 Shader heldItemShader = Shader.Find("Lithforge/HeldItem");
 
                 if (armBaseShader != null && armOverlayShader != null && heldItemShader != null)
@@ -570,23 +570,24 @@ namespace Lithforge.Runtime.Bootstrap
                         heldItemMaterial.SetFloat("_AmbientLight", ambient);
                     }
 
-                    FirstPersonArmRenderer armRenderer = new FirstPersonArmRenderer(
+                    PlayerRenderer playerRenderer = new PlayerRenderer(
                         armBaseMaterial,
                         armOverlayMaterial,
                         heldItemMaterial,
                         skinTexture,
                         playerObject.transform,
+                        mainCamera.transform,
                         playerInventory,
                         _contentResult.ItemRegistry,
                         _contentResult.StateRegistry,
                         _contentResult.DisplayTransformLookup);
 
-                    _gameLoop.SetArmRenderer(armRenderer, playerController, blockInteraction);
+                    _gameLoop.SetPlayerRenderer(playerRenderer, playerController, blockInteraction);
                 }
                 else
                 {
                     UnityEngine.Debug.LogWarning(
-                        "[Lithforge] Arm shaders not found. First-person arms will not render.");
+                        "[Lithforge] PlayerModel shaders not found. Player model will not render.");
                 }
 
                 // Set NativeStateRegistry on ChunkManager for block entity flag checks

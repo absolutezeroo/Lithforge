@@ -70,15 +70,58 @@ namespace Lithforge.Runtime.Player
                 pixels[i] = new Color(0f, 0f, 0f, 0f);
             }
 
-            // Right arm base region (u=40, v=16, 16x16 strip) - skin color
             Color skinColor = new Color(0.73f, 0.56f, 0.42f, 1f);
             Color shirtColor = new Color(0.22f, 0.68f, 0.68f, 1f);
-            FillRegion(pixels, 40, 16, 16, 4, skinColor);  // top row (top/bottom faces)
-            FillRegion(pixels, 40, 20, 16, 12, shirtColor); // body rows (sides)
+            Color pantsColor = new Color(0.27f, 0.27f, 0.75f, 1f);
+            Color hairColor = new Color(0.35f, 0.22f, 0.12f, 1f);
 
-            // Left arm base region (u=32, v=48, 16x16 strip) - mirror of right
-            FillRegion(pixels, 32, 48, 16, 4, skinColor);
-            FillRegion(pixels, 32, 52, 16, 12, shirtColor);
+            // Head base (u=0, v=0, 8w 8h 8d → strip 32x16)
+            FillRegion(pixels, 8, 0, 8, 8, skinColor);   // top face
+            FillRegion(pixels, 16, 0, 8, 8, skinColor);  // bottom face
+            FillRegion(pixels, 0, 8, 8, 8, hairColor);   // right face
+            FillRegion(pixels, 8, 8, 8, 8, skinColor);   // front face
+            FillRegion(pixels, 16, 8, 8, 8, hairColor);  // left face
+            FillRegion(pixels, 24, 8, 8, 8, hairColor);  // back face
+
+            // Body base (u=16, v=16, 8w 12h 4d → strip 24x16)
+            FillRegion(pixels, 20, 16, 8, 4, shirtColor);  // top
+            FillRegion(pixels, 28, 16, 8, 4, shirtColor);  // bottom
+            FillRegion(pixels, 16, 20, 4, 12, shirtColor);  // right
+            FillRegion(pixels, 20, 20, 8, 12, shirtColor);  // front
+            FillRegion(pixels, 28, 20, 4, 12, shirtColor);  // left
+            FillRegion(pixels, 32, 20, 8, 12, shirtColor);  // back
+
+            // Right arm base (u=40, v=16, 4w 12h 4d → strip 16x16)
+            FillRegion(pixels, 44, 16, 4, 4, skinColor);   // top
+            FillRegion(pixels, 48, 16, 4, 4, skinColor);   // bottom
+            FillRegion(pixels, 40, 20, 4, 12, shirtColor);  // right
+            FillRegion(pixels, 44, 20, 4, 12, shirtColor);  // front
+            FillRegion(pixels, 48, 20, 4, 12, shirtColor);  // left
+            FillRegion(pixels, 52, 20, 4, 12, shirtColor);  // back
+
+            // Left arm base (u=32, v=48, 4w 12h 4d → strip 16x16)
+            FillRegion(pixels, 36, 48, 4, 4, skinColor);
+            FillRegion(pixels, 40, 48, 4, 4, skinColor);
+            FillRegion(pixels, 32, 52, 4, 12, shirtColor);
+            FillRegion(pixels, 36, 52, 4, 12, shirtColor);
+            FillRegion(pixels, 40, 52, 4, 12, shirtColor);
+            FillRegion(pixels, 44, 52, 4, 12, shirtColor);
+
+            // Right leg base (u=0, v=16, 4w 12h 4d → strip 16x16)
+            FillRegion(pixels, 4, 16, 4, 4, pantsColor);
+            FillRegion(pixels, 8, 16, 4, 4, pantsColor);
+            FillRegion(pixels, 0, 20, 4, 12, pantsColor);
+            FillRegion(pixels, 4, 20, 4, 12, pantsColor);
+            FillRegion(pixels, 8, 20, 4, 12, pantsColor);
+            FillRegion(pixels, 12, 20, 4, 12, pantsColor);
+
+            // Left leg base (u=16, v=48, 4w 12h 4d → strip 16x16)
+            FillRegion(pixels, 20, 48, 4, 4, pantsColor);
+            FillRegion(pixels, 24, 48, 4, 4, pantsColor);
+            FillRegion(pixels, 16, 52, 4, 12, pantsColor);
+            FillRegion(pixels, 20, 52, 4, 12, pantsColor);
+            FillRegion(pixels, 24, 52, 4, 12, pantsColor);
+            FillRegion(pixels, 28, 52, 4, 12, pantsColor);
 
             tex.SetPixels(pixels);
             tex.Apply();

@@ -35,7 +35,7 @@ namespace Lithforge.Runtime
 
         private BiomeTintManager _biomeTintManager;
         private BlockEntityTickScheduler _blockEntityTickScheduler;
-        private FirstPersonArmRenderer _armRenderer;
+        private PlayerRenderer _playerRenderer;
         private PlayerController _playerController;
         private BlockInteraction _blockInteraction;
         private AutoSaveManager _autoSaveManager;
@@ -174,15 +174,15 @@ namespace Lithforge.Runtime
         }
 
         /// <summary>
-        /// Sets the first-person arm renderer and player references for arm rendering.
+        /// Sets the player model renderer and player references for body rendering.
         /// Must be called after Initialize.
         /// </summary>
-        public void SetArmRenderer(
-            FirstPersonArmRenderer armRenderer,
+        public void SetPlayerRenderer(
+            PlayerRenderer playerRenderer,
             PlayerController playerController,
             BlockInteraction blockInteraction)
         {
-            _armRenderer = armRenderer;
+            _playerRenderer = playerRenderer;
             _playerController = playerController;
             _blockInteraction = blockInteraction;
         }
@@ -329,10 +329,11 @@ namespace Lithforge.Runtime
             FrameProfiler.Begin(FrameProfiler.Render);
             _chunkMeshStore.RenderAll(_mainCamera);
 
-            if (_armRenderer != null)
+            if (_playerRenderer != null)
             {
-                _armRenderer.Render(
+                _playerRenderer.Render(
                     _mainCamera,
+                    _playerController != null ? _playerController.transform : null,
                     _playerController != null && _playerController.OnGround,
                     _playerController != null && _playerController.IsFlying,
                     _blockInteraction != null && _blockInteraction.IsMining);
@@ -357,7 +358,7 @@ namespace Lithforge.Runtime
             _relightScheduler?.Shutdown();
             _meshScheduler?.Shutdown();
             _lodScheduler?.Shutdown();
-            _armRenderer?.Dispose();
+            _playerRenderer?.Dispose();
         }
     }
 }
