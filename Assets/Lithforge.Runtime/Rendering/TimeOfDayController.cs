@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Rendering
 {
+    /// <summary>
+    /// Advances the day/night cycle and pushes the resulting sun light factor,
+    /// ambient light, and directional light rotation to all voxel materials each frame.
+    /// Time advances at fixed tick rate via AdvanceTick; visual updates run at frame rate.
+    /// Owner: LithforgeBootstrap. Lifetime: application session.
+    /// </summary>
     public sealed class TimeOfDayController : MonoBehaviour
     {
         private float _timeOfDay;
@@ -23,11 +29,13 @@ namespace Lithforge.Runtime.Rendering
         private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
         private static readonly int s_ambientLightId = Shader.PropertyToID("_AmbientLight");
 
+        /// <summary>Normalized time of day in [0,1). 0 = midnight, 0.5 = noon.</summary>
         public float TimeOfDay
         {
             get { return _timeOfDay; }
         }
 
+        /// <summary>Current brightness multiplier in [0,1] derived from the day/night curve.</summary>
         public float SunLightFactor
         {
             get { return ComputeSunFactor(_timeOfDay); }

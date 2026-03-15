@@ -9,22 +9,54 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
+    /// <summary>
+    /// Carves spaghetti caves by sampling two offset 3D noise fields and replacing
+    /// solid blocks with air where n1^2 + n2^2 falls below a depth-adjusted threshold.
+    /// Parallelized per XZ column (1024 work items per chunk).
+    /// <remarks>
+    /// The depth factor makes caves progressively larger underground: at sea level
+    /// the threshold is 1.0x, at Y=0 it reaches 1.5x. Water and air blocks are
+    /// never carved, and a safety buffer around sea level protects ocean floors.
+    /// </remarks>
+    /// </summary>
     [BurstCompile]
     public struct CaveCarverJob : IJobParallelFor
     {
+        /// <summary>Chunk voxel data to carve into. Written in-place per column.</summary>
         [NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
+        /// <summary>World seed for deterministic noise generation.</summary>
         [ReadOnly] public long Seed;
+
+        /// <summary>Chunk coordinate in chunk-space (not block-space).</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>Base noise parameters shared by both cave noise samples.</summary>
         [ReadOnly] public NativeNoiseConfig CaveNoise;
+
+        /// <summary>StateId to write when carving (typically air).</summary>
         [ReadOnly] public StateId AirId;
+
+        /// <summary>StateId for water; these blocks are never carved.</summary>
         [ReadOnly] public StateId WaterId;
+
+        /// <summary>World-space Y of sea level, used for depth factor calculation.</summary>
         [ReadOnly] public int SeaLevel;
+
+        /// <summary>Base threshold for cave detection. Lower values produce fewer caves.</summary>
         [ReadOnly] public float CaveThreshold;
+
+        /// <summary>Minimum world Y below which carving is suppressed.</summary>
         [ReadOnly] public int MinCarveY;
+
+        /// <summary>Seed offset for the first 3D noise sample.</summary>
         [ReadOnly] public int CaveSeedOffset1;
+
+        /// <summary>Seed offset for the second 3D noise sample (must differ from first).</summary>
         [ReadOnly] public int CaveSeedOffset2;
+
+        /// <summary>Vertical buffer in blocks around sea level where carving is forbidden.</summary>
         [ReadOnly] public int SeaLevelCarveBuffer;
 
         public void Execute(int columnIndex)

@@ -7,14 +7,27 @@ using Unity.Mathematics;
 
 namespace Lithforge.Voxel.Chunk
 {
+    /// <summary>
+    /// Main-thread bookkeeping wrapper for a single chunk's lifetime.
+    /// Holds the NativeArray voxel and light data, lifecycle state, LOD level,
+    /// pending edits, border light entries, and block entity storage.
+    /// <remarks>
+    /// ManagedChunk does NOT own the voxel NativeArray (ChunkPool does).
+    /// LightData, HeightMap, and RiverFlags are owned here and disposed by ChunkManager on unload.
+    /// </remarks>
+    /// </summary>
     public sealed class ManagedChunk
     {
+        /// <summary>Chunk coordinate in chunk-space (multiply by 32 for world-space origin).</summary>
         public int3 Coord { get; }
 
+        /// <summary>Current lifecycle state, controlling which schedulers may act on this chunk.</summary>
         public ChunkState State { get; set; }
 
+        /// <summary>Flat voxel storage (32768 StateIds). Checked out from ChunkPool.</summary>
         public NativeArray<StateId> Data { get; set; }
 
+        /// <summary>Nibble-packed light data (high 4 bits = sun, low 4 bits = block). Same length as Data.</summary>
         public NativeArray<byte> LightData { get; set; }
 
         /// <summary>
@@ -32,8 +45,13 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public NativeArray<byte> RiverFlags { get; set; }
 
+        /// <summary>Handle to the currently in-flight Burst job (generation, meshing, or relight).</summary>
         public JobHandle ActiveJobHandle { get; set; }
 
+        /// <summary>
+        /// Set when a neighbor changes while this chunk is already meshing,
+        /// so MeshScheduler re-queues it after the current mesh job completes.
+        /// </summary>
         public bool NeedsRemesh { get; set; }
 
         /// <summary>

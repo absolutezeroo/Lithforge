@@ -144,6 +144,42 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        /// Fills the provided list with region files that have unsaved data.
+        /// Clears the list before filling. Caller uses fill pattern.
+        /// </summary>
+        public void CollectDirtyRegions(List<RegionFile> result)
+        {
+            result.Clear();
+
+            lock (_regionFilesLock)
+            {
+                foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
+                {
+                    if (kvp.Value.IsDirty)
+                    {
+                        result.Add(kvp.Value);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Flushes a single region file to disk with error handling.
+        /// Used by incremental save coroutine for per-region progress reporting.
+        /// </summary>
+        public void FlushRegion(RegionFile region)
+        {
+            try
+            {
+                region.Flush();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[WorldStorage] FlushRegion failed: {ex.Message}");
+            }
+        }
+
         public void FlushAll(bool onlyDirty = false)
         {
             _flushCache.Clear();

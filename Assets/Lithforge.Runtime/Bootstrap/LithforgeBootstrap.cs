@@ -79,6 +79,7 @@ namespace Lithforge.Runtime.Bootstrap
         private BiomeTintManager _biomeTintManager;
         private AsyncChunkSaver _asyncChunkSaver;
         private PauseMenuScreen _pauseMenuScreen;
+        private UserPreferences _userPreferences;
         private bool _quitToTitle;
         private bool _quitInProgress;
         private bool _sessionShutdownComplete;
@@ -87,6 +88,7 @@ namespace Lithforge.Runtime.Bootstrap
         {
             _settings = SettingsLoader.Load();
             _logger = new UnityLogger();
+            _userPreferences = UserPreferences.Load();
 
             // Initialize profiling systems
             FrameProfiler.Init();
@@ -204,20 +206,125 @@ namespace Lithforge.Runtime.Bootstrap
                 _pauseMenuScreen.HideOverlay();
             }
 
-            // Let the final frame render
+            // Create saving screen overlay
+            UnityEngine.UIElements.PanelSettings panelSettings =
+                Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
+            GameObject savingObject = new GameObject("SavingScreen");
+            SavingScreen savingScreen = savingObject.AddComponent<SavingScreen>();
+            savingScreen.Initialize(panelSettings);
+
+            SaveProgress progress = new SaveProgress();
+            progress.Phase = SaveState.CompletingJobs;
+            savingScreen.SetProgress(progress);
+
+            // Let the saving screen render
             yield return null;
 
-            // Shut down session resources (save, dispose, cleanup)
-            ShutdownSessionResources();
+            // Phase 1: Complete in-flight jobs
+            try
+            {
+                if (_gameLoop != null)
+                {
+                    _gameLoop.Shutdown();
+                }
+
+                if (_autoSaveManager != null)
+                {
+                    _autoSaveManager.SaveMetadataOnly();
+                }
+
+                if (_asyncChunkSaver != null)
+                {
+                    _asyncChunkSaver.Flush();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[Lithforge] Error completing jobs during save: {ex}");
+            }
+
+            yield return null;
+
+            // Phase 2: Save dirty chunks incrementally
+            progress.Phase = SaveState.SavingChunks;
+
+            if (_worldStorage != null && _chunkManager != null)
+            {
+                List<ManagedChunk> dirtyChunks = new List<ManagedChunk>();
+                _chunkManager.CollectDirtyChunks(dirtyChunks);
+                progress.TotalChunks = dirtyChunks.Count;
+                progress.SavedChunks = 0;
+                savingScreen.SetProgress(progress);
+
+                for (int i = 0; i < dirtyChunks.Count; i++)
+                {
+                    ManagedChunk chunk = dirtyChunks[i];
+
+                    try
+                    {
+                        chunk.ActiveJobHandle.Complete();
+                        _worldStorage.SaveChunk(
+                            chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                        chunk.IsDirty = false;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        UnityEngine.Debug.LogError(
+                            $"[Lithforge] Error saving chunk {chunk.Coord}: {ex}");
+                    }
+
+                    progress.SavedChunks = i + 1;
+                    savingScreen.SetProgress(progress);
+
+                    // Yield every 8 chunks to keep the UI responsive
+                    if ((i + 1) % 8 == 0)
+                    {
+                        yield return null;
+                    }
+                }
+
+                // Phase 3: Flush dirty regions incrementally
+                progress.Phase = SaveState.FlushingRegions;
+
+                List<RegionFile> dirtyRegions = new List<RegionFile>();
+                _worldStorage.CollectDirtyRegions(dirtyRegions);
+                progress.TotalRegions = dirtyRegions.Count;
+                progress.FlushedRegions = 0;
+                savingScreen.SetProgress(progress);
+
+                for (int i = 0; i < dirtyRegions.Count; i++)
+                {
+                    _worldStorage.FlushRegion(dirtyRegions[i]);
+                    progress.FlushedRegions = i + 1;
+                    savingScreen.SetProgress(progress);
+                    yield return null;
+                }
+            }
+
+            // Dispose async saver after all chunks are saved
+            if (_asyncChunkSaver != null)
+            {
+                _asyncChunkSaver.Dispose();
+                _asyncChunkSaver = null;
+            }
+
+            progress.Phase = SaveState.Done;
+            savingScreen.SetProgress(progress);
+
+            // Destroy saving screen
+            Destroy(savingObject);
+
+            // Dispose all remaining session resources
+            DisposeSessionResources();
 
             // Signal RunGameSession to return
             _quitToTitle = true;
         }
 
         /// <summary>
-        /// Saves all game state, completes in-flight jobs, disposes native resources,
-        /// and destroys all session GameObjects. Called by both QuitToTitleCoroutine
-        /// and OnDestroy. Guarded by _sessionShutdownComplete to prevent double-dispose.
+        /// Synchronous save + dispose fallback for OnDestroy (application quit).
+        /// Performs both saving and disposal in one call. Guarded by
+        /// _sessionShutdownComplete to prevent double-dispose.
         /// </summary>
         private void ShutdownSessionResources()
         {
@@ -226,9 +333,19 @@ namespace Lithforge.Runtime.Bootstrap
                 return;
             }
 
-            _sessionShutdownComplete = true;
+            // Save synchronously (fallback path — no coroutine possible)
+            SaveSessionResourcesSync();
 
-            // Complete all in-flight jobs before saving
+            // Dispose everything
+            DisposeSessionResources();
+        }
+
+        /// <summary>
+        /// Synchronous save of all game state: metadata, chunks, regions.
+        /// Used by the OnDestroy fallback path.
+        /// </summary>
+        private void SaveSessionResourcesSync()
+        {
             try
             {
                 if (_gameLoop != null)
@@ -236,7 +353,6 @@ namespace Lithforge.Runtime.Bootstrap
                     _gameLoop.Shutdown();
                 }
 
-                // Save player state, serialize all chunks, and flush
                 if (_autoSaveManager != null)
                 {
                     _autoSaveManager.SaveMetadataOnly();
@@ -263,6 +379,21 @@ namespace Lithforge.Runtime.Bootstrap
             {
                 UnityEngine.Debug.LogError($"[Lithforge] Error during shutdown save: {ex}");
             }
+        }
+
+        /// <summary>
+        /// Disposes native resources, destroys session GameObjects, and releases
+        /// storage and session lock. Called after save completes (either incremental
+        /// coroutine or synchronous fallback).
+        /// </summary>
+        private void DisposeSessionResources()
+        {
+            if (_sessionShutdownComplete)
+            {
+                return;
+            }
+
+            _sessionShutdownComplete = true;
 
             // Dispose native resources
             try
@@ -392,6 +523,7 @@ namespace Lithforge.Runtime.Bootstrap
                 "FurnaceScreen",
                 "ToolStationScreen",
                 "CraftingTableScreen",
+                "SavingScreen",
             };
 
             for (int i = 0; i < sessionObjectNames.Length; i++)
@@ -1172,6 +1304,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _timeOfDayController,
                     _chunkMeshStore,
                     panelSettings,
+                    _userPreferences,
                     _gameLoop.NotifyRenderDistanceChanged);
             }
 

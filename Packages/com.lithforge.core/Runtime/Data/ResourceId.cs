@@ -13,10 +13,17 @@ namespace Lithforge.Core.Data
         private static readonly Regex s_validPattern =
             new Regex(@"^[a-z0-9_]+:[a-z0-9_/]+$", RegexOptions.Compiled);
 
+        /// <summary>The content namespace (e.g. "lithforge").</summary>
         public string Namespace { get; }
 
+        /// <summary>The content name within the namespace (e.g. "stone").</summary>
         public string Name { get; }
 
+        /// <summary>
+        /// Creates a new identifier from explicit namespace and name parts.
+        /// </summary>
+        /// <param name="ns">Content namespace (lowercase alphanumeric + underscores).</param>
+        /// <param name="name">Content name within the namespace.</param>
         public ResourceId(string ns, string name)
         {
             if (string.IsNullOrEmpty(ns))
@@ -33,6 +40,12 @@ namespace Lithforge.Core.Data
             Name = name;
         }
 
+        /// <summary>
+        /// Parses a "namespace:name" string into a ResourceId.
+        /// </summary>
+        /// <param name="raw">The colon-delimited string to parse.</param>
+        /// <returns>The parsed identifier.</returns>
+        /// <exception cref="FormatException">Thrown when the string does not match the required pattern.</exception>
         public static ResourceId Parse(string raw)
         {
             if (string.IsNullOrEmpty(raw))

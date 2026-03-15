@@ -9,6 +9,16 @@ using Unity.Mathematics;
 
 namespace Lithforge.Voxel.Chunk
 {
+    /// <summary>
+    /// Central authority for chunk lifecycle: loading, unloading, state transitions,
+    /// block edits, and query methods consumed by schedulers. Owns the loaded chunk
+    /// dictionary and secondary indices (_generatedChunks, _chunksNeedingLightUpdate).
+    /// <remarks>
+    /// All ChunkState transitions must go through <see cref="SetChunkState"/> so that
+    /// secondary indices stay consistent. Direct assignment to chunk.State is forbidden
+    /// outside this class.
+    /// </remarks>
+    /// </summary>
     public sealed class ChunkManager : IDisposable
     {
         private readonly Dictionary<int3, ManagedChunk> _chunks = new Dictionary<int3, ManagedChunk>();
@@ -900,6 +910,26 @@ namespace Lithforge.Voxel.Chunk
 
                 _chunksNeedingLightUpdate.Remove(unloaded[i]);
                 _chunks.Remove(unloaded[i]);
+            }
+        }
+
+        /// <summary>
+        /// Fills the provided list with dirty chunks eligible for saving.
+        /// A chunk is eligible if IsDirty, State >= RelightPending, and Data.IsCreated.
+        /// Clears the list before filling. Caller uses fill pattern.
+        /// </summary>
+        public void CollectDirtyChunks(List<ManagedChunk> result)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                ManagedChunk chunk = kvp.Value;
+
+                if (chunk.IsDirty && chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated)
+                {
+                    result.Add(chunk);
+                }
             }
         }
 

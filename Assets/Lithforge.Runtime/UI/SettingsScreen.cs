@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Chunk;
@@ -40,11 +41,7 @@ namespace Lithforge.Runtime.UI
 
         private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
 
-        // PlayerPrefs keys for persistent settings
-        private const string PrefRenderDistance = "LF_RenderDistance";
-        private const string PrefFOV = "LF_FOV";
-        private const string PrefMouseSensitivity = "LF_MouseSensitivity";
-        private const string PrefAOStrength = "LF_AOStrength";
+        private UserPreferences _preferences;
 
         public void Initialize(
             ChunkManager chunkManager,
@@ -52,6 +49,7 @@ namespace Lithforge.Runtime.UI
             TimeOfDayController timeOfDayController,
             ChunkMeshStore chunkMeshStore,
             PanelSettings panelSettings,
+            UserPreferences preferences,
             System.Action<int> onRenderDistanceChanged = null)
         {
             _chunkManager = chunkManager;
@@ -60,6 +58,7 @@ namespace Lithforge.Runtime.UI
             _chunkMeshStore = chunkMeshStore;
             _mainCamera = Camera.main;
             _onRenderDistanceChanged = onRenderDistanceChanged;
+            _preferences = preferences;
 
             // Read current values as defaults
             _renderDistance = chunkManager.RenderDistance;
@@ -146,7 +145,7 @@ namespace Lithforge.Runtime.UI
                 }
 
                 _onRenderDistanceChanged?.Invoke(value);
-                PlayerPrefs.SetInt(PrefRenderDistance, value);
+                _preferences.RenderDistance = value;
             });
 
             AddSliderFloat(scrollView, "Field of View", _fov, 60f, 120f, (float value) =>
@@ -158,7 +157,7 @@ namespace Lithforge.Runtime.UI
                     _mainCamera.fieldOfView = value;
                 }
 
-                PlayerPrefs.SetFloat(PrefFOV, value);
+                _preferences.FieldOfView = value;
             });
 
             AddSliderFloat(scrollView, "AO Strength", _aoStrength, 0f, 1f, (float value) =>
@@ -183,7 +182,7 @@ namespace Lithforge.Runtime.UI
                     }
                 }
 
-                PlayerPrefs.SetFloat(PrefAOStrength, value);
+                _preferences.AOStrength = value;
             });
 
             // --- Gameplay Section ---
@@ -197,7 +196,7 @@ namespace Lithforge.Runtime.UI
                     _cameraController.SetLookSensitivity(value);
                 }
 
-                PlayerPrefs.SetFloat(PrefMouseSensitivity, value);
+                _preferences.MouseSensitivity = value;
             });
 
             AddSliderFloat(scrollView, "Day Length (seconds)", _dayLength, 60f, 3600f, (float value) =>
@@ -386,7 +385,7 @@ namespace Lithforge.Runtime.UI
                 Cursor.visible = false;
             }
 
-            PlayerPrefs.Save();
+            _preferences.Save();
 
             if (returnToPause && _onCloseCallback != null)
             {
@@ -426,9 +425,9 @@ namespace Lithforge.Runtime.UI
         /// </summary>
         private void LoadPersistedSettings()
         {
-            if (PlayerPrefs.HasKey(PrefRenderDistance))
+            if (_preferences.HasRenderDistance)
             {
-                _renderDistance = PlayerPrefs.GetInt(PrefRenderDistance);
+                _renderDistance = _preferences.RenderDistance;
 
                 if (_chunkManager != null)
                 {
@@ -438,9 +437,9 @@ namespace Lithforge.Runtime.UI
                 _onRenderDistanceChanged?.Invoke(_renderDistance);
             }
 
-            if (PlayerPrefs.HasKey(PrefFOV))
+            if (_preferences.HasFieldOfView)
             {
-                _fov = PlayerPrefs.GetFloat(PrefFOV);
+                _fov = _preferences.FieldOfView;
 
                 if (_mainCamera != null)
                 {
@@ -448,9 +447,9 @@ namespace Lithforge.Runtime.UI
                 }
             }
 
-            if (PlayerPrefs.HasKey(PrefMouseSensitivity))
+            if (_preferences.HasMouseSensitivity)
             {
-                _mouseSensitivity = PlayerPrefs.GetFloat(PrefMouseSensitivity);
+                _mouseSensitivity = _preferences.MouseSensitivity;
 
                 if (_cameraController != null)
                 {
@@ -458,9 +457,9 @@ namespace Lithforge.Runtime.UI
                 }
             }
 
-            if (PlayerPrefs.HasKey(PrefAOStrength))
+            if (_preferences.HasAOStrength)
             {
-                _aoStrength = PlayerPrefs.GetFloat(PrefAOStrength);
+                _aoStrength = _preferences.AOStrength;
 
                 if (_chunkMeshStore != null)
                 {
