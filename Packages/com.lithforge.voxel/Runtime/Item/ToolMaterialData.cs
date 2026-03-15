@@ -4,7 +4,7 @@ namespace Lithforge.Voxel.Item
 {
     /// <summary>
     /// Resolved tool material data for runtime use.
-    /// Built from ToolMaterialDefinitionSO during content pipeline.
+    /// Built from ToolMaterialDefinition during content pipeline.
     /// </summary>
     public sealed class ToolMaterialData
     {

@@ -6,7 +6,7 @@ namespace Lithforge.Runtime.Content.Tools
 {
     /// <summary>
     /// Data-driven tool trait definition. Configured as a ScriptableObject
-    /// and referenced by ToolMaterialDefinitionSO via trait ID strings.
+    /// and referenced by ToolMaterialDefinition via trait ID strings.
     /// Converted to ToolTraitData (Tier 2) during content pipeline.
     /// </summary>
     [CreateAssetMenu(fileName = "NewToolTrait",

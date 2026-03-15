@@ -34,7 +34,9 @@
       "WebFetch(domain:docs.unity3d.com)",
       "WebFetch(domain:github.com)",
       "Bash(export:*)",
-      "WebFetch(domain:wiki.bedrock.dev)"
+      "WebFetch(domain:wiki.bedrock.dev)",
+      "WebFetch(domain:forge.gemwire.uk)",
+      "WebFetch(domain:mappings.xhyrom.dev)"
     ]
   }
 }

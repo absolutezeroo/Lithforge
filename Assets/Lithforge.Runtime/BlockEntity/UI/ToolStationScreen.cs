@@ -33,6 +33,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private ToolType _selectedToolType = ToolType.Pickaxe;
         private Label _resultLabel;
         private Label _statsLabel;
+        private ToolInstance _cachedPreview;
+        private bool _previewDirty = true;
 
         // Tool type buttons for styling
         private Button _pickaxeBtn;
@@ -90,10 +92,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             container.AddToClassList("lf-panel");
             Panel.Add(container);
 
-            Panel.RegisterCallback<PointerUpEvent>(evt =>
-            {
-                Interaction.OnPointerUp(evt.button);
-            });
+            // PointerUpEvent is already handled by ContainerScreen.InitializeBase
 
             // Title
             Label title = new Label("Tool Station");
@@ -210,6 +209,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             btn.clicked += () =>
             {
                 _selectedToolType = capturedType;
+                _previewDirty = true;
                 UpdateToolTypeButtonStyles();
             };
 
@@ -247,12 +247,15 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
+            // Any slot interaction may change part slots
+            _previewDirty = true;
+
             // Output slot: take assembled tool
             if (container == _outputAdapter)
             {
                 if (evt.button == 0)
                 {
-                    HandleOutputTake(evt);
+                    HandleOutputTake();
                 }
 
                 evt.StopPropagation();
@@ -292,7 +295,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
-        private void HandleOutputTake(PointerDownEvent evt)
+        private void HandleOutputTake()
         {
             if (_currentStation == null)
             {
@@ -452,17 +455,18 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
-            // Update assembly preview
-            if (_currentStation != null)
+            // Update assembly preview only when slots change
+            if (_currentStation != null && _previewDirty)
             {
-                ToolInstance preview = _currentStation.Assembly.TryAssemble(_selectedToolType);
+                _previewDirty = false;
+                _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
 
-                if (preview != null)
+                if (_cachedPreview != null)
                 {
-                    _resultLabel.text = _selectedToolType.ToString() + " (Lvl " + preview.EffectiveToolLevel + ")";
-                    _statsLabel.text = "Speed: " + preview.BaseSpeed.ToString("F1")
-                        + "  Durability: " + preview.MaxDurability
-                        + "  Damage: " + preview.BaseDamage.ToString("F1");
+                    _resultLabel.text = _selectedToolType.ToString() + " (Lvl " + _cachedPreview.EffectiveToolLevel + ")";
+                    _statsLabel.text = "Speed: " + _cachedPreview.BaseSpeed.ToString("F1")
+                        + "  Durability: " + _cachedPreview.MaxDurability
+                        + "  Damage: " + _cachedPreview.BaseDamage.ToString("F1");
                 }
                 else
                 {

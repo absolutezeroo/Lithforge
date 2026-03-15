@@ -42,6 +42,10 @@ namespace Lithforge.Runtime.Input
         private TagRegistry _tagRegistry;
         private Random _lootRandom;
 
+        // Static sort comparison for trait priority ordering
+        private static readonly Comparison<IToolTrait> s_traitPrioritySort =
+            (IToolTrait a, IToolTrait b) => a.Priority.CompareTo(b.Priority);
+
         // ToolType → mineable tag mapping (Minecraft-style correct-tool check)
         private static readonly Dictionary<ToolType, ResourceId> s_toolTagMap =
             new Dictionary<ToolType, ResourceId>
@@ -363,7 +367,7 @@ namespace Lithforge.Runtime.Input
                         }
 
                         IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
-                        Array.Sort(traits, (IToolTrait a, IToolTrait b) => a.Priority.CompareTo(b.Priority));
+                        Array.Sort(traits, s_traitPrioritySort);
                         for (int i = 0; i < traits.Length; i++)
                         {
                             ctx = traits[i].Apply(ctx);

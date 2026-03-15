@@ -5,7 +5,7 @@ namespace Lithforge.Voxel.Item
 {
     /// <summary>
     /// Registry mapping material ResourceIds to resolved ToolMaterialData.
-    /// Built during content pipeline from ToolMaterialDefinitionSO assets.
+    /// Built during content pipeline from ToolMaterialDefinition assets.
     /// </summary>
     public sealed class ToolMaterialRegistry
     {
