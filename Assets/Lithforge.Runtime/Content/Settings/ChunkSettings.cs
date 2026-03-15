@@ -69,6 +69,11 @@ namespace Lithforge.Runtime.Content.Settings
         [Tooltip("Maximum Y chunk offset from camera to load")]
         [SerializeField] private int yLoadMax = 3;
 
+        [Header("Unloading")]
+        [Tooltip("Milliseconds of CPU budget for unloading chunks per frame")]
+        [Range(0.5f, 10f)]
+        [SerializeField] private float unloadBudgetMs = 2f;
+
         [Header("Y Range — Unloading")]
         [Tooltip("Minimum Y chunk offset below which chunks are unloaded")]
         [SerializeField] private int yUnloadMin = -2;
@@ -208,6 +213,11 @@ namespace Lithforge.Runtime.Content.Settings
         public int InitialSpawnYOffset
         {
             get { return initialSpawnYOffset; }
+        }
+
+        public float UnloadBudgetMs
+        {
+            get { return unloadBudgetMs; }
         }
     }
 }

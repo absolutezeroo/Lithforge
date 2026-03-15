@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Storage;
@@ -24,6 +25,14 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int3> _toRemoveCache = new List<int3>();
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new HashSet<int3>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
+        private AsyncChunkSaver _asyncSaver;
+
+        /// <summary>
+        /// Schwartzian transform caches for distance-sorted unload.
+        /// Resized on demand, never shrunk. Owner: ChunkManager.
+        /// </summary>
+        private int[] _unloadDistCache = Array.Empty<int>();
+        private int3[] _unloadCoordCache = Array.Empty<int3>();
 
         /// <summary>
         /// Called when a block with FlagHasBlockEntity is placed.
@@ -83,6 +92,15 @@ namespace Lithforge.Voxel.Chunk
         public void SetNativeStateRegistry(NativeStateRegistry nativeStateRegistry)
         {
             _nativeStateRegistry = nativeStateRegistry;
+        }
+
+        /// <summary>
+        /// Sets the async chunk saver for off-thread serialization during unload.
+        /// Must be called after construction and before gameplay starts.
+        /// </summary>
+        public void SetAsyncSaver(AsyncChunkSaver asyncSaver)
+        {
+            _asyncSaver = asyncSaver;
         }
 
         public ChunkManager(
@@ -657,11 +675,16 @@ namespace Lithforge.Voxel.Chunk
             return a >= 0 ? a / b : (a - b + 1) / b;
         }
 
-        public void UnloadDistantChunks(int3 cameraChunkCoord, List<int3> unloaded, WorldStorage worldStorage = null)
+        public void UnloadDistantChunks(
+            int3 cameraChunkCoord,
+            List<int3> unloaded,
+            WorldStorage worldStorage = null,
+            float budgetMs = 2.0f)
         {
             unloaded.Clear();
             _toRemoveCache.Clear();
 
+            // Phase 1: Collect all out-of-range candidates (distance test only)
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
                 int3 diff = kvp.Key - cameraChunkCoord;
@@ -670,55 +693,108 @@ namespace Lithforge.Voxel.Chunk
 
                 if (xzDist > _renderDistance + 1 || yOutOfRange)
                 {
-                    kvp.Value.ActiveJobHandle.Complete();
-
-                    // Notify block entities of unload
-                    if (kvp.Value.BlockEntities != null)
-                    {
-                        foreach (KeyValuePair<int, IBlockEntity> bePair in kvp.Value.BlockEntities)
-                        {
-                            bePair.Value.OnChunkUnload();
-                        }
-                    }
-
-                    // Save modified chunks before unloading
-                    if (kvp.Value.IsDirty && worldStorage != null &&
-                        kvp.Value.Data.IsCreated)
-                    {
-                        worldStorage.SaveChunk(kvp.Value.Coord, kvp.Value.Data,
-                            kvp.Value.LightData, kvp.Value.BlockEntities);
-                        kvp.Value.IsDirty = false;
-                    }
-
-                    if (kvp.Value.Data.IsCreated)
-                    {
-                        _pool.Return(kvp.Value.Data);
-                    }
-
-                    if (kvp.Value.LightData.IsCreated)
-                    {
-                        kvp.Value.LightData.Dispose();
-                    }
-
-                    if (kvp.Value.HeightMap.IsCreated)
-                    {
-                        kvp.Value.HeightMap.Dispose();
-                    }
-
-                    if (kvp.Value.RiverFlags.IsCreated)
-                    {
-                        kvp.Value.RiverFlags.Dispose();
-                    }
-
                     _toRemoveCache.Add(kvp.Key);
-                    unloaded.Add(kvp.Key);
                 }
             }
 
-            for (int i = 0; i < _toRemoveCache.Count; i++)
+            int candidateCount = _toRemoveCache.Count;
+
+            if (candidateCount == 0)
             {
-                _chunksNeedingLightUpdate.Remove(_toRemoveCache[i]);
-                _chunks.Remove(_toRemoveCache[i]);
+                return;
+            }
+
+            // Phase 2: Schwartzian sort by Chebyshev XZ distance (ascending)
+            if (_unloadDistCache.Length < candidateCount)
+            {
+                int newSize = math.max(candidateCount, _unloadDistCache.Length * 2);
+                _unloadDistCache = new int[newSize];
+                _unloadCoordCache = new int3[newSize];
+            }
+
+            for (int i = 0; i < candidateCount; i++)
+            {
+                int3 coord = _toRemoveCache[i];
+                _unloadCoordCache[i] = coord;
+                int3 diff = coord - cameraChunkCoord;
+                _unloadDistCache[i] = math.max(math.abs(diff.x), math.abs(diff.z));
+            }
+
+            Array.Sort(_unloadDistCache, _unloadCoordCache, 0, candidateCount);
+
+            // Phase 3: Process within budget, farthest first (iterate in reverse)
+            long startTicks = Stopwatch.GetTimestamp();
+            double ticksPerMs = Stopwatch.Frequency / 1000.0;
+
+            for (int i = candidateCount - 1; i >= 0; i--)
+            {
+                int3 coord = _unloadCoordCache[i];
+                ManagedChunk chunk = _chunks[coord];
+
+                chunk.ActiveJobHandle.Complete();
+
+                // Notify block entities of unload
+                if (chunk.BlockEntities != null)
+                {
+                    foreach (KeyValuePair<int, IBlockEntity> bePair in chunk.BlockEntities)
+                    {
+                        bePair.Value.OnChunkUnload();
+                    }
+                }
+
+                // Save modified chunks before unloading (enqueue must precede dispose)
+                if (chunk.IsDirty && chunk.Data.IsCreated)
+                {
+                    if (_asyncSaver != null)
+                    {
+                        _asyncSaver.EnqueueSave(
+                            chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                    }
+                    else if (worldStorage != null)
+                    {
+                        worldStorage.SaveChunk(
+                            chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                    }
+
+                    chunk.IsDirty = false;
+                }
+
+                if (chunk.Data.IsCreated)
+                {
+                    _pool.Return(chunk.Data);
+                }
+
+                if (chunk.LightData.IsCreated)
+                {
+                    chunk.LightData.Dispose();
+                }
+
+                if (chunk.HeightMap.IsCreated)
+                {
+                    chunk.HeightMap.Dispose();
+                }
+
+                if (chunk.RiverFlags.IsCreated)
+                {
+                    chunk.RiverFlags.Dispose();
+                }
+
+                unloaded.Add(coord);
+
+                // Check budget
+                double elapsedMs = (Stopwatch.GetTimestamp() - startTicks) / ticksPerMs;
+
+                if (elapsedMs >= budgetMs)
+                {
+                    break;
+                }
+            }
+
+            // Phase 4: Remove processed chunks from _chunks
+            for (int i = 0; i < unloaded.Count; i++)
+            {
+                _chunksNeedingLightUpdate.Remove(unloaded[i]);
+                _chunks.Remove(unloaded[i]);
             }
         }
 

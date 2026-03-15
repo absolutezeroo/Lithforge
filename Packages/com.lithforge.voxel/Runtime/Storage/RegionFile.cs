@@ -12,6 +12,7 @@ namespace Lithforge.Voxel.Storage
 
         private readonly string _filePath;
         private readonly Dictionary<int, byte[]> _cache = new Dictionary<int, byte[]>();
+        private readonly object _cacheLock = new object();
         private bool _disposed;
         private bool _isDirty;
 
@@ -24,9 +25,12 @@ namespace Lithforge.Voxel.Storage
         {
             int key = GetKey(localX, localZ);
 
-            if (_cache.ContainsKey(key))
+            lock (_cacheLock)
             {
-                return true;
+                if (_cache.ContainsKey(key))
+                {
+                    return true;
+                }
             }
 
             if (!File.Exists(_filePath))
@@ -56,9 +60,12 @@ namespace Lithforge.Voxel.Storage
         {
             int key = GetKey(localX, localZ);
 
-            if (_cache.TryGetValue(key, out byte[] cached))
+            lock (_cacheLock)
             {
-                return cached;
+                if (_cache.TryGetValue(key, out byte[] cached))
+                {
+                    return cached;
+                }
             }
 
             if (!File.Exists(_filePath))
@@ -87,7 +94,10 @@ namespace Lithforge.Voxel.Storage
                 fs.Seek(dataOffset, SeekOrigin.Begin);
                 byte[] data = reader.ReadBytes(dataSize);
 
-                _cache[key] = data;
+                lock (_cacheLock)
+                {
+                    _cache[key] = data;
+                }
 
                 return data;
             }
@@ -101,15 +111,26 @@ namespace Lithforge.Voxel.Storage
         public void SaveChunk(int localX, int localZ, byte[] data)
         {
             int key = GetKey(localX, localZ);
-            _cache[key] = data;
-            _isDirty = true;
+
+            lock (_cacheLock)
+            {
+                _cache[key] = data;
+                _isDirty = true;
+            }
         }
 
         public void Flush()
         {
-            if (_cache.Count == 0)
+            Dictionary<int, byte[]> snapshot;
+
+            lock (_cacheLock)
             {
-                return;
+                if (_cache.Count == 0)
+                {
+                    return;
+                }
+
+                snapshot = new Dictionary<int, byte[]>(_cache);
             }
 
             // Read existing data or create new
@@ -138,8 +159,8 @@ namespace Lithforge.Voxel.Storage
                 }
             }
 
-            // Merge cache into existing
-            foreach (KeyValuePair<int, byte[]> kvp in _cache)
+            // Merge snapshot into existing
+            foreach (KeyValuePair<int, byte[]> kvp in snapshot)
             {
                 existingData[kvp.Key] = kvp.Value;
             }
@@ -201,6 +222,23 @@ namespace Lithforge.Voxel.Storage
 
                 // Atomic rename: replaces original (atomic on most OS)
                 File.Move(tempPath, _filePath);
+
+                // Remove only snapshotted entries from cache.
+                // If a concurrent SaveChunk wrote a new value for the same key,
+                // keep the new value (ReferenceEquals will be false).
+                lock (_cacheLock)
+                {
+                    foreach (KeyValuePair<int, byte[]> kvp in snapshot)
+                    {
+                        if (_cache.TryGetValue(kvp.Key, out byte[] current)
+                            && ReferenceEquals(current, kvp.Value))
+                        {
+                            _cache.Remove(kvp.Key);
+                        }
+                    }
+
+                    _isDirty = _cache.Count > 0;
+                }
             }
             catch
             {
@@ -220,8 +258,6 @@ namespace Lithforge.Voxel.Storage
                 throw;
             }
 
-            _cache.Clear();
-            _isDirty = false;
         }
 
         private static int GetKey(int localX, int localZ)

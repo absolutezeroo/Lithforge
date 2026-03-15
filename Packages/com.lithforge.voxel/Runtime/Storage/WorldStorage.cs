@@ -16,6 +16,8 @@ namespace Lithforge.Voxel.Storage
         private readonly string _worldDir;
         private readonly string _regionDir;
         private readonly Dictionary<int3, RegionFile> _regionFiles = new Dictionary<int3, RegionFile>();
+        private readonly object _regionFilesLock = new object();
+        private readonly List<RegionFile> _flushCache = new List<RegionFile>();
         private readonly ILogger _logger;
         private bool _disposed;
 
@@ -124,24 +126,54 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        /// Saves pre-serialized chunk data to the region file cache.
+        /// Used by AsyncChunkSaver worker thread — thread-safe via region file lock.
+        /// </summary>
+        public void SaveChunkRaw(int3 chunkCoord, byte[] serializedData)
+        {
+            try
+            {
+                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                RegionFile region = GetOrOpenRegion(regionCoord);
+                region.SaveChunk(localX, localZ, serializedData);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[WorldStorage] SaveChunkRaw failed for {chunkCoord}: {ex.Message}");
+            }
+        }
+
         public void FlushAll(bool onlyDirty = false)
         {
-            foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
-            {
-                if (onlyDirty && !kvp.Value.IsDirty)
-                {
-                    continue;
-                }
+            _flushCache.Clear();
 
+            lock (_regionFilesLock)
+            {
+                foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
+                {
+                    if (onlyDirty && !kvp.Value.IsDirty)
+                    {
+                        continue;
+                    }
+
+                    _flushCache.Add(kvp.Value);
+                }
+            }
+
+            for (int i = 0; i < _flushCache.Count; i++)
+            {
                 try
                 {
-                    kvp.Value.Flush();
+                    _flushCache[i].Flush();
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError($"[WorldStorage] Flush failed for region {kvp.Key}: {ex.Message}");
+                    _logger?.LogError($"[WorldStorage] Flush failed: {ex.Message}");
                 }
             }
+
+            _flushCache.Clear();
         }
 
         public void SaveMetadata(long seed, string contentHash)
@@ -169,15 +201,18 @@ namespace Lithforge.Voxel.Storage
 
         private RegionFile GetOrOpenRegion(int3 regionCoord)
         {
-            if (!_regionFiles.TryGetValue(regionCoord, out RegionFile region))
+            lock (_regionFilesLock)
             {
-                string fileName = $"r.{regionCoord.x}.{regionCoord.y}.{regionCoord.z}.lfrg";
-                string filePath = Path.Combine(_regionDir, fileName);
-                region = new RegionFile(filePath);
-                _regionFiles[regionCoord] = region;
-            }
+                if (!_regionFiles.TryGetValue(regionCoord, out RegionFile region))
+                {
+                    string fileName = $"r.{regionCoord.x}.{regionCoord.y}.{regionCoord.z}.lfrg";
+                    string filePath = Path.Combine(_regionDir, fileName);
+                    region = new RegionFile(filePath);
+                    _regionFiles[regionCoord] = region;
+                }
 
-            return region;
+                return region;
+            }
         }
 
         private static void GetRegionCoords(int3 chunkCoord, out int3 regionCoord, out int localX, out int localZ)
@@ -202,12 +237,15 @@ namespace Lithforge.Voxel.Storage
             {
                 _disposed = true;
 
-                foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
+                lock (_regionFilesLock)
                 {
-                    kvp.Value.Dispose();
-                }
+                    foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
+                    {
+                        kvp.Value.Dispose();
+                    }
 
-                _regionFiles.Clear();
+                    _regionFiles.Clear();
+                }
             }
         }
     }

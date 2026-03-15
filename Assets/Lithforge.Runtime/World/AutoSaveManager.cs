@@ -14,6 +14,7 @@ namespace Lithforge.Runtime.World
         private readonly Func<float> _getTimeOfDay;
         private readonly Inventory _inventory;
 
+        private AsyncChunkSaver _asyncSaver;
         private float _lastChunkFlushTime = -1f;
         private float _lastMetaFlushTime = -1f;
 
@@ -34,6 +35,15 @@ namespace Lithforge.Runtime.World
             _mainCamera = mainCamera;
             _getTimeOfDay = getTimeOfDay;
             _inventory = inventory;
+        }
+
+        /// <summary>
+        /// Sets the AsyncChunkSaver so that pending async writes are flushed
+        /// before region files are written to disk.
+        /// </summary>
+        public void SetAsyncSaver(AsyncChunkSaver asyncSaver)
+        {
+            _asyncSaver = asyncSaver;
         }
 
         public void Tick(float realtimeSinceStartup)
@@ -57,6 +67,11 @@ namespace Lithforge.Runtime.World
 
             if (realtimeSinceStartup >= _lastChunkFlushTime + ChunkFlushInterval)
             {
+                if (_asyncSaver != null)
+                {
+                    _asyncSaver.Flush();
+                }
+
                 _worldStorage.FlushAll(true);
                 _lastChunkFlushTime = realtimeSinceStartup;
             }

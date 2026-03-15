@@ -59,6 +59,7 @@ namespace Lithforge.Runtime.Bootstrap
         private TimeOfDayController _timeOfDayController;
         private SkyController _skyController;
         private BiomeTintManager _biomeTintManager;
+        private AsyncChunkSaver _asyncChunkSaver;
 
         private void Awake()
         {
@@ -170,6 +171,8 @@ namespace Lithforge.Runtime.Bootstrap
                 cs.YUnloadMin,
                 cs.YUnloadMax);
 
+            _asyncChunkSaver = new AsyncChunkSaver(_worldStorage, _logger);
+            _chunkManager.SetAsyncSaver(_asyncChunkSaver);
         }
 
         private void InitializeWorldGen()
@@ -792,6 +795,7 @@ namespace Lithforge.Runtime.Bootstrap
                     mainCamera,
                     () => { return _timeOfDayController != null ? _timeOfDayController.TimeOfDay : 0f; },
                     playerInventory);
+                _autoSaveManager.SetAsyncSaver(_asyncChunkSaver);
                 _gameLoop.SetAutoSaveManager(_autoSaveManager);
             }
 
@@ -920,10 +924,22 @@ namespace Lithforge.Runtime.Bootstrap
                     _autoSaveManager.SaveMetadataOnly();
                 }
 
+                // Drain pending async saves before synchronous shutdown save
+                if (_asyncChunkSaver != null)
+                {
+                    _asyncChunkSaver.Flush();
+                }
+
                 if (_worldStorage != null && _chunkManager != null)
                 {
                     _chunkManager.SaveAllChunks(_worldStorage);
                     _worldStorage.FlushAll();
+                }
+
+                if (_asyncChunkSaver != null)
+                {
+                    _asyncChunkSaver.Dispose();
+                    _asyncChunkSaver = null;
                 }
             }
             catch (System.Exception ex)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using K4os.Compression.LZ4;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
@@ -14,105 +15,223 @@ namespace Lithforge.Voxel.Storage
         private static readonly byte[] s_magic = { (byte)'L', (byte)'F', (byte)'C', (byte)'H' };
         private const byte Version = 3;
 
+        [ThreadStatic] private static byte[] s_voxelBuffer;
+        [ThreadStatic] private static byte[] s_lightBuffer;
+        [ThreadStatic] private static MemoryStream s_stream;
+
         public static byte[] Serialize(
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
             Dictionary<int, IBlockEntity> blockEntities = null)
         {
-            using (MemoryStream ms = new MemoryStream())
-            using (BinaryWriter writer = new BinaryWriter(ms))
+            if (s_stream == null)
             {
-                // Header
-                writer.Write(s_magic);
-                writer.Write(Version);
+                s_stream = new MemoryStream(128 * 1024);
+            }
 
-                // Build palette
-                Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
-                List<ushort> paletteList = new List<ushort>();
+            s_stream.SetLength(0);
+            s_stream.Position = 0;
 
-                for (int i = 0; i < chunkData.Length; i++)
+            BinaryWriter writer = new BinaryWriter(s_stream, Encoding.UTF8, true);
+
+            // Header
+            writer.Write(s_magic);
+            writer.Write(Version);
+
+            // Build palette
+            Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
+            List<ushort> paletteList = new List<ushort>();
+
+            for (int i = 0; i < chunkData.Length; i++)
+            {
+                ushort val = chunkData[i].Value;
+
+                if (!paletteMap.ContainsKey(val))
                 {
-                    ushort val = chunkData[i].Value;
+                    paletteMap[val] = (ushort)paletteList.Count;
+                    paletteList.Add(val);
+                }
+            }
 
-                    if (!paletteMap.ContainsKey(val))
+            // Write palette
+            writer.Write((ushort)paletteList.Count);
+
+            for (int i = 0; i < paletteList.Count; i++)
+            {
+                writer.Write(paletteList[i]);
+            }
+
+            // Compress voxel data (palette indices) with LZ4
+            if (s_voxelBuffer == null || s_voxelBuffer.Length < chunkData.Length * 2)
+            {
+                s_voxelBuffer = new byte[ChunkConstants.Volume * 2];
+            }
+
+            for (int i = 0; i < chunkData.Length; i++)
+            {
+                ushort idx = paletteMap[chunkData[i].Value];
+                s_voxelBuffer[i * 2] = (byte)(idx & 0xFF);
+                s_voxelBuffer[i * 2 + 1] = (byte)(idx >> 8);
+            }
+
+            byte[] voxelCompressed = LZ4Pickler.Pickle(s_voxelBuffer, LZ4Level.L00_FAST);
+            writer.Write(voxelCompressed.Length);
+            writer.Write(voxelCompressed);
+
+            // Compress light data with LZ4
+            if (lightData.IsCreated && lightData.Length > 0)
+            {
+                if (s_lightBuffer == null || s_lightBuffer.Length < lightData.Length)
+                {
+                    s_lightBuffer = new byte[ChunkConstants.Volume];
+                }
+
+                lightData.CopyTo(s_lightBuffer);
+
+                byte[] lightCompressed = LZ4Pickler.Pickle(s_lightBuffer, LZ4Level.L00_FAST);
+                writer.Write(lightCompressed.Length);
+                writer.Write(lightCompressed);
+            }
+            else
+            {
+                writer.Write(0);
+            }
+
+            // Block entity section
+            WriteBlockEntities(writer, blockEntities);
+
+            // Append CRC32 checksum of all preceding bytes
+            writer.Flush();
+            byte[] payload = s_stream.ToArray();
+            uint crc = Crc32.Compute(payload, 0, payload.Length);
+
+            writer.Write(crc);
+
+            byte[] result = s_stream.ToArray();
+            writer.Dispose();
+
+            return result;
+        }
+
+        /// <summary>
+        /// Serializes chunk data from raw byte[] snapshots (used by AsyncChunkSaver worker thread).
+        /// voxelSnapshot contains StateId values as little-endian ushorts (2 bytes each).
+        /// </summary>
+        public static byte[] Serialize(
+            byte[] voxelSnapshot,
+            int voxelCount,
+            byte[] lightSnapshot,
+            Dictionary<int, IBlockEntity> blockEntities = null)
+        {
+            if (s_stream == null)
+            {
+                s_stream = new MemoryStream(128 * 1024);
+            }
+
+            s_stream.SetLength(0);
+            s_stream.Position = 0;
+
+            BinaryWriter writer = new BinaryWriter(s_stream, Encoding.UTF8, true);
+
+            // Header
+            writer.Write(s_magic);
+            writer.Write(Version);
+
+            // Build palette from raw voxel bytes
+            Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
+            List<ushort> paletteList = new List<ushort>();
+
+            for (int i = 0; i < voxelCount; i++)
+            {
+                ushort val = (ushort)(voxelSnapshot[i * 2] | (voxelSnapshot[i * 2 + 1] << 8));
+
+                if (!paletteMap.ContainsKey(val))
+                {
+                    paletteMap[val] = (ushort)paletteList.Count;
+                    paletteList.Add(val);
+                }
+            }
+
+            // Write palette
+            writer.Write((ushort)paletteList.Count);
+
+            for (int i = 0; i < paletteList.Count; i++)
+            {
+                writer.Write(paletteList[i]);
+            }
+
+            // Compress voxel data (palette indices) with LZ4
+            if (s_voxelBuffer == null || s_voxelBuffer.Length < voxelCount * 2)
+            {
+                s_voxelBuffer = new byte[ChunkConstants.Volume * 2];
+            }
+
+            for (int i = 0; i < voxelCount; i++)
+            {
+                ushort val = (ushort)(voxelSnapshot[i * 2] | (voxelSnapshot[i * 2 + 1] << 8));
+                ushort idx = paletteMap[val];
+                s_voxelBuffer[i * 2] = (byte)(idx & 0xFF);
+                s_voxelBuffer[i * 2 + 1] = (byte)(idx >> 8);
+            }
+
+            byte[] voxelCompressed = LZ4Pickler.Pickle(s_voxelBuffer, LZ4Level.L00_FAST);
+            writer.Write(voxelCompressed.Length);
+            writer.Write(voxelCompressed);
+
+            // Compress light data with LZ4
+            if (lightSnapshot != null && lightSnapshot.Length > 0)
+            {
+                byte[] lightCompressed = LZ4Pickler.Pickle(lightSnapshot, LZ4Level.L00_FAST);
+                writer.Write(lightCompressed.Length);
+                writer.Write(lightCompressed);
+            }
+            else
+            {
+                writer.Write(0);
+            }
+
+            // Block entity section
+            WriteBlockEntities(writer, blockEntities);
+
+            // Append CRC32 checksum of all preceding bytes
+            writer.Flush();
+            byte[] payload = s_stream.ToArray();
+            uint crc = Crc32.Compute(payload, 0, payload.Length);
+
+            writer.Write(crc);
+
+            byte[] result = s_stream.ToArray();
+            writer.Dispose();
+
+            return result;
+        }
+
+        private static void WriteBlockEntities(BinaryWriter writer, Dictionary<int, IBlockEntity> blockEntities)
+        {
+            if (blockEntities != null && blockEntities.Count > 0)
+            {
+                writer.Write(blockEntities.Count);
+
+                foreach (KeyValuePair<int, IBlockEntity> kvp in blockEntities)
+                {
+                    writer.Write(kvp.Key); // flat index
+                    writer.Write(kvp.Value.TypeId); // type ID string
+
+                    // Length-prefixed entity payload
+                    using (MemoryStream entityMs = new MemoryStream())
+                    using (BinaryWriter entityWriter = new BinaryWriter(entityMs))
                     {
-                        paletteMap[val] = (ushort)paletteList.Count;
-                        paletteList.Add(val);
+                        kvp.Value.Serialize(entityWriter);
+                        entityWriter.Flush();
+                        byte[] entityData = entityMs.ToArray();
+                        writer.Write(entityData.Length);
+                        writer.Write(entityData);
                     }
                 }
-
-                // Write palette
-                writer.Write((ushort)paletteList.Count);
-
-                for (int i = 0; i < paletteList.Count; i++)
-                {
-                    writer.Write(paletteList[i]);
-                }
-
-                // Compress voxel data (palette indices) with LZ4
-                byte[] voxelRaw = new byte[chunkData.Length * 2];
-
-                for (int i = 0; i < chunkData.Length; i++)
-                {
-                    ushort idx = paletteMap[chunkData[i].Value];
-                    voxelRaw[i * 2] = (byte)(idx & 0xFF);
-                    voxelRaw[i * 2 + 1] = (byte)(idx >> 8);
-                }
-
-                byte[] voxelCompressed = LZ4Pickler.Pickle(voxelRaw, LZ4Level.L00_FAST);
-                writer.Write(voxelCompressed.Length);
-                writer.Write(voxelCompressed);
-
-                // Compress light data with LZ4
-                if (lightData.IsCreated && lightData.Length > 0)
-                {
-                    byte[] lightRaw = new byte[lightData.Length];
-                    lightData.CopyTo(lightRaw);
-
-                    byte[] lightCompressed = LZ4Pickler.Pickle(lightRaw, LZ4Level.L00_FAST);
-                    writer.Write(lightCompressed.Length);
-                    writer.Write(lightCompressed);
-                }
-                else
-                {
-                    writer.Write(0);
-                }
-
-                // Block entity section
-                if (blockEntities != null && blockEntities.Count > 0)
-                {
-                    writer.Write(blockEntities.Count);
-
-                    foreach (KeyValuePair<int, IBlockEntity> kvp in blockEntities)
-                    {
-                        writer.Write(kvp.Key); // flat index
-                        writer.Write(kvp.Value.TypeId); // type ID string
-
-                        // Length-prefixed entity payload
-                        using (MemoryStream entityMs = new MemoryStream())
-                        using (BinaryWriter entityWriter = new BinaryWriter(entityMs))
-                        {
-                            kvp.Value.Serialize(entityWriter);
-                            entityWriter.Flush();
-                            byte[] entityData = entityMs.ToArray();
-                            writer.Write(entityData.Length);
-                            writer.Write(entityData);
-                        }
-                    }
-                }
-                else
-                {
-                    writer.Write(0);
-                }
-
-                // Append CRC32 checksum of all preceding bytes
-                writer.Flush();
-                byte[] payload = ms.ToArray();
-                uint crc = Crc32.Compute(payload, 0, payload.Length);
-
-                writer.Write(crc);
-
-                return ms.ToArray();
+            }
+            else
+            {
+                writer.Write(0);
             }
         }
 

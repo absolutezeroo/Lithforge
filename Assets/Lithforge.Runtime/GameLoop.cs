@@ -41,6 +41,7 @@ namespace Lithforge.Runtime
         private AutoSaveManager _autoSaveManager;
         private Debug.MetricsRegistry _metricsRegistry;
         private readonly List<int3> _unloadedCoords = new List<int3>();
+        private float _unloadBudgetMs;
         private bool _initialized;
 
         public int PendingGenerationCount
@@ -80,6 +81,7 @@ namespace Lithforge.Runtime
             _chunkManager = chunkManager;
             _chunkMeshStore = chunkMeshStore;
             _worldStorage = worldStorage;
+            _unloadBudgetMs = chunkSettings.UnloadBudgetMs;
 
             _culling = new ChunkCulling();
 
@@ -259,7 +261,8 @@ namespace Lithforge.Runtime
 
             Profiler.BeginSample("GL.Unload");
             FrameProfiler.Begin(FrameProfiler.Unload);
-            _chunkManager.UnloadDistantChunks(cameraChunkCoord, _unloadedCoords, _worldStorage);
+            _chunkManager.UnloadDistantChunks(
+                cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
 
             // Advance spawn state machine until complete
             if (_spawnManager != null && !_spawnManager.IsComplete)
