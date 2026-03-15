@@ -30,6 +30,13 @@ namespace Lithforge.Runtime.Scheduling
         private readonly float _completionBudgetMs;
 
         /// <summary>
+        /// Dummy NativeArray passed to ExtractAllBordersJob for missing neighbors.
+        /// The job's HasXxx flags prevent reading from it; this satisfies the safety system.
+        /// Owner: MeshScheduler. Lifetime: application. Allocator: Persistent.
+        /// </summary>
+        private NativeArray<StateId> _dummyBorder;
+
+        /// <summary>
         /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
         /// Owner: MeshScheduler. Lifetime: application.
         /// </summary>
@@ -58,6 +65,7 @@ namespace Lithforge.Runtime.Scheduling
             _maxMeshesPerFrame = maxMeshesPerFrame;
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
+            _dummyBorder = new NativeArray<StateId>(1, Allocator.Persistent);
         }
 
         public void PollCompleted()
@@ -222,7 +230,23 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public void ScheduleJobs(bool applyFilters)
         {
-            int slotsAvailable = _maxMeshesPerFrame - _pendingMeshes.Count;
+            int pendingCount = _pendingMeshes.Count;
+
+            // Adaptive throttle: reduce scheduling when many jobs are in-flight.
+            // This leaves main-thread budget for PollCompleted (job completion + GPU upload).
+            // Ramp: 0-16 pending = full budget, 17-31 pending = linear ramp-down, 32+ = minimum 1.
+            int effectiveMax;
+
+            if (pendingCount <= 16)
+            {
+                effectiveMax = _maxMeshesPerFrame;
+            }
+            else
+            {
+                effectiveMax = math.max(1, _maxMeshesPerFrame - (pendingCount - 16) / 2);
+            }
+
+            int slotsAvailable = effectiveMax - math.min(pendingCount, effectiveMax);
 
             if (slotsAvailable <= 0)
             {
@@ -276,8 +300,8 @@ namespace Lithforge.Runtime.Scheduling
 
                 GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
 
-                // Schedule border extraction jobs on worker threads (Burst-compiled)
-                JobHandle borderDependency = ScheduleBorderExtractionJobs(chunk.Coord, meshData);
+                // Schedule combined border extraction job on worker thread (Burst-compiled)
+                JobHandle borderDependency = ScheduleBorderExtractionJob(chunk.Coord, meshData);
 
                 GreedyMeshJob meshJob = new GreedyMeshJob
                 {
@@ -384,6 +408,11 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             _pendingDisposals.Clear();
+
+            if (_dummyBorder.IsCreated)
+            {
+                _dummyBorder.Dispose();
+            }
         }
 
         /// <summary>
@@ -427,77 +456,57 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Neighbor offset + face direction pairs for border extraction.
-        /// Each entry: (offset to neighbor chunk, face direction to extract from that neighbor).
+        /// Schedules a single Burst-compiled ExtractAllBordersJob that extracts all 6
+        /// border slices from neighboring chunks. Replaces the previous 6 separate
+        /// ExtractSingleBorderJob schedules to reduce scheduling overhead.
+        /// Missing neighbors use _dummyBorder with HasXxx=false to skip extraction.
         /// </summary>
-        private static readonly (int3 Offset, int Face, int OutputIndex)[] s_borderExtractions =
+        private JobHandle ScheduleBorderExtractionJob(int3 coord, GreedyMeshData meshData)
         {
-            (new int3(1, 0, 0),  1, 0), // +X neighbor: extract its -X face
-            (new int3(-1, 0, 0), 0, 1), // -X neighbor: extract its +X face
-            (new int3(0, 1, 0),  3, 2), // +Y neighbor: extract its -Y face
-            (new int3(0, -1, 0), 2, 3), // -Y neighbor: extract its +Y face
-            (new int3(0, 0, 1),  5, 4), // +Z neighbor: extract its -Z face
-            (new int3(0, 0, -1), 4, 5), // -Z neighbor: extract its +Z face
-        };
+            ManagedChunk nPX = GetMeshableNeighbor(coord + new int3(1, 0, 0));
+            ManagedChunk nNX = GetMeshableNeighbor(coord + new int3(-1, 0, 0));
+            ManagedChunk nPY = GetMeshableNeighbor(coord + new int3(0, 1, 0));
+            ManagedChunk nNY = GetMeshableNeighbor(coord + new int3(0, -1, 0));
+            ManagedChunk nPZ = GetMeshableNeighbor(coord + new int3(0, 0, 1));
+            ManagedChunk nNZ = GetMeshableNeighbor(coord + new int3(0, 0, -1));
 
-        /// <summary>
-        /// Schedules up to 6 Burst-compiled ExtractSingleBorderJob jobs on worker threads.
-        /// Returns a combined JobHandle that the GreedyMeshJob must depend on.
-        /// Neighbors that don't exist or aren't generated leave the output zero-initialized (air).
-        /// </summary>
-        private JobHandle ScheduleBorderExtractionJobs(int3 coord, GreedyMeshData meshData)
-        {
-            int handleCount = 0;
-            NativeArray<JobHandle> handles = new NativeArray<JobHandle>(6, Allocator.Temp, NativeArrayOptions.ClearMemory);
-
-            for (int i = 0; i < s_borderExtractions.Length; i++)
+            ExtractAllBordersJob job = new ExtractAllBordersJob
             {
-                int3 neighborCoord = coord + s_borderExtractions[i].Offset;
-                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+                NeighborPosXData = nPX != null ? nPX.Data : _dummyBorder,
+                NeighborNegXData = nNX != null ? nNX.Data : _dummyBorder,
+                NeighborPosYData = nPY != null ? nPY.Data : _dummyBorder,
+                NeighborNegYData = nNY != null ? nNY.Data : _dummyBorder,
+                NeighborPosZData = nPZ != null ? nPZ.Data : _dummyBorder,
+                NeighborNegZData = nNZ != null ? nNZ.Data : _dummyBorder,
 
-                if (neighbor == null || neighbor.State < ChunkState.RelightPending || !neighbor.Data.IsCreated)
-                {
-                    continue;
-                }
+                HasPosX = nPX != null,
+                HasNegX = nNX != null,
+                HasPosY = nPY != null,
+                HasNegY = nNY != null,
+                HasPosZ = nPZ != null,
+                HasNegZ = nNZ != null,
 
-                ExtractSingleBorderJob borderJob = new ExtractSingleBorderJob
-                {
-                    ChunkData = neighbor.Data,
-                    FaceDirection = s_borderExtractions[i].Face,
-                    Output = GetBorderOutput(meshData, s_borderExtractions[i].OutputIndex),
-                };
+                OutputPosX = meshData.NeighborPosX,
+                OutputNegX = meshData.NeighborNegX,
+                OutputPosY = meshData.NeighborPosY,
+                OutputNegY = meshData.NeighborNegY,
+                OutputPosZ = meshData.NeighborPosZ,
+                OutputNegZ = meshData.NeighborNegZ,
+            };
 
-                handles[handleCount] = borderJob.Schedule();
-                handleCount++;
-            }
-
-            JobHandle combined;
-
-            if (handleCount == 0)
-            {
-                combined = default;
-            }
-            else
-            {
-                combined = JobHandle.CombineDependencies(handles);
-            }
-
-            handles.Dispose();
-
-            return combined;
+            return job.Schedule();
         }
 
-        private static NativeArray<StateId> GetBorderOutput(GreedyMeshData meshData, int outputIndex)
+        private ManagedChunk GetMeshableNeighbor(int3 coord)
         {
-            switch (outputIndex)
+            ManagedChunk c = _chunkManager.GetChunk(coord);
+
+            if (c == null || c.State < ChunkState.RelightPending || !c.Data.IsCreated)
             {
-                case 0: return meshData.NeighborPosX;
-                case 1: return meshData.NeighborNegX;
-                case 2: return meshData.NeighborPosY;
-                case 3: return meshData.NeighborNegY;
-                case 4: return meshData.NeighborPosZ;
-                default: return meshData.NeighborNegZ;
+                return null;
             }
+
+            return c;
         }
 
         private struct PendingMesh
