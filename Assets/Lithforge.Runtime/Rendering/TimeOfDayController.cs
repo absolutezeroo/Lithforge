@@ -93,6 +93,21 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>
+        /// Advances time-of-day by the given delta. Called at fixed tick rate
+        /// by TimeOfDayTickAdapter. Visual updates (materials, light) remain
+        /// in Update() at frame rate for smooth interpolation.
+        /// </summary>
+        public void AdvanceTick(float tickDt)
+        {
+            _timeOfDay += tickDt / _dayLengthSeconds;
+
+            if (_timeOfDay >= 1.0f)
+            {
+                _timeOfDay -= 1.0f;
+            }
+        }
+
         private void Update()
         {
             if (_voxelMaterial == null)
@@ -100,13 +115,8 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            // Advance time
-            _timeOfDay += Time.deltaTime / _dayLengthSeconds;
-
-            if (_timeOfDay >= 1.0f)
-            {
-                _timeOfDay -= 1.0f;
-            }
+            // Time advancement now happens in AdvanceTick() at fixed tick rate.
+            // This Update() only applies visual changes (materials, light rotation).
 
             float sunFactor = ComputeSunFactor(_timeOfDay);
 

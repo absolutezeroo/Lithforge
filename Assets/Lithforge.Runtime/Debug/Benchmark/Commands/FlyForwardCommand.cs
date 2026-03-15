@@ -43,7 +43,6 @@ namespace Lithforge.Runtime.Debug.Benchmark
             if (context.PlayerController != null)
             {
                 context.PlayerController.SetFlyMode(true, true, speed);
-                context.PlayerController.enabled = false;
             }
 
             float elapsed = 0f;
@@ -63,11 +62,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 yield return null;
             }
 
-            // Re-enable player controller
-            if (context.PlayerController != null)
-            {
-                context.PlayerController.enabled = true;
-            }
+            // BenchmarkRunner handles ExternallyControlled flag lifecycle
         }
     }
 }

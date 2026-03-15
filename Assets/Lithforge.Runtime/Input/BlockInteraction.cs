@@ -258,20 +258,37 @@ namespace Lithforge.Runtime.Input
                 return;
             }
 
-            // Check if target changed — skip accumulation on the first frame
+            // Check if target changed — reset mining on new block
             if (!_isMining || !_miningBlockCoord.Equals(hit.BlockCoord))
             {
                 StartMining(hit.BlockCoord);
+            }
 
+            // Mining progress accumulation happens in TickMining() at fixed tick rate
+        }
+
+        /// <summary>
+        /// Accumulates mining progress at fixed tick rate. Called by MiningTickAdapter.
+        /// </summary>
+        public void TickMining(float tickDt)
+        {
+            if (!_isMining)
+            {
                 return;
             }
 
-            // Accumulate mining progress
-            _miningProgress += Time.deltaTime;
+            Mouse mouse = Mouse.current;
+
+            if (mouse == null || !mouse.leftButton.isPressed)
+            {
+                return;
+            }
+
+            _miningProgress += tickDt;
 
             if (_miningProgress >= _miningRequiredTime)
             {
-                BreakBlock(hit.BlockCoord);
+                BreakBlock(_miningBlockCoord);
                 ResetMining();
             }
         }

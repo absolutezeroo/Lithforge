@@ -1,52 +1,27 @@
-using Lithforge.Physics;
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Tick;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
-using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Lithforge.Runtime.Input
 {
     /// <summary>
-    /// Player movement controller with gravity and voxel collision.
-    /// Uses VoxelCollider for AABB-vs-grid collision resolution.
-    /// Position represents the player's feet (bottom-center of hitbox).
-    /// Camera is a child object offset to eye height.
-    /// Supports fly mode (F key) with scroll-wheel speed control
-    /// and toggleable noclip (N key) while flying.
+    /// Player movement controller. After SetPhysicsBody() is called, this MonoBehaviour
+    /// becomes a thin passthrough shell — all physics runs in PlayerPhysicsBody at fixed
+    /// tick rate. The MonoBehaviour is retained for scene wiring compatibility.
     /// </summary>
     public sealed class PlayerController : MonoBehaviour
     {
-        private float _walkSpeed;
-        private float _sprintSpeed;
-        private float _gravity;
-        private float _maxFallSpeed;
-        private float _jumpSpeed;
-        private float _playerHalfWidth;
-        private float _playerHeight;
-
-        private ChunkManager _chunkManager;
-        private NativeStateRegistry _nativeStateRegistry;
         private GameLoop _gameLoop;
-        private float _verticalSpeed;
-        private bool _onGround;
-
-        // Fly mode state
-        private bool _flyMode;
-        private bool _noclip;
-        private float _flySpeed = 10f;
-
-        private const float MinFlySpeed = 1f;
-        private const float MaxFlySpeed = 150f;
-        private const float FlySpeedScrollFactor = 1.2f;
+        private PlayerPhysicsBody _physicsBody;
 
         /// <summary>
         /// True if the player is standing on solid ground.
         /// </summary>
         public bool OnGround
         {
-            get { return _onGround; }
+            get { return _physicsBody != null ? _physicsBody.OnGround : false; }
         }
 
         /// <summary>
@@ -54,7 +29,7 @@ namespace Lithforge.Runtime.Input
         /// </summary>
         public bool IsFlying
         {
-            get { return _flyMode; }
+            get { return _physicsBody != null ? _physicsBody.IsFlying : false; }
         }
 
         /// <summary>
@@ -62,7 +37,7 @@ namespace Lithforge.Runtime.Input
         /// </summary>
         public bool IsNoclip
         {
-            get { return _noclip; }
+            get { return _physicsBody != null ? _physicsBody.IsNoclip : false; }
         }
 
         /// <summary>
@@ -70,7 +45,7 @@ namespace Lithforge.Runtime.Input
         /// </summary>
         public float FlySpeed
         {
-            get { return _flySpeed; }
+            get { return _physicsBody != null ? _physicsBody.FlySpeed : 10f; }
         }
 
         /// <summary>
@@ -79,14 +54,9 @@ namespace Lithforge.Runtime.Input
         /// </summary>
         public void SetFlyMode(bool fly, bool noclip, float speed)
         {
-            _flyMode = fly;
-            _noclip = fly && noclip;
-            _flySpeed = Mathf.Clamp(speed, MinFlySpeed, MaxFlySpeed);
-            _verticalSpeed = 0f;
-
-            if (fly)
+            if (_physicsBody != null)
             {
-                _onGround = false;
+                _physicsBody.SetFlyMode(fly, noclip, speed);
             }
         }
 
@@ -96,245 +66,25 @@ namespace Lithforge.Runtime.Input
             GameLoop gameLoop,
             PhysicsSettings physics)
         {
-            _chunkManager = chunkManager;
-            _nativeStateRegistry = nativeStateRegistry;
             _gameLoop = gameLoop;
-            _walkSpeed = physics.WalkSpeed;
-            _sprintSpeed = physics.SprintSpeed;
-            _gravity = physics.Gravity;
-            _maxFallSpeed = physics.MaxFallSpeed;
-            _jumpSpeed = physics.JumpVelocity;
-            _playerHalfWidth = physics.PlayerHalfWidth;
-            _playerHeight = physics.PlayerHeight;
-
         }
 
-        private void Update()
+        /// <summary>
+        /// Wires the physics body and disables this MonoBehaviour's Update().
+        /// All movement now runs through PlayerPhysicsBody at fixed tick rate.
+        /// </summary>
+        public void SetPhysicsBody(PlayerPhysicsBody body)
         {
-            if (_chunkManager == null)
-            {
-                return;
-            }
-
-            // Wait for spawn chunks to be generated before allowing movement
-            if (_gameLoop != null && !_gameLoop.SpawnReady)
-            {
-                return;
-            }
-
-            Keyboard keyboard = Keyboard.current;
-
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            if (Cursor.lockState != CursorLockMode.Locked)
-            {
-                return;
-            }
-
-            // Toggle fly mode
-            if (keyboard.fKey.wasPressedThisFrame)
-            {
-                _flyMode = !_flyMode;
-                _verticalSpeed = 0f;
-
-                if (_flyMode)
-                {
-                    _onGround = false;
-                }
-                else
-                {
-                    _noclip = false;
-                }
-            }
-
-            // Toggle noclip (only while flying)
-            if (keyboard.nKey.wasPressedThisFrame && _flyMode)
-            {
-                _noclip = !_noclip;
-            }
-
-            // Fly speed adjustment via scroll wheel
-            if (_flyMode)
-            {
-                Mouse mouse = Mouse.current;
-
-                if (mouse != null)
-                {
-                    float scroll = mouse.scroll.ReadValue().y;
-
-                    if (scroll > 0.1f)
-                    {
-                        _flySpeed = Mathf.Clamp(_flySpeed * FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
-                    }
-                    else if (scroll < -0.1f)
-                    {
-                        _flySpeed = Mathf.Clamp(_flySpeed / FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
-                    }
-                }
-            }
-
-            float dt = Time.deltaTime;
-
-            if (_flyMode)
-            {
-                UpdateFlyMode(keyboard, dt);
-            }
-            else
-            {
-                UpdateWalkMode(keyboard, dt);
-            }
+            _physicsBody = body;
+            enabled = false;
         }
 
-        private void UpdateWalkMode(Keyboard keyboard, float dt)
+        /// <summary>
+        /// Returns the physics body for direct access by GameLoop/Bootstrap.
+        /// </summary>
+        public PlayerPhysicsBody PhysicsBody
         {
-            // Clamp dt to prevent physics explosion during lag spikes
-            float clampedDt = math.min(dt, 0.05f);
-
-            // Compute horizontal displacement from input
-            float3 displacement = ComputeHorizontalDisplacement(keyboard, clampedDt, _walkSpeed, _sprintSpeed);
-
-            // Apply gravity to vertical speed (blocks/sec, persistent across frames)
-            _verticalSpeed += _gravity * clampedDt;
-
-            if (_verticalSpeed < _maxFallSpeed)
-            {
-                _verticalSpeed = _maxFallSpeed;
-            }
-
-            // Jump
-            if (keyboard.spaceKey.wasPressedThisFrame && _onGround)
-            {
-                _verticalSpeed = _jumpSpeed;
-                _onGround = false;
-            }
-
-            // Vertical displacement from accumulated vertical speed
-            displacement.y = _verticalSpeed * clampedDt;
-
-            // Resolve collision
-            float3 position = new float3(
-                transform.position.x,
-                transform.position.y,
-                transform.position.z);
-
-            SolidBlockQuery query = SolidBlockHelper.Build(
-                position, displacement, _playerHalfWidth, _playerHeight,
-                _chunkManager, _nativeStateRegistry);
-            CollisionResult result = VoxelCollider.Resolve(
-                ref position,
-                ref displacement,
-                _playerHalfWidth,
-                _playerHeight,
-                query);
-            query.SolidMap.Dispose();
-
-            _onGround = result.OnGround;
-
-            // Reset vertical speed on ground or ceiling hit
-            if (result.OnGround && _verticalSpeed < 0f)
-            {
-                _verticalSpeed = 0f;
-            }
-
-            if (result.HitCeiling && _verticalSpeed > 0f)
-            {
-                _verticalSpeed = 0f;
-            }
-
-            transform.position = new Vector3(position.x, position.y, position.z);
+            get { return _physicsBody; }
         }
-
-        private void UpdateFlyMode(Keyboard keyboard, float dt)
-        {
-            // Clamp dt to prevent physics explosion during lag spikes
-            float clampedDt = math.min(dt, 0.05f);
-
-            // Horizontal movement (yaw-relative, same as walk)
-            float3 displacement = ComputeHorizontalDisplacement(keyboard, clampedDt, _flySpeed, _flySpeed);
-
-            // Vertical: Space = ascend, Shift = descend
-            if (keyboard.spaceKey.isPressed)
-            {
-                displacement.y += _flySpeed * clampedDt;
-            }
-
-            if (keyboard.leftShiftKey.isPressed)
-            {
-                displacement.y -= _flySpeed * clampedDt;
-            }
-
-            float3 position = new float3(
-                transform.position.x,
-                transform.position.y,
-                transform.position.z);
-
-            if (_noclip)
-            {
-                // No collision — apply displacement directly
-                position += displacement;
-            }
-            else
-            {
-                // Fly with collision
-                SolidBlockQuery query = SolidBlockHelper.Build(
-                    position, displacement, _playerHalfWidth, _playerHeight,
-                    _chunkManager, _nativeStateRegistry);
-                CollisionResult result = VoxelCollider.Resolve(
-                    ref position,
-                    ref displacement,
-                    _playerHalfWidth,
-                    _playerHeight,
-                    query);
-                query.SolidMap.Dispose();
-
-                _onGround = result.OnGround;
-            }
-
-            transform.position = new Vector3(position.x, position.y, position.z);
-        }
-
-        private float3 ComputeHorizontalDisplacement(Keyboard keyboard, float dt, float normalSpeed, float fastSpeed)
-        {
-            float speed = keyboard.leftShiftKey.isPressed ? fastSpeed : normalSpeed;
-
-            // Horizontal movement relative to player facing direction (yaw only)
-            float3 forward = new float3(transform.forward.x, 0f, transform.forward.z);
-            forward = math.normalizesafe(forward);
-            float3 right = new float3(transform.right.x, 0f, transform.right.z);
-            right = math.normalizesafe(right);
-
-            float3 moveDir = float3.zero;
-
-            if (keyboard.wKey.isPressed)
-            {
-                moveDir += forward;
-            }
-
-            if (keyboard.sKey.isPressed)
-            {
-                moveDir -= forward;
-            }
-
-            if (keyboard.dKey.isPressed)
-            {
-                moveDir += right;
-            }
-
-            if (keyboard.aKey.isPressed)
-            {
-                moveDir -= right;
-            }
-
-            if (math.lengthsq(moveDir) > 0.001f)
-            {
-                moveDir = math.normalize(moveDir);
-            }
-
-            return new float3(moveDir.x * speed * dt, 0f, moveDir.z * speed * dt);
-        }
-
     }
 }

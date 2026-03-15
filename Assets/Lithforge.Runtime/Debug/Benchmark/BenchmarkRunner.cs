@@ -498,13 +498,13 @@ namespace Lithforge.Runtime.Debug.Benchmark
             FrameProfiler.Enabled = true;
             PipelineStats.Enabled = true;
 
-            // Disable player controller to prevent input interference
-            bool wasPlayerEnabled = false;
+            // Disable tick-driven physics so benchmark commands can move the player directly.
+            Tick.PlayerPhysicsBody physicsBody = _playerController != null
+                ? _playerController.PhysicsBody : null;
 
-            if (_playerController != null)
+            if (physicsBody != null)
             {
-                wasPlayerEnabled = _playerController.enabled;
-                _playerController.enabled = false;
+                physicsBody.ExternallyControlled = true;
             }
 
             int totalRecordedFrames = 0;
@@ -590,10 +590,15 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
             }
 
-            // Re-enable player
-            if (_playerController != null)
+            // Re-enable tick-driven physics and sync position back
+            if (physicsBody != null)
             {
-                _playerController.enabled = wasPlayerEnabled;
+                Unity.Mathematics.float3 finalPos = new Unity.Mathematics.float3(
+                    _context.PlayerTransform.position.x,
+                    _context.PlayerTransform.position.y,
+                    _context.PlayerTransform.position.z);
+                physicsBody.Teleport(finalPos);
+                physicsBody.ExternallyControlled = false;
             }
 
             // Build result
@@ -951,9 +956,12 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _running = false;
             _activeCoroutine = null;
 
-            if (_playerController != null)
+            Tick.PlayerPhysicsBody physicsBody = _playerController != null
+                ? _playerController.PhysicsBody : null;
+
+            if (physicsBody != null)
             {
-                _playerController.enabled = true;
+                physicsBody.ExternallyControlled = false;
             }
         }
     }

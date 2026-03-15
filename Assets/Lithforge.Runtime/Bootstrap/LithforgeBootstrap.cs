@@ -428,6 +428,7 @@ namespace Lithforge.Runtime.Bootstrap
             Material armBaseMaterialRef = null;
             Material armOverlayMaterialRef = null;
             Material heldItemMaterialRef = null;
+            Tick.TickRegistry tickRegistryRef = null;
             bool hasRestoredState = false;
             float restoredTimeOfDay = 0f;
 
@@ -803,6 +804,30 @@ namespace Lithforge.Runtime.Bootstrap
                     playerInventory);
                 _autoSaveManager.SetAsyncSaver(_asyncChunkSaver);
                 _gameLoop.SetAutoSaveManager(_autoSaveManager);
+
+                // Initialize fixed tick rate system (30 TPS)
+                Unity.Mathematics.float3 startPos = new Unity.Mathematics.float3(
+                    playerObject.transform.position.x,
+                    playerObject.transform.position.y,
+                    playerObject.transform.position.z);
+
+                Tick.PlayerPhysicsBody physicsBody = new Tick.PlayerPhysicsBody(
+                    startPos,
+                    playerObject.transform,
+                    _chunkManager,
+                    _contentResult.NativeStateRegistry,
+                    _settings.Physics);
+
+                playerController.SetPhysicsBody(physicsBody);
+
+                Tick.PlayerInputLatch inputLatch = new Tick.PlayerInputLatch();
+
+                tickRegistryRef = new Tick.TickRegistry();
+                tickRegistryRef.Register(new Tick.MiningTickAdapter(blockInteraction));
+                tickRegistryRef.Register(new Tick.BlockEntityTickAdapter(blockEntityTickScheduler));
+
+                _gameLoop.SetTickSystems(
+                    tickRegistryRef, inputLatch, physicsBody, playerObject.transform);
             }
 
             // Initialize day/night cycle
@@ -827,6 +852,12 @@ namespace Lithforge.Runtime.Bootstrap
                 _timeOfDayController.RegisterMaterial(armBaseMaterialRef);
                 _timeOfDayController.RegisterMaterial(armOverlayMaterialRef);
                 _timeOfDayController.RegisterMaterial(heldItemMaterialRef);
+
+                // Register time-of-day adapter in the fixed tick loop
+                if (tickRegistryRef != null)
+                {
+                    tickRegistryRef.Register(new Tick.TimeOfDayTickAdapter(_timeOfDayController));
+                }
 
                 // Initialize procedural sky
                 _skyController = gameObject.AddComponent<SkyController>();

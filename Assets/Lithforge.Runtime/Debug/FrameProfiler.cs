@@ -27,7 +27,8 @@ namespace Lithforge.Runtime.Debug
         public const int Render = 11;
         public const int UpdateTotal = 12;
         public const int Frame = 13;
-        public const int SectionCount = 14;
+        public const int TickLoop = 14;
+        public const int SectionCount = 15;
 
         /// <summary>Number of frames stored in the rolling history buffer.</summary>
         public const int HistorySize = 300;
@@ -49,6 +50,7 @@ namespace Lithforge.Runtime.Debug
             "Render",
             "UpdateTotal",
             "Frame",
+            "TickLoop",
         };
 
         public static bool Enabled;

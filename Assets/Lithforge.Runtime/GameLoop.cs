@@ -8,6 +8,7 @@ using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
+using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
@@ -43,6 +44,13 @@ namespace Lithforge.Runtime
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private float _unloadBudgetMs;
         private bool _initialized;
+
+        // Fixed tick rate system
+        private TickAccumulator _tickAccumulator;
+        private TickRegistry _tickRegistry;
+        private PlayerInputLatch _playerInputLatch;
+        private PlayerPhysicsBody _playerPhysicsBody;
+        private Transform _playerTransform;
 
         public int PendingGenerationCount
         {
@@ -197,12 +205,26 @@ namespace Lithforge.Runtime
 
         /// <summary>
         /// Sets the MetricsRegistry for per-frame diagnostic aggregation.
-        /// CommitFrame() is called at the end of Update, after all systems have incremented
-        /// PipelineStats counters and all FrameProfiler sections have been closed.
+        /// CommitFrame() is called at the end of Update, after all systems have run.
         /// </summary>
         public void SetMetricsRegistry(Debug.MetricsRegistry metricsRegistry)
         {
             _metricsRegistry = metricsRegistry;
+        }
+
+        /// <summary>
+        /// Wires the fixed tick rate systems. Must be called after Initialize.
+        /// </summary>
+        public void SetTickSystems(
+            TickRegistry tickRegistry,
+            PlayerInputLatch playerInputLatch,
+            PlayerPhysicsBody playerPhysicsBody,
+            Transform playerTransform)
+        {
+            _tickRegistry = tickRegistry;
+            _playerInputLatch = playerInputLatch;
+            _playerPhysicsBody = playerPhysicsBody;
+            _playerTransform = playerTransform;
         }
 
         private void Update()
@@ -217,17 +239,48 @@ namespace Lithforge.Runtime
 
             FrameProfiler.Begin(FrameProfiler.UpdateTotal);
 
+            // ── Fixed tick accumulator ──
+            if (_tickRegistry != null)
+            {
+                FrameProfiler.Begin(FrameProfiler.TickLoop);
+                Profiler.BeginSample("GL.TickLoop");
+
+                // Update spawn-ready flag on physics body
+                if (_playerPhysicsBody != null)
+                {
+                    _playerPhysicsBody.SpawnReady = SpawnReady;
+                }
+
+                // Latch edge-triggered inputs before the tick loop
+                _playerInputLatch.LatchFrame();
+
+                _tickAccumulator.Accumulate(Time.deltaTime);
+
+                while (_tickAccumulator.ShouldTick)
+                {
+                    InputLatchSnapshot latch = _playerInputLatch.ConsumeTick();
+
+                    if (_playerPhysicsBody != null)
+                    {
+                        _playerPhysicsBody.TickWithLatch(
+                            FixedTickRate.TickDeltaTime, in latch);
+                    }
+
+                    _tickRegistry.TickAll(FixedTickRate.TickDeltaTime);
+
+                    _tickAccumulator.ConsumeOneTick();
+                }
+
+                Profiler.EndSample();
+                FrameProfiler.End(FrameProfiler.TickLoop);
+            }
+
+            // ── Async pipeline poll ──
             Profiler.BeginSample("GL.PollGen");
             FrameProfiler.Begin(FrameProfiler.PollGen);
             _generationScheduler.PollCompleted();
             FrameProfiler.End(FrameProfiler.PollGen);
             Profiler.EndSample();
-
-            // Tick block entities before polling mesh results
-            if (_blockEntityTickScheduler != null)
-            {
-                _blockEntityTickScheduler.Tick(Time.deltaTime);
-            }
 
             Profiler.BeginSample("GL.PollRelight");
             _relightScheduler.PollCompleted();
@@ -245,6 +298,7 @@ namespace Lithforge.Runtime
             FrameProfiler.End(FrameProfiler.PollLOD);
             Profiler.EndSample();
 
+            // ── Frustum + load/unload ──
             int3 cameraChunkCoord = GetCameraChunkCoord();
 
             _culling.UpdateFrustum(_mainCamera);
@@ -287,6 +341,7 @@ namespace Lithforge.Runtime
             FrameProfiler.End(FrameProfiler.Unload);
             Profiler.EndSample();
 
+            // ── Schedule jobs ──
             Profiler.BeginSample("GL.SchedGen");
             FrameProfiler.Begin(FrameProfiler.SchedGen);
             _generationScheduler.ScheduleJobs();
@@ -346,6 +401,19 @@ namespace Lithforge.Runtime
             if (!_initialized)
             {
                 return;
+            }
+
+            // Apply interpolated player position for smooth rendering.
+            // Skip when externally controlled (e.g. BenchmarkRunner moves transform directly).
+            if (_playerPhysicsBody != null && _playerTransform != null
+                && !_playerPhysicsBody.ExternallyControlled)
+            {
+                float alpha = _tickAccumulator.Alpha;
+                float3 interpPos = math.lerp(
+                    _playerPhysicsBody.PreviousPosition,
+                    _playerPhysicsBody.CurrentPosition,
+                    alpha);
+                _playerTransform.position = new Vector3(interpPos.x, interpPos.y, interpPos.z);
             }
 
             FrameProfiler.Begin(FrameProfiler.Render);
