@@ -16,12 +16,6 @@ MonoBehaviour:
   showChunkBorders: 0
   verboseContentLoading: 1
   enableProfiling: 1
-  fpsSampleInterval: 0.5
-  benchmarkFlySpeed: 150
-  benchmarkDuration: 30
-  overlayBackgroundAlpha: 0.6
-  overlayMinFontSize: 18
-  overlayScreenDivisor: 50
-  overlayPanelWidth: 420
-  overlayPadding: 8
-  overlayLineSpacing: 6
+  fpsAlpha: 0.1
+  defaultBenchmarkScenario: {fileID: 11400000, guid: 80517ec3ce27e514ab980af455287464, type: 2}
+  chunkBorderRadius: 4

@@ -37,7 +37,9 @@
       "WebFetch(domain:wiki.bedrock.dev)",
       "WebFetch(domain:forge.gemwire.uk)",
       "WebFetch(domain:mappings.xhyrom.dev)",
-      "WebFetch(domain:www.curseforge.com)"
+      "WebFetch(domain:www.curseforge.com)",
+      "mcp__UnityMCP__batch_execute",
+      "mcp__UnityMCP__manage_scriptable_object"
     ]
   }
 }
