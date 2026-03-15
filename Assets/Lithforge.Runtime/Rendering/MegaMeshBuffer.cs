@@ -834,7 +834,7 @@ namespace Lithforge.Runtime.Rendering
                 {
                     DirtyRange r = _ranges[i];
 
-                    if (r.Start <= end && r.End >= start)
+                    if (r.Start <= mergedEnd && r.End >= mergedStart)
                     {
                         mergedStart = math.min(mergedStart, r.Start);
                         mergedEnd = math.max(mergedEnd, r.End);
