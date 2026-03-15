@@ -152,6 +152,13 @@ namespace Lithforge.Runtime.Debug
             _current.GenCompleteMaxMs = PipelineStats.GenCompleteMaxMs;
             _current.GenCompleteStalls = PipelineStats.GenCompleteStalls;
 
+            // SchedMesh sub-timings
+            _current.SchedMeshFillMs = PipelineStats.SchedMeshFillMs;
+            _current.SchedMeshFilterMs = PipelineStats.SchedMeshFilterMs;
+            _current.SchedMeshAllocMs = PipelineStats.SchedMeshAllocMs;
+            _current.SchedMeshScheduleMs = PipelineStats.SchedMeshScheduleMs;
+            _current.SchedMeshFlushMs = PipelineStats.SchedMeshFlushMs;
+
             // PipelineStats — cumulative
             _current.TotalGenerated = PipelineStats.TotalGenerated;
             _current.TotalMeshed = PipelineStats.TotalMeshed;

@@ -46,6 +46,13 @@ namespace Lithforge.Runtime.Debug
         public float GenCompleteMaxMs;
         public int GenCompleteStalls;
 
+        // --- SchedMesh sub-timings ---
+        public float SchedMeshFillMs;
+        public float SchedMeshFilterMs;
+        public float SchedMeshAllocMs;
+        public float SchedMeshScheduleMs;
+        public float SchedMeshFlushMs;
+
         // --- Cumulative pipeline counters ---
         public int TotalGenerated;
         public int TotalMeshed;

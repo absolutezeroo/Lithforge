@@ -40,6 +40,14 @@ namespace Lithforge.Runtime.Debug
         public static float PollMeshIterateMs;
         public static float PollMeshFirstIsCompletedMs;
 
+        // --- SchedMesh sub-timings (instrumentation for bottleneck isolation) ---
+
+        public static float SchedMeshFillMs;
+        public static float SchedMeshFilterMs;
+        public static float SchedMeshAllocMs;
+        public static float SchedMeshScheduleMs;
+        public static float SchedMeshFlushMs;
+
         // --- Previous-frame GC counts for delta computation ---
 
         private static int s_prevGc0;
@@ -113,6 +121,11 @@ namespace Lithforge.Runtime.Debug
             PollMeshUploadMs = 0f;
             PollMeshIterateMs = 0f;
             PollMeshFirstIsCompletedMs = 0f;
+            SchedMeshFillMs = 0f;
+            SchedMeshFilterMs = 0f;
+            SchedMeshAllocMs = 0f;
+            SchedMeshScheduleMs = 0f;
+            SchedMeshFlushMs = 0f;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

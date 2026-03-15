@@ -64,6 +64,11 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private int[] _gcGen0;
         private int[] _gcGen1;
         private int[] _gcGen2;
+        private float[] _schedMeshFillMs;
+        private float[] _schedMeshFilterMs;
+        private float[] _schedMeshAllocMs;
+        private float[] _schedMeshScheduleMs;
+        private float[] _schedMeshFlushMs;
 
         // Results display
         private string _lastSummary;
@@ -366,6 +371,11 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _gcGen0 = new int[capacity];
             _gcGen1 = new int[capacity];
             _gcGen2 = new int[capacity];
+            _schedMeshFillMs = new float[capacity];
+            _schedMeshFilterMs = new float[capacity];
+            _schedMeshAllocMs = new float[capacity];
+            _schedMeshScheduleMs = new float[capacity];
+            _schedMeshFlushMs = new float[capacity];
         }
 
         private void Update()
@@ -583,6 +593,11 @@ namespace Lithforge.Runtime.Debug.Benchmark
                     _gcGen0[f] = snap.GcGen0;
                     _gcGen1[f] = snap.GcGen1;
                     _gcGen2[f] = snap.GcGen2;
+                    _schedMeshFillMs[f] = snap.SchedMeshFillMs;
+                    _schedMeshFilterMs[f] = snap.SchedMeshFilterMs;
+                    _schedMeshAllocMs[f] = snap.SchedMeshAllocMs;
+                    _schedMeshScheduleMs[f] = snap.SchedMeshScheduleMs;
+                    _schedMeshFlushMs[f] = snap.SchedMeshFlushMs;
 
                     totalRecordedFrames++;
                 }
@@ -675,6 +690,26 @@ namespace Lithforge.Runtime.Debug.Benchmark
             Array.Copy(_gcGen2, newGcGen2, _capacity);
             _gcGen2 = newGcGen2;
 
+            float[] newSchedMeshFillMs = new float[newCapacity];
+            Array.Copy(_schedMeshFillMs, newSchedMeshFillMs, _capacity);
+            _schedMeshFillMs = newSchedMeshFillMs;
+
+            float[] newSchedMeshFilterMs = new float[newCapacity];
+            Array.Copy(_schedMeshFilterMs, newSchedMeshFilterMs, _capacity);
+            _schedMeshFilterMs = newSchedMeshFilterMs;
+
+            float[] newSchedMeshAllocMs = new float[newCapacity];
+            Array.Copy(_schedMeshAllocMs, newSchedMeshAllocMs, _capacity);
+            _schedMeshAllocMs = newSchedMeshAllocMs;
+
+            float[] newSchedMeshScheduleMs = new float[newCapacity];
+            Array.Copy(_schedMeshScheduleMs, newSchedMeshScheduleMs, _capacity);
+            _schedMeshScheduleMs = newSchedMeshScheduleMs;
+
+            float[] newSchedMeshFlushMs = new float[newCapacity];
+            Array.Copy(_schedMeshFlushMs, newSchedMeshFlushMs, _capacity);
+            _schedMeshFlushMs = newSchedMeshFlushMs;
+
             _capacity = newCapacity;
         }
 
@@ -696,6 +731,11 @@ namespace Lithforge.Runtime.Debug.Benchmark
             result.GcGen0 = _gcGen0;
             result.GcGen1 = _gcGen1;
             result.GcGen2 = _gcGen2;
+            result.SchedMeshFillMs = _schedMeshFillMs;
+            result.SchedMeshFilterMs = _schedMeshFilterMs;
+            result.SchedMeshAllocMs = _schedMeshAllocMs;
+            result.SchedMeshScheduleMs = _schedMeshScheduleMs;
+            result.SchedMeshFlushMs = _schedMeshFlushMs;
 
             if (totalFrames == 0)
             {

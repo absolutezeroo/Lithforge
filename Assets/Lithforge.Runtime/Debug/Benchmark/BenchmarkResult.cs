@@ -53,5 +53,12 @@ namespace Lithforge.Runtime.Debug.Benchmark
         public int[] GcGen0;
         public int[] GcGen1;
         public int[] GcGen2;
+
+        // SchedMesh sub-timings (per-frame ms)
+        public float[] SchedMeshFillMs;
+        public float[] SchedMeshFilterMs;
+        public float[] SchedMeshAllocMs;
+        public float[] SchedMeshScheduleMs;
+        public float[] SchedMeshFlushMs;
     }
 }

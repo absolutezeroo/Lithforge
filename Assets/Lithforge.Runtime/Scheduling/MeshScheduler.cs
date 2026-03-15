@@ -254,11 +254,16 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             Profiler.BeginSample("MS.ScheduleJobs");
+            long freq = System.Diagnostics.Stopwatch.Frequency;
 
-            // Request extra candidates when filtering, since some will be filtered by LOD
+            // ── Fill candidates ──
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             int candidateCount = applyFilters ? slotsAvailable * 2 : slotsAvailable;
             _chunkManager.FillChunksToMesh(_meshCandidateCache, candidateCount);
+            long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PipelineStats.SchedMeshFillMs = (float)((t1 - t0) * 1000.0 / freq);
 
+            // ── Filter + sort ──
             if (applyFilters)
             {
                 // Remove non-LOD0 chunks (LOD chunks are handled by LODScheduler)
@@ -287,10 +292,17 @@ namespace Lithforge.Runtime.Scheduling
                 }
             }
 
+            long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PipelineStats.SchedMeshFilterMs = (float)((t2 - t1) * 1000.0 / freq);
+
             // Schedule up to slotsAvailable from the prioritized list
             int scheduleCount = _meshCandidateCache.Count < slotsAvailable
                 ? _meshCandidateCache.Count
                 : slotsAvailable;
+
+            // ── Alloc + Schedule loop ──
+            float allocAccum = 0f;
+            float schedAccum = 0f;
 
             for (int i = 0; i < scheduleCount; i++)
             {
@@ -298,9 +310,13 @@ namespace Lithforge.Runtime.Scheduling
 
                 chunk.State = ChunkState.Meshing;
 
+                long ta0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
+                long ta1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                allocAccum += (float)((ta1 - ta0) * 1000.0 / freq);
 
                 // Schedule combined border extraction job on worker thread (Burst-compiled)
+                long ts0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 JobHandle borderDependency = ScheduleBorderExtractionJob(chunk.Coord, meshData);
 
                 GreedyMeshJob meshJob = new GreedyMeshJob
@@ -325,6 +341,9 @@ namespace Lithforge.Runtime.Scheduling
                 };
 
                 JobHandle meshHandle = meshJob.Schedule(borderDependency);
+                long ts1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                schedAccum += (float)((ts1 - ts0) * 1000.0 / freq);
+
                 chunk.ActiveJobHandle = meshHandle;
 
                 _pendingMeshes.Add(new PendingMesh
@@ -337,10 +356,19 @@ namespace Lithforge.Runtime.Scheduling
                 PipelineStats.IncrMeshScheduled();
             }
 
+            PipelineStats.SchedMeshAllocMs = allocAccum;
+            PipelineStats.SchedMeshScheduleMs = schedAccum;
+
+            // ── Flush ──
+            long tf0 = System.Diagnostics.Stopwatch.GetTimestamp();
+
             if (scheduleCount > 0)
             {
                 JobHandle.ScheduleBatchedJobs();
             }
+
+            long tf1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PipelineStats.SchedMeshFlushMs = (float)((tf1 - tf0) * 1000.0 / freq);
 
             Profiler.EndSample();
         }
