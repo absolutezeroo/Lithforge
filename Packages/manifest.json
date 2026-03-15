@@ -7,6 +7,7 @@
     "com.lithforge.physics"
   ],
   "dependencies": {
+    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.unity.ai.navigation": "2.0.11",
     "com.unity.burst": "1.8.28",
     "com.unity.collab-proxy": "2.11.4",
