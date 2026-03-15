@@ -5,6 +5,8 @@ namespace Lithforge.Runtime.Scheduling
     /// <summary>
     /// Derives all scheduling parameters from renderDistance.
     /// Single source of truth — no hardcoded constants elsewhere.
+    /// Generation and mesh scheduling intentionally use the same throughput formula
+    /// so both pipelines advance at the same rate, avoiding one starving the other.
     /// </summary>
     public static class SchedulingConfig
     {

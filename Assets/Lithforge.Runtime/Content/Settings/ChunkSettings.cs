@@ -117,26 +117,6 @@ namespace Lithforge.Runtime.Content.Settings
             get { return spawnLoadRadius; }
         }
 
-        public int MaxGenerationsPerFrame
-        {
-            get { return maxGenerationsPerFrame; }
-        }
-
-        public int MaxMeshesPerFrame
-        {
-            get { return maxMeshesPerFrame; }
-        }
-
-        public int MaxGenCompletionsPerFrame
-        {
-            get { return maxGenCompletionsPerFrame; }
-        }
-
-        public int MaxMeshCompletionsPerFrame
-        {
-            get { return maxMeshCompletionsPerFrame; }
-        }
-
         public int MaxLightUpdatesPerFrame
         {
             get { return maxLightUpdatesPerFrame; }
@@ -160,31 +140,6 @@ namespace Lithforge.Runtime.Content.Settings
         public int YUnloadMax
         {
             get { return yUnloadMax; }
-        }
-
-        public int LOD1Distance
-        {
-            get { return lod1Distance; }
-        }
-
-        public int LOD2Distance
-        {
-            get { return lod2Distance; }
-        }
-
-        public int LOD3Distance
-        {
-            get { return lod3Distance; }
-        }
-
-        public int MaxLODMeshesPerFrame
-        {
-            get { return maxLODMeshesPerFrame; }
-        }
-
-        public int MaxLODCompletionsPerFrame
-        {
-            get { return maxLODCompletionsPerFrame; }
         }
 
         public float GenCompletionBudgetMs
