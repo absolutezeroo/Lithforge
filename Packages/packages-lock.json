@@ -10,6 +10,13 @@
       },
       "hash": "a7c715fb1f2b7741b46f5ee48c70aa3bb1189bd2"
     },
+    "com.cysharp.zstring": {
+      "version": "https://github.com/Cysharp/ZString.git?path=src/ZString.Unity/Assets/Scripts/ZString",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "419759ee3b6bb17a65cba1348c084d41680184ea"
+    },
     "com.lithforge.core": {
       "version": "file:com.lithforge.core",
       "depth": 0,

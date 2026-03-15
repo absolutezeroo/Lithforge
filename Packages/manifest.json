@@ -8,6 +8,7 @@
   ],
   "dependencies": {
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
+    "com.cysharp.zstring": "https://github.com/Cysharp/ZString.git?path=src/ZString.Unity/Assets/Scripts/ZString",
     "com.unity.ai.navigation": "2.0.11",
     "com.unity.burst": "1.8.28",
     "com.unity.collab-proxy": "2.11.4",
