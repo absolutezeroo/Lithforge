@@ -21,24 +21,21 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(1, 8)]
         [SerializeField] private int spawnLoadRadius = 2;
 
-        [
-         Header("Frame Budget")]
-        [Tooltip("Maximum chunk generation jobs scheduled per frame")]
-        [Range(1, 16)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [Header("Frame Budget")]
+        [HideInInspector]
         [SerializeField] private int maxGenerationsPerFrame = 8;
 
-        [
-         Tooltip("Maximum chunk mesh jobs scheduled per frame")]
-        [Range(1, 16)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int maxMeshesPerFrame = 8;
 
-        [
-         Tooltip("Maximum completed generation jobs processed per frame (spreads decoration + light work)")]
-        [Range(1, 32)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int maxGenCompletionsPerFrame = 8;
 
-        [ Tooltip("Maximum completed mesh jobs processed per frame (spreads GPU uploads)")]
-        [Range(1, 32)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int maxMeshCompletionsPerFrame = 8;
 
         [ Tooltip("Maximum cross-chunk light update jobs processed per frame")]
@@ -58,8 +55,8 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(0.1f, 8f)]
         [SerializeField] private float lodCompletionBudgetMs = 1f;
 
-        [Tooltip("Maximum completed LOD mesh jobs processed per frame (secondary cap alongside ms budget)")]
-        [Range(1, 32)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int maxLODCompletionsPerFrame = 4;
 
         [Header("Y Range — Loading")]
@@ -81,21 +78,21 @@ namespace Lithforge.Runtime.Content.Settings
         [Tooltip("Maximum Y chunk offset above which chunks are unloaded")]
         [SerializeField] private int yUnloadMax = 4;
 
+        // Deprecated: now derived from renderDistance via SchedulingConfig
         [Header("LOD")]
-        [Tooltip("Chunk distance (in chunks) at which LOD1 (2x downsample) begins")]
-        [Range(2, 32)]
+        [HideInInspector]
         [SerializeField] private int lod1Distance = 4;
 
-        [Tooltip("Chunk distance (in chunks) at which LOD2 (4x downsample) begins")]
-        [Range(4, 48)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int lod2Distance = 8;
 
-        [Tooltip("Chunk distance (in chunks) at which LOD3 (8x downsample) begins")]
-        [Range(6, 64)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int lod3Distance = 14;
 
-        [Tooltip("Maximum LOD mesh jobs scheduled per frame")]
-        [Range(1, 16)]
+        // Deprecated: now derived from renderDistance via SchedulingConfig
+        [HideInInspector]
         [SerializeField] private int maxLODMeshesPerFrame = 4;
 
         [Header("Spawn")]

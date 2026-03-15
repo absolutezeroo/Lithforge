@@ -32,8 +32,8 @@ namespace Lithforge.Runtime.Scheduling
         private readonly WorldStorage _worldStorage;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly long _seed;
-        private readonly int _maxGenerationsPerFrame;
-        private readonly int _maxGenCompletionsPerFrame;
+        private int _maxGenerationsPerFrame;
+        private int _maxGenCompletionsPerFrame;
         private readonly int _maxLightUpdatesPerFrame;
         private readonly float _completionBudgetMs;
 
@@ -144,6 +144,12 @@ namespace Lithforge.Runtime.Scheduling
             _maxGenCompletionsPerFrame = maxGenCompletionsPerFrame;
             _maxLightUpdatesPerFrame = maxLightUpdatesPerFrame;
             _completionBudgetMs = completionBudgetMs;
+        }
+
+        public void UpdateConfig(int renderDistance)
+        {
+            _maxGenerationsPerFrame = SchedulingConfig.MaxGenerationsPerFrame(renderDistance);
+            _maxGenCompletionsPerFrame = SchedulingConfig.MaxGenCompletionsPerFrame(renderDistance);
         }
 
         public void PollCompleted()

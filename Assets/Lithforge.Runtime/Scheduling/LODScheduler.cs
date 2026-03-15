@@ -26,12 +26,12 @@ namespace Lithforge.Runtime.Scheduling
         private readonly NativeAtlasLookup _nativeAtlasLookup;
         private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
-        private readonly int _maxLODMeshesPerFrame;
-        private readonly int _maxLODCompletionsPerFrame;
+        private int _maxLODMeshesPerFrame;
+        private int _maxLODCompletionsPerFrame;
         private readonly float _completionBudgetMs;
-        private readonly int _lod1Distance;
-        private readonly int _lod2Distance;
-        private readonly int _lod3Distance;
+        private int _lod1Distance;
+        private int _lod2Distance;
+        private int _lod3Distance;
 
         // Reusable caches to avoid per-frame allocation
         private readonly List<ManagedChunk> _readyChunksCache = new List<ManagedChunk>();
@@ -67,6 +67,15 @@ namespace Lithforge.Runtime.Scheduling
             _lod1Distance = lod1Distance;
             _lod2Distance = lod2Distance;
             _lod3Distance = lod3Distance;
+        }
+
+        public void UpdateConfig(int renderDistance)
+        {
+            _maxLODMeshesPerFrame = SchedulingConfig.MaxLODMeshesPerFrame(renderDistance);
+            _maxLODCompletionsPerFrame = SchedulingConfig.MaxLODCompletionsPerFrame(renderDistance);
+            _lod1Distance = SchedulingConfig.LOD1Distance(renderDistance);
+            _lod2Distance = SchedulingConfig.LOD2Distance(renderDistance);
+            _lod3Distance = SchedulingConfig.LOD3Distance(renderDistance);
         }
 
         public void PollCompleted()

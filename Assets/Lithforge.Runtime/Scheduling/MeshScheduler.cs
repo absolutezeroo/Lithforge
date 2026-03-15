@@ -25,8 +25,9 @@ namespace Lithforge.Runtime.Scheduling
         private readonly NativeAtlasLookup _nativeAtlasLookup;
         private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
-        private readonly int _maxMeshesPerFrame;
-        private readonly int _maxMeshCompletionsPerFrame;
+        private int _maxMeshesPerFrame;
+        private int _maxMeshCompletionsPerFrame;
+        private int _throttleThreshold = 16;
         private readonly float _completionBudgetMs;
 
         /// <summary>
@@ -66,6 +67,13 @@ namespace Lithforge.Runtime.Scheduling
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
             _dummyBorder = new NativeArray<StateId>(1, Allocator.Persistent);
+        }
+
+        public void UpdateConfig(int renderDistance)
+        {
+            _maxMeshesPerFrame = SchedulingConfig.MaxMeshesPerFrame(renderDistance);
+            _maxMeshCompletionsPerFrame = SchedulingConfig.MaxMeshCompletionsPerFrame(renderDistance);
+            _throttleThreshold = SchedulingConfig.ThrottleThreshold(renderDistance);
         }
 
         public void PollCompleted()
@@ -237,13 +245,13 @@ namespace Lithforge.Runtime.Scheduling
             // Ramp: 0-16 pending = full budget, 17-31 pending = linear ramp-down, 32+ = minimum 1.
             int effectiveMax;
 
-            if (pendingCount <= 16)
+            if (pendingCount <= _throttleThreshold)
             {
                 effectiveMax = _maxMeshesPerFrame;
             }
             else
             {
-                effectiveMax = math.max(1, _maxMeshesPerFrame - (pendingCount - 16) / 2);
+                effectiveMax = math.max(1, _maxMeshesPerFrame - (pendingCount - _throttleThreshold) / 2);
             }
 
             int slotsAvailable = effectiveMax - math.min(pendingCount, effectiveMax);

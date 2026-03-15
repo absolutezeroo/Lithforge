@@ -15,6 +15,7 @@ using Lithforge.Runtime.Debug.Benchmark;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
+using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Runtime.UI.Screens;
@@ -769,9 +770,10 @@ namespace Lithforge.Runtime.Bootstrap
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement
+                int lod1Dist = SchedulingConfig.LOD1Distance(_settings.Chunk.RenderDistance);
                 UnityEngine.Debug.Assert(
-                    _settings.Chunk.SpawnLoadRadius <= _settings.Chunk.LOD1Distance,
-                    $"[Lithforge] Spawn radius ({_settings.Chunk.SpawnLoadRadius}) exceeds LOD1 distance ({_settings.Chunk.LOD1Distance}). " +
+                    _settings.Chunk.SpawnLoadRadius <= lod1Dist,
+                    $"[Lithforge] Spawn radius ({_settings.Chunk.SpawnLoadRadius}) exceeds LOD1 distance ({lod1Dist}). " +
                     "Spawn area chunks would be LOD-meshed, delaying spawn completion.");
 
                 SpawnManager spawnManager = new SpawnManager(
@@ -874,7 +876,8 @@ namespace Lithforge.Runtime.Bootstrap
                     cameraControllerRef,
                     _timeOfDayController,
                     _chunkMeshStore,
-                    panelSettings);
+                    panelSettings,
+                    _gameLoop.NotifyRenderDistanceChanged);
             }
         }
 

@@ -99,6 +99,8 @@ namespace Lithforge.Runtime
 
             _culling = new ChunkCulling();
 
+            int rd = chunkSettings.RenderDistance;
+
             _generationScheduler = new GenerationScheduler(
                 chunkManager,
                 generationPipeline,
@@ -106,8 +108,8 @@ namespace Lithforge.Runtime
                 worldStorage,
                 nativeStateRegistry,
                 seed,
-                chunkSettings.MaxGenerationsPerFrame,
-                chunkSettings.MaxGenCompletionsPerFrame,
+                SchedulingConfig.MaxGenerationsPerFrame(rd),
+                SchedulingConfig.MaxGenCompletionsPerFrame(rd),
                 chunkSettings.MaxLightUpdatesPerFrame,
                 chunkSettings.GenCompletionBudgetMs);
             _mainCamera = Camera.main;
@@ -118,9 +120,10 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
-                chunkSettings.MaxMeshesPerFrame,
-                chunkSettings.MaxMeshCompletionsPerFrame,
+                SchedulingConfig.MaxMeshesPerFrame(rd),
+                SchedulingConfig.MaxMeshCompletionsPerFrame(rd),
                 chunkSettings.MeshCompletionBudgetMs);
+            _meshScheduler.UpdateConfig(rd);
 
             _relightScheduler = new RelightScheduler(
                 chunkManager,
@@ -132,12 +135,12 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
-                chunkSettings.MaxLODMeshesPerFrame,
-                chunkSettings.MaxLODCompletionsPerFrame,
+                SchedulingConfig.MaxLODMeshesPerFrame(rd),
+                SchedulingConfig.MaxLODCompletionsPerFrame(rd),
                 chunkSettings.LodCompletionBudgetMs,
-                chunkSettings.LOD1Distance,
-                chunkSettings.LOD2Distance,
-                chunkSettings.LOD3Distance);
+                SchedulingConfig.LOD1Distance(rd),
+                SchedulingConfig.LOD2Distance(rd),
+                SchedulingConfig.LOD3Distance(rd));
 
             _initialized = true;
 
@@ -216,6 +219,17 @@ namespace Lithforge.Runtime
         public void SetMetricsRegistry(Debug.MetricsRegistry metricsRegistry)
         {
             _metricsRegistry = metricsRegistry;
+        }
+
+        /// <summary>
+        /// Recalibrates all schedulers when render distance changes at runtime.
+        /// Called by SettingsScreen after SetRenderDistance.
+        /// </summary>
+        public void NotifyRenderDistanceChanged(int renderDistance)
+        {
+            _generationScheduler.UpdateConfig(renderDistance);
+            _meshScheduler.UpdateConfig(renderDistance);
+            _lodScheduler.UpdateConfig(renderDistance);
         }
 
         /// <summary>

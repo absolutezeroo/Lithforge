@@ -27,6 +27,7 @@ namespace Lithforge.Runtime.UI
         private TimeOfDayController _timeOfDayController;
         private ChunkMeshStore _chunkMeshStore;
         private Camera _mainCamera;
+        private System.Action<int> _onRenderDistanceChanged;
 
         // Current values
         private int _renderDistance;
@@ -49,13 +50,15 @@ namespace Lithforge.Runtime.UI
             CameraController cameraController,
             TimeOfDayController timeOfDayController,
             ChunkMeshStore chunkMeshStore,
-            PanelSettings panelSettings)
+            PanelSettings panelSettings,
+            System.Action<int> onRenderDistanceChanged = null)
         {
             _chunkManager = chunkManager;
             _cameraController = cameraController;
             _timeOfDayController = timeOfDayController;
             _chunkMeshStore = chunkMeshStore;
             _mainCamera = Camera.main;
+            _onRenderDistanceChanged = onRenderDistanceChanged;
 
             // Read current values as defaults
             _renderDistance = chunkManager.RenderDistance;
@@ -141,6 +144,7 @@ namespace Lithforge.Runtime.UI
                     _chunkManager.SetRenderDistance(value);
                 }
 
+                _onRenderDistanceChanged?.Invoke(value);
                 PlayerPrefs.SetInt(PrefRenderDistance, value);
             });
 
@@ -416,6 +420,8 @@ namespace Lithforge.Runtime.UI
                 {
                     _chunkManager.SetRenderDistance(_renderDistance);
                 }
+
+                _onRenderDistanceChanged?.Invoke(_renderDistance);
             }
 
             if (PlayerPrefs.HasKey(PrefFOV))
