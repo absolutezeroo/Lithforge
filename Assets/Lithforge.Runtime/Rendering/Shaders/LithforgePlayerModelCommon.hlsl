@@ -52,6 +52,8 @@ PlayerVaryings PlayerVert(uint svVertexID : SV_VertexID)
 
 // Shared first-person lighting: lambert (ndotl * 0.6 + 0.4) with sun factor and ambient.
 // Requires Lighting.hlsl to be included before calling this function.
+// Guarded so depth-only passes (which skip Lighting.hlsl) compile cleanly.
+#ifdef UNIVERSAL_LIGHTING_INCLUDED
 half3 ComputeFirstPersonLighting(half3 albedo, float3 normalWS, float sunLightFactor, float ambientLight)
 {
     Light mainLight = GetMainLight();
@@ -63,5 +65,6 @@ half3 ComputeFirstPersonLighting(half3 albedo, float3 normalWS, float sunLightFa
     half3 ambientColor = albedo * (half)ambientLight;
     return directColor + ambientColor;
 }
+#endif
 
 #endif // LITHFORGE_PLAYER_MODEL_COMMON
