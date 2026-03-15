@@ -21,6 +21,12 @@ namespace Lithforge.Runtime.Player
         private static readonly float3 s_rightLegPivot = new float3(-2f, 12f, 0f) / 16f;
         private static readonly float3 s_leftLegPivot = new float3(2f, 12f, 0f) / 16f;
 
+        // Body offset: shift the model backward (in body-local Z) so the camera sits
+        // at the front of the face (eye position) rather than at the center of the head.
+        // Without this, looking down shows only the body top face ("neck hole").
+        // With it, looking down reveals the body front face (shirt), arms, and legs.
+        private const float BodyBackwardOffset = 0.15f;
+
         // Walk animation parameters
         private const float WalkSwingArmDeg = 40f;
         private const float WalkSwingLegDeg = 45f;
@@ -126,9 +132,15 @@ namespace Lithforge.Runtime.Player
             }
 
             float3 playerPos = ((float3)_playerTransform.position);
+
+            // Body root: position at player feet, rotate by yaw, then shift backward
+            // so the camera (at eye height) sits at the front of the face.
+            // T(playerPos) * RotY(yaw) * T(0, 0, -offset)
             float4x4 bodyRoot = math.mul(
                 float4x4.Translate(playerPos),
-                float4x4.RotateY(math.radians(cameraYaw)));
+                math.mul(
+                    float4x4.RotateY(math.radians(cameraYaw)),
+                    float4x4.Translate(new float3(0f, 0f, -BodyBackwardOffset))));
 
             // Walk swing angles
             float walkSin = math.sin(_walkPhase * math.PI);
