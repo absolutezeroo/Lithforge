@@ -71,8 +71,16 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 csv.AppendLine();
             }
 
-            string path = Path.Combine(outputDir,
-                result.ScenarioName.Replace(' ', '_') + "_" + timestamp + ".csv");
+            string safeName = result.ScenarioName.Replace(' ', '_');
+            
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                safeName = safeName.Replace(c, '_');
+            }
+
+            string path = Path.Combine(outputDir, safeName + "_" + timestamp + ".csv");
+            
+            Directory.CreateDirectory(outputDir);
             File.WriteAllText(path, csv.ToString());
             UnityEngine.Debug.Log("[Benchmark] CSV written to: " + path);
         }
