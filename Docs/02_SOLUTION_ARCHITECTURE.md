@@ -200,7 +200,7 @@ Lithforge/
 │   │   │   ├── CameraController.cs            # mouse look
 │   │   │   ├── FPSCameraController.cs
 │   │   │   ├── BlockInteraction.cs            # progressive mining, placement from inventory
-│   │   │   └── SolidBlockQuery.cs
+│   │   │   └── SolidBlockHelper.cs
 │   │   ├── UI/
 │   │   │   ├── Screens/
 │   │   │   │   ├── ContainerScreen.cs         # abstract base for inventory-style screens

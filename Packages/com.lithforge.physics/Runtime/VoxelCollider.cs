@@ -8,10 +8,43 @@ namespace Lithforge.Physics
     /// Uses swept axis-independent resolution (resolve Y first for ground detection,
     /// then X, then Z) to prevent corner-clipping artifacts.
     ///
-    /// Called on the main thread only — uses managed delegates for block access.
+    /// Two overloads:
+    /// - Func&lt;int3, bool&gt;: main-thread only, managed delegate (legacy).
+    /// - SolidBlockQuery: Burst-compatible struct, ready for future jobification.
     /// </summary>
     public static class VoxelCollider
     {
+        /// <summary>
+        /// Computes the conservative broad-phase AABB bounds for a collision resolve call.
+        /// Includes the step-up region. Use this to pre-fill a <see cref="SolidBlockQuery"/>
+        /// with solidity data before calling <see cref="Resolve(ref float3, ref float3, float, float, SolidBlockQuery)"/>.
+        /// </summary>
+        public static void ComputeBroadPhaseBounds(
+            float3 position,
+            float3 velocity,
+            float halfWidth,
+            float height,
+            out int3 min,
+            out int3 max)
+        {
+            Aabb entityBox = BuildEntityBox(position, halfWidth, height);
+            Aabb broadPhase = entityBox.ExpandByVelocity(velocity);
+            broadPhase = broadPhase.Expand(new float3(0.01f));
+
+            // Include step-up region: step height extends the upper Y bound
+            float3 expandedMax = broadPhase.Max;
+            expandedMax.y += PhysicsConstants.StepHeight;
+
+            min = new int3(
+                (int)math.floor(broadPhase.Min.x),
+                (int)math.floor(broadPhase.Min.y),
+                (int)math.floor(broadPhase.Min.z));
+            max = new int3(
+                (int)math.floor(expandedMax.x),
+                (int)math.floor(expandedMax.y),
+                (int)math.floor(expandedMax.z));
+        }
+
         /// <summary>
         /// Resolves collision between a moving entity AABB and the voxel grid.
         /// Modifies position and velocity in-place, zeroing velocity components
@@ -276,6 +309,269 @@ namespace Lithforge.Physics
                         (int)math.floor(testPos.z));
 
                     if (isSolid(underBlock))
+                    {
+                        position = testPos;
+                        result.HitWall = false;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves collision between a moving entity AABB and the voxel grid.
+        /// Burst-compatible overload using <see cref="SolidBlockQuery"/> instead of a managed delegate.
+        /// Behavior is identical to the Func&lt;int3, bool&gt; overload.
+        /// </summary>
+        /// <param name="position">Entity position (feet position). Modified in-place.</param>
+        /// <param name="velocity">Entity velocity (blocks/frame-delta). Modified in-place.</param>
+        /// <param name="halfWidth">Half-width of the entity hitbox on X and Z.</param>
+        /// <param name="height">Total height of the entity hitbox.</param>
+        /// <param name="query">Burst-compatible solidity lookup for the broad-phase region.</param>
+        /// <returns>Collision result indicating ground, ceiling, and wall contact.</returns>
+        public static CollisionResult Resolve(
+            ref float3 position,
+            ref float3 velocity,
+            float halfWidth,
+            float height,
+            SolidBlockQuery query)
+        {
+            CollisionResult result = new CollisionResult();
+
+            // Build the entity AABB from feet position
+            Aabb entityBox = BuildEntityBox(position, halfWidth, height);
+
+            // Broad phase: expand AABB by velocity to find all potentially colliding blocks
+            Aabb broadPhase = entityBox.ExpandByVelocity(velocity);
+            broadPhase = broadPhase.Expand(new float3(0.01f));
+
+            int minX = (int)math.floor(broadPhase.Min.x);
+            int minY = (int)math.floor(broadPhase.Min.y);
+            int minZ = (int)math.floor(broadPhase.Min.z);
+            int maxX = (int)math.floor(broadPhase.Max.x);
+            int maxY = (int)math.floor(broadPhase.Max.y);
+            int maxZ = (int)math.floor(broadPhase.Max.z);
+
+            // Resolve Y axis first (most important for ground detection).
+            position.y += velocity.y;
+            entityBox = BuildEntityBox(position, halfWidth, height);
+
+            if (velocity.y <= 0f)
+            {
+                for (int bx = minX; bx <= maxX; bx++)
+                {
+                    for (int by = maxY; by >= minY; by--)
+                    {
+                        for (int bz = minZ; bz <= maxZ; bz++)
+                        {
+                            int3 blockCoord = new int3(bx, by, bz);
+
+                            if (!query.IsSolid(blockCoord))
+                            {
+                                continue;
+                            }
+
+                            Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                            if (!entityBox.Intersects(blockBox))
+                            {
+                                continue;
+                            }
+
+                            float correction = blockBox.Max.y - entityBox.Min.y;
+                            position.y += correction;
+                            result.OnGround = true;
+                            velocity.y = 0f;
+                            entityBox = BuildEntityBox(position, halfWidth, height);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int bx = minX; bx <= maxX; bx++)
+                {
+                    for (int by = minY; by <= maxY; by++)
+                    {
+                        for (int bz = minZ; bz <= maxZ; bz++)
+                        {
+                            int3 blockCoord = new int3(bx, by, bz);
+
+                            if (!query.IsSolid(blockCoord))
+                            {
+                                continue;
+                            }
+
+                            Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                            if (!entityBox.Intersects(blockBox))
+                            {
+                                continue;
+                            }
+
+                            float correction = blockBox.Min.y - entityBox.Max.y;
+                            position.y += correction;
+                            result.HitCeiling = true;
+                            velocity.y = 0f;
+                            entityBox = BuildEntityBox(position, halfWidth, height);
+                        }
+                    }
+                }
+            }
+
+            // Save state for step-up
+            float savedVelocityX = velocity.x;
+            float savedVelocityZ = velocity.z;
+            float3 posAfterY = position;
+
+            // Resolve X axis
+            position.x += velocity.x;
+            entityBox = BuildEntityBox(position, halfWidth, height);
+            bool hitWallX = false;
+
+            int bxStart = velocity.x > 0f ? maxX : minX;
+            int bxEnd = velocity.x > 0f ? minX : maxX;
+            int bxStep = velocity.x > 0f ? -1 : 1;
+
+            for (int bx = bxStart; bx != bxEnd + bxStep; bx += bxStep)
+            {
+                for (int by = minY; by <= maxY; by++)
+                {
+                    for (int bz = minZ; bz <= maxZ; bz++)
+                    {
+                        int3 blockCoord = new int3(bx, by, bz);
+
+                        if (!query.IsSolid(blockCoord))
+                        {
+                            continue;
+                        }
+
+                        Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                        if (!entityBox.Intersects(blockBox))
+                        {
+                            continue;
+                        }
+
+                        if (velocity.x > 0f)
+                        {
+                            float correction = blockBox.Min.x - entityBox.Max.x;
+                            position.x += correction;
+                        }
+                        else if (velocity.x < 0f)
+                        {
+                            float correction = blockBox.Max.x - entityBox.Min.x;
+                            position.x += correction;
+                        }
+
+                        velocity.x = 0f;
+                        hitWallX = true;
+                        result.HitWall = true;
+                        entityBox = BuildEntityBox(position, halfWidth, height);
+                    }
+                }
+            }
+
+            // Resolve Z axis
+            position.z += velocity.z;
+            entityBox = BuildEntityBox(position, halfWidth, height);
+            bool hitWallZ = false;
+
+            int bzStart = velocity.z > 0f ? maxZ : minZ;
+            int bzEnd = velocity.z > 0f ? minZ : maxZ;
+            int bzStep = velocity.z > 0f ? -1 : 1;
+
+            for (int bx = minX; bx <= maxX; bx++)
+            {
+                for (int by = minY; by <= maxY; by++)
+                {
+                    for (int bz = bzStart; bz != bzEnd + bzStep; bz += bzStep)
+                    {
+                        int3 blockCoord = new int3(bx, by, bz);
+
+                        if (!query.IsSolid(blockCoord))
+                        {
+                            continue;
+                        }
+
+                        Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                        if (!entityBox.Intersects(blockBox))
+                        {
+                            continue;
+                        }
+
+                        if (velocity.z > 0f)
+                        {
+                            float correction = blockBox.Min.z - entityBox.Max.z;
+                            position.z += correction;
+                        }
+                        else if (velocity.z < 0f)
+                        {
+                            float correction = blockBox.Max.z - entityBox.Min.z;
+                            position.z += correction;
+                        }
+
+                        velocity.z = 0f;
+                        hitWallZ = true;
+                        result.HitWall = true;
+                        entityBox = BuildEntityBox(position, halfWidth, height);
+                    }
+                }
+            }
+
+            // Step-up
+            if (result.OnGround && (hitWallX || hitWallZ))
+            {
+                float stepHeight = PhysicsConstants.StepHeight;
+                float3 testPos = new float3(
+                    posAfterY.x + savedVelocityX,
+                    posAfterY.y + stepHeight,
+                    posAfterY.z + savedVelocityZ);
+                Aabb testBox = BuildEntityBox(testPos, halfWidth, height);
+
+                Aabb stepBroadPhase = testBox.Expand(new float3(0.01f));
+                int stepMinX = (int)math.floor(stepBroadPhase.Min.x);
+                int stepMinY = (int)math.floor(stepBroadPhase.Min.y);
+                int stepMinZ = (int)math.floor(stepBroadPhase.Min.z);
+                int stepMaxX = (int)math.floor(stepBroadPhase.Max.x);
+                int stepMaxY = (int)math.floor(stepBroadPhase.Max.y);
+                int stepMaxZ = (int)math.floor(stepBroadPhase.Max.z);
+
+                bool blocked = false;
+
+                for (int bx = stepMinX; bx <= stepMaxX && !blocked; bx++)
+                {
+                    for (int by = stepMinY; by <= stepMaxY && !blocked; by++)
+                    {
+                        for (int bz = stepMinZ; bz <= stepMaxZ && !blocked; bz++)
+                        {
+                            int3 blockCoord = new int3(bx, by, bz);
+
+                            if (!query.IsSolid(blockCoord))
+                            {
+                                continue;
+                            }
+
+                            Aabb blockBox = Aabb.FromBlockCoord(blockCoord);
+
+                            if (testBox.Intersects(blockBox))
+                            {
+                                blocked = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!blocked)
+                {
+                    int3 underBlock = new int3(
+                        (int)math.floor(testPos.x),
+                        (int)math.floor(testPos.y - 0.01f),
+                        (int)math.floor(testPos.z));
+
+                    if (query.IsSolid(underBlock))
                     {
                         position = testPos;
                         result.HitWall = false;

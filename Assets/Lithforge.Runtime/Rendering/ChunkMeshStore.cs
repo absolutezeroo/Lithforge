@@ -6,6 +6,7 @@ using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Rendering
@@ -326,6 +327,7 @@ namespace Lithforge.Runtime.Rendering
         public void RenderAll(Camera camera)
         {
             // Batch-upload all dirty ranges (one Lock/Unlock per buffer, not per chunk)
+            Profiler.BeginSample("CMS.Flush");
             _opaqueBuffer.FlushDirtyToGpu();
             _cutoutBuffer.FlushDirtyToGpu();
             _translucentBuffer.FlushDirtyToGpu();
@@ -333,6 +335,7 @@ namespace Lithforge.Runtime.Rendering
             _opaqueBuffer.FlushArgs();
             _cutoutBuffer.FlushArgs();
             _translucentBuffer.FlushArgs();
+            Profiler.EndSample();
 
             // GPU culling: frustum + optional Hi-Z occlusion
             // Swap-and-pop keeps active slots contiguous in 0.._activeCount-1,
@@ -397,9 +400,11 @@ namespace Lithforge.Runtime.Rendering
                 }
             }
 
+            Profiler.BeginSample("CMS.Draw");
             DrawLayer(_opaqueBuffer, _opaqueParams, activeSlotCount);
             DrawLayer(_cutoutBuffer, _cutoutParams, activeSlotCount);
             DrawLayer(_translucentBuffer, _translucentParams, activeSlotCount);
+            Profiler.EndSample();
         }
 
         /// <summary>

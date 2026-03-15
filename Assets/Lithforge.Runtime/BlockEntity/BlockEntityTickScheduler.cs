@@ -3,6 +3,7 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
 using Unity.Mathematics;
+using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.BlockEntity
 {
@@ -55,6 +56,8 @@ namespace Lithforge.Runtime.BlockEntity
         /// </summary>
         public void Tick(float deltaTime)
         {
+            Profiler.BeginSample("BE.Tick");
+
             List<EntityKey> bucket = _buckets[_currentBucket];
             float effectiveDt = deltaTime * BucketCount;
 
@@ -74,6 +77,8 @@ namespace Lithforge.Runtime.BlockEntity
             }
 
             _currentBucket = (_currentBucket + 1) % BucketCount;
+
+            Profiler.EndSample();
         }
 
         /// <summary>

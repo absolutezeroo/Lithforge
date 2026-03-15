@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Rendering
@@ -81,6 +82,8 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
+            Profiler.BeginSample("HiZ.Generate");
+
             // Recreate mip chain if resolution changed
             if (_mipTextures == null || texW != _width || texH != _height)
             {
@@ -113,6 +116,7 @@ namespace Lithforge.Runtime.Rendering
             }
 
             _isValid = true;
+            Profiler.EndSample();
         }
 
         /// <summary>

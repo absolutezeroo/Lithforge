@@ -62,6 +62,8 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            Profiler.BeginSample("MS.PollCompleted");
+
             long freq = System.Diagnostics.Stopwatch.Frequency;
 
             long td0 = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -133,6 +135,7 @@ namespace Lithforge.Runtime.Scheduling
                     PipelineStats.RecordMeshComplete(completeMs);
 
                     long tu0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                    Profiler.BeginSample("MS.GPUUpload");
                     _chunkMeshStore.UpdateRenderer(
                         pending.Coord,
                         pending.Data.OpaqueVertices,
@@ -141,6 +144,7 @@ namespace Lithforge.Runtime.Scheduling
                         pending.Data.CutoutIndices,
                         pending.Data.TranslucentVertices,
                         pending.Data.TranslucentIndices);
+                    Profiler.EndSample();
                     long tu1 = System.Diagnostics.Stopwatch.GetTimestamp();
                     uploadAccum += (float)((tu1 - tu0) * 1000.0 / freq);
 
@@ -206,6 +210,8 @@ namespace Lithforge.Runtime.Scheduling
             PipelineStats.PollMeshIterateMs = totalMethodMs
                 - PipelineStats.PollMeshDisposalsMs
                 - uploadAccum;
+
+            Profiler.EndSample();
         }
 
         /// <summary>
@@ -222,6 +228,8 @@ namespace Lithforge.Runtime.Scheduling
             {
                 return;
             }
+
+            Profiler.BeginSample("MS.ScheduleJobs");
 
             // Request extra candidates when filtering, since some will be filtered by LOD
             int candidateCount = applyFilters ? slotsAvailable * 2 : slotsAvailable;
@@ -309,6 +317,8 @@ namespace Lithforge.Runtime.Scheduling
             {
                 JobHandle.ScheduleBatchedJobs();
             }
+
+            Profiler.EndSample();
         }
 
         public void CleanupCoord(int3 coord)

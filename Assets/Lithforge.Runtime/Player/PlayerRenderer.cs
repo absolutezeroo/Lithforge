@@ -109,22 +109,22 @@ namespace Lithforge.Runtime.Player
 
             GraphicsBuffer.IndirectDrawIndexedArgs[] modelArgs = new GraphicsBuffer.IndirectDrawIndexedArgs[2];
 
-            // Base layer: body + arms + legs (exclude head, which is at end)
-            // First-person: 180 indices (5 parts * 36)
+            // Base layer: all 6 parts including head (216 indices).
+            // Head is naturally invisible from inside (Cull Back) — camera is at y=1.62,
+            // head spans y=[1.5, 2.0], so the camera sits inside the head box.
             modelArgs[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerModelMeshBuilder.FirstPersonLayerIndexCount,
+                indexCountPerInstance = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 instanceCount = 1,
                 startIndex = 0,
                 baseVertexIndex = 0,
                 startInstance = 0,
             };
 
-            // Overlay layer: jacket + sleeves + pants (exclude hat, which is at end)
-            // First-person: 180 indices starting after base layer (index 216)
+            // Overlay layer: all 6 parts including hat (216 indices)
             modelArgs[1] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerModelMeshBuilder.FirstPersonLayerIndexCount,
+                indexCountPerInstance = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 instanceCount = 1,
                 startIndex = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 baseVertexIndex = 0,

@@ -8,6 +8,7 @@ using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.Scheduling
 {
@@ -70,6 +71,8 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            Profiler.BeginSample("LOD.PollCompleted");
+
             PollPendingLODDisposals();
 
             FrameBudget budget = new FrameBudget(_completionBudgetMs);
@@ -124,6 +127,8 @@ namespace Lithforge.Runtime.Scheduling
                     _pendingLODMeshes.RemoveAt(i);
                 }
             }
+
+            Profiler.EndSample();
         }
 
         /// <summary>
@@ -158,6 +163,8 @@ namespace Lithforge.Runtime.Scheduling
             {
                 return;
             }
+
+            Profiler.BeginSample("LOD.Schedule");
 
             int scheduled = 0;
 
@@ -209,6 +216,8 @@ namespace Lithforge.Runtime.Scheduling
             {
                 JobHandle.ScheduleBatchedJobs();
             }
+
+            Profiler.EndSample();
         }
 
         public void CleanupCoord(int3 coord)

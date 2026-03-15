@@ -8,6 +8,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Rendering
@@ -418,6 +419,8 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public void FlushDirtyToGpu()
         {
+            Profiler.BeginSample("MMB.Upload");
+
             if (_dirtyVertexMin < _dirtyVertexMax)
             {
                 int count = _dirtyVertexMax - _dirtyVertexMin;
@@ -461,6 +464,8 @@ namespace Lithforge.Runtime.Rendering
                 _dirtyIndexMin = int.MaxValue;
                 _dirtyIndexMax = -1;
             }
+
+            Profiler.EndSample();
         }
 
         /// <summary>
@@ -469,6 +474,8 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private void FreeSlot(int3 coord, SlotInfo slot)
         {
+            Profiler.BeginSample("MMB.FreeSlot");
+
             // Zero indices in CPU mirror, extend dirty range for GPU upload
             Array.Clear(_indexMirror, slot.IndexOffset, slot.IndexCount);
             int zeroEnd = slot.IndexOffset + slot.IndexCount;
@@ -515,6 +522,8 @@ namespace Lithforge.Runtime.Rendering
                     _argsDirty = true;
                 }
             }
+
+            Profiler.EndSample();
         }
 
         /// <summary>

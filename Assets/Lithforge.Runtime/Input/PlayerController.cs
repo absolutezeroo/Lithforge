@@ -1,4 +1,3 @@
-using System;
 using Lithforge.Physics;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Voxel.Block;
@@ -32,7 +31,6 @@ namespace Lithforge.Runtime.Input
         private GameLoop _gameLoop;
         private float _verticalSpeed;
         private bool _onGround;
-        private Func<int3, bool> _isSolidDelegate;
 
         // Fly mode state
         private bool _flyMode;
@@ -109,8 +107,6 @@ namespace Lithforge.Runtime.Input
             _playerHalfWidth = physics.PlayerHalfWidth;
             _playerHeight = physics.PlayerHeight;
 
-            // Cache the delegate to avoid allocation each frame
-            _isSolidDelegate = SolidBlockQuery.CreateDelegate(_chunkManager, _nativeStateRegistry);
         }
 
         private void Update()
@@ -224,12 +220,16 @@ namespace Lithforge.Runtime.Input
                 transform.position.y,
                 transform.position.z);
 
+            SolidBlockQuery query = SolidBlockHelper.Build(
+                position, displacement, _playerHalfWidth, _playerHeight,
+                _chunkManager, _nativeStateRegistry);
             CollisionResult result = VoxelCollider.Resolve(
                 ref position,
                 ref displacement,
                 _playerHalfWidth,
                 _playerHeight,
-                _isSolidDelegate);
+                query);
+            query.SolidMap.Dispose();
 
             _onGround = result.OnGround;
 
@@ -279,12 +279,16 @@ namespace Lithforge.Runtime.Input
             else
             {
                 // Fly with collision
+                SolidBlockQuery query = SolidBlockHelper.Build(
+                    position, displacement, _playerHalfWidth, _playerHeight,
+                    _chunkManager, _nativeStateRegistry);
                 CollisionResult result = VoxelCollider.Resolve(
                     ref position,
                     ref displacement,
                     _playerHalfWidth,
                     _playerHeight,
-                    _isSolidDelegate);
+                    query);
+                query.SolidMap.Dispose();
 
                 _onGround = result.OnGround;
             }

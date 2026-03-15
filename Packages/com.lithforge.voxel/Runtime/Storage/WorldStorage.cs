@@ -7,6 +7,7 @@ using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
+using UnityEngine.Profiling;
 
 namespace Lithforge.Voxel.Storage
 {
@@ -60,6 +61,7 @@ namespace Lithforge.Voxel.Storage
         {
             blockEntities = null;
 
+            Profiler.BeginSample("WS.LoadChunk");
             try
             {
                 GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
@@ -80,6 +82,10 @@ namespace Lithforge.Voxel.Storage
 
                 return false;
             }
+            finally
+            {
+                Profiler.EndSample();
+            }
         }
 
         /// <summary>
@@ -99,6 +105,7 @@ namespace Lithforge.Voxel.Storage
             NativeArray<byte> lightData,
             Dictionary<int, IBlockEntity> blockEntities = null)
         {
+            Profiler.BeginSample("WS.SaveChunk");
             try
             {
                 GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
@@ -110,6 +117,10 @@ namespace Lithforge.Voxel.Storage
             catch (Exception ex)
             {
                 _logger?.LogError($"[WorldStorage] SaveChunk failed for {chunkCoord}: {ex.Message}");
+            }
+            finally
+            {
+                Profiler.EndSample();
             }
         }
 

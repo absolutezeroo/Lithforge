@@ -13,6 +13,7 @@ using Lithforge.WorldGen.Stages;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.Scheduling
 {
@@ -147,6 +148,8 @@ namespace Lithforge.Runtime.Scheduling
 
         public void PollCompleted()
         {
+            Profiler.BeginSample("GS.PollCompleted");
+
             PollPendingGenDisposals();
 
             FrameBudget budget = new FrameBudget(_completionBudgetMs);
@@ -181,6 +184,7 @@ namespace Lithforge.Runtime.Scheduling
                             pending.Handle.HeightMap.IsCreated)
                         {
                             long decorStart = Stopwatch.GetTimestamp();
+                            Profiler.BeginSample("GS.Decoration");
                             _decorationStage.Decorate(
                                 pending.Coord,
                                 chunk.Data,
@@ -188,6 +192,7 @@ namespace Lithforge.Runtime.Scheduling
                                 pending.Handle.BiomeMap,
                                 pending.Handle.RiverFlags,
                                 _seed);
+                            Profiler.EndSample();
                             long decorEnd = Stopwatch.GetTimestamp();
                             float decorMs = (float)((decorEnd - decorStart) * 1000.0 / Stopwatch.Frequency);
                             PipelineStats.AddDecorate(decorMs);
@@ -243,6 +248,8 @@ namespace Lithforge.Runtime.Scheduling
                     i++;
                 }
             }
+
+            Profiler.EndSample();
         }
 
         /// <summary>
@@ -502,6 +509,8 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
+            Profiler.BeginSample("GS.ScheduleJobs");
+
             _chunkManager.FillChunksToGenerate(_generateCandidateCache, slotsAvailable);
 
             bool scheduled = false;
@@ -572,6 +581,8 @@ namespace Lithforge.Runtime.Scheduling
             {
                 JobHandle.ScheduleBatchedJobs();
             }
+
+            Profiler.EndSample();
         }
 
         public void CleanupCoord(int3 coord)
