@@ -103,6 +103,7 @@ struct DecodedVertex
     int    overlayTintType; // 0-3
     int    hasOverlay;      // 0 or 1
     int    overlayTexIndex; // 0-1023
+    int    fluidTop;        // 1 if top face of fluid block, 0 otherwise
 };
 
 // ---------------------------------------------------------------------------
@@ -168,6 +169,9 @@ DecodedVertex FetchVertex(uint svVertexID)
     dv.hasOverlay      = (int)((w1 >> 12u) & 0x1u);
     dv.overlayTexIndex = (int)((w1 >> 13u) & 0x3FFu);
     dv.overlayTintType = (int)((w1 >> 23u) & 0x3u);
+
+    // Fluid top flag (already decoded above for Y offset)
+    dv.fluidTop = (int)fluidTop;
 
     // UV: 8-bit each (greedy quad width/height in voxels), used for texture tiling
     dv.uv = float2((float)(w2 & 0xFFu), (float)((w2 >> 8u) & 0xFFu));
@@ -257,6 +261,7 @@ struct Varyings
     nointerpolation int hasOverlay                 : TEXCOORD8;
     nointerpolation int overlayTexIndex            : TEXCOORD9;
     nointerpolation int overlayTintType            : TEXCOORD10;
+    nointerpolation int isWaterTop                 : TEXCOORD11;
 };
 
 // ---------------------------------------------------------------------------

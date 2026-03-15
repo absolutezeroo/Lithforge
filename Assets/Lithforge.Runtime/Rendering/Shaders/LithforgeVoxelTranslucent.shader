@@ -7,6 +7,17 @@ Shader "Lithforge/VoxelTranslucent"
         _SunLightFactor ("Sun Light Factor", Range(0, 1)) = 1.0
         _AmbientLight ("Ambient Light", Range(0, 1)) = 0.2
         _WaterAlpha ("Water Alpha", Range(0, 1)) = 0.6
+
+        [Header(Water)]
+        _WaveAmplitude ("Wave Amplitude", Float) = 0.04
+        _WaveFrequency ("Wave Frequency", Float) = 2.5
+        _WaveSpeed ("Wave Speed", Float) = 1.2
+        _FresnelPower ("Fresnel Power", Float) = 3.0
+        _FresnelMin ("Fresnel Min Alpha", Range(0, 1)) = 0.3
+        _FresnelMax ("Fresnel Max Alpha", Range(0, 1)) = 0.85
+        _SpecularPower ("Specular Power", Float) = 64.0
+        _SpecularIntensity ("Specular Intensity", Float) = 0.5
+        _ShoreDepthRange ("Shore Fade Depth", Float) = 1.5
     }
 
     SubShader
@@ -42,16 +53,37 @@ Shader "Lithforge/VoxelTranslucent"
             TEXTURE2D_ARRAY(_AtlasArray);
             SAMPLER(sampler_AtlasArray);
 
+            TEXTURE2D(_CameraDepthTexture);
+            SAMPLER(sampler_CameraDepthTexture);
+
             CBUFFER_START(UnityPerMaterial)
                 float _AOStrength;
                 float _SunLightFactor;
                 float _AmbientLight;
                 float _WaterAlpha;
+                float _WaveAmplitude;
+                float _WaveFrequency;
+                float _WaveSpeed;
+                float _FresnelPower;
+                float _FresnelMin;
+                float _FresnelMax;
+                float _SpecularPower;
+                float _SpecularIntensity;
+                float _ShoreDepthRange;
             CBUFFER_END
 
             Varyings vert(uint svVertexID : SV_VertexID)
             {
                 DecodedVertex dv = FetchVertex(svVertexID);
+
+                // Wave animation on water top faces
+                if (dv.fluidTop == 1)
+                {
+                    float3 wp = dv.positionOS;
+                    float phase = wp.x * _WaveFrequency + wp.z * _WaveFrequency * 0.7 + _Time.y * _WaveSpeed;
+                    float wave = sin(phase) * 0.5 + sin(phase * 2.3 + 1.7) * 0.3 + sin(phase * 0.6 + 3.1) * 0.2;
+                    dv.positionOS.y += wave * _WaveAmplitude;
+                }
 
                 Varyings output;
 
@@ -70,6 +102,7 @@ Shader "Lithforge/VoxelTranslucent"
                 output.hasOverlay = dv.hasOverlay;
                 output.overlayTexIndex = dv.overlayTexIndex;
                 output.overlayTintType = dv.overlayTintType;
+                output.isWaterTop = dv.fluidTop;
 
                 // AO: color.r is ao/3 (0=fully occluded, 1=unoccluded)
                 output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
@@ -104,15 +137,44 @@ Shader "Lithforge/VoxelTranslucent"
                 // Directional lighting with ambient
                 Light mainLight = GetMainLight();
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
-                half lambert = (half)(ndotl * 0.6 + 0.4);
+                half lambert = (half)(ndotl * 0.75 + 0.25);
 
                 // Voxel light modulates direct lighting; ambient is a floor independent of light level
                 half3 directColor = texColor.rgb * lambert * mainLight.color.rgb * input.light;
                 half3 ambientColor = texColor.rgb * (half)_AmbientLight;
                 half3 finalColor = (directColor + ambientColor) * input.ao;
+
+                // --- Water surface effects (top faces only) ---
+                half alpha = (half)_WaterAlpha;
+
+                if (input.isWaterTop == 1)
+                {
+                    // View direction for fresnel and specular
+                    float3 viewDir = normalize(_WorldSpaceCameraPos - input.positionWS);
+
+                    // Fresnel: more reflective at grazing angles
+                    float ndotv = saturate(dot(float3(0, 1, 0), viewDir));
+                    float fresnel = pow(1.0 - ndotv, _FresnelPower);
+                    alpha = (half)lerp(_FresnelMin, _FresnelMax, fresnel);
+
+                    // Sun specular highlight (Blinn-Phong)
+                    float3 halfVec = normalize(viewDir + mainLight.direction);
+                    float spec = pow(saturate(dot(float3(0, 1, 0), halfVec)), _SpecularPower);
+                    finalColor += mainLight.color.rgb * spec * _SpecularIntensity * input.light;
+
+                    // Shore fade: reduce alpha where water is shallow (depth-based)
+                    float2 screenUV = input.positionCS.xy / _ScreenParams.xy;
+                    float rawDepth = SAMPLE_TEXTURE2D(_CameraDepthTexture, sampler_CameraDepthTexture, screenUV).r;
+                    float sceneEyeDepth = LinearEyeDepth(rawDepth, _ZBufferParams);
+                    float surfaceEyeDepth = input.positionCS.w;
+                    float depthDiff = sceneEyeDepth - surfaceEyeDepth;
+                    float shoreFade = saturate(depthDiff / _ShoreDepthRange);
+                    alpha *= (half)shoreFade;
+                }
+
                 finalColor = MixFog(finalColor, input.fogFactor);
 
-                return half4(finalColor, (half)_WaterAlpha);
+                return half4(finalColor, alpha);
             }
             ENDHLSL
         }

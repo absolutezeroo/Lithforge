@@ -16,9 +16,12 @@ namespace Lithforge.Runtime.Rendering
         private Material _voxelMaterial;
         private Material _cutoutMaterial;
         private Material _translucentMaterial;
+        private float _dayAmbient;
+        private float _nightAmbient;
         private readonly List<Material> _additionalMaterials = new List<Material>();
 
         private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
+        private static readonly int s_ambientLightId = Shader.PropertyToID("_AmbientLight");
 
         public float TimeOfDay
         {
@@ -65,6 +68,8 @@ namespace Lithforge.Runtime.Rendering
             _sunAzimuth = settings.SunAzimuth;
             _minSunIntensity = settings.MinSunIntensity;
             _dayNightCurve = settings.DayNightCurve;
+            _dayAmbient = settings.DayAmbient;
+            _nightAmbient = settings.NightAmbient;
             _timeOfDay = settings.StartTimeOfDay;
 
             // Find or create directional light
@@ -119,23 +124,28 @@ namespace Lithforge.Runtime.Rendering
             // This Update() only applies visual changes (materials, light rotation).
 
             float sunFactor = ComputeSunFactor(_timeOfDay);
+            float ambientLight = Mathf.Lerp(_nightAmbient, _dayAmbient, sunFactor);
 
             // Update materials
             _voxelMaterial.SetFloat(s_sunLightFactorId, sunFactor);
+            _voxelMaterial.SetFloat(s_ambientLightId, ambientLight);
 
             if (_cutoutMaterial != null)
             {
                 _cutoutMaterial.SetFloat(s_sunLightFactorId, sunFactor);
+                _cutoutMaterial.SetFloat(s_ambientLightId, ambientLight);
             }
 
             if (_translucentMaterial != null)
             {
                 _translucentMaterial.SetFloat(s_sunLightFactorId, sunFactor);
+                _translucentMaterial.SetFloat(s_ambientLightId, ambientLight);
             }
 
             for (int i = 0; i < _additionalMaterials.Count; i++)
             {
                 _additionalMaterials[i].SetFloat(s_sunLightFactorId, sunFactor);
+                _additionalMaterials[i].SetFloat(s_ambientLightId, ambientLight);
             }
 
             // Update directional light rotation (intensity is fixed; voxel light system handles brightness)

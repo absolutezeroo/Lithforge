@@ -10,6 +10,10 @@ Shader "Lithforge/ProceduralSky"
         _SunHaloSize  ("Sun Halo Size", Float)  = 0.97
         _StarVisibility ("Star Visibility", Range(0,1)) = 0.0
         _StarDensity  ("Star Density", Float)  = 300.0
+        _SunColorLow  ("Sun Color Low (Horizon)", Color) = (1.0, 0.55, 0.2, 1.0)
+        _SunsetGlowColor ("Sunset Glow Color", Color) = (1.0, 0.4, 0.15, 1.0)
+        _SunsetGlowSize  ("Sunset Glow Size", Float) = 0.4
+        _SunsetGlowIntensity ("Sunset Glow Intensity", Float) = 0.6
     }
 
     SubShader
@@ -46,6 +50,10 @@ Shader "Lithforge/ProceduralSky"
                 float _SunHaloSize;
                 float _StarVisibility;
                 float _StarDensity;
+                half4 _SunColorLow;
+                half4 _SunsetGlowColor;
+                float _SunsetGlowSize;
+                float _SunsetGlowIntensity;
             CBUFFER_END
 
             struct Attributes
@@ -102,12 +110,25 @@ Shader "Lithforge/ProceduralSky"
                     skyColor = lerp(skyColor, _HorizonColor.rgb * 0.4, groundFade);
                 }
 
-                // Sun disc and halo
+                // Sun disc and halo with elevation-based color
                 float3 sunDir = normalize(_SunDirection.xyz);
                 float sunDot = dot(viewDir, sunDir);
                 float disc = smoothstep(_SunDiscSize - 0.001, _SunDiscSize, sunDot);
                 float halo = smoothstep(_SunHaloSize, _SunDiscSize, sunDot) * 0.25;
-                skyColor += _SunColor.rgb * (disc + halo);
+
+                // Blend sun color from warm orange (horizon) to bright white (high noon)
+                float sunElevationBlend = saturate(sunDir.y * 2.0);
+                half3 currentSunColor = lerp(_SunColorLow.rgb, _SunColor.rgb, sunElevationBlend);
+                skyColor += currentSunColor * (disc + halo);
+
+                // Sunset/sunrise glow at horizon when sun is low
+                float horizonFactor = 1.0 - abs(viewDir.y);
+                horizonFactor = pow(saturate(horizonFactor), 3.0);
+                float sunProximity = saturate((sunDot + _SunsetGlowSize) / (1.0 + _SunsetGlowSize));
+                sunProximity = sunProximity * sunProximity;
+                float sunLowFactor = saturate(1.0 - abs(sunDir.y) * 2.5);
+                float glow = horizonFactor * sunProximity * sunLowFactor * _SunsetGlowIntensity;
+                skyColor += _SunsetGlowColor.rgb * glow;
 
                 // Stars (visible when sun is down, only above horizon)
                 float starBrightness = StarHash(viewDir * _StarDensity);

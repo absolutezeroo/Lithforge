@@ -65,7 +65,28 @@ namespace Lithforge.Runtime.Content.Settings
 
         [Tooltip("Sun intensity curve over normalised time (0=midnight, 0.5=noon). " +
                                                         "If empty, falls back to cosine approximation.")]
-        [SerializeField] private AnimationCurve dayNightCurve = new AnimationCurve();
+        [SerializeField] private AnimationCurve dayNightCurve = new AnimationCurve(
+            new Keyframe(0.00f, 0.05f, 0f, 0f),   // midnight — night plateau start
+            new Keyframe(0.18f, 0.05f, 0f, 0f),   // night plateau end
+            new Keyframe(0.25f, 0.50f, 2f, 2f),   // dawn midpoint (fast rise)
+            new Keyframe(0.33f, 1.00f, 0f, 0f),   // day plateau start
+            new Keyframe(0.67f, 1.00f, 0f, 0f),   // day plateau end
+            new Keyframe(0.75f, 0.50f, -2f, -2f), // dusk midpoint (fast fall)
+            new Keyframe(0.82f, 0.05f, 0f, 0f),   // night plateau start
+            new Keyframe(1.00f, 0.05f, 0f, 0f)    // midnight — wraps to 0.0
+        );
+
+        [Header("Lighting")]
+        [Tooltip("Ambient light intensity during daytime (sunFactor=1)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float dayAmbient = 0.15f;
+
+        [Tooltip("Ambient light intensity during nighttime (sunFactor=0)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float nightAmbient = 0.03f;
+
+        [Tooltip("Sun directional light color gradient over time of day (0=midnight, 0.5=noon)")]
+        [SerializeField] private Gradient sunColorGradient = new Gradient();
 
         [Header("Block Highlight")]
         [Tooltip("Line renderer width for block selection wireframe")]
@@ -207,6 +228,21 @@ namespace Lithforge.Runtime.Content.Settings
         public int BiomeMapSize
         {
             get { return biomeMapSize; }
+        }
+
+        public float DayAmbient
+        {
+            get { return dayAmbient; }
+        }
+
+        public float NightAmbient
+        {
+            get { return nightAmbient; }
+        }
+
+        public Gradient SunColorGradient
+        {
+            get { return sunColorGradient; }
         }
     }
 }

@@ -67,7 +67,7 @@ Shader "Lithforge/VoxelUnlit"
                 // Simple directional lighting approximation
                 Light mainLight = GetMainLight();
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
-                float lighting = ndotl * 0.6 + 0.4; // ambient 0.4, diffuse 0.6
+                float lighting = ndotl * 0.75 + 0.25; // ambient 0.25, diffuse 0.75
 
                 half3 finalColor = input.color.rgb * lighting * mainLight.color.rgb;
                 finalColor = MixFog(finalColor, input.fogFactor);

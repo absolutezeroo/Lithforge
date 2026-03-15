@@ -67,6 +67,7 @@ Shader "Lithforge/VoxelOpaque"
                 output.hasOverlay = dv.hasOverlay;
                 output.overlayTexIndex = dv.overlayTexIndex;
                 output.overlayTintType = dv.overlayTintType;
+                output.isWaterTop = 0;
 
                 // AO: color.r is ao/3 (0=fully occluded, 1=unoccluded)
                 output.ao = lerp(1.0h, dv.ao, (half)_AOStrength);
@@ -101,7 +102,7 @@ Shader "Lithforge/VoxelOpaque"
                 // Directional lighting with ambient
                 Light mainLight = GetMainLight();
                 float ndotl = saturate(dot(input.normalWS, mainLight.direction));
-                half lambert = (half)(ndotl * 0.6 + 0.4);
+                half lambert = (half)(ndotl * 0.75 + 0.25);
 
                 // Voxel light modulates direct lighting; ambient is a floor independent of light level
                 half3 directColor = texColor.rgb * lambert * mainLight.color.rgb * input.light;

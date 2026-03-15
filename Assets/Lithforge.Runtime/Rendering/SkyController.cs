@@ -19,6 +19,7 @@ namespace Lithforge.Runtime.Rendering
         private Gradient _skyZenithGradient;
         private Gradient _fogGradient;
         private Gradient _ambientGradient;
+        private Gradient _sunColorGradient;
         private float _baseFogDensity;
         private ChunkManager _chunkManager;
 
@@ -43,6 +44,7 @@ namespace Lithforge.Runtime.Rendering
             _skyZenithGradient = settings.SkyZenithGradient;
             _fogGradient = settings.FogGradient;
             _ambientGradient = settings.AmbientGradient;
+            _sunColorGradient = settings.SunColorGradient;
             _baseFogDensity = settings.FogDensity;
 
             Shader skyShader = Shader.Find("Lithforge/ProceduralSky");
@@ -83,6 +85,18 @@ namespace Lithforge.Runtime.Rendering
             {
                 _skyboxMaterial.SetVector(s_sunDirectionId,
                     -_directionalLight.transform.forward);
+
+                // Apply sun color gradient to directional light
+                if (_sunColorGradient != null && _sunColorGradient.colorKeys.Length > 1)
+                {
+                    _directionalLight.color = _sunColorGradient.Evaluate(time);
+                }
+
+                // Warm fog tint when sun is near horizon (sunrise/sunset)
+                float sunElevation = _directionalLight.transform.forward.y;
+                float horizonFactor = 1f - Mathf.Clamp01(Mathf.Abs(sunElevation) * 3f);
+                Color warmTint = new Color(1f, 0.65f, 0.35f);
+                fogColor = Color.Lerp(fogColor, warmTint, horizonFactor * 0.4f * sunFactor);
             }
 
             // Scale fog density inversely with render distance so distant LOD chunks

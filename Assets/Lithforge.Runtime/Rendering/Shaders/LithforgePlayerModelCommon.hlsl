@@ -50,7 +50,7 @@ PlayerVaryings PlayerVert(uint svVertexID : SV_VertexID)
     return o;
 }
 
-// Shared first-person lighting: lambert (ndotl * 0.6 + 0.4) with sun factor and ambient.
+// Shared first-person lighting: lambert (ndotl * 0.75 + 0.25) with sun factor and ambient.
 // Requires Lighting.hlsl to be included before calling this function.
 // Guarded so depth-only passes (which skip Lighting.hlsl) compile cleanly.
 #ifdef UNIVERSAL_LIGHTING_INCLUDED
@@ -58,7 +58,7 @@ half3 ComputeFirstPersonLighting(half3 albedo, float3 normalWS, float sunLightFa
 {
     Light mainLight = GetMainLight();
     float ndotl = saturate(dot(normalWS, mainLight.direction));
-    half lambert = (half)(ndotl * 0.6 + 0.4);
+    half lambert = (half)(ndotl * 0.75 + 0.25);
 
     half sunFactor = (half)sunLightFactor;
     half3 directColor = albedo * lambert * mainLight.color.rgb * sunFactor;
