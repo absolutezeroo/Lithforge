@@ -6,6 +6,7 @@
     "Lithforge.Voxel",
     "Unity.Burst",
     "Unity.Collections",
+    "Unity.Jobs",
     "Unity.Mathematics"
   ],
   "includePlatforms": [],

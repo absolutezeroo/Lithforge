@@ -3,7 +3,8 @@
     "com.lithforge.core",
     "com.lithforge.voxel",
     "com.lithforge.worldgen",
-    "com.lithforge.meshing"
+    "com.lithforge.meshing",
+    "com.lithforge.physics"
   ],
   "dependencies": {
     "com.unity.ai.navigation": "2.0.11",
