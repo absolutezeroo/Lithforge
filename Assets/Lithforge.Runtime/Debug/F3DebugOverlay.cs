@@ -38,6 +38,7 @@ namespace Lithforge.Runtime.Debug
         private Label _updateTotalLabel;
         private Label _headroomLabel;
         private Label _gcLabel;
+        private Label _tickCountLabel;
         private Label _posLabel;
         private Label _chunkLabel;
         private Label _chunksLoadedLabel;
@@ -81,6 +82,7 @@ namespace Lithforge.Runtime.Debug
         // Display section indices (excludes UpdateTotal and Frame which are shown separately)
         private static readonly int[] s_displaySections = new int[]
         {
+            FrameProfiler.TickLoop,
             FrameProfiler.PollGen,
             FrameProfiler.PollMesh,
             FrameProfiler.PollLOD,
@@ -97,6 +99,7 @@ namespace Lithforge.Runtime.Debug
 
         private static readonly string[] s_paddedNames = new string[]
         {
+            "TickLoop:   ",
             "PollGen:    ",
             "PollMesh:   ",
             "PollLOD:    ",
@@ -257,6 +260,9 @@ namespace Lithforge.Runtime.Debug
 
             _gcLabel = CreateLabel("GC: --");
             _perfPanel.Add(_gcLabel);
+
+            _tickCountLabel = CreateLabel("Ticks: --");
+            _perfPanel.Add(_tickCountLabel);
 
             _leftColumn.Add(_perfPanel);
         }
@@ -519,6 +525,12 @@ namespace Lithforge.Runtime.Debug
             _sb.Append('/');
             _sb.Append(snap.GcGen2);
             _gcLabel.text = _sb.ToString();
+
+            _sb.Clear();
+            _sb.Append("Ticks: ");
+            _sb.Append(snap.TicksThisFrame);
+            _sb.Append("/frame (30 TPS)");
+            _tickCountLabel.text = _sb.ToString();
         }
 
         private void UpdateWorldPanel(MetricSnapshot snap)

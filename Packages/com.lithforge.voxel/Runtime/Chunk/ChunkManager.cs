@@ -24,6 +24,7 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int> _neighborCountCache = new List<int>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new HashSet<int3>();
+        private readonly HashSet<ManagedChunk> _generatedChunks = new HashSet<ManagedChunk>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
         private AsyncChunkSaver _asyncSaver;
 
@@ -83,6 +84,47 @@ namespace Lithforge.Voxel.Chunk
         public void SetRenderDistance(int distance)
         {
             _renderDistance = math.max(1, distance);
+        }
+
+        /// <summary>
+        /// Centralized state transition. Maintains _generatedChunks index.
+        /// All external callers (schedulers) MUST use this instead of chunk.State = x.
+        /// </summary>
+        public void SetChunkState(ManagedChunk chunk, ChunkState newState)
+        {
+            ChunkState oldState = chunk.State;
+            chunk.State = newState;
+
+            if (oldState == ChunkState.Generated && newState != ChunkState.Generated)
+            {
+                _generatedChunks.Remove(chunk);
+            }
+            else if (newState == ChunkState.Generated && oldState != ChunkState.Generated)
+            {
+                if (!chunk.LightJobInFlight)
+                {
+                    _generatedChunks.Add(chunk);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called after any change to chunk.LightJobInFlight. Keeps _generatedChunks
+        /// in sync: a Generated chunk with LightJobInFlight=true is NOT mesh-eligible.
+        /// </summary>
+        public void NotifyLightJobChanged(ManagedChunk chunk)
+        {
+            if (chunk.State == ChunkState.Generated)
+            {
+                if (chunk.LightJobInFlight)
+                {
+                    _generatedChunks.Remove(chunk);
+                }
+                else
+                {
+                    _generatedChunks.Add(chunk);
+                }
+            }
         }
 
         /// <summary>
@@ -241,13 +283,10 @@ namespace Lithforge.Voxel.Chunk
             _meshCandidateCache.Clear();
             _neighborCountCache.Clear();
 
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            foreach (ManagedChunk chunk in _generatedChunks)
             {
-                if (kvp.Value.State == ChunkState.Generated && !kvp.Value.LightJobInFlight)
-                {
-                    _meshCandidateCache.Add(kvp.Value);
-                    _neighborCountCache.Add(CountReadyNeighbors(kvp.Value.Coord));
-                }
+                _meshCandidateCache.Add(chunk);
+                _neighborCountCache.Add(CountReadyNeighbors(chunk.Coord));
             }
 
             // Sort: never-meshed chunks first (RenderedLODLevel == -1),
@@ -343,12 +382,9 @@ namespace Lithforge.Voxel.Chunk
         {
             result.Clear();
 
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            foreach (ManagedChunk chunk in _generatedChunks)
             {
-                if (kvp.Value.State == ChunkState.Generated && !kvp.Value.LightJobInFlight)
-                {
-                    result.Add(kvp.Value);
-                }
+                result.Add(chunk);
             }
         }
 
@@ -360,12 +396,11 @@ namespace Lithforge.Voxel.Chunk
         {
             result.Clear();
 
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            foreach (ManagedChunk chunk in _generatedChunks)
             {
-                if (kvp.Value.State == ChunkState.Generated && kvp.Value.LODLevel > 0
-                    && !kvp.Value.LightJobInFlight)
+                if (chunk.LODLevel > 0)
                 {
-                    result.Add(kvp.Value);
+                    result.Add(chunk);
                 }
             }
         }
@@ -544,7 +579,7 @@ namespace Lithforge.Voxel.Chunk
                 NativeArray<StateId> data = chunk.Data;
                 data[index] = state;
                 chunk.PendingEditIndices.Add(index);
-                chunk.State = ChunkState.RelightPending;
+                SetChunkState(chunk, ChunkState.RelightPending);
 
                 // Fire block entity events only on the immediate path
                 if (oldHasEntity && !newHasEntity)
@@ -597,7 +632,7 @@ namespace Lithforge.Voxel.Chunk
             }
 
             chunk.DeferredEdits.Clear();
-            chunk.State = ChunkState.RelightPending;
+            SetChunkState(chunk, ChunkState.RelightPending);
         }
 
         /// <summary>
@@ -649,7 +684,7 @@ namespace Lithforge.Voxel.Chunk
 
             if (neighbor.State == ChunkState.Ready)
             {
-                neighbor.State = ChunkState.Generated;
+                SetChunkState(neighbor, ChunkState.Generated);
                 dirtiedChunks.Add(neighborCoord);
             }
             else if (neighbor.State == ChunkState.Meshing)
@@ -790,9 +825,14 @@ namespace Lithforge.Voxel.Chunk
                 }
             }
 
-            // Phase 4: Remove processed chunks from _chunks
+            // Phase 4: Remove processed chunks from _chunks and index sets
             for (int i = 0; i < unloaded.Count; i++)
             {
+                if (_chunks.TryGetValue(unloaded[i], out ManagedChunk unloadedChunk))
+                {
+                    _generatedChunks.Remove(unloadedChunk);
+                }
+
                 _chunksNeedingLightUpdate.Remove(unloaded[i]);
                 _chunks.Remove(unloaded[i]);
             }
@@ -879,7 +919,7 @@ namespace Lithforge.Voxel.Chunk
 
                 if (neighbor.State == ChunkState.Ready)
                 {
-                    neighbor.State = ChunkState.Generated;
+                    SetChunkState(neighbor, ChunkState.Generated);
                 }
                 else if (neighbor.State == ChunkState.Meshing)
                 {
@@ -925,6 +965,7 @@ namespace Lithforge.Voxel.Chunk
 
             _chunks.Clear();
             _chunksNeedingLightUpdate.Clear();
+            _generatedChunks.Clear();
         }
     }
 }

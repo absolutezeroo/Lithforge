@@ -124,7 +124,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
                 {
-                    chunk.State = ChunkState.Generated;
+                    _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                     continue;
                 }
 
@@ -197,6 +197,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 chunk.ActiveJobHandle = handle;
                 chunk.LightJobInFlight = true;
+                _chunkManager.NotifyLightJobChanged(chunk);
 
                 _inFlightRelights.Add(new PendingRelight
                 {
@@ -260,11 +261,11 @@ namespace Lithforge.Runtime.Scheduling
                     if (entry.Chunk.PendingBorderRemovals.Count > 0 ||
                         entry.Chunk.PendingEditIndices.Count > 0)
                     {
-                        entry.Chunk.State = ChunkState.RelightPending;
+                        _chunkManager.SetChunkState(entry.Chunk, ChunkState.RelightPending);
                     }
                     else
                     {
-                        entry.Chunk.State = ChunkState.Generated;
+                        _chunkManager.SetChunkState(entry.Chunk, ChunkState.Generated);
                     }
 
                     // Dispose native containers from this relight
@@ -297,6 +298,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     _inFlightRelights[i].Handle.Complete();
                     _inFlightRelights[i].Chunk.LightJobInFlight = false;
+                    _chunkManager.NotifyLightJobChanged(_inFlightRelights[i].Chunk);
                     _inFlightRelights[i].ChangedIndices.Dispose();
                     _inFlightRelights[i].BorderRemovalSeeds.Dispose();
                     _inFlightRelights[i].BorderLightOutput.Dispose();
@@ -458,7 +460,7 @@ namespace Lithforge.Runtime.Scheduling
                     }
                     else if (_cascadesThisFrame < MaxCascadesPerFrame)
                     {
-                        neighbor.State = ChunkState.RelightPending;
+                        _chunkManager.SetChunkState(neighbor, ChunkState.RelightPending);
                         _cascadesThisFrame++;
                     }
                     else
@@ -466,7 +468,7 @@ namespace Lithforge.Runtime.Scheduling
                         // Budget exceeded — the PendingBorderRemovals are already added,
                         // so FillChunksNeedingRelight will pick this up once the chunk
                         // is set to RelightPending next frame via a future cascade.
-                        neighbor.State = ChunkState.RelightPending;
+                        _chunkManager.SetChunkState(neighbor, ChunkState.RelightPending);
                     }
                 }
 

@@ -202,7 +202,7 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.LightData = pending.Handle.LightData;
                         chunk.HeightMap = pending.Handle.HeightMap;
                         chunk.RiverFlags = pending.Handle.RiverFlags;
-                        chunk.State = ChunkState.Generated;
+                        _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
                         PipelineStats.IncrGenCompleted();
 
@@ -342,7 +342,7 @@ namespace Lithforge.Runtime.Scheduling
 
                     if (chunk.State == ChunkState.Ready)
                     {
-                        chunk.State = ChunkState.Generated;
+                        _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                     }
                     else if (chunk.State == ChunkState.Meshing)
                     {
@@ -351,6 +351,7 @@ namespace Lithforge.Runtime.Scheduling
 
                     entry.SeedEntries.Dispose();
                     chunk.LightJobInFlight = false;
+                    _chunkManager.NotifyLightJobChanged(chunk);
                     chunk.ActiveJobHandle = default;
                     _chunkManager.ClearNeedsLightUpdate(chunk.Coord);
 
@@ -446,6 +447,7 @@ namespace Lithforge.Runtime.Scheduling
                     JobHandle handle = updateJob.Schedule();
                     chunk.ActiveJobHandle = handle;
                     chunk.LightJobInFlight = true;
+                    _chunkManager.NotifyLightJobChanged(chunk);
 
                     _pendingLightUpdates.Add(new PendingLightUpdate
                     {
@@ -535,7 +537,7 @@ namespace Lithforge.Runtime.Scheduling
                         out Dictionary<int, IBlockEntity> loadedEntities, _blockEntityRegistry))
                     {
                         chunk.LightData = lightData;
-                        chunk.State = ChunkState.Generated;
+                        _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
 
                         // Attach loaded block entities to the chunk
@@ -606,6 +608,7 @@ namespace Lithforge.Runtime.Scheduling
                     _inFlightLightUpdates[i].Handle.Complete();
                     _inFlightLightUpdates[i].SeedEntries.Dispose();
                     _inFlightLightUpdates[i].Chunk.LightJobInFlight = false;
+                    _chunkManager.NotifyLightJobChanged(_inFlightLightUpdates[i].Chunk);
                     _inFlightLightUpdates.RemoveAt(i);
                 }
             }

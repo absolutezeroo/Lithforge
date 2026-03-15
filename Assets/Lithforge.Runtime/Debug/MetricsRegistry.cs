@@ -133,6 +133,7 @@ namespace Lithforge.Runtime.Debug
             _current.SectionMs11 = FrameProfiler.GetMs(11);
             _current.SectionMs12 = FrameProfiler.GetMs(12);
             _current.SectionMs13 = FrameProfiler.GetMs(13);
+            _current.SectionMs14 = FrameProfiler.GetMs(14);
 
             // PipelineStats — per-frame
             _current.GenScheduled = PipelineStats.GenScheduled;
@@ -242,6 +243,7 @@ namespace Lithforge.Runtime.Debug
                 _current.PendingGenCount = _gameLoop.PendingGenerationCount;
                 _current.PendingMeshCount = _gameLoop.PendingMeshCount;
                 _current.PendingLodMeshCount = _gameLoop.PendingLODMeshCount;
+                _current.TicksThisFrame = _gameLoop.TicksThisFrame;
             }
         }
     }

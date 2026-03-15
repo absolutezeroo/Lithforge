@@ -166,7 +166,7 @@ namespace Lithforge.Runtime.Scheduling
                         if (chunk.NeedsRelightAfterMesh)
                         {
                             chunk.NeedsRelightAfterMesh = false;
-                            chunk.State = ChunkState.RelightPending;
+                            _chunkManager.SetChunkState(chunk, ChunkState.RelightPending);
                         }
                         else if (chunk.DeferredEdits.Count > 0)
                         {
@@ -180,11 +180,11 @@ namespace Lithforge.Runtime.Scheduling
                         else if (chunk.NeedsRemesh)
                         {
                             chunk.NeedsRemesh = false;
-                            chunk.State = ChunkState.Generated;
+                            _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         }
                         else
                         {
-                            chunk.State = ChunkState.Ready;
+                            _chunkManager.SetChunkState(chunk, ChunkState.Ready);
                         }
 
                         chunk.ActiveJobHandle = default;
@@ -308,7 +308,7 @@ namespace Lithforge.Runtime.Scheduling
             {
                 ManagedChunk chunk = _meshCandidateCache[i];
 
-                chunk.State = ChunkState.Meshing;
+                _chunkManager.SetChunkState(chunk, ChunkState.Meshing);
 
                 long ta0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);

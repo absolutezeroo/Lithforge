@@ -111,11 +111,11 @@ namespace Lithforge.Runtime.Scheduling
                             if (chunk.NeedsRemesh)
                             {
                                 chunk.NeedsRemesh = false;
-                                chunk.State = ChunkState.Generated;
+                                _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                             }
                             else
                             {
-                                chunk.State = ChunkState.Ready;
+                                _chunkManager.SetChunkState(chunk, ChunkState.Ready);
                             }
 
                             chunk.ActiveJobHandle = default;
@@ -183,7 +183,7 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 ScheduleLODMesh(chunk);
-                chunk.State = ChunkState.Meshing;
+                _chunkManager.SetChunkState(chunk, ChunkState.Meshing);
                 scheduled++;
             }
 
@@ -303,7 +303,7 @@ namespace Lithforge.Runtime.Scheduling
                     // If transitioning to LOD0 and chunk is Ready, trigger full remesh
                     if (desiredLOD == 0 && chunk.State == ChunkState.Ready)
                     {
-                        chunk.State = ChunkState.Generated;
+                        _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                     }
                 }
             }

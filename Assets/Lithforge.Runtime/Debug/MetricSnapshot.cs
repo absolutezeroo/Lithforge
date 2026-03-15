@@ -11,7 +11,7 @@ namespace Lithforge.Runtime.Debug
         public float FrameMs;
         public float FpsSmoothed;
 
-        // --- FrameProfiler sections (14 values, indexed by FrameProfiler.* constants) ---
+        // --- FrameProfiler sections (15 values, indexed by FrameProfiler.* constants) ---
         public float SectionMs0;
         public float SectionMs1;
         public float SectionMs2;
@@ -26,6 +26,7 @@ namespace Lithforge.Runtime.Debug
         public float SectionMs11;
         public float SectionMs12;
         public float SectionMs13;
+        public float SectionMs14;
 
         // --- Pipeline counters (from PipelineStats) ---
         public int GenScheduled;
@@ -104,6 +105,9 @@ namespace Lithforge.Runtime.Debug
         public bool IsNoclip;
         public float FlySpeed;
 
+        // --- Tick ---
+        public int TicksThisFrame;
+
         // --- Queues ---
         public int PendingGenCount;
         public int PendingMeshCount;
@@ -130,6 +134,7 @@ namespace Lithforge.Runtime.Debug
                 case 11: return SectionMs11;
                 case 12: return SectionMs12;
                 case 13: return SectionMs13;
+                case 14: return SectionMs14;
                 default: return 0f;
             }
         }

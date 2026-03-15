@@ -51,6 +51,7 @@ namespace Lithforge.Runtime
         private PlayerInputLatch _playerInputLatch;
         private PlayerPhysicsBody _playerPhysicsBody;
         private Transform _playerTransform;
+        private int _ticksThisFrame;
 
         public int PendingGenerationCount
         {
@@ -65,6 +66,11 @@ namespace Lithforge.Runtime
         public int PendingLODMeshCount
         {
             get { return _lodScheduler?.PendingCount ?? 0; }
+        }
+
+        public int TicksThisFrame
+        {
+            get { return _ticksThisFrame; }
         }
 
         /// <summary>
@@ -256,6 +262,8 @@ namespace Lithforge.Runtime
 
                 _tickAccumulator.Accumulate(Time.deltaTime);
 
+                _ticksThisFrame = 0;
+
                 while (_tickAccumulator.ShouldTick)
                 {
                     InputLatchSnapshot latch = _playerInputLatch.ConsumeTick();
@@ -269,6 +277,7 @@ namespace Lithforge.Runtime
                     _tickRegistry.TickAll(FixedTickRate.TickDeltaTime);
 
                     _tickAccumulator.ConsumeOneTick();
+                    _ticksThisFrame++;
                 }
 
                 Profiler.EndSample();
