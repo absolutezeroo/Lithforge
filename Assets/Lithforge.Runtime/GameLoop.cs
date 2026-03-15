@@ -197,7 +197,8 @@ namespace Lithforge.Runtime
 
         /// <summary>
         /// Sets the MetricsRegistry for per-frame diagnostic aggregation.
-        /// CommitFrame() is called once per Update after FrameProfiler/PipelineStats have run.
+        /// CommitFrame() is called at the end of Update, after all systems have incremented
+        /// PipelineStats counters and all FrameProfiler sections have been closed.
         /// </summary>
         public void SetMetricsRegistry(Debug.MetricsRegistry metricsRegistry)
         {
@@ -213,11 +214,6 @@ namespace Lithforge.Runtime
 
             FrameProfiler.BeginFrame();
             PipelineStats.BeginFrame();
-
-            if (_metricsRegistry != null)
-            {
-                _metricsRegistry.CommitFrame();
-            }
 
             FrameProfiler.Begin(FrameProfiler.UpdateTotal);
 
@@ -336,6 +332,13 @@ namespace Lithforge.Runtime
             }
 
             FrameProfiler.End(FrameProfiler.UpdateTotal);
+
+            // CommitFrame AFTER all systems have run so the snapshot captures
+            // incremented PipelineStats counters and completed FrameProfiler sections.
+            if (_metricsRegistry != null)
+            {
+                _metricsRegistry.CommitFrame();
+            }
         }
 
         private void LateUpdate()

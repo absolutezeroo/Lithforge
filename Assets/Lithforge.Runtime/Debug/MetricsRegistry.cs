@@ -93,8 +93,8 @@ namespace Lithforge.Runtime.Debug
 
         /// <summary>
         /// Samples all sources and commits the snapshot.
-        /// Call once per frame from GameLoop.Update() after FrameProfiler.BeginFrame()
-        /// and PipelineStats.BeginFrame() have run.
+        /// Call once per frame from GameLoop.Update() AFTER all systems have run,
+        /// FrameProfiler sections are closed, and PipelineStats counters are incremented.
         /// </summary>
         public void CommitFrame()
         {
