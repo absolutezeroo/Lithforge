@@ -70,7 +70,7 @@ namespace Lithforge.Runtime.Content.Settings
         [Range(0.1f, 8f)]
         [SerializeField] private float lodCompletionBudgetMs = 1f;
 
-        // Deprecated: now derived from renderDistance via SchedulingConfig
+        /// <summary>Deprecated: now derived from renderDistance via SchedulingConfig.</summary>
         [HideInInspector]
         [SerializeField] private int maxLODCompletionsPerFrame = 4;
 
@@ -98,20 +98,20 @@ namespace Lithforge.Runtime.Content.Settings
         [Tooltip("Maximum Y chunk offset above which chunks are unloaded")]
         [SerializeField] private int yUnloadMax = 4;
 
-        // Deprecated: now derived from renderDistance via SchedulingConfig
+        /// <summary>Deprecated: now derived from renderDistance via SchedulingConfig.</summary>
         [Header("LOD")]
         [HideInInspector]
         [SerializeField] private int lod1Distance = 4;
 
-        // Deprecated: now derived from renderDistance via SchedulingConfig
+        /// <summary>Deprecated: now derived from renderDistance via SchedulingConfig.</summary>
         [HideInInspector]
         [SerializeField] private int lod2Distance = 8;
 
-        // Deprecated: now derived from renderDistance via SchedulingConfig
+        /// <summary>Deprecated: now derived from renderDistance via SchedulingConfig.</summary>
         [HideInInspector]
         [SerializeField] private int lod3Distance = 14;
 
-        // Deprecated: now derived from renderDistance via SchedulingConfig
+        /// <summary>Deprecated: now derived from renderDistance via SchedulingConfig.</summary>
         [HideInInspector]
         [SerializeField] private int maxLODMeshesPerFrame = 4;
 

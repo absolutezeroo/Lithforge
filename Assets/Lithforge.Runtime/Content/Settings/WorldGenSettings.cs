@@ -196,26 +196,31 @@ namespace Lithforge.Runtime.Content.Settings
             get { return caveSeedOffset1; }
         }
 
+        /// <inheritdoc cref="caveSeedOffset2"/>
         public int CaveSeedOffset2
         {
             get { return caveSeedOffset2; }
         }
 
+        /// <inheritdoc cref="seaLevelCarveBuffer"/>
         public int SeaLevelCarveBuffer
         {
             get { return seaLevelCarveBuffer; }
         }
 
+        /// <inheritdoc cref="seed"/>
         public long Seed
         {
             get { return seed; }
         }
 
+        /// <inheritdoc cref="seaLevel"/>
         public int SeaLevel
         {
             get { return seaLevel; }
         }
 
+        /// <inheritdoc cref="heightCurve"/>
         public AnimationCurve HeightCurve
         {
             get { return heightCurve; }

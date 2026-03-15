@@ -90,41 +90,49 @@ namespace Lithforge.Runtime.Rendering
         private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _slotArgsUpload =
             new GraphicsBuffer.IndirectDrawIndexedArgs[1];
 
+        /// <summary>GPU structured buffer bound as the vertex source for indirect draws.</summary>
         public GraphicsBuffer VertexBuffer
         {
             get { return _vertexBuffer; }
         }
 
+        /// <summary>GPU index buffer bound for RenderPrimitivesIndexedIndirect calls.</summary>
         public GraphicsBuffer IndexBuffer
         {
             get { return _indexBuffer; }
         }
 
+        /// <summary>Whole-layer indirect args buffer (single draw covering all slots).</summary>
         public GraphicsBuffer ArgsBuffer
         {
             get { return _argsBuffer; }
         }
 
+        /// <summary>True when at least one chunk slot is allocated, meaning there is something to draw.</summary>
         public bool HasGeometry
         {
             get { return _slots.Count > 0; }
         }
 
+        /// <summary>Number of vertex entries currently occupied (active slots + freed-but-not-reclaimed).</summary>
         public int UsedVertices
         {
             get { return _usedVertices; }
         }
 
+        /// <summary>Total vertex capacity of the backing buffers before a grow is required.</summary>
         public int VertexCapacity
         {
             get { return _vertexCapacity; }
         }
 
+        /// <summary>Total index capacity of the backing buffers before a grow is required.</summary>
         public int IndexCapacity
         {
             get { return _indexCapacity; }
         }
 
+        /// <summary>Number of disjoint free regions in the coalescing free-list, useful for fragmentation diagnostics.</summary>
         public int FreeRegionCount
         {
             get { return _freeRegions.Count; }
@@ -199,6 +207,9 @@ namespace Lithforge.Runtime.Rendering
             _argsDirty = false;
         }
 
+        /// <summary>
+        /// Releases all GPU buffers and CPU-side NativeArrays. Safe to call multiple times.
+        /// </summary>
         public void Dispose()
         {
             _vertexBuffer?.Dispose();
@@ -786,6 +797,10 @@ namespace Lithforge.Runtime.Rendering
             _perChunkArgsBuffer.SetData(_slotArgsUpload, 0, slotId, 1);
         }
 
+        /// <summary>
+        /// Tracks the vertex/index region owned by a single chunk in the shared buffers.
+        /// Capacity may exceed Count when in-place reuse keeps the larger original allocation.
+        /// </summary>
         private struct SlotInfo
         {
             public int VertexOffset;
@@ -796,6 +811,10 @@ namespace Lithforge.Runtime.Rendering
             public int IndexCapacity;
         }
 
+        /// <summary>
+        /// A recycled region in the free-list, sorted by VertexOffset for coalescing.
+        /// Paired vertex/index ranges stay together to simplify first-fit allocation.
+        /// </summary>
         private struct FreeRegion
         {
             public int VertexOffset;
@@ -824,11 +843,13 @@ namespace Lithforge.Runtime.Rendering
             private DirtyRange[] _ranges;
             private int _count;
 
+            /// <summary>Number of disjoint dirty intervals currently tracked.</summary>
             public int Count
             {
                 get { return _count; }
             }
 
+            /// <summary>Returns the dirty interval at the given position in the sorted list.</summary>
             public DirtyRange this[int index]
             {
                 get { return _ranges[index]; }
@@ -907,6 +928,7 @@ namespace Lithforge.Runtime.Rendering
                 }
             }
 
+            /// <summary>Resets the list to empty without releasing the backing array.</summary>
             public void Clear()
             {
                 _count = 0;

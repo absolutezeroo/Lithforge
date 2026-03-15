@@ -1060,17 +1060,22 @@ namespace Lithforge.Runtime.Bootstrap
                 hudVisibility.HideAll();
 
                 // Create SpawnManager to coordinate chunk loading and player placement
+                // Clamp spawn radius to LOD1 distance so all spawn-area chunks get full-detail meshes
                 int lod1Dist = SchedulingConfig.LOD1Distance(_settings.Chunk.RenderDistance);
-                UnityEngine.Debug.Assert(
-                    _settings.Chunk.SpawnLoadRadius <= lod1Dist,
-                    $"[Lithforge] Spawn radius ({_settings.Chunk.SpawnLoadRadius}) exceeds LOD1 distance ({lod1Dist}). " +
-                    "Spawn area chunks would be LOD-meshed, delaying spawn completion.");
+                int spawnRadius = _settings.Chunk.SpawnLoadRadius;
+                if (spawnRadius > lod1Dist)
+                {
+                    _logger.LogWarning(
+                        $"Spawn radius ({spawnRadius}) exceeds LOD1 distance ({lod1Dist}). " +
+                        $"Clamping to {lod1Dist} to ensure full-detail meshes in spawn area.");
+                    spawnRadius = lod1Dist;
+                }
 
                 SpawnManager spawnManager = new SpawnManager(
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
                     playerObject.transform,
-                    _settings.Chunk.SpawnLoadRadius,
+                    spawnRadius,
                     _settings.Chunk.YLoadMin,
                     _settings.Chunk.YLoadMax,
                     _settings.Chunk.SpawnFallbackY);
