@@ -86,10 +86,10 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         }
 
         /// <summary>
-        /// Version sentinel: a negative first int distinguishes versioned format
-        /// from v1 (which writes slotCount as the first positive int).
+        /// Version sentinel: a large negative first int distinguishes versioned format
+        /// from v1 (which writes a small positive slotCount as the first int).
         /// </summary>
-        private const int VersionSentinel = -2;
+        private const int VersionSentinel = int.MinValue + 2;
 
         public override void Serialize(BinaryWriter writer)
         {

@@ -472,8 +472,8 @@ namespace Lithforge.Runtime.UI.Interaction
             _paintOriginSlot = slotIndex;
             _paintOriginContainer = container;
             _paintItemId = _held.IsEmpty ? default : _held.Stack.ItemId;
-            _paintDurability = _held.Stack.Durability;
-            _paintCustomData = _held.Stack.CustomData;
+            _paintDurability = _held.IsEmpty ? -1 : _held.Stack.Durability;
+            _paintCustomData = _held.IsEmpty ? null : _held.Stack.CustomData;
             _paintedSlots.Clear();
             _paintedSlots.Add(MakePaintKey(container, slotIndex));
         }

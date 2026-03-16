@@ -16,7 +16,15 @@ namespace Lithforge.Runtime.Content.Tools
 
         public static void Initialize(Dictionary<ResourceId, byte[]> templates)
         {
-            s_templates = templates ?? new Dictionary<ResourceId, byte[]>();
+            s_templates = new Dictionary<ResourceId, byte[]>();
+
+            if (templates != null)
+            {
+                foreach (KeyValuePair<ResourceId, byte[]> pair in templates)
+                {
+                    s_templates[pair.Key] = pair.Value;
+                }
+            }
         }
 
         /// <summary>
