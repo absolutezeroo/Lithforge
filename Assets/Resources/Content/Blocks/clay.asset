@@ -19,7 +19,7 @@ MonoBehaviour:
   requiresTool: 0
   materialType: 3
   requiredToolLevel: 0
-  soundGroup: gravel
+  soundGroup: mud
   collisionShape: 0
   renderLayer: 0
   isFluid: 0

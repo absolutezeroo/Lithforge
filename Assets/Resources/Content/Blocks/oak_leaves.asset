@@ -19,7 +19,7 @@ MonoBehaviour:
   requiresTool: 0
   materialType: 4
   requiredToolLevel: 0
-  soundGroup: grass
+  soundGroup: leaves
   collisionShape: 0
   renderLayer: 1
   isFluid: 0

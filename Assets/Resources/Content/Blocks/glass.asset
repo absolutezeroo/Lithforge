@@ -19,7 +19,7 @@ MonoBehaviour:
   requiresTool: 0
   materialType: 6
   requiredToolLevel: 0
-  soundGroup: glass
+  soundGroup: stone
   collisionShape: 0
   renderLayer: 1
   lightEmission: 0
