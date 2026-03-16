@@ -1,21 +1,26 @@
+using System;
+
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
+
+using Object = UnityEngine.Object;
 
 namespace Lithforge.Runtime.UI.Sprites
 {
     /// <summary>
-    /// Composites tool part layer textures into a single sprite.
-    /// Layer order and part-to-layer mapping are driven by ToolDefinition.
+    ///     Composites tool part layer textures into a single sprite.
+    ///     Layer order and part-to-layer mapping are driven by ToolDefinition.
     /// </summary>
     public static class ToolSpriteCompositor
     {
         private const int SpriteSize = 32;
 
         /// <summary>
-        /// Creates a composite sprite for a ToolInstance by layering its part textures.
-        /// Layer order is defined by the ToolDefinition's spriteLayers array (bottom to top).
-        /// Returns null if no layers could be resolved.
+        ///     Creates a composite sprite for a ToolInstance by layering its part textures.
+        ///     Layer order is defined by the ToolDefinition's spriteLayers array (bottom to top).
+        ///     Returns null if no layers could be resolved.
         /// </summary>
         public static Sprite Composite(
             ToolInstance tool,
@@ -37,6 +42,8 @@ namespace Lithforge.Runtime.UI.Sprites
             Texture2D[] layers = new Texture2D[def.spriteLayers.Length];
             bool anyLayer = false;
 
+            UnityEngine.Debug.Log($"[ToolCompositor] Compositing {tool.ToolType} with {tool.Parts.Length} parts, {def.spriteLayers.Length} layers");
+
             for (int l = 0; l < def.spriteLayers.Length; l++)
             {
                 SpriteLayer layerDef = def.spriteLayers[l];
@@ -44,6 +51,7 @@ namespace Lithforge.Runtime.UI.Sprites
                 // Find the part that matches this layer
                 if (layerDef.partTypes == null || layerDef.partTypes.Length == 0)
                 {
+                    UnityEngine.Debug.Log($"[ToolCompositor]   Layer {l} ({layerDef.textureSubfolder}): partTypes null/empty, skipped");
                     continue;
                 }
 
@@ -70,6 +78,7 @@ namespace Lithforge.Runtime.UI.Sprites
 
                 if (!matchedPart.HasValue)
                 {
+                    UnityEngine.Debug.Log($"[ToolCompositor]   Layer {l} ({layerDef.textureSubfolder}): no matching part found among [{string.Join(", ", Array.ConvertAll(tool.Parts, p => p.PartType.ToString()))}]");
                     continue;
                 }
 
@@ -77,6 +86,8 @@ namespace Lithforge.Runtime.UI.Sprites
 
                 Texture2D tex = texDb.GetLayer(
                     tool.ToolType, layerDef.textureSubfolder, matSuffix);
+
+                UnityEngine.Debug.Log($"[ToolCompositor]   Layer {l} ({layerDef.textureSubfolder}): part={matchedPart.Value.PartType}, mat={matchedPart.Value.MaterialId}, suffix={matSuffix}, texture={(tex != null ? tex.name : "NULL")}");
 
                 if (tex != null)
                 {
@@ -100,21 +111,21 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Alpha-over compositing of multiple layers onto a single texture.
-        /// Null entries in the array are skipped.
-        /// Uses RenderTexture blit to handle non-readable source textures.
+        ///     Alpha-over compositing of multiple layers onto a single texture.
+        ///     Null entries in the array are skipped.
+        ///     Uses RenderTexture blit to handle non-readable source textures.
         /// </summary>
         private static Texture2D CompositeLayersPixel(Texture2D[] layers, int size)
         {
-            Texture2D result = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Texture2D result = new(size, size, TextureFormat.RGBA32, false);
             result.filterMode = FilterMode.Point;
             Color32[] pixels = new Color32[size * size];
 
             // Start fully transparent (Color32 zero-initializes to (0,0,0,0))
-            System.Array.Clear(pixels, 0, pixels.Length);
+            Array.Clear(pixels, 0, pixels.Length);
 
             // Reusable scratch texture for reading non-readable source textures
-            Texture2D scratch = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Texture2D scratch = new(size, size, TextureFormat.RGBA32, false);
 
             for (int l = 0; l < layers.Length; l++)
             {

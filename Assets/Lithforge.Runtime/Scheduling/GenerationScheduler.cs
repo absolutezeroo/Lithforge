@@ -336,7 +336,8 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (neighbor != null &&
                     neighbor.State >= ChunkState.RelightPending &&
-                    neighbor.LightData.IsCreated)
+                    neighbor.LightData.IsCreated &&
+                    neighbor.RenderedLODLevel >= 0)
                 {
                     _chunkManager.MarkNeedsLightUpdate(neighbor.Coord);
                 }
@@ -404,6 +405,17 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 ManagedChunk chunk = _lightUpdateCache[c];
+
+                // Skip never-meshed Generated chunks: their initial mesh will use current
+                // light data directly. Running CrossLight before first mesh creates a
+                // feedback loop where LightJobInFlight removes chunks from _generatedChunks,
+                // starving MeshScheduler.
+                if (chunk.State == ChunkState.Generated && chunk.RenderedLODLevel < 0)
+                {
+                    _chunkManager.ClearNeedsLightUpdate(chunk.Coord);
+
+                    continue;
+                }
 
                 if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
                 {

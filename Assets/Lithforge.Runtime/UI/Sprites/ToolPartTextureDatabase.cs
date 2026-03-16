@@ -1,23 +1,24 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.UI.Sprites
 {
     /// <summary>
-    /// Indexes tool part layer textures for sprite compositing.
-    /// Driven entirely by ToolDefinition and ToolMaterialDefinition assets.
+    ///     Indexes tool part layer textures for sprite compositing.
+    ///     Driven entirely by ToolDefinition and ToolMaterialDefinition assets.
     /// </summary>
     public sealed class ToolPartTextureDatabase
     {
-        private readonly Dictionary<(ToolType, string, string), Texture2D> _layers;
-        private readonly Dictionary<ToolType, ToolDefinition> _toolDefs;
-        private readonly Dictionary<string, string> _materialSuffixes;
-        private readonly string _fallbackSuffix;
-
         private const string BasePath = "Content/Textures/Items/Tool";
+        private readonly string _fallbackSuffix;
+        private readonly Dictionary<(ToolType, string, string), Texture2D> _layers;
+        private readonly Dictionary<string, string> _materialSuffixes;
+        private readonly Dictionary<ToolType, ToolDefinition> _toolDefs;
 
         public ToolPartTextureDatabase(
             ToolDefinition[] toolDefinitions,
@@ -76,6 +77,8 @@ namespace Lithforge.Runtime.UI.Sprites
                     string path = $"{BasePath}/{def.textureFolderName}/{layer.textureSubfolder}";
                     Texture2D[] textures = Resources.LoadAll<Texture2D>(path);
 
+                    UnityEngine.Debug.Log($"[ToolTexDb] {def.toolType}/{layer.textureSubfolder}: loaded {textures.Length} textures from '{path}' (prefix={layer.filenamePrefix}, partTypes={layer.partTypes?.Length ?? 0})");
+
                     for (int t = 0; t < textures.Length; t++)
                     {
                         Texture2D tex = textures[t];
@@ -93,13 +96,17 @@ namespace Lithforge.Runtime.UI.Sprites
                         {
                             _layers[(def.toolType, layer.textureSubfolder, extractedSuffix)] = tex;
                         }
+                        else
+                        {
+                            UnityEngine.Debug.LogWarning($"[ToolTexDb]   Could not extract suffix from '{tex.name}' with prefix '{layer.filenamePrefix}'");
+                        }
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Gets the ToolDefinition for a given tool type. Returns null if not configured.
+        ///     Gets the ToolDefinition for a given tool type. Returns null if not configured.
         /// </summary>
         public ToolDefinition GetDefinition(ToolType toolType)
         {
@@ -108,9 +115,9 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Gets a texture layer for the given tool type, subfolder, and material suffix.
-        /// Falls back to the configured fallback material if exact match not found.
-        /// Returns null if no texture exists at all.
+        ///     Gets a texture layer for the given tool type, subfolder, and material suffix.
+        ///     Falls back to the configured fallback material if exact match not found.
+        ///     Returns null if no texture exists at all.
         /// </summary>
         public Texture2D GetLayer(ToolType toolType, string subfolder, string materialSuffix)
         {
@@ -129,9 +136,9 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Resolves the texture suffix for a material ResourceId.
-        /// Uses the pre-cached suffix from ToolMaterialDefinition if available,
-        /// otherwise falls back to materialId.Name.
+        ///     Resolves the texture suffix for a material ResourceId.
+        ///     Uses the pre-cached suffix from ToolMaterialDefinition if available,
+        ///     otherwise falls back to materialId.Name.
         /// </summary>
         public string ResolveSuffix(ResourceId materialId)
         {
@@ -144,8 +151,8 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Searches all registered ToolDefinitions for a texture matching
-        /// the given part type and material suffix. Returns the first match.
+        ///     Searches all registered ToolDefinitions for a texture matching
+        ///     the given part type and material suffix. Returns the first match.
         /// </summary>
         public Texture2D FindPartTexture(ToolPartType partType, string materialSuffix)
         {
@@ -186,10 +193,10 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Extracts the material suffix from a texture filename given the expected prefix.
-        /// "head_wood" with prefix "head" returns "wood".
-        /// "blade_iron" with prefix "blade" returns "iron".
-        /// "handle_amethyst_bronze" with prefix "handle" returns "amethyst_bronze".
+        ///     Extracts the material suffix from a texture filename given the expected prefix.
+        ///     "head_wood" with prefix "head" returns "wood".
+        ///     "blade_iron" with prefix "blade" returns "iron".
+        ///     "handle_amethyst_bronze" with prefix "handle" returns "amethyst_bronze".
         /// </summary>
         private static string ExtractSuffix(string textureName, string prefix)
         {

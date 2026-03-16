@@ -317,9 +317,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
             // Determine the result item ID based on tool type and head material
             ResourceId resultItemId = GetResultItemId(tool);
 
-            // Generate composite sprite on-demand if not cached
-            if (!Context.ItemSpriteAtlas.Contains(resultItemId) &&
-                Context.ToolPartTextures != null)
+            // Generate composite sprite for the modular tool (always re-composite
+            // since the same resultItemId may map to different part material combos,
+            // and legacy tool compositing may have registered a head-only sprite)
+            if (Context.ToolPartTextures != null)
             {
                 Sprite composite = ToolSpriteCompositor.Composite(
                     tool, Context.ToolPartTextures);

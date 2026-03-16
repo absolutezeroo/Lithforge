@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
-using ILogger = Lithforge.Core.Logging.ILogger;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Audio;
+using Lithforge.Runtime.BlockEntity;
+using Lithforge.Runtime.BlockEntity.Factories;
+using Lithforge.Runtime.BlockEntity.ScriptableObjects;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items;
 using Lithforge.Runtime.Content.Loot;
@@ -15,50 +18,46 @@ using Lithforge.Runtime.Content.Recipes;
 using Lithforge.Runtime.Content.Tags;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Content.WorldGen;
+using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Runtime.UI.Sprites;
-using Lithforge.Runtime.BlockEntity;
-using Lithforge.Runtime.BlockEntity.Factories;
-using Lithforge.Runtime.BlockEntity.ScriptableObjects;
-using Lithforge.Runtime.Player;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
+
 using Unity.Collections;
+
 using UnityEngine;
+
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Bootstrap
 {
     /// <summary>
-    /// Orchestrates the full content loading pipeline using ScriptableObjects:
-    ///   Phase 1:  Load block definitions via Resources.LoadAll
-    ///   Phase 2:  Register blocks in StateRegistry
-    ///   Phase 3:  Resolve block models via ContentModelResolver
-    ///   Phase 4:  Resolve blockstate variants to per-face textures
-    ///   Phase 5:  Build texture atlas
-    ///   Phase 6:  Patch texture indices into StateRegistry
-    ///   Phase 7:  Load biome and ore definitions
-    ///   Phase 8:  Load item definitions
-    ///   Phase 9:  Load loot tables
-    ///   Phase 10: Load tags and build TagRegistry
-    ///   Phase 11: Load recipes and build CraftingEngine
-    ///   Phase 12: Build ItemRegistry
-    ///   Phase 13: Load mods
-    ///   Phase 14: BakeNative (freeze) + build NativeAtlasLookup
+    ///     Orchestrates the full content loading pipeline using ScriptableObjects:
+    ///     Phase 1:  Load block definitions via Resources.LoadAll
+    ///     Phase 2:  Register blocks in StateRegistry
+    ///     Phase 3:  Resolve block models via ContentModelResolver
+    ///     Phase 4:  Resolve blockstate variants to per-face textures
+    ///     Phase 5:  Build texture atlas
+    ///     Phase 6:  Patch texture indices into StateRegistry
+    ///     Phase 7:  Load biome and ore definitions
+    ///     Phase 8:  Load item definitions
+    ///     Phase 9:  Load loot tables
+    ///     Phase 10: Load tags and build TagRegistry
+    ///     Phase 11: Load recipes and build CraftingEngine
+    ///     Phase 12: Build ItemRegistry
+    ///     Phase 13: Load mods
+    ///     Phase 14: BakeNative (freeze) + build NativeAtlasLookup
     /// </summary>
     public sealed class ContentPipeline
     {
+        private readonly int _atlasTileSize;
         private readonly ILogger _logger;
         private readonly ContentValidator _validator;
-        private readonly int _atlasTileSize;
-
-        /// <summary>
-        /// The result of the content pipeline, available after Build() iteration completes.
-        /// </summary>
-        public ContentPipelineResult Result { get; private set; }
 
         public ContentPipeline(ILogger logger, ContentValidator validator, int atlasTileSize = 16)
         {
@@ -68,9 +67,14 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Builds the content pipeline as an iterator, yielding a phase description string
-        /// between each processing phase. The final result is stored in the Result property.
-        /// Can be consumed from a coroutine to allow frame yields between phases.
+        ///     The result of the content pipeline, available after Build() iteration completes.
+        /// </summary>
+        public ContentPipelineResult Result { get; private set; }
+
+        /// <summary>
+        ///     Builds the content pipeline as an iterator, yielding a phase description string
+        ///     between each processing phase. The final result is stored in the Result property.
+        ///     Can be consumed from a coroutine to allow frame yields between phases.
         /// </summary>
         public IEnumerable<string> Build()
         {
@@ -81,14 +85,13 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 2: Register blocks in StateRegistry
             yield return "Registering states...";
-            StateRegistry stateRegistry = new StateRegistry();
-            Dictionary<string, BlockDefinition> blockLookup =
-                new Dictionary<string, BlockDefinition>();
+            StateRegistry stateRegistry = new();
+            Dictionary<string, BlockDefinition> blockLookup = new();
 
             for (int i = 0; i < blocks.Length; i++)
             {
                 BlockDefinition block = blocks[i];
-                ResourceId id = new ResourceId(block.Namespace, block.BlockName);
+                ResourceId id = new(block.Namespace, block.BlockName);
 
                 string lootTableStr = null;
 
@@ -97,7 +100,7 @@ namespace Lithforge.Runtime.Bootstrap
                     lootTableStr = block.LootTable.Namespace + ":" + block.LootTable.TableName;
                 }
 
-                BlockRegistrationData regData = new BlockRegistrationData(
+                BlockRegistrationData regData = new(
                     id,
                     block.ComputeStateCount(),
                     block.RenderLayerString,
@@ -110,8 +113,8 @@ namespace Lithforge.Runtime.Bootstrap
                     (float)block.BlastResistance,
                     block.RequiresTool,
                     block.IsFluid,
-                    materialType: block.MaterialType,
-                    requiredToolLevel: block.RequiredToolLevel,
+                    block.MaterialType,
+                    block.RequiredToolLevel,
                     soundGroup: block.SoundGroup);
 
                 stateRegistry.Register(regData);
@@ -136,13 +139,11 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 3: Resolve block models via ContentModelResolver
             yield return "Resolving models...";
-            ContentModelResolver modelResolver = new ContentModelResolver();
-            Dictionary<BlockModel, ResolvedFaceTextures2D> resolvedModelCache =
-                new Dictionary<BlockModel, ResolvedFaceTextures2D>();
+            ContentModelResolver modelResolver = new();
+            Dictionary<BlockModel, ResolvedFaceTextures2D> resolvedModelCache = new();
 
             // Phase 4: Resolve blockstate variants to per-face textures
-            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces =
-                new Dictionary<StateId, ResolvedFaceTextures2D>();
+            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces = new();
 
             IReadOnlyList<StateRegistryEntry> entries = stateRegistry.Entries;
 
@@ -165,7 +166,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 for (int offset = 0; offset < entry.StateCount; offset++)
                 {
-                    StateId stateId = new StateId((ushort)(entry.BaseStateId + offset));
+                    StateId stateId = new((ushort)(entry.BaseStateId + offset));
                     string variantKey = BuildVariantKey(block, offset);
 
                     BlockStateVariantEntry variant = FindVariant(mapping, variantKey);
@@ -203,7 +204,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 6: Build texture atlas (includes both base and overlay textures)
             yield return "Building texture atlas...";
-            AtlasBuilder atlasBuilder = new AtlasBuilder(_logger, _atlasTileSize);
+            AtlasBuilder atlasBuilder = new(_logger, _atlasTileSize);
             AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces);
 
             // Phase 6.5: Patch texture indices into StateRegistry
@@ -240,7 +241,7 @@ namespace Lithforge.Runtime.Bootstrap
             yield return "Loading tool materials...";
             ToolMaterialDefinition[] toolMaterials =
                 Resources.LoadAll<ToolMaterialDefinition>("Content/ToolMaterials");
-            ToolMaterialRegistry toolMaterialRegistry = new ToolMaterialRegistry();
+            ToolMaterialRegistry toolMaterialRegistry = new();
 
             for (int i = 0; i < toolMaterials.Length; i++)
             {
@@ -257,16 +258,16 @@ namespace Lithforge.Runtime.Bootstrap
                     continue;
                 }
 
-                ToolMaterialData matData = new ToolMaterialData(
+                ToolMaterialData matData = new(
                     matId,
-                    mat.compatibleParts ?? System.Array.Empty<ToolPartType>(),
+                    mat.compatibleParts ?? Array.Empty<ToolPartType>(),
                     mat.headMiningSpeed,
                     mat.headDurability,
                     mat.headAttackDamage,
                     mat.handleDurabilityMultiplier,
                     mat.handleSpeedMultiplier,
                     mat.bindingDurabilityBonus,
-                    mat.traitIds ?? System.Array.Empty<string>(),
+                    mat.traitIds ?? Array.Empty<string>(),
                     mat.toolLevel);
 
                 toolMaterialRegistry.Register(matData);
@@ -292,7 +293,7 @@ namespace Lithforge.Runtime.Bootstrap
             yield return "Loading tool traits...";
             ToolTraitDefinitionSO[] toolTraits =
                 Resources.LoadAll<ToolTraitDefinitionSO>("Content/ToolTraits");
-            ToolTraitRegistry toolTraitRegistry = new ToolTraitRegistry();
+            ToolTraitRegistry toolTraitRegistry = new();
 
             for (int i = 0; i < toolTraits.Length; i++)
             {
@@ -312,13 +313,12 @@ namespace Lithforge.Runtime.Bootstrap
             // Phase 9: Load loot tables and build lookup
             yield return "Loading loot tables...";
             LootTable[] lootTableAssets = Resources.LoadAll<LootTable>("Content/LootTables");
-            Dictionary<ResourceId, LootTableDefinition> lootTables =
-                new Dictionary<ResourceId, LootTableDefinition>();
+            Dictionary<ResourceId, LootTableDefinition> lootTables = new();
 
             for (int i = 0; i < lootTableAssets.Length; i++)
             {
                 LootTable lt = lootTableAssets[i];
-                ResourceId ltId = new ResourceId(lt.Namespace, lt.TableName);
+                ResourceId ltId = new(lt.Namespace, lt.TableName);
                 LootTableDefinition ltDef = ConvertLootTable(lt, ltId);
                 lootTables[ltId] = ltDef;
             }
@@ -328,13 +328,13 @@ namespace Lithforge.Runtime.Bootstrap
             // Phase 10: Load tags and build TagRegistry
             yield return "Loading tags...";
             Tag[] tagAssets = Resources.LoadAll<Tag>("Content/Tags");
-            TagRegistry tagRegistry = new TagRegistry();
+            TagRegistry tagRegistry = new();
 
             for (int i = 0; i < tagAssets.Length; i++)
             {
                 Tag tag = tagAssets[i];
-                ResourceId tagId = new ResourceId(tag.Namespace, tag.TagName);
-                TagDefinition tagDef = new TagDefinition(tagId);
+                ResourceId tagId = new(tag.Namespace, tag.TagName);
+                TagDefinition tagDef = new(tagId);
                 tagDef.Replace = tag.Replace;
 
                 IReadOnlyList<string> entryIds = tag.EntryIds;
@@ -353,7 +353,7 @@ namespace Lithforge.Runtime.Bootstrap
             yield return "Loading recipes...";
             RecipeDefinition[] recipeAssets =
                 Resources.LoadAll<RecipeDefinition>("Content/Recipes");
-            List<RecipeEntry> recipes = new List<RecipeEntry>();
+            List<RecipeEntry> recipes = new();
 
             for (int i = 0; i < recipeAssets.Length; i++)
             {
@@ -361,12 +361,12 @@ namespace Lithforge.Runtime.Bootstrap
                 recipes.Add(recipeDef);
             }
 
-            CraftingEngine craftingEngine = new CraftingEngine(recipes);
+            CraftingEngine craftingEngine = new(recipes);
             _logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
 
             // Phase 12: Build ItemRegistry
             yield return "Building item registry...";
-            List<ItemEntry> itemEntries = new List<ItemEntry>();
+            List<ItemEntry> itemEntries = new();
 
             for (int i = 0; i < items.Length; i++)
             {
@@ -374,20 +374,20 @@ namespace Lithforge.Runtime.Bootstrap
                 itemEntries.Add(itemDef);
             }
 
-            ItemRegistry itemRegistry = new ItemRegistry();
+            ItemRegistry itemRegistry = new();
             itemRegistry.RegisterBlockItems(stateRegistry.Entries);
             itemRegistry.RegisterItems(itemEntries);
             _logger.LogInfo($"ItemRegistry: {itemRegistry.Count} items total.");
 
             // Phase 13: Load mods
             yield return "Loading mods...";
-            ModLoader modLoader = new ModLoader();
+            ModLoader modLoader = new();
             modLoader.LoadAllMods();
 
             for (int i = 0; i < modLoader.LoadedBlocks.Count; i++)
             {
                 BlockDefinition modBlock = modLoader.LoadedBlocks[i];
-                ResourceId modId = new ResourceId(modBlock.Namespace, modBlock.BlockName);
+                ResourceId modId = new(modBlock.Namespace, modBlock.BlockName);
 
                 string modLootStr = null;
 
@@ -396,7 +396,7 @@ namespace Lithforge.Runtime.Bootstrap
                     modLootStr = modBlock.LootTable.Namespace + ":" + modBlock.LootTable.TableName;
                 }
 
-                BlockRegistrationData modRegData = new BlockRegistrationData(
+                BlockRegistrationData modRegData = new(
                     modId,
                     modBlock.ComputeStateCount(),
                     modBlock.RenderLayerString,
@@ -409,8 +409,8 @@ namespace Lithforge.Runtime.Bootstrap
                     (float)modBlock.BlastResistance,
                     modBlock.RequiresTool,
                     modBlock.IsFluid,
-                    materialType: modBlock.MaterialType,
-                    requiredToolLevel: modBlock.RequiredToolLevel);
+                    modBlock.MaterialType,
+                    modBlock.RequiredToolLevel);
 
                 stateRegistry.Register(modRegData);
             }
@@ -430,13 +430,13 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 15: Build item sprite atlas for UI
             yield return "Building item sprites...";
-            ToolPartTextureDatabase toolTexDb = new ToolPartTextureDatabase(toolDefinitions, toolMaterials);
+            ToolPartTextureDatabase toolTexDb = new(toolDefinitions, toolMaterials);
             ItemSpriteAtlas itemSpriteAtlas = ItemSpriteAtlasBuilder.Build(
                 itemEntries, stateRegistry, resolvedFaces, toolTexDb);
             _logger.LogInfo($"Built item sprite atlas: {itemSpriteAtlas.Count} sprites.");
 
             // Phase 15.5: Build item display transform lookup for first-person held items
-            ItemDisplayTransformLookup displayTransformLookup = new ItemDisplayTransformLookup();
+            ItemDisplayTransformLookup displayTransformLookup = new();
 
             // Load base model assets for fallback display transforms
             BlockModel blockBaseModel = Resources.Load<BlockModel>("Content/Models/block");
@@ -506,14 +506,14 @@ namespace Lithforge.Runtime.Bootstrap
 
                 if (dt != null)
                 {
-                    ResourceId itemId = new ResourceId(item.Namespace, item.ItemName);
+                    ResourceId itemId = new(item.Namespace, item.ItemName);
                     displayTransformLookup.Register(itemId, ItemDisplayTransformLookup.BuildMatrix(dt));
                 }
             }
 
             // Phase 16: Load smelting recipes and register block entity factories
             yield return "Loading smelting recipes...";
-            SmeltingRecipeRegistry smeltingRecipeRegistry = new SmeltingRecipeRegistry();
+            SmeltingRecipeRegistry smeltingRecipeRegistry = new();
             SmeltingRecipeDefinition[] smeltingRecipes =
                 Resources.LoadAll<SmeltingRecipeDefinition>("Content/Recipes/Smelting");
 
@@ -525,7 +525,7 @@ namespace Lithforge.Runtime.Bootstrap
                 {
                     ResourceId inputId = ResourceId.Parse(sr.InputItemId);
                     ResourceId resultId = ResourceId.Parse(sr.ResultItemId);
-                    SmeltingRecipeEntry entry = new SmeltingRecipeEntry(
+                    SmeltingRecipeEntry entry = new(
                         inputId, resultId, sr.ResultCount, sr.ExperienceReward);
                     smeltingRecipeRegistry.Register(entry);
                 }
@@ -534,7 +534,7 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Loaded {smeltingRecipeRegistry.Count} smelting recipes.");
 
             // Register block entity factories
-            BlockEntityRegistry blockEntityRegistry = new BlockEntityRegistry();
+            BlockEntityRegistry blockEntityRegistry = new();
             blockEntityRegistry.Register(new BlockEntityType(
                 ChestBlockEntity.TypeIdValue,
                 new ChestBlockEntityFactory()));
@@ -551,77 +551,9 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
 
-            // Phase 17: Generate legacy tool templates for items with flat tool fields
-            // Intentionally reads Obsolete ItemDefinition properties to bake templates
-#pragma warning disable CS0612, CS0618
-            Dictionary<ResourceId, byte[]> legacyToolTemplates = new Dictionary<ResourceId, byte[]>();
-
-            for (int i = 0; i < items.Length; i++)
-            {
-                ItemDefinition item = items[i];
-
-                if (item.ToolType == ToolType.None)
-                {
-                    continue;
-                }
-
-                ResourceId itemId = new ResourceId(item.Namespace, item.ItemName);
-                int maxDur = item.Durability > 0 ? item.Durability : -1;
-
-                ToolPart headPart = new ToolPart
-                {
-                    PartType = ToolPartType.Head,
-                    MaterialId = ResourceId.Parse("lithforge:legacy"),
-                    SpeedContribution = item.MiningSpeed,
-                    DurabilityContribution = maxDur > 0 ? maxDur : 0,
-                    DamageContribution = item.AttackDamage,
-                    DurabilityMultiplier = 1.0f,
-                    SpeedMultiplier = 1.0f,
-                    TraitIds = System.Array.Empty<ResourceId>(),
-                };
-
-                ToolInstance tool = new ToolInstance
-                {
-                    ToolType = item.ToolType,
-                    BaseSpeed = item.MiningSpeed,
-                    BaseDamage = item.AttackDamage,
-                    MaxDurability = maxDur,
-                    CurrentDurability = maxDur,
-                    EffectiveToolLevel = item.ToolLevel,
-                    Parts = new ToolPart[] { headPart },
-                    Slots = new ModifierSlot[ToolInstance.MaxModifierSlots],
-                };
-
-                legacyToolTemplates[itemId] = ToolInstanceSerializer.Serialize(tool);
-            }
-#pragma warning restore CS0612, CS0618
-
-            _logger.LogInfo($"Generated {legacyToolTemplates.Count} legacy tool templates.");
-
-            // Composite sprites for legacy tools
-            int compositedCount = 0;
-
-            foreach (KeyValuePair<ResourceId, byte[]> kvp in legacyToolTemplates)
-            {
-                ToolInstance legacyTool = ToolInstanceSerializer.Deserialize(kvp.Value);
-
-                if (legacyTool != null)
-                {
-                    Sprite sprite = ToolSpriteCompositor.Composite(legacyTool, toolTexDb);
-
-                    if (sprite != null)
-                    {
-                        itemSpriteAtlas.Register(kvp.Key, sprite);
-                        compositedCount++;
-                    }
-                }
-            }
-
-            _logger.LogInfo($"Composited {compositedCount} legacy tool sprites.");
-
             // Phase 18: Load sound group definitions
             yield return "Loading sound groups...";
-            SoundGroupRegistry soundGroupRegistry = new SoundGroupRegistry();
+            SoundGroupRegistry soundGroupRegistry = new();
             SoundGroupDefinition[] soundGroups =
                 Resources.LoadAll<SoundGroupDefinition>("Content/SoundGroups");
 
@@ -655,7 +587,6 @@ namespace Lithforge.Runtime.Bootstrap
                 displayTransformLookup,
                 toolMaterialRegistry,
                 toolTraitRegistry,
-                legacyToolTemplates,
                 soundGroupRegistry,
                 toolTexDb,
                 toolMaterials);
@@ -670,7 +601,7 @@ namespace Lithforge.Runtime.Bootstrap
                 return "";
             }
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new();
             int remaining = stateOffset;
 
             for (int i = 0; i < properties.Count; i++)
@@ -701,7 +632,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             for (int i = 0; i < variants.Count; i++)
             {
-                if (string.Equals(variants[i].VariantKey, variantKey, System.StringComparison.Ordinal))
+                if (string.Equals(variants[i].VariantKey, variantKey, StringComparison.Ordinal))
                 {
                     return variants[i];
                 }
@@ -712,7 +643,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private static LootTableDefinition ConvertLootTable(LootTable lt, ResourceId id)
         {
-            LootTableDefinition def = new LootTableDefinition(id);
+            LootTableDefinition def = new(id);
             def.Type = lt.Type;
 
             IReadOnlyList<LootPoolEntry> pools = lt.Pools;
@@ -720,7 +651,7 @@ namespace Lithforge.Runtime.Bootstrap
             for (int p = 0; p < pools.Count; p++)
             {
                 LootPoolEntry poolEntry = pools[p];
-                LootPool pool = new LootPool();
+                LootPool pool = new();
                 pool.RollsMin = poolEntry.RollsMin;
                 pool.RollsMax = poolEntry.RollsMax;
 
@@ -729,7 +660,7 @@ namespace Lithforge.Runtime.Bootstrap
                 for (int e = 0; e < items.Count; e++)
                 {
                     LootItemEntry itemEntry = items[e];
-                    LootEntry entry = new LootEntry();
+                    LootEntry entry = new();
                     entry.Type = itemEntry.Type;
                     entry.Name = itemEntry.ItemName;
                     entry.Weight = itemEntry.Weight;
@@ -739,7 +670,7 @@ namespace Lithforge.Runtime.Bootstrap
                     for (int f = 0; f < funcs.Count; f++)
                     {
                         LootFunctionEntry funcEntry = funcs[f];
-                        LootFunction func = new LootFunction();
+                        LootFunction func = new();
                         func.Type = funcEntry.FunctionType;
 
                         IReadOnlyList<StringPair> pars = funcEntry.Parameters;
@@ -764,8 +695,8 @@ namespace Lithforge.Runtime.Bootstrap
 
         private static RecipeEntry ConvertRecipe(RecipeDefinition source)
         {
-            ResourceId id = new ResourceId(source.Namespace, source.RecipeName);
-            RecipeEntry recipe = new RecipeEntry(id);
+            ResourceId id = new(source.Namespace, source.RecipeName);
+            RecipeEntry recipe = new(id);
             recipe.Type = source.Type;
             recipe.ResultCount = source.ResultCount;
 
@@ -808,8 +739,8 @@ namespace Lithforge.Runtime.Bootstrap
 
         private static ItemEntry ConvertItem(ItemDefinition item)
         {
-            ResourceId id = new ResourceId(item.Namespace, item.ItemName);
-            ItemEntry def = new ItemEntry(id);
+            ResourceId id = new(item.Namespace, item.ItemName);
+            ItemEntry def = new(id);
             def.MaxStackSize = item.MaxStackSize;
             def.FuelTime = item.FuelTime;
 
@@ -831,9 +762,9 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Resolves per-face tint types and overlay textures from model elements.
-        /// Element 0 provides base per-face tint. Elements 1..N provide overlay
-        /// textures and overlay per-face tint (last distinct texture wins per face).
+        ///     Resolves per-face tint types and overlay textures from model elements.
+        ///     Element 0 provides base per-face tint. Elements 1..N provide overlay
+        ///     textures and overlay per-face tint (last distinct texture wins per face).
         /// </summary>
         private void ResolveOverlaysAndTints(
             ContentModelResolver modelResolver,
@@ -863,7 +794,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 for (int offset = 0; offset < entry.StateCount; offset++)
                 {
-                    StateId stateId = new StateId((ushort)(entry.BaseStateId + offset));
+                    StateId stateId = new((ushort)(entry.BaseStateId + offset));
                     string variantKey = BuildVariantKey(block, offset);
                     BlockStateVariantEntry variant = FindVariant(mapping, variantKey);
 
@@ -961,8 +892,8 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Maps a ModelFaceEntry.TintIndex to a per-face tint type byte:
-        ///   -1 → 0 (none), 0 → 1 (grass), 1 → 2 (foliage), ≥2 → 3 (water)
+        ///     Maps a ModelFaceEntry.TintIndex to a per-face tint type byte:
+        ///     -1 → 0 (none), 0 → 1 (grass), 1 → 2 (foliage), ≥2 → 3 (water)
         /// </summary>
         private static byte MapTintIndex(ModelFaceEntry face)
         {
@@ -1019,8 +950,8 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Scans elements 1..N for the last element whose face has a different texture
-        /// than element 0's face. That element's texture becomes the overlay.
+        ///     Scans elements 1..N for the last element whose face has a different texture
+        ///     than element 0's face. That element's texture becomes the overlay.
         /// </summary>
         private static void ResolveOverlayFromElements(
             List<ModelElement> elements,
@@ -1028,7 +959,7 @@ namespace Lithforge.Runtime.Bootstrap
             Dictionary<string, Texture2D> resolvedTextures,
             ref Texture2D overlayTex,
             ref byte overlayTintType,
-            System.Func<ModelElement, ModelFaceEntry> faceSelector)
+            Func<ModelElement, ModelFaceEntry> faceSelector)
         {
             ModelFaceEntry baseFace = faceSelector(baseElem);
             string baseTexRef = baseFace?.Texture;
@@ -1072,15 +1003,15 @@ namespace Lithforge.Runtime.Bootstrap
             Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
         {
             int totalStates = stateRegistry.TotalStateCount;
-            NativeArray<AtlasEntry> entries = new NativeArray<AtlasEntry>(
-                totalStates, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+            NativeArray<AtlasEntry> entries = new(
+                totalStates, Allocator.Persistent);
 
             for (int i = 0; i < totalStates; i++)
             {
-                StateId sid = new StateId((ushort)i);
+                StateId sid = new((ushort)i);
                 BlockStateCompact state = stateRegistry.GetState(sid);
 
-                AtlasEntry entry = new AtlasEntry
+                AtlasEntry entry = new()
                 {
                     // Base texture indices (from StateRegistry, already patched)
                     TexPosX = state.TexEast,
@@ -1097,7 +1028,6 @@ namespace Lithforge.Runtime.Bootstrap
                     OvlNegY = 0xFFFF,
                     OvlPosZ = 0xFFFF,
                     OvlNegZ = 0xFFFF,
-
                     BaseTintPacked = 0,
                     OverlayTintPacked = 0,
                 };
@@ -1143,12 +1073,12 @@ namespace Lithforge.Runtime.Bootstrap
             byte posX, byte negX, byte posY, byte negY, byte posZ, byte negZ)
         {
             return (ushort)(
-                (posX & 0x3) |
-                ((negX & 0x3) << 2) |
-                ((posY & 0x3) << 4) |
-                ((negY & 0x3) << 6) |
-                ((posZ & 0x3) << 8) |
-                ((negZ & 0x3) << 10));
+                posX & 0x3 |
+                (negX & 0x3) << 2 |
+                (posY & 0x3) << 4 |
+                (negY & 0x3) << 6 |
+                (posZ & 0x3) << 8 |
+                (negZ & 0x3) << 10);
         }
 
         private static ushort GetOverlayIndex(AtlasResult atlas, Texture2D texture)

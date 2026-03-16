@@ -1,10 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
-using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
-using Lithforge.Meshing.Atlas;
-using Lithforge.Physics;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
@@ -19,6 +18,7 @@ using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
+using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.UI;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.World;
@@ -32,61 +32,73 @@ using Lithforge.WorldGen.Decoration;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Ore;
 using Lithforge.WorldGen.Pipeline;
+using Lithforge.WorldGen.River;
+
 using Unity.Collections;
+using Unity.Mathematics;
+
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Serialization;
+using UnityEngine.UIElements;
+
+using AudioSettings = Lithforge.Runtime.Content.Settings.AudioSettings;
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Bootstrap
 {
     /// <summary>
-    /// Top-level MonoBehaviour that orchestrates the entire game lifecycle.
-    /// On Start it loops between the world-selection screen and game sessions:
-    /// each session runs ContentPipeline, creates the chunk system, schedulers,
-    /// rendering, UI, and player, then yields until a quit-to-title request
-    /// triggers save, dispose, and a return to world selection.
+    ///     Top-level MonoBehaviour that orchestrates the entire game lifecycle.
+    ///     On Start it loops between the world-selection screen and game sessions:
+    ///     each session runs ContentPipeline, creates the chunk system, schedulers,
+    ///     rendering, UI, and player, then yields until a quit-to-title request
+    ///     triggers save, dispose, and a return to world selection.
     /// </summary>
     /// <remarks>
-    /// This component lives on a single root GameObject that persists for the
-    /// application lifetime. Per-session systems are attached as child components
-    /// or separate GameObjects and torn down by <c>ShutdownSessionResources</c>.
-    /// Native containers allocated here (biome data, ore configs, chunk pool) are
-    /// disposed in a strict order to avoid double-free or use-after-free.
+    ///     This component lives on a single root GameObject that persists for the
+    ///     application lifetime. Per-session systems are attached as child components
+    ///     or separate GameObjects and torn down by <c>ShutdownSessionResources</c>.
+    ///     Native containers allocated here (biome data, ore configs, chunk pool) are
+    ///     disposed in a strict order to avoid double-free or use-after-free.
     /// </remarks>
     public sealed class LithforgeBootstrap : MonoBehaviour
     {
         /// <summary>Optional inspector-assigned opaque voxel material. Falls back to Shader.Find at runtime.</summary>
-        [FormerlySerializedAs("_voxelMaterial"),SerializeField] private Material voxelMaterial;
+        [FormerlySerializedAs("_voxelMaterial"), SerializeField]
+        private Material voxelMaterial;
         /// <summary>Optional inspector-assigned compute shader for GPU frustum culling. Falls back to Resources.Load.</summary>
-        [FormerlySerializedAs("_frustumCullShader"),SerializeField] private ComputeShader frustumCullShader;
+        [FormerlySerializedAs("_frustumCullShader"), SerializeField]
+        private ComputeShader frustumCullShader;
         /// <summary>Optional inspector-assigned compute shader for Hi-Z mipmap generation. Falls back to Resources.Load.</summary>
-        [FormerlySerializedAs("_hiZGenerateShader"),SerializeField] private ComputeShader hiZGenerateShader;
-
-        private LoadedSettings _settings;
-        private ContentPipelineResult _contentResult;
-        private ChunkPool _chunkPool;
+        [FormerlySerializedAs("_hiZGenerateShader"), SerializeField]
+        private ComputeShader hiZGenerateShader;
+        private AsyncChunkSaver _asyncChunkSaver;
+        private AutoSaveManager _autoSaveManager;
+        private BiomeAmbientPlayer _biomeAmbientPlayer;
+        private BiomeTintManager _biomeTintManager;
         private ChunkManager _chunkManager;
-        private GenerationPipeline _generationPipeline;
         private ChunkMeshStore _chunkMeshStore;
+        private ChunkPool _chunkPool;
+        private ContentPipelineResult _contentResult;
+        private DecorationStage _decorationStage;
         private GameLoop _gameLoop;
+        private GenerationPipeline _generationPipeline;
+        private ILogger _logger;
         private NativeArray<NativeBiomeData> _nativeBiomeData;
         private NativeArray<NativeOreConfig> _nativeOreConfigs;
-        private DecorationStage _decorationStage;
-        private WorldStorage _worldStorage;
-        private WorldMetadata _worldMetadata;
-        private SessionLockHandle _sessionLockHandle;
-        private AutoSaveManager _autoSaveManager;
-        private Lithforge.Core.Logging.ILogger _logger;
-        private TimeOfDayController _timeOfDayController;
-        private SkyController _skyController;
-        private BiomeTintManager _biomeTintManager;
-        private AsyncChunkSaver _asyncChunkSaver;
         private PauseMenuScreen _pauseMenuScreen;
-        private UserPreferences _userPreferences;
-        private SfxSourcePool _sfxSourcePool;
-        private BiomeAmbientPlayer _biomeAmbientPlayer;
-        private bool _quitToTitle;
         private bool _quitInProgress;
+        private bool _quitToTitle;
+        private SessionLockHandle _sessionLockHandle;
         private bool _sessionShutdownComplete;
+
+        private LoadedSettings _settings;
+        private SfxSourcePool _sfxSourcePool;
+        private SkyController _skyController;
+        private TimeOfDayController _timeOfDayController;
+        private UserPreferences _userPreferences;
+        private WorldMetadata _worldMetadata;
+        private WorldStorage _worldStorage;
 
         private void Awake()
         {
@@ -102,13 +114,13 @@ namespace Lithforge.Runtime.Bootstrap
 
         private IEnumerator Start()
         {
-            UnityEngine.UIElements.PanelSettings earlyPanelSettings =
-                Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
+            PanelSettings earlyPanelSettings =
+                Resources.Load<PanelSettings>("DefaultPanelSettings");
 
             while (true)
             {
                 // Show world selection screen and wait for user to choose a world
-                GameObject selectionObject = new GameObject("WorldSelectionScreen");
+                GameObject selectionObject = new("WorldSelectionScreen");
                 WorldSelectionScreen selectionScreen = selectionObject.AddComponent<WorldSelectionScreen>();
                 selectionScreen.Initialize(earlyPanelSettings);
 
@@ -130,20 +142,25 @@ namespace Lithforge.Runtime.Bootstrap
             }
         }
 
-        private IEnumerator RunGameSession(UnityEngine.UIElements.PanelSettings panelSettings)
+        private void OnDestroy()
+        {
+            ShutdownSessionResources();
+        }
+
+        private IEnumerator RunGameSession(PanelSettings panelSettings)
         {
             _quitToTitle = false;
             _quitInProgress = false;
             _sessionShutdownComplete = false;
 
             // Create loading screen for content pipeline and spawn
-            GameObject loadingObject = new GameObject("LoadingScreen");
+            GameObject loadingObject = new("LoadingScreen");
             LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
             loadingScreen.Initialize(null, panelSettings, null);
 
             // Run content pipeline as iterator, yielding frames between phases
-            ContentValidator validator = new ContentValidator();
-            ContentPipeline pipeline = new ContentPipeline(
+            ContentValidator validator = new();
+            ContentPipeline pipeline = new(
                 _logger, validator, _settings.Rendering.AtlasTileSize);
 
             foreach (string phase in pipeline.Build())
@@ -169,8 +186,6 @@ namespace Lithforge.Runtime.Bootstrap
                 $"{_contentResult.LootTables.Count} loot tables, " +
                 $"{_contentResult.TagRegistry.TagCount} tags.");
 
-            ToolTemplateRegistry.Initialize(_contentResult.LegacyToolTemplates);
-
             InitializeStorage();
             InitializeChunkSystem();
             InitializeWorldGen();
@@ -187,9 +202,9 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Coroutine triggered by PauseMenuScreen "Save and Quit to Title".
-        /// Saves player state, flushes chunks, disposes session resources,
-        /// and signals RunGameSession to return (back to world selection).
+        ///     Coroutine triggered by PauseMenuScreen "Save and Quit to Title".
+        ///     Saves player state, flushes chunks, disposes session resources,
+        ///     and signals RunGameSession to return (back to world selection).
         /// </summary>
         private IEnumerator QuitToTitleCoroutine()
         {
@@ -213,13 +228,13 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             // Create saving screen overlay
-            UnityEngine.UIElements.PanelSettings panelSettings =
-                Resources.Load<UnityEngine.UIElements.PanelSettings>("DefaultPanelSettings");
-            GameObject savingObject = new GameObject("SavingScreen");
+            PanelSettings panelSettings =
+                Resources.Load<PanelSettings>("DefaultPanelSettings");
+            GameObject savingObject = new("SavingScreen");
             SavingScreen savingScreen = savingObject.AddComponent<SavingScreen>();
             savingScreen.Initialize(panelSettings);
 
-            SaveProgress progress = new SaveProgress();
+            SaveProgress progress = new();
             progress.Phase = SaveState.CompletingJobs;
             savingScreen.SetProgress(progress);
 
@@ -244,7 +259,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _asyncChunkSaver.Flush();
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 UnityEngine.Debug.LogError($"[Lithforge] Error completing jobs during save: {ex}");
             }
@@ -256,7 +271,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             if (_worldStorage != null && _chunkManager != null)
             {
-                List<ManagedChunk> dirtyChunks = new List<ManagedChunk>();
+                List<ManagedChunk> dirtyChunks = new();
                 _chunkManager.CollectDirtyChunks(dirtyChunks);
                 progress.TotalChunks = dirtyChunks.Count;
                 progress.SavedChunks = 0;
@@ -273,7 +288,7 @@ namespace Lithforge.Runtime.Bootstrap
                             chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
                         chunk.IsDirty = false;
                     }
-                    catch (System.Exception ex)
+                    catch (Exception ex)
                     {
                         UnityEngine.Debug.LogError(
                             $"[Lithforge] Error saving chunk {chunk.Coord}: {ex}");
@@ -292,7 +307,7 @@ namespace Lithforge.Runtime.Bootstrap
                 // Phase 3: Flush dirty regions incrementally
                 progress.Phase = SaveState.FlushingRegions;
 
-                List<RegionFile> dirtyRegions = new List<RegionFile>();
+                List<RegionFile> dirtyRegions = new();
                 _worldStorage.CollectDirtyRegions(dirtyRegions);
                 progress.TotalRegions = dirtyRegions.Count;
                 progress.FlushedRegions = 0;
@@ -328,9 +343,9 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Synchronous save + dispose fallback for OnDestroy (application quit).
-        /// Performs both saving and disposal in one call. Guarded by
-        /// _sessionShutdownComplete to prevent double-dispose.
+        ///     Synchronous save + dispose fallback for OnDestroy (application quit).
+        ///     Performs both saving and disposal in one call. Guarded by
+        ///     _sessionShutdownComplete to prevent double-dispose.
         /// </summary>
         private void ShutdownSessionResources()
         {
@@ -347,8 +362,8 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Synchronous save of all game state: metadata, chunks, regions.
-        /// Used by the OnDestroy fallback path.
+        ///     Synchronous save of all game state: metadata, chunks, regions.
+        ///     Used by the OnDestroy fallback path.
         /// </summary>
         private void SaveSessionResourcesSync()
         {
@@ -381,16 +396,16 @@ namespace Lithforge.Runtime.Bootstrap
                     _asyncChunkSaver = null;
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 UnityEngine.Debug.LogError($"[Lithforge] Error during shutdown save: {ex}");
             }
         }
 
         /// <summary>
-        /// Disposes native resources, destroys session GameObjects, and releases
-        /// storage and session lock. Called after save completes (either incremental
-        /// coroutine or synchronous fallback).
+        ///     Disposes native resources, destroys session GameObjects, and releases
+        ///     storage and session lock. Called after save completes (either incremental
+        ///     coroutine or synchronous fallback).
         /// </summary>
         private void DisposeSessionResources()
         {
@@ -416,7 +431,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _biomeAmbientPlayer = null;
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 UnityEngine.Debug.LogError($"[Lithforge] Error disposing audio: {ex}");
             }
@@ -470,7 +485,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _nativeOreConfigs.Dispose();
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 UnityEngine.Debug.LogError($"[Lithforge] Error during resource disposal: {ex}");
             }
@@ -482,7 +497,7 @@ namespace Lithforge.Runtime.Bootstrap
                 {
                     _worldStorage.Dispose();
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     UnityEngine.Debug.LogError($"[Lithforge] Error disposing WorldStorage: {ex}");
                 }
@@ -496,7 +511,7 @@ namespace Lithforge.Runtime.Bootstrap
                 {
                     _sessionLockHandle.Dispose();
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     UnityEngine.Debug.LogError($"[Lithforge] Error disposing session lock: {ex}");
                 }
@@ -514,7 +529,7 @@ namespace Lithforge.Runtime.Bootstrap
             DestroyComponentIfPresent<SkyController>();
             DestroyComponentIfPresent<ChunkBorderRenderer>();
             DestroyComponentIfPresent<F3DebugOverlay>();
-            DestroyComponentIfPresent<Debug.Benchmark.BenchmarkRunner>();
+            DestroyComponentIfPresent<BenchmarkRunner>();
 
             _gameLoop = null;
             _timeOfDayController = null;
@@ -531,12 +546,12 @@ namespace Lithforge.Runtime.Bootstrap
         }
 
         /// <summary>
-        /// Destroys all session GameObjects that were created during InitializeGameLoop.
-        /// These are rooted GameObjects (not children of the bootstrap object).
+        ///     Destroys all session GameObjects that were created during InitializeGameLoop.
+        ///     These are rooted GameObjects (not children of the bootstrap object).
         /// </summary>
         private void DestroySessionGameObjects()
         {
-            string[] sessionObjectNames = new string[]
+            string[] sessionObjectNames =
             {
                 "Player",
                 "BlockHighlight",
@@ -638,7 +653,7 @@ namespace Lithforge.Runtime.Bootstrap
             // Build native biome data
             BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;
             _nativeBiomeData = new NativeArray<NativeBiomeData>(
-                biomes.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                biomes.Length, Allocator.Persistent);
 
             for (int i = 0; i < biomes.Length; i++)
             {
@@ -680,7 +695,7 @@ namespace Lithforge.Runtime.Bootstrap
             // Build native ore configs
             OreDefinition[] ores = _contentResult.OreDefinitions;
             _nativeOreConfigs = new NativeArray<NativeOreConfig>(
-                ores.Length, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                ores.Length, Allocator.Persistent);
 
             for (int i = 0; i < ores.Length; i++)
             {
@@ -700,7 +715,7 @@ namespace Lithforge.Runtime.Bootstrap
             StateId iceId = FindStateId("lithforge:ice");
             StateId gravelId = FindStateId("lithforge:gravel");
             StateId sandId = FindStateId("lithforge:sand");
-            Lithforge.WorldGen.River.NativeRiverConfig riverConfig = wg.RiverNoise.ToNativeConfig();
+            NativeRiverConfig riverConfig = wg.RiverNoise.ToNativeConfig();
 
             _generationPipeline = new GenerationPipeline(
                 terrainNoise,
@@ -857,7 +872,7 @@ namespace Lithforge.Runtime.Bootstrap
             // Initialize biome tinting system
             _biomeTintManager = new BiomeTintManager(
                 _settings.Rendering.BiomeMapSize,
-                Lithforge.Voxel.Chunk.ChunkConstants.Size,
+                ChunkConstants.Size,
                 _settings.Rendering.GrassColormap,
                 _settings.Rendering.FoliageColormap,
                 biomeWaterColors);
@@ -866,14 +881,14 @@ namespace Lithforge.Runtime.Bootstrap
             Shader.SetGlobalFloat("_SeaLevel", _settings.WorldGen.SeaLevel);
         }
 
-        private void InitializeGameLoop(LoadingScreen loadingScreen, UnityEngine.UIElements.PanelSettings panelSettings)
+        private void InitializeGameLoop(LoadingScreen loadingScreen, PanelSettings panelSettings)
         {
             CameraController cameraControllerRef = null;
             SettingsScreen settingsScreenRef = null;
             Material armBaseMaterialRef = null;
             Material armOverlayMaterialRef = null;
             Material heldItemMaterialRef = null;
-            Tick.TickRegistry tickRegistryRef = null;
+            TickRegistry tickRegistryRef = null;
             bool hasRestoredState = false;
             float restoredTimeOfDay = 0f;
 
@@ -910,7 +925,7 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 // Create player parent object
-                GameObject playerObject = new GameObject("Player");
+                GameObject playerObject = new("Player");
                 playerObject.transform.position = new Vector3(
                     0,
                     _settings.WorldGen.SeaLevel + _settings.Chunk.InitialSpawnYOffset,
@@ -932,13 +947,13 @@ namespace Lithforge.Runtime.Bootstrap
                 CameraController cameraController = mainCamera.gameObject.AddComponent<CameraController>();
                 cameraControllerRef = cameraController;
                 // Add BlockHighlight (standalone object)
-                GameObject highlightObject = new GameObject("BlockHighlight");
+                GameObject highlightObject = new("BlockHighlight");
                 BlockHighlight blockHighlight = highlightObject.AddComponent<BlockHighlight>();
                 blockHighlight.Initialize(_settings.Rendering);
 
                 // Create player inventory and loot resolver
-                Inventory playerInventory = new Inventory();
-                LootResolver lootResolver = new LootResolver(_contentResult.LootTables);
+                Inventory playerInventory = new();
+                LootResolver lootResolver = new(_contentResult.LootTables);
 
                 // Restore player state from metadata, or grant starting items for new worlds
                 if (_worldMetadata.PlayerState != null && !WorldLauncher.IsNewWorld)
@@ -960,7 +975,7 @@ namespace Lithforge.Runtime.Bootstrap
                     for (int i = 0; i < startingItems.Count; i++)
                     {
                         StartingItemEntry entry = startingItems[i];
-                        ResourceId itemId = new ResourceId(entry.itemNamespace, entry.itemName);
+                        ResourceId itemId = new(entry.itemNamespace, entry.itemName);
                         ItemEntry itemDef = _contentResult.ItemRegistry.Get(itemId);
                         int maxStack = itemDef != null
                             ? itemDef.MaxStackSize
@@ -974,7 +989,7 @@ namespace Lithforge.Runtime.Bootstrap
                                 ToolInstanceSerializer.Deserialize(toolData);
                             int durability = toolTemplate != null
                                 ? toolTemplate.MaxDurability : -1;
-                            ItemStack toolStack = new ItemStack(itemId, 1, durability);
+                            ItemStack toolStack = new(itemId, 1, durability);
                             toolStack.CustomData = toolData;
                             playerInventory.AddItemStack(toolStack);
                         }
@@ -1001,7 +1016,7 @@ namespace Lithforge.Runtime.Bootstrap
                     playerController);
 
                 // Initialize first-person arm renderer
-                SkinLoader skinLoader = new SkinLoader();
+                SkinLoader skinLoader = new();
                 Texture2D skinTexture = skinLoader.LoadSkin("default.png");
 
                 if (skinTexture == null)
@@ -1015,9 +1030,9 @@ namespace Lithforge.Runtime.Bootstrap
 
                 if (armBaseShader != null && armOverlayShader != null && heldItemShader != null)
                 {
-                    Material armBaseMaterial = new Material(armBaseShader);
-                    Material armOverlayMaterial = new Material(armOverlayShader);
-                    Material heldItemMaterial = new Material(heldItemShader);
+                    Material armBaseMaterial = new(armBaseShader);
+                    Material armOverlayMaterial = new(armOverlayShader);
+                    Material heldItemMaterial = new(heldItemShader);
                     armBaseMaterialRef = armBaseMaterial;
                     armOverlayMaterialRef = armOverlayMaterial;
                     heldItemMaterialRef = heldItemMaterial;
@@ -1040,7 +1055,7 @@ namespace Lithforge.Runtime.Bootstrap
                         heldItemMaterial.SetFloat("_AmbientLight", ambient);
                     }
 
-                    PlayerRenderer playerRenderer = new PlayerRenderer(
+                    PlayerRenderer playerRenderer = new(
                         armBaseMaterial,
                         armOverlayMaterial,
                         heldItemMaterial,
@@ -1064,7 +1079,7 @@ namespace Lithforge.Runtime.Bootstrap
                 _chunkManager.SetNativeStateRegistry(_contentResult.NativeStateRegistry);
 
                 // Initialize block entity tick scheduler
-                BlockEntityTickScheduler blockEntityTickScheduler = new BlockEntityTickScheduler(
+                BlockEntityTickScheduler blockEntityTickScheduler = new(
                     _chunkManager,
                     _contentResult.BlockEntityRegistry,
                     _contentResult.StateRegistry);
@@ -1082,12 +1097,12 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 // Add CrosshairHUD
-                GameObject crosshairObject = new GameObject("CrosshairHUD");
+                GameObject crosshairObject = new("CrosshairHUD");
                 CrosshairHUD crosshairHUD = crosshairObject.AddComponent<CrosshairHUD>();
                 crosshairHUD.Initialize(panelSettings);
 
                 // Add HotbarDisplay
-                GameObject hotbarObject = new GameObject("HotbarDisplay");
+                GameObject hotbarObject = new("HotbarDisplay");
                 HotbarDisplay hotbarDisplay = hotbarObject.AddComponent<HotbarDisplay>();
                 hotbarDisplay.Initialize(
                     playerInventory, panelSettings,
@@ -1095,7 +1110,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ItemSpriteAtlas);
 
                 // Build ScreenContext — single shared context for all container screens
-                ScreenContext screenContext = new ScreenContext(
+                ScreenContext screenContext = new(
                     playerInventory,
                     _contentResult.ItemRegistry,
                     _contentResult.ItemSpriteAtlas,
@@ -1106,12 +1121,12 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ToolMaterials);
 
                 // Add PlayerInventoryScreen (not a block entity screen, managed separately)
-                GameObject inventoryObject = new GameObject("PlayerInventoryScreen");
+                GameObject inventoryObject = new("PlayerInventoryScreen");
                 PlayerInventoryScreen inventoryScreen = inventoryObject.AddComponent<PlayerInventoryScreen>();
                 inventoryScreen.Initialize(screenContext);
 
                 // Create ContainerScreenManager (manages all block entity screens lazily)
-                GameObject screenManagerObject = new GameObject("ContainerScreenManager");
+                GameObject screenManagerObject = new("ContainerScreenManager");
                 ContainerScreenManager screenManager =
                     screenManagerObject.AddComponent<ContainerScreenManager>();
 
@@ -1119,12 +1134,12 @@ namespace Lithforge.Runtime.Bootstrap
                     ChestBlockEntity.TypeIdValue,
                     () =>
                     {
-                        GameObject obj = new GameObject("ChestScreen");
+                        GameObject obj = new("ChestScreen");
                         ChestScreen screen = obj.AddComponent<ChestScreen>();
                         screen.Initialize(screenContext);
                         return screen;
                     },
-                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    (s, e) =>
                     {
                         ((ChestScreen)s).OpenForEntity(e);
                     });
@@ -1133,12 +1148,12 @@ namespace Lithforge.Runtime.Bootstrap
                     FurnaceBlockEntity.TypeIdValue,
                     () =>
                     {
-                        GameObject obj = new GameObject("FurnaceScreen");
+                        GameObject obj = new("FurnaceScreen");
                         FurnaceScreen screen = obj.AddComponent<FurnaceScreen>();
                         screen.Initialize(screenContext);
                         return screen;
                     },
-                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    (s, e) =>
                     {
                         ((FurnaceScreen)s).OpenForEntity(e);
                     });
@@ -1147,12 +1162,12 @@ namespace Lithforge.Runtime.Bootstrap
                     ToolStationBlockEntity.TypeIdValue,
                     () =>
                     {
-                        GameObject obj = new GameObject("ToolStationScreen");
+                        GameObject obj = new("ToolStationScreen");
                         ToolStationScreen screen = obj.AddComponent<ToolStationScreen>();
                         screen.Initialize(screenContext);
                         return screen;
                     },
-                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    (s, e) =>
                     {
                         ((ToolStationScreen)s).OpenForEntity(e);
                     });
@@ -1161,12 +1176,12 @@ namespace Lithforge.Runtime.Bootstrap
                     CraftingTableBlockEntity.TypeIdValue,
                     () =>
                     {
-                        GameObject obj = new GameObject("CraftingTableScreen");
+                        GameObject obj = new("CraftingTableScreen");
                         CraftingTableScreen screen = obj.AddComponent<CraftingTableScreen>();
                         screen.Initialize(screenContext);
                         return screen;
                     },
-                    (ContainerScreen s, Lithforge.Runtime.BlockEntity.BlockEntity e) =>
+                    (s, e) =>
                     {
                         ((CraftingTableScreen)s).OpenForEntity(e);
                     });
@@ -1175,12 +1190,12 @@ namespace Lithforge.Runtime.Bootstrap
                 blockInteraction.SetBlockEntityReferences(
                     blockEntityTickScheduler, screenManager, _contentResult.ToolTraitRegistry);
                 // Add SettingsScreen (initialized after TimeOfDayController is created below)
-                GameObject settingsObject = new GameObject("SettingsScreen");
+                GameObject settingsObject = new("SettingsScreen");
                 SettingsScreen settingsScreen = settingsObject.AddComponent<SettingsScreen>();
                 settingsScreenRef = settingsScreen;
 
                 // Create MetricsRegistry — shared data source for overlay and benchmarks
-                MetricsRegistry metricsRegistry = new MetricsRegistry();
+                MetricsRegistry metricsRegistry = new();
                 metricsRegistry.Initialize(
                     _chunkManager,
                     _chunkMeshStore,
@@ -1208,7 +1223,7 @@ namespace Lithforge.Runtime.Bootstrap
                     panelSettings);
 
                 // Add benchmark runner (F5 trigger, SO-driven scenarios)
-                BenchmarkContext benchmarkContext = new BenchmarkContext();
+                BenchmarkContext benchmarkContext = new();
                 benchmarkContext.Metrics = metricsRegistry;
                 benchmarkContext.ChunkManager = _chunkManager;
                 benchmarkContext.PlayerController = playerController;
@@ -1226,12 +1241,12 @@ namespace Lithforge.Runtime.Bootstrap
                     panelSettings);
 
                 // Create PauseMenuScreen (initialized later after SettingsScreen)
-                GameObject pauseMenuObject = new GameObject("PauseMenuScreen");
+                GameObject pauseMenuObject = new("PauseMenuScreen");
                 PauseMenuScreen pauseMenuScreen = pauseMenuObject.AddComponent<PauseMenuScreen>();
                 _pauseMenuScreen = pauseMenuScreen;
 
                 // Hide all gameplay HUD until spawn is complete
-                HudVisibilityController hudVisibility = new HudVisibilityController(
+                HudVisibilityController hudVisibility = new(
                     crosshairHUD, hotbarDisplay, inventoryScreen, debugOverlay,
                     settingsScreen, pauseMenuScreen, screenManager);
                 hudVisibility.HideAll();
@@ -1248,7 +1263,7 @@ namespace Lithforge.Runtime.Bootstrap
                     spawnRadius = lod1Dist;
                 }
 
-                SpawnManager spawnManager = new SpawnManager(
+                SpawnManager spawnManager = new(
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
                     playerObject.transform,
@@ -1278,12 +1293,12 @@ namespace Lithforge.Runtime.Bootstrap
                 _gameLoop.SetAutoSaveManager(_autoSaveManager);
 
                 // Initialize fixed tick rate system (30 TPS)
-                Unity.Mathematics.float3 startPos = new Unity.Mathematics.float3(
+                float3 startPos = new(
                     playerObject.transform.position.x,
                     playerObject.transform.position.y,
                     playerObject.transform.position.z);
 
-                Tick.PlayerPhysicsBody physicsBody = new Tick.PlayerPhysicsBody(
+                PlayerPhysicsBody physicsBody = new(
                     startPos,
                     playerObject.transform,
                     _chunkManager,
@@ -1292,11 +1307,11 @@ namespace Lithforge.Runtime.Bootstrap
 
                 playerController.SetPhysicsBody(physicsBody);
 
-                Tick.PlayerInputLatch inputLatch = new Tick.PlayerInputLatch();
+                PlayerInputLatch inputLatch = new();
 
-                tickRegistryRef = new Tick.TickRegistry();
-                tickRegistryRef.Register(new Tick.MiningTickAdapter(blockInteraction));
-                tickRegistryRef.Register(new Tick.BlockEntityTickAdapter(blockEntityTickScheduler));
+                tickRegistryRef = new TickRegistry();
+                tickRegistryRef.Register(new MiningTickAdapter(blockInteraction));
+                tickRegistryRef.Register(new BlockEntityTickAdapter(blockEntityTickScheduler));
 
                 _gameLoop.SetTickSystems(
                     tickRegistryRef, inputLatch, physicsBody, playerObject.transform);
@@ -1328,7 +1343,7 @@ namespace Lithforge.Runtime.Bootstrap
                 // Register time-of-day adapter in the fixed tick loop
                 if (tickRegistryRef != null)
                 {
-                    tickRegistryRef.Register(new Tick.TimeOfDayTickAdapter(_timeOfDayController));
+                    tickRegistryRef.Register(new TimeOfDayTickAdapter(_timeOfDayController));
                 }
 
                 // Initialize procedural sky
@@ -1342,8 +1357,8 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Initialize audio systems
             AudioMixerController audioMixerController = null;
-            UnityEngine.Audio.AudioMixer mixer =
-                Resources.Load<UnityEngine.Audio.AudioMixer>("Audio/LithforgeMixer");
+            AudioMixer mixer =
+                Resources.Load<AudioMixer>("Audio/LithforgeMixer");
 
             if (mixer != null)
             {
@@ -1356,21 +1371,21 @@ namespace Lithforge.Runtime.Bootstrap
                     "Audio will use AudioListener.volume fallback.");
             }
 
-            Content.Settings.AudioSettings audioSettings = _settings.Audio;
+            AudioSettings audioSettings = _settings.Audio;
             Camera audioCamera = Camera.main;
 
             if (audioCamera != null && _contentResult.SoundGroupRegistry != null)
             {
                 // Create SFX source pool
-                UnityEngine.Audio.AudioMixerGroup sfxGroup =
+                AudioMixerGroup sfxGroup =
                     audioMixerController != null ? audioMixerController.GetGroup("SFX") : null;
 
-                GameObject poolHost = new GameObject("SfxSourcePool");
+                GameObject poolHost = new("SfxSourcePool");
                 _sfxSourcePool = new SfxSourcePool(
                     poolHost, audioSettings.SfxPoolSize, sfxGroup);
 
                 // Create block sound player
-                BlockSoundPlayer blockSoundPlayer = new BlockSoundPlayer(
+                BlockSoundPlayer blockSoundPlayer = new(
                     _contentResult.SoundGroupRegistry,
                     _contentResult.StateRegistry,
                     _sfxSourcePool,
@@ -1439,7 +1454,7 @@ namespace Lithforge.Runtime.Bootstrap
                     audioCamera.gameObject.AddComponent<AudioReverbFilter>();
                 reverbFilter.reverbPreset = AudioReverbPreset.Off;
 
-                UnderwaterAudioFilter underwaterFilter = new UnderwaterAudioFilter(
+                UnderwaterAudioFilter underwaterFilter = new(
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
                     lowPassFilter,
@@ -1448,8 +1463,8 @@ namespace Lithforge.Runtime.Bootstrap
                     audioSettings.SurfaceCutoff,
                     audioSettings.UnderwaterLerpSpeed);
 
-                EnclosureProbe enclosureProbe = new EnclosureProbe(
-                    (Unity.Mathematics.int3 pos) =>
+                EnclosureProbe enclosureProbe = new(
+                    pos =>
                     {
                         StateId sid = _chunkManager.GetBlock(pos);
                         return sid.Value != 0 &&
@@ -1463,17 +1478,17 @@ namespace Lithforge.Runtime.Bootstrap
                     audioSettings.EnclosureMaxDistance,
                     audioSettings.EnclosureUpdateTicks);
 
-                CaveReverbController caveReverb = new CaveReverbController(
+                CaveReverbController caveReverb = new(
                     reverbFilter,
                     enclosureProbe,
                     audioSettings.EnclosureReverbThreshold,
                     audioSettings.ReverbLerpSpeed);
 
-                RuntimeBiomeSampler biomeSampler = new RuntimeBiomeSampler(
+                RuntimeBiomeSampler biomeSampler = new(
                     _contentResult.BiomeDefinitions,
                     _worldMetadata.Seed);
 
-                UnityEngine.Audio.AudioMixerGroup ambientGroup =
+                AudioMixerGroup ambientGroup =
                     audioMixerController != null ? audioMixerController.GetGroup("Ambient") : null;
 
                 _biomeAmbientPlayer = new BiomeAmbientPlayer(
@@ -1481,7 +1496,7 @@ namespace Lithforge.Runtime.Bootstrap
                     ambientGroup,
                     audioSettings.AmbientCrossfadeTime);
 
-                ScatterSoundPlayer scatterPlayer = new ScatterSoundPlayer(
+                ScatterSoundPlayer scatterPlayer = new(
                     _sfxSourcePool,
                     playerTransformForAudio,
                     audioSettings.ScatterMinInterval,
@@ -1495,7 +1510,7 @@ namespace Lithforge.Runtime.Bootstrap
                             : 0f;
                     });
 
-                AudioEnvironmentController audioEnvController = new AudioEnvironmentController(
+                AudioEnvironmentController audioEnvController = new(
                     underwaterFilter,
                     enclosureProbe,
                     caveReverb,
@@ -1508,7 +1523,7 @@ namespace Lithforge.Runtime.Bootstrap
                 if (tickRegistryRef != null)
                 {
                     tickRegistryRef.Register(
-                        new Tick.AudioEnvironmentTickAdapter(audioEnvController));
+                        new AudioEnvironmentTickAdapter(audioEnvController));
                 }
 
                 // Wire all audio systems to GameLoop
@@ -1600,7 +1615,7 @@ namespace Lithforge.Runtime.Bootstrap
             byte g = (byte)(Mathf.Clamp01(c.g) * 255f);
             byte b = (byte)(Mathf.Clamp01(c.b) * 255f);
             byte a = (byte)(Mathf.Clamp01(c.a) * 255f);
-            return ((uint)r << 24) | ((uint)g << 16) | ((uint)b << 8) | a;
+            return (uint)r << 24 | (uint)g << 16 | (uint)b << 8 | a;
         }
 
         private StateId FindStateIdForBlock(BlockDefinition blockDef)
@@ -1625,7 +1640,7 @@ namespace Lithforge.Runtime.Bootstrap
             string ns = parts[0];
             string name = parts[1];
 
-            System.Collections.Generic.IReadOnlyList<StateRegistryEntry> entries =
+            IReadOnlyList<StateRegistryEntry> entries =
                 _contentResult.StateRegistry.Entries;
 
             for (int i = 0; i < entries.Count; i++)
@@ -1641,11 +1656,5 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.Debug.LogWarning($"[Lithforge] Block '{idString}' not found, returning AIR.");
             return StateId.Air;
         }
-
-        private void OnDestroy()
-        {
-            ShutdownSessionResources();
-        }
     }
-
 }

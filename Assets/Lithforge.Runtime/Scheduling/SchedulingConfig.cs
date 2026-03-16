@@ -70,12 +70,13 @@ namespace Lithforge.Runtime.Scheduling
 
         /// <summary>
         /// Chebyshev XZ distance (in chunks) beyond which LOD1 (2x2x2 merge) begins.
-        /// Ensures at least 2 chunks of full-detail around the camera.
+        /// Minimum 5 ensures ~28-38% of chunks are LOD0 at typical render distances,
+        /// preventing the mesh pipeline from being starved by the LODLevel &gt; 0 filter.
         /// </summary>
         /// <param name="rd">Current render distance in chunks.</param>
         public static int LOD1Distance(int rd)
         {
-            return math.max(2, rd / 3);
+            return math.max(5, rd * 2 / 3);
         }
 
         /// <summary>
@@ -84,7 +85,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <param name="rd">Current render distance in chunks.</param>
         public static int LOD2Distance(int rd)
         {
-            return math.max(4, rd / 2);
+            return math.max(7, rd * 4 / 5);
         }
 
         /// <summary>
@@ -93,7 +94,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <param name="rd">Current render distance in chunks.</param>
         public static int LOD3Distance(int rd)
         {
-            return math.max(6, rd * 7 / 10);
+            return math.max(9, rd - 1);
         }
 
         /// <summary>
