@@ -154,6 +154,36 @@ namespace Lithforge.Voxel.Chunk
                 _relightPendingChunks.Add(chunk);
             }
 
+            // --- Neighbor ReadyNeighborMask maintenance ---
+            // When this chunk crosses the RelightPending threshold (in either direction),
+            // flip the corresponding bit on each existing neighbor's mask.
+            bool wasReady = oldState >= ChunkState.RelightPending;
+            bool isReady = newState >= ChunkState.RelightPending;
+
+            if (wasReady != isReady)
+            {
+                for (int f = 0; f < 6; f++)
+                {
+                    ManagedChunk neighbor = chunk.Neighbors[f];
+
+                    if (neighbor == null)
+                    {
+                        continue;
+                    }
+
+                    int oppF = s_oppositeFace[f];
+
+                    if (isReady)
+                    {
+                        neighbor.ReadyNeighborMask |= (byte)(1 << oppF);
+                    }
+                    else
+                    {
+                        neighbor.ReadyNeighborMask &= (byte)~(1 << oppF);
+                    }
+                }
+            }
+
         }
 
         /// <summary>
@@ -323,8 +353,8 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>
         /// Fills the provided list with Generated chunks, prioritized for meshing.
         /// Priority: neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
-        /// distScore uses Manhattan distance (no rsqrt). Neighbor readiness is computed
-        /// lazily from cached Neighbors[] refs instead of maintained bitmask.
+        /// distScore uses Manhattan distance (no rsqrt). Neighbor readiness uses eagerly
+        /// maintained ReadyNeighborMask bitmask (O(1) per chunk).
         /// Uses a single-pass top-K selection over _generatedChunks.
         /// </summary>
         public void FillChunksToMesh(
@@ -341,7 +371,7 @@ namespace Lithforge.Voxel.Chunk
             foreach (ManagedChunk chunk in _generatedChunks)
             {
                 bool neverMeshed = chunk.RenderedLODLevel < 0;
-                bool allNeighbors = HasAllNeighborsReady(chunk);
+                bool allNeighbors = (chunk.ReadyNeighborMask & 0x3F) == 0x3F;
 
                 int3 d = chunk.Coord - cameraChunkCoord;
                 int distScore = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
@@ -366,7 +396,7 @@ namespace Lithforge.Voxel.Chunk
 
                     // Compare incoming chunk against worst
                     bool worstNeverMeshed = _meshCandidateCache[worstIdx].RenderedLODLevel < 0;
-                    bool worstAllNeighbors = HasAllNeighborsReady(_meshCandidateCache[worstIdx]);
+                    bool worstAllNeighbors = (_meshCandidateCache[worstIdx].ReadyNeighborMask & 0x3F) == 0x3F;
                     int worstScore = _meshScoreCache[worstIdx];
 
                     if (IsBetterPriority(neverMeshed, allNeighbors, distScore,
@@ -384,13 +414,13 @@ namespace Lithforge.Voxel.Chunk
                 ManagedChunk tempChunk = _meshCandidateCache[i];
                 int tempScore = _meshScoreCache[i];
                 bool tempNeverMeshed = tempChunk.RenderedLODLevel < 0;
-                bool tempAllNeighbors = HasAllNeighborsReady(tempChunk);
+                bool tempAllNeighbors = (tempChunk.ReadyNeighborMask & 0x3F) == 0x3F;
                 int j = i - 1;
 
                 while (j >= 0)
                 {
                     bool jNeverMeshed = _meshCandidateCache[j].RenderedLODLevel < 0;
-                    bool jAllNeighbors = HasAllNeighborsReady(_meshCandidateCache[j]);
+                    bool jAllNeighbors = (_meshCandidateCache[j].ReadyNeighborMask & 0x3F) == 0x3F;
                     int jScore = _meshScoreCache[j];
 
                     // Stop if current position is correct (j is better or equal)
@@ -416,25 +446,6 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        /// Returns true if all 6 neighbors are ready (state >= RelightPending) or absent.
-        /// Uses cached Neighbors[] refs — 6 pointer checks, no dictionary lookups.
-        /// </summary>
-        private static bool HasAllNeighborsReady(ManagedChunk chunk)
-        {
-            for (int f = 0; f < 6; f++)
-            {
-                ManagedChunk n = chunk.Neighbors[f];
-
-                if (n != null && n.State < ChunkState.RelightPending)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
         /// Returns true if buffer element at indexA is worse priority than element at indexB.
         /// Priority: neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
         /// </summary>
@@ -448,8 +459,8 @@ namespace Lithforge.Voxel.Chunk
                 return !aNeverMeshed;
             }
 
-            bool aAllNeighbors = HasAllNeighborsReady(_meshCandidateCache[indexA]);
-            bool bAllNeighbors = HasAllNeighborsReady(_meshCandidateCache[indexB]);
+            bool aAllNeighbors = (_meshCandidateCache[indexA].ReadyNeighborMask & 0x3F) == 0x3F;
+            bool bAllNeighbors = (_meshCandidateCache[indexB].ReadyNeighborMask & 0x3F) == 0x3F;
 
             if (aAllNeighbors != bAllNeighbors)
             {
