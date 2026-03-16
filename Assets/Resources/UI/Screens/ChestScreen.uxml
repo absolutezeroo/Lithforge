@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         editor-extension-mode="False">
+    <ui:VisualElement name="chest-panel" class="lf-panel">
+        <ui:Label name="title-label" text="Chest" class="lf-panel__title" />
+        <ui:VisualElement name="chest-slots" />
+        <ui:VisualElement class="lf-separator" />
+        <ui:Label text="Inventory" class="lf-section-label" />
+        <ui:VisualElement name="main-slots" />
+        <ui:VisualElement class="lf-separator lf-separator--wide" />
+        <ui:Label text="Hotbar" class="lf-section-label" />
+        <ui:VisualElement name="hotbar-slots" />
+    </ui:VisualElement>
+</ui:UXML>

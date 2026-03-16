@@ -110,6 +110,10 @@
     margin-bottom: 8px;
 }
 
+.lf-separator--wide {
+    margin-top: 8px;
+}
+
 .lf-slot-row {
     flex-direction: row;
 }

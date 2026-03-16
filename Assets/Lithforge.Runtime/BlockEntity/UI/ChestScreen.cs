@@ -1,24 +1,48 @@
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Item;
+
+using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    /// Screen for the chest block entity. Shows 9x3 chest grid above
-    /// 9x3 main inventory and 9x1 hotbar. Escape key closes.
+    ///     Screen for the chest block entity. Shows 9x3 chest grid above
+    ///     9x3 main inventory and 9x1 hotbar. Escape key closes.
     /// </summary>
     public sealed class ChestScreen : ContainerScreen
     {
-        private ChestBlockEntity _currentChest;
-
         private BlockEntityContainerAdapter _chestAdapter;
+        private ChestBlockEntity _currentChest;
         private InventoryContainerAdapter _hotbarAdapter;
         private InventoryContainerAdapter _mainAdapter;
+        private VisualTreeAsset _screenTemplate;
+
+        private void Update()
+        {
+            if (Context == null)
+            {
+                return;
+            }
+
+            // Escape to close
+            if (IsOpen && Keyboard.current != null &&
+                Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                Close();
+                return;
+            }
+
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            RefreshAllSlots();
+        }
 
         public void Initialize(ScreenContext context)
         {
@@ -28,15 +52,17 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
+            _screenTemplate = Resources.Load<VisualTreeAsset>("UI/Screens/ChestScreen");
+
             InitializeBase(context, 250);
 
             Panel.style.display = DisplayStyle.None;
         }
 
         /// <summary>
-        /// Opens the chest screen for the given entity.
-        /// Accepts the abstract <see cref="BlockEntity"/> type and casts internally.
-        /// Rebuilds slot bindings each time a different chest is opened.
+        ///     Opens the chest screen for the given entity.
+        ///     Accepts the abstract <see cref="BlockEntity" /> type and casts internally.
+        ///     Rebuilds slot bindings each time a different chest is opened.
         /// </summary>
         public void OpenForEntity(BlockEntity entity)
         {
@@ -56,52 +82,43 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
+            if (_screenTemplate == null)
+            {
+                UnityEngine.Debug.LogError("[ChestScreen] UXML template not found at UI/Screens/ChestScreen.");
+
+                return;
+            }
+
             ClearSlotBindings();
             Panel.Clear();
 
             // Re-add overlay class after clear
             Panel.AddToClassList("lf-overlay");
 
-            // Container panel centered in overlay
-            VisualElement container = new VisualElement();
-            container.AddToClassList("lf-panel");
-            Panel.Add(container);
+            // Clone UXML template directly into overlay panel (no TemplateContainer wrapper)
+            _screenTemplate.CloneTree(Panel);
 
-            // Title
-            Label title = new Label("Chest");
-            title.AddToClassList("lf-panel__title");
-            container.Add(title);
+            // Query named slot containers from the template
+            VisualElement chestSlots = Panel.Q<VisualElement>("chest-slots");
+            VisualElement mainSlots = Panel.Q<VisualElement>("main-slots");
+            VisualElement hotbarSlots = Panel.Q<VisualElement>("hotbar-slots");
 
-            // Chest grid: 9x3 = 27 slots
+            if (chestSlots == null || mainSlots == null || hotbarSlots == null)
+            {
+                UnityEngine.Debug.LogError("[ChestScreen] Named slot containers missing from UXML template.");
+
+                return;
+            }
+
+            // Populate slot groups into the UXML-defined containers
             SlotGroupDefinition chestGroupDef = SlotGroupDefinition.Create("chest", 9, 3);
-            BuildSlotGroup(chestGroupDef, _chestAdapter, container);
-
-            // Separator
-            VisualElement sep1 = new VisualElement();
-            sep1.AddToClassList("lf-separator");
-            container.Add(sep1);
-
-            // Main inventory: 9x3 = 27 slots
-            Label mainLabel = new Label("Inventory");
-            mainLabel.AddToClassList("lf-section-label");
-            container.Add(mainLabel);
+            BuildSlotGroup(chestGroupDef, _chestAdapter, chestSlots);
 
             SlotGroupDefinition mainGroupDef = SlotGroupDefinition.Create("main", 9, 3);
-            BuildSlotGroup(mainGroupDef, _mainAdapter, container);
-
-            // Separator
-            VisualElement sep2 = new VisualElement();
-            sep2.AddToClassList("lf-separator");
-            sep2.style.marginTop = 8;
-            container.Add(sep2);
-
-            // Hotbar: 9x1
-            Label hotbarLabel = new Label("Hotbar");
-            hotbarLabel.AddToClassList("lf-section-label");
-            container.Add(hotbarLabel);
+            BuildSlotGroup(mainGroupDef, _mainAdapter, mainSlots);
 
             SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
-            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, container);
+            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
         protected override void OnSlotPointerDown(
@@ -152,29 +169,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
             // Return held items to player inventory
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);
             _currentChest = null;
-        }
-
-        private void Update()
-        {
-            if (Context == null)
-            {
-                return;
-            }
-
-            // Escape to close
-            if (IsOpen && Keyboard.current != null &&
-                Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                Close();
-                return;
-            }
-
-            if (!IsOpen)
-            {
-                return;
-            }
-
-            RefreshAllSlots();
         }
     }
 }
