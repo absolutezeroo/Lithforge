@@ -88,10 +88,10 @@ namespace Lithforge.Voxel.Tests
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);
 
-            // Set all to Generated (so they have valid data)
+            // Set all to Generated via SetChunkState so secondary indices are maintained
             for (int i = 0; i < generated.Count; i++)
             {
-                generated[i].State = ChunkState.Generated;
+                _chunkManager.SetChunkState(generated[i], ChunkState.Generated);
             }
 
             int loadedBefore = _chunkManager.LoadedCount;
@@ -117,7 +117,7 @@ namespace Lithforge.Voxel.Tests
 
             for (int i = 0; i < generated.Count; i++)
             {
-                generated[i].State = ChunkState.Generated;
+                _chunkManager.SetChunkState(generated[i], ChunkState.Generated);
             }
 
             // Set block at x=0 (border) of chunk (0,0,0)
@@ -152,7 +152,7 @@ namespace Lithforge.Voxel.Tests
 
             for (int i = 0; i < generated.Count; i++)
             {
-                generated[i].State = ChunkState.Generated;
+                _chunkManager.SetChunkState(generated[i], ChunkState.Generated);
             }
 
             // Set block at localX=16 (middle) of chunk (0,0,0)
@@ -176,7 +176,7 @@ namespace Lithforge.Voxel.Tests
             // Find the chunk at (0,0,0) and set it to RelightPending
             ManagedChunk target = _chunkManager.GetChunk(int3.zero);
             Assert.IsNotNull(target, "Chunk at origin should exist");
-            target.State = ChunkState.RelightPending;
+            _chunkManager.SetChunkState(target, ChunkState.RelightPending);
 
             // SetBlock should succeed during RelightPending
             List<int3> dirtied = new List<int3>();

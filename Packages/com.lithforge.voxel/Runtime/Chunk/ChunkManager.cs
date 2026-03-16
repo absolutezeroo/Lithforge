@@ -327,9 +327,9 @@ namespace Lithforge.Voxel.Chunk
 
                 NativeArray<StateId> data = _pool.Checkout();
                 ManagedChunk chunk = new ManagedChunk(coord, data);
-                chunk.State = ChunkState.Generating;
                 _chunks[coord] = chunk;
                 RegisterChunk(chunk);
+                SetChunkState(chunk, ChunkState.Generating);
                 result.Add(chunk);
                 created++;
             }
