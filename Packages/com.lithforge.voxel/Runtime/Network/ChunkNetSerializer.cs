@@ -2,26 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Mathematics;
+
 using ZstdSharp;
 
 namespace Lithforge.Voxel.Network
 {
     /// <summary>
-    /// Network-specific chunk serialization. Separate from <see cref="Storage.ChunkSerializer"/>
-    /// which handles disk persistence. Uses palette compression + zstd (level 1) for full chunks,
-    /// and compact local-coordinate encoding for block change batches.
+    ///     Network-specific chunk serialization. Separate from <see cref="Storage.ChunkSerializer" />
+    ///     which handles disk persistence. Uses palette compression + zstd (level 1) for full chunks,
+    ///     and compact local-coordinate encoding for block change batches.
     /// </summary>
     public static class ChunkNetSerializer
     {
-        /// <summary>
-        /// Magic bytes for full chunk network packets: "LFNC" (Lithforge Network Chunk).
-        /// </summary>
-        private static readonly byte[] s_fullChunkMagic = { (byte)'L', (byte)'F', (byte)'N', (byte)'C' };
-
         private const byte FullChunkVersion = 1;
         private const int ZstdCompressionLevel = 1;
 
@@ -32,17 +30,25 @@ namespace Lithforge.Voxel.Network
         private const byte BatchFlagSingleEntry = 2;
 
         /// <summary>
-        /// Threshold for compressing block change batches. Batches with fewer entries
-        /// than this are sent uncompressed because the zstd frame header overhead
-        /// would exceed any compression savings.
+        ///     Threshold for compressing block change batches. Batches with fewer entries
+        ///     than this are sent uncompressed because the zstd frame header overhead
+        ///     would exceed any compression savings.
         /// </summary>
         private const int BatchCompressionThreshold = 20;
 
         /// <summary>Bytes per entry in a block change batch: 3 (local xyz) + 2 (StateId) = 5.</summary>
         private const int BytesPerBatchEntry = 5;
+        /// <summary>
+        ///     Magic bytes for full chunk network packets: "LFNC" (Lithforge Network Chunk).
+        /// </summary>
+        private static readonly byte[] s_fullChunkMagic =
+        {
+            (byte)'L',
+            (byte)'F',
+            (byte)'N',
+            (byte)'C',
+        };
 
-        // Thread-local resources. Lifetime: same as thread (pool threads live for the process).
-        // Call DisposeThreadLocalResources() for explicit cleanup in test scenarios.
         [ThreadStatic] private static byte[] s_voxelBuffer;
         [ThreadStatic] private static byte[] s_lightBuffer;
         [ThreadStatic] private static MemoryStream s_stream;
@@ -83,9 +89,9 @@ namespace Lithforge.Voxel.Network
         }
 
         /// <summary>
-        /// Disposes thread-local compressor/decompressor and stream resources.
-        /// Call from test teardown or thread shutdown when explicit cleanup is needed.
-        /// Not required in production (thread-pool threads live for the process lifetime).
+        ///     Disposes thread-local compressor/decompressor and stream resources.
+        ///     Call from test teardown or thread shutdown when explicit cleanup is needed.
+        ///     Not required in production (thread-pool threads live for the process lifetime).
         /// </summary>
         public static void DisposeThreadLocalResources()
         {
@@ -105,20 +111,20 @@ namespace Lithforge.Voxel.Network
         // ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Serializes a full chunk for initial network transmission.
-        /// Format: magic(4) + version(1) + zstd[ paletteCount(u16) + palette(N*u16) +
-        ///         voxelDataLen(i32) + voxelData(palette indices) +
-        ///         lightDataLen(i32) + lightData(nibble-packed bytes) ].
-        /// Single-valued sections store paletteCount=1 + value + voxelDataLen=0.
+        ///     Serializes a full chunk for initial network transmission.
+        ///     Format: magic(4) + version(1) + zstd[ paletteCount(u16) + palette(N*u16) +
+        ///     voxelDataLen(i32) + voxelData(palette indices) +
+        ///     lightDataLen(i32) + lightData(nibble-packed bytes) ].
+        ///     Single-valued sections store paletteCount=1 + value + voxelDataLen=0.
         /// </summary>
         public static byte[] SerializeFullChunk(NativeArray<StateId> chunkData, NativeArray<byte> lightData)
         {
             MemoryStream stream = GetStream();
-            BinaryWriter writer = new BinaryWriter(stream, Encoding.UTF8, true);
+            BinaryWriter writer = new(stream, Encoding.UTF8, true);
 
             // Build palette
-            Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
-            List<ushort> paletteList = new List<ushort>();
+            Dictionary<ushort, ushort> paletteMap = new();
+            List<ushort> paletteList = new();
 
             for (int i = 0; i < chunkData.Length; i++)
             {
@@ -200,7 +206,7 @@ namespace Lithforge.Voxel.Network
         }
 
         /// <summary>
-        /// Deserializes a full chunk received from the network.
+        ///     Deserializes a full chunk received from the network.
         /// </summary>
         /// <returns>True if deserialization succeeded, false on invalid data.</returns>
         public static bool DeserializeFullChunk(byte[] data, NativeArray<StateId> target, NativeArray<byte> lightTarget)
@@ -233,8 +239,8 @@ namespace Lithforge.Voxel.Network
             byte[] decompressed = decompressor.Unwrap(
                 new ReadOnlySpan<byte>(data, compressedOffset, compressedLength)).ToArray();
 
-            using (MemoryStream ms = new MemoryStream(decompressed))
-            using (BinaryReader reader = new BinaryReader(ms))
+            using (MemoryStream ms = new(decompressed))
+            using (BinaryReader reader = new(ms))
             {
                 // Read palette (reuse ThreadStatic buffer)
                 ushort paletteCount = reader.ReadUInt16();
@@ -260,7 +266,7 @@ namespace Lithforge.Voxel.Network
                         return false;
                     }
 
-                    StateId fillState = new StateId(s_paletteBuffer[0]);
+                    StateId fillState = new(s_paletteBuffer[0]);
 
                     for (int i = 0; i < target.Length; i++)
                     {
@@ -291,7 +297,7 @@ namespace Lithforge.Voxel.Network
 
                     for (int i = 0; i < target.Length; i++)
                     {
-                        ushort paletteIdx = (ushort)(s_voxelBuffer[i * 2] | (s_voxelBuffer[i * 2 + 1] << 8));
+                        ushort paletteIdx = (ushort)(s_voxelBuffer[i * 2] | s_voxelBuffer[i * 2 + 1] << 8);
 
                         if (paletteIdx >= paletteCount)
                         {
@@ -343,11 +349,11 @@ namespace Lithforge.Voxel.Network
         // ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Serializes a batch of block changes for a single chunk.
-        /// Format: header(1) + chunkCoord(12) + count(u16) + entries(N * 5 bytes).
-        /// Each entry is: localX(1) + localY(1) + localZ(1) + stateId(2).
-        /// If count >= 20, the entry data is zstd-compressed.
-        /// Single-change shortcut: header(1) + chunkCoord(12) + localXYZ(3) + stateId(2) = 18 bytes.
+        ///     Serializes a batch of block changes for a single chunk.
+        ///     Format: header(1) + chunkCoord(12) + count(u16) + entries(N * 5 bytes).
+        ///     Each entry is: localX(1) + localY(1) + localZ(1) + stateId(2).
+        ///     If count >= 20, the entry data is zstd-compressed.
+        ///     Single-change shortcut: header(1) + chunkCoord(12) + localXYZ(3) + stateId(2) = 18 bytes.
         /// </summary>
         public static byte[] SerializeBlockChangeBatch(int3 chunkCoord, List<BlockChangeEntry> changes)
         {
@@ -360,7 +366,7 @@ namespace Lithforge.Voxel.Network
             {
                 // Single-change shortcut: no compression, no count field
                 byte[] result = new byte[1 + 12 + 3 + 2]; // 18 bytes
-                result[0] = BatchFlagSingleEntry; // header: single-entry shortcut
+                result[0] = BatchFlagSingleEntry;         // header: single-entry shortcut
                 WriteInt3(result, 1, chunkCoord);
                 BlockChangeEntry entry = changes[0];
                 int3 local = WorldToLocal(entry.Position, chunkCoord);
@@ -408,14 +414,14 @@ namespace Lithforge.Voxel.Network
             batchResult[0] = header;
             WriteInt3(batchResult, 1, chunkCoord);
             batchResult[13] = (byte)(changes.Count & 0xFF);
-            batchResult[14] = (byte)((changes.Count >> 8) & 0xFF);
+            batchResult[14] = (byte)(changes.Count >> 8 & 0xFF);
             Buffer.BlockCopy(payload, 0, batchResult, 15, payload.Length);
             return batchResult;
         }
 
         /// <summary>
-        /// Deserializes a block change batch. Returns the chunk coordinate and list of changes
-        /// with world-space positions reconstructed from the chunk coordinate and local offsets.
+        ///     Deserializes a block change batch. Returns the chunk coordinate and list of changes
+        ///     with world-space positions reconstructed from the chunk coordinate and local offsets.
         /// </summary>
         /// <returns>True if deserialization succeeded.</returns>
         public static bool DeserializeBlockChangeBatch(
@@ -438,12 +444,11 @@ namespace Lithforge.Voxel.Network
             if ((header & BatchFlagSingleEntry) != 0)
             {
                 changes = new List<BlockChangeEntry>(1);
-                int3 local = new int3(data[13], data[14], data[15]);
-                ushort stateVal = (ushort)(data[16] | (data[17] << 8));
+                int3 local = new(data[13], data[14], data[15]);
+                ushort stateVal = (ushort)(data[16] | data[17] << 8);
                 changes.Add(new BlockChangeEntry
                 {
-                    Position = LocalToWorld(local, chunkCoord),
-                    NewState = new StateId(stateVal),
+                    Position = LocalToWorld(local, chunkCoord), NewState = new StateId(stateVal),
                 });
                 return true;
             }
@@ -454,7 +459,7 @@ namespace Lithforge.Voxel.Network
                 return false;
             }
 
-            ushort count = (ushort)(data[13] | (data[14] << 8));
+            ushort count = (ushort)(data[13] | data[14] << 8);
             bool compressed = (header & BatchFlagCompressed) != 0;
 
             byte[] entryData;
@@ -485,12 +490,11 @@ namespace Lithforge.Voxel.Network
             for (int i = 0; i < count; i++)
             {
                 int offset = i * BytesPerBatchEntry;
-                int3 local = new int3(entryData[offset], entryData[offset + 1], entryData[offset + 2]);
-                ushort stateVal = (ushort)(entryData[offset + 3] | (entryData[offset + 4] << 8));
+                int3 local = new(entryData[offset], entryData[offset + 1], entryData[offset + 2]);
+                ushort stateVal = (ushort)(entryData[offset + 3] | entryData[offset + 4] << 8);
                 changes.Add(new BlockChangeEntry
                 {
-                    Position = LocalToWorld(local, chunkCoord),
-                    NewState = new StateId(stateVal),
+                    Position = LocalToWorld(local, chunkCoord), NewState = new StateId(stateVal),
                 });
             }
 
@@ -520,27 +524,27 @@ namespace Lithforge.Voxel.Network
         private static void WriteInt3(byte[] buffer, int offset, int3 value)
         {
             buffer[offset] = (byte)(value.x & 0xFF);
-            buffer[offset + 1] = (byte)((value.x >> 8) & 0xFF);
-            buffer[offset + 2] = (byte)((value.x >> 16) & 0xFF);
-            buffer[offset + 3] = (byte)((value.x >> 24) & 0xFF);
+            buffer[offset + 1] = (byte)(value.x >> 8 & 0xFF);
+            buffer[offset + 2] = (byte)(value.x >> 16 & 0xFF);
+            buffer[offset + 3] = (byte)(value.x >> 24 & 0xFF);
             buffer[offset + 4] = (byte)(value.y & 0xFF);
-            buffer[offset + 5] = (byte)((value.y >> 8) & 0xFF);
-            buffer[offset + 6] = (byte)((value.y >> 16) & 0xFF);
-            buffer[offset + 7] = (byte)((value.y >> 24) & 0xFF);
+            buffer[offset + 5] = (byte)(value.y >> 8 & 0xFF);
+            buffer[offset + 6] = (byte)(value.y >> 16 & 0xFF);
+            buffer[offset + 7] = (byte)(value.y >> 24 & 0xFF);
             buffer[offset + 8] = (byte)(value.z & 0xFF);
-            buffer[offset + 9] = (byte)((value.z >> 8) & 0xFF);
-            buffer[offset + 10] = (byte)((value.z >> 16) & 0xFF);
-            buffer[offset + 11] = (byte)((value.z >> 24) & 0xFF);
+            buffer[offset + 9] = (byte)(value.z >> 8 & 0xFF);
+            buffer[offset + 10] = (byte)(value.z >> 16 & 0xFF);
+            buffer[offset + 11] = (byte)(value.z >> 24 & 0xFF);
         }
 
         private static int3 ReadInt3(byte[] buffer, int offset)
         {
-            int x = buffer[offset] | (buffer[offset + 1] << 8) |
-                    (buffer[offset + 2] << 16) | (buffer[offset + 3] << 24);
-            int y = buffer[offset + 4] | (buffer[offset + 5] << 8) |
-                    (buffer[offset + 6] << 16) | (buffer[offset + 7] << 24);
-            int z = buffer[offset + 8] | (buffer[offset + 9] << 8) |
-                    (buffer[offset + 10] << 16) | (buffer[offset + 11] << 24);
+            int x = buffer[offset] | buffer[offset + 1] << 8 |
+                    buffer[offset + 2] << 16 | buffer[offset + 3] << 24;
+            int y = buffer[offset + 4] | buffer[offset + 5] << 8 |
+                    buffer[offset + 6] << 16 | buffer[offset + 7] << 24;
+            int z = buffer[offset + 8] | buffer[offset + 9] << 8 |
+                    buffer[offset + 10] << 16 | buffer[offset + 11] << 24;
             return new int3(x, y, z);
         }
     }
