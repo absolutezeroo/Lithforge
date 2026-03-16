@@ -168,7 +168,9 @@ namespace Lithforge.Runtime.World
 
                     ResourceId itemId = new ResourceId(saved.Ns, saved.Name);
 
-                    if (!itemRegistry.Contains(itemId))
+                    // Allow items with CustomData (e.g. modular tools) even if not in registry,
+                    // since they carry all their data in the serialized ToolInstance
+                    if (!itemRegistry.Contains(itemId) && string.IsNullOrEmpty(saved.CustomDataBase64))
                     {
                         UnityEngine.Debug.LogWarning(
                             $"[PlayerStateSerializer] Item '{saved.Ns}:{saved.Name}' not found in registry, slot {saved.Slot} cleared.");

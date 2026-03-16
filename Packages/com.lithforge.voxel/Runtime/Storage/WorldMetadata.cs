@@ -72,6 +72,12 @@ namespace Lithforge.Voxel.Storage
                                 ["count"] = stack.Count,
                                 ["durability"] = stack.Durability,
                             };
+
+                            if (!string.IsNullOrEmpty(stack.CustomDataBase64))
+                            {
+                                slot["custom_data"] = stack.CustomDataBase64;
+                            }
+
                             slots.Add(slot);
                         }
                     }
@@ -194,7 +200,8 @@ namespace Lithforge.Voxel.Storage
                                     slotObj["ns"]?.Value<string>() ?? "",
                                     slotObj["name"]?.Value<string>() ?? "",
                                     slotObj["count"]?.Value<int>() ?? 0,
-                                    slotObj["durability"]?.Value<int>() ?? -1);
+                                    slotObj["durability"]?.Value<int>() ?? -1,
+                                    slotObj["custom_data"]?.Value<string>());
                             }
                         }
 
