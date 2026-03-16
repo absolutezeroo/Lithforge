@@ -20,17 +20,11 @@ MonoBehaviour:
     itemName: cobblestone
     count: 64
   - itemNamespace: lithforge
-    itemName: stone_shovel
-    count: 1
-  - itemNamespace: lithforge
-    itemName: stone_pickaxe
-    count: 1
-  - itemNamespace: lithforge
     itemName: chest
-    count: 1
+    count: 64
   - itemNamespace: lithforge
     itemName: furnace
-    count: 1
+    count: 64
   - itemNamespace: lithforge
-    itemName: coal
+    itemName: tool_station
     count: 64
