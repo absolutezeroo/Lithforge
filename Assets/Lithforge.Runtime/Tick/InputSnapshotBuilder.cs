@@ -4,10 +4,10 @@ using UnityEngine.InputSystem;
 namespace Lithforge.Runtime.Tick
 {
     /// <summary>
-    /// Replaces <see cref="PlayerInputLatch"/>. Samples all keyboard, mouse, and
-    /// transform state each frame and produces a complete <see cref="InputSnapshot"/>
-    /// per tick. Edge-triggered inputs are OR-accumulated across frames between ticks
-    /// (same pattern as PlayerInputLatch). Continuous inputs are sampled at tick time.
+    /// Samples all keyboard, mouse, and transform state each frame and produces a
+    /// complete <see cref="InputSnapshot"/> per tick. Edge-triggered inputs are
+    /// OR-accumulated across frames between ticks. Continuous inputs are sampled
+    /// at tick time.
     ///
     /// Call <see cref="LatchFrame"/> once per frame before the tick loop.
     /// Call <see cref="ConsumeTick"/> inside the tick loop to retrieve and clear edges.
