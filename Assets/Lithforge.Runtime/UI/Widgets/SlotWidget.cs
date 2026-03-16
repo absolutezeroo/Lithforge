@@ -1,4 +1,5 @@
 using Lithforge.Core.Data;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Item;
 using UnityEngine;
@@ -80,7 +81,11 @@ namespace Lithforge.Runtime.UI.Widgets
         /// Updates the slot visual to reflect the given item stack.
         /// Only updates if the stack has changed (dirty check).
         /// </summary>
-        public void Refresh(ItemStack stack, ItemSpriteAtlas atlas, ItemRegistry itemRegistry)
+        public void Refresh(
+            ItemStack stack,
+            ItemSpriteAtlas atlas,
+            ItemRegistry itemRegistry,
+            ToolPartTextureDatabase toolPartTexDb = null)
         {
             if (stack.ItemId == _lastStack.ItemId &&
                 stack.Count == _lastStack.Count &&
@@ -117,6 +122,25 @@ namespace Lithforge.Runtime.UI.Widgets
                     if (atlas.Contains(cacheKey))
                     {
                         sprite = atlas.Get(cacheKey);
+                    }
+                }
+
+                // Re-composite assembled tools if sprite is missing (e.g. after save/load)
+                if (!atlas.Contains(stack.ItemId) &&
+                    stack.HasCustomData && toolPartTexDb != null)
+                {
+                    if (!ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData _))
+                    {
+                        if (ToolInstanceSerializer.TryDeserialize(stack.CustomData, out ToolInstance savedTool))
+                        {
+                            Sprite composite = ToolSpriteCompositor.Composite(savedTool, toolPartTexDb);
+
+                            if (composite != null)
+                            {
+                                atlas.Register(stack.ItemId, composite);
+                                sprite = composite;
+                            }
+                        }
                     }
                 }
 

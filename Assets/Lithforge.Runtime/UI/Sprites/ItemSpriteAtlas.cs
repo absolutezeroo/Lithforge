@@ -40,6 +40,14 @@ namespace Lithforge.Runtime.UI.Sprites
             return _sprites.ContainsKey(itemId);
         }
 
+        /// <summary>
+        /// Returns the fallback sprite used when no entry exists.
+        /// </summary>
+        public Sprite GetFallback()
+        {
+            return _fallback;
+        }
+
         public int Count
         {
             get { return _sprites.Count; }

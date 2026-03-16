@@ -1127,7 +1127,8 @@ namespace Lithforge.Runtime.Bootstrap
                 hotbarDisplay.Initialize(
                     playerInventory, panelSettings,
                     _contentResult.ItemRegistry,
-                    _contentResult.ItemSpriteAtlas);
+                    _contentResult.ItemSpriteAtlas,
+                    _contentResult.ToolPartTextures);
 
                 // Build ScreenContext — single shared context for all container screens
                 ScreenContext screenContext = new(

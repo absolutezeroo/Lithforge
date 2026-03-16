@@ -48,14 +48,13 @@ namespace Lithforge.Runtime.Input
             (IToolTrait a, IToolTrait b) => a.Priority.CompareTo(b.Priority);
 
         // ToolType → mineable tag mapping (Minecraft-style correct-tool check)
+        // Tag names must match the tagName field in Tag assets (e.g. "blocks/mineable_pickaxe")
         private static readonly Dictionary<ToolType, ResourceId> s_toolTagMap =
             new Dictionary<ToolType, ResourceId>
             {
-                { ToolType.Pickaxe, ResourceId.Parse("lithforge:mineable_pickaxe") },
-                { ToolType.Axe, ResourceId.Parse("lithforge:mineable_axe") },
-                { ToolType.Shovel, ResourceId.Parse("lithforge:mineable_shovel") },
-                { ToolType.Hoe, ResourceId.Parse("lithforge:mineable_hoe") },
-                { ToolType.Sword, ResourceId.Parse("lithforge:mineable_sword") },
+                { ToolType.Pickaxe, ResourceId.Parse("lithforge:blocks/mineable_pickaxe") },
+                { ToolType.Axe, ResourceId.Parse("lithforge:blocks/mineable_axe") },
+                { ToolType.Shovel, ResourceId.Parse("lithforge:blocks/mineable_shovel") },
             };
 
         // Physics settings

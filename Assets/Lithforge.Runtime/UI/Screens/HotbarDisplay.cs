@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;
 using Lithforge.Voxel.Item;
@@ -16,6 +17,7 @@ namespace Lithforge.Runtime.UI.Screens
         private Inventory _inventory;
         private ItemRegistry _itemRegistry;
         private ItemSpriteAtlas _spriteAtlas;
+        private ToolPartTextureDatabase _toolPartTexDb;
 
         private SlotWidget[] _slotWidgets;
         private ItemNameBanner _nameBanner;
@@ -26,11 +28,13 @@ namespace Lithforge.Runtime.UI.Screens
             Inventory inventory,
             PanelSettings panelSettings,
             ItemRegistry itemRegistry,
-            ItemSpriteAtlas spriteAtlas)
+            ItemSpriteAtlas spriteAtlas,
+            ToolPartTextureDatabase toolPartTexDb = null)
         {
             _inventory = inventory;
             _itemRegistry = itemRegistry;
             _spriteAtlas = spriteAtlas;
+            _toolPartTexDb = toolPartTexDb;
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.panelSettings = panelSettings;
@@ -126,7 +130,7 @@ namespace Lithforge.Runtime.UI.Screens
             for (int i = 0; i < Inventory.HotbarSize; i++)
             {
                 ItemStack stack = _inventory.GetSlot(i);
-                _slotWidgets[i].Refresh(stack, _spriteAtlas, _itemRegistry);
+                _slotWidgets[i].Refresh(stack, _spriteAtlas, _itemRegistry, _toolPartTexDb);
             }
         }
 

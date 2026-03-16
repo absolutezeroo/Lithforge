@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
@@ -249,11 +250,14 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         protected void RefreshAllSlots()
         {
+            ToolPartTextureDatabase toolTexDb = _context != null
+                ? _context.ToolPartTextures : null;
+
             for (int i = 0; i < _allBindings.Count; i++)
             {
                 SlotWidgetBinding binding = _allBindings[i];
                 ItemStack stack = binding.Container.GetSlot(binding.SlotIndex);
-                binding.Widget.Refresh(stack, _spriteAtlas, _itemRegistry);
+                binding.Widget.Refresh(stack, _spriteAtlas, _itemRegistry, toolTexDb);
             }
 
             // Update drag ghost
