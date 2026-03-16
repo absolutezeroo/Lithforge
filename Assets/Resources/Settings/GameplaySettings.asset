@@ -28,3 +28,9 @@ MonoBehaviour:
   - itemNamespace: lithforge
     itemName: tool_station
     count: 64
+  - itemNamespace: lithforge
+    itemName: part_builder
+    count: 64
+  - itemNamespace: lithforge
+    itemName: blank_pattern
+    count: 64
