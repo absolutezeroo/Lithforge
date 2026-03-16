@@ -7,7 +7,6 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items;
-using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Runtime.Content.Loot;
 using Lithforge.Runtime.Content.Models;
 using Lithforge.Runtime.Content.Mods;

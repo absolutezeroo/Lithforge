@@ -56,12 +56,6 @@ namespace Lithforge.Runtime.Content.Items
         [HideInInspector]
         [SerializeField] private float attackDamage = 1.0f;
 
-        /// <summary>Attacks per second — lower values mean slower swings but often pair with higher damage.</summary>
-        [FormerlySerializedAs("_attackSpeed"),Tooltip("Attack speed")]
-        [Min(0f)]
-        [HideInInspector]
-        [SerializeField] private float attackSpeed = 4.0f;
-
         /// <summary>Base mining speed multiplier.</summary>
         [FormerlySerializedAs("_miningSpeed"),Tooltip("Mining speed multiplier")]
         [Min(0f)]
@@ -140,13 +134,6 @@ namespace Lithforge.Runtime.Content.Items
             get { return attackDamage; }
         }
 
-        /// <summary>Attacks per second — lower values mean slower swings but often pair with higher damage.</summary>
-        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
-        public float AttackSpeed
-        {
-            get { return attackSpeed; }
-        }
-
         /// <summary>Base mining speed multiplier.</summary>
         [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public float MiningSpeed
@@ -155,6 +142,7 @@ namespace Lithforge.Runtime.Content.Items
         }
 
         /// <summary>Passive modifiers applied while this item is held (e.g. efficiency, fortune).</summary>
+        [Obsolete("Affix system has no assets and is unused. May be reactivated later.")]
         public AffixDefinition[] Affixes
         {
             get { return affixes; }

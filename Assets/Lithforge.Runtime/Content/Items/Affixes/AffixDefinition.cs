@@ -8,6 +8,7 @@ namespace Lithforge.Runtime.Content.Items.Affixes
     /// Data-driven affix that modifies mining calculations via the IMiningModifier pipeline.
     /// Configured as a ScriptableObject and attached to tool ItemDefinitions.
     /// </summary>
+    [System.Obsolete("Affix system has no assets and is unused. May be reactivated later.")]
     [CreateAssetMenu(fileName = "NewAffix",
         menuName = "Lithforge/Content/Affix Definition")]
     public sealed class AffixDefinition : ScriptableObject, IMiningModifier

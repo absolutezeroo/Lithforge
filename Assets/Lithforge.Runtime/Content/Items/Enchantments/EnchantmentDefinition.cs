@@ -9,6 +9,7 @@ namespace Lithforge.Runtime.Content.Items.Enchantments
     /// Data-driven enchantment with multiple levels, each providing mining effects.
     /// Configured as a ScriptableObject. Applied to items at runtime via enchantment slots.
     /// </summary>
+    [System.Obsolete("Enchantment system has no assets and is unused. May be reactivated later.")]
     [CreateAssetMenu(fileName = "NewEnchantment",
         menuName = "Lithforge/Content/Enchantment Definition")]
     public sealed class EnchantmentDefinition : ScriptableObject

@@ -8,6 +8,7 @@ namespace Lithforge.Runtime.Content.Items.Enchantments
     /// <summary>
     /// Per-level data for an enchantment, containing display info and mining effects.
     /// </summary>
+    [System.Obsolete("Enchantment system has no assets and is unused. May be reactivated later.")]
     [System.Serializable]
     public struct EnchantmentLevelData
     {

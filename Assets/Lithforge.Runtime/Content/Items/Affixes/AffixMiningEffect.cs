@@ -9,6 +9,7 @@ namespace Lithforge.Runtime.Content.Items.Affixes
     /// A single mining effect applied by an affix or enchantment level.
     /// Conditionally modifies a MiningContext based on material and tool type filters.
     /// </summary>
+    [System.Obsolete("Affix system has no assets and is unused. May be reactivated later.")]
     [System.Serializable]
     public struct AffixMiningEffect
     {
