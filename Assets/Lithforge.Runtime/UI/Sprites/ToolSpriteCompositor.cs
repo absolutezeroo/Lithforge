@@ -42,8 +42,6 @@ namespace Lithforge.Runtime.UI.Sprites
             Texture2D[] layers = new Texture2D[def.spriteLayers.Length];
             bool anyLayer = false;
 
-            UnityEngine.Debug.Log($"[ToolCompositor] Compositing {tool.ToolType} with {tool.Parts.Length} parts, {def.spriteLayers.Length} layers");
-
             for (int l = 0; l < def.spriteLayers.Length; l++)
             {
                 SpriteLayer layerDef = def.spriteLayers[l];
@@ -51,7 +49,6 @@ namespace Lithforge.Runtime.UI.Sprites
                 // Find the part that matches this layer
                 if (layerDef.partTypes == null || layerDef.partTypes.Length == 0)
                 {
-                    UnityEngine.Debug.Log($"[ToolCompositor]   Layer {l} ({layerDef.textureSubfolder}): partTypes null/empty, skipped");
                     continue;
                 }
 
@@ -78,7 +75,6 @@ namespace Lithforge.Runtime.UI.Sprites
 
                 if (!matchedPart.HasValue)
                 {
-                    UnityEngine.Debug.Log($"[ToolCompositor]   Layer {l} ({layerDef.textureSubfolder}): no matching part found among [{string.Join(", ", Array.ConvertAll(tool.Parts, p => p.PartType.ToString()))}]");
                     continue;
                 }
 
@@ -86,8 +82,6 @@ namespace Lithforge.Runtime.UI.Sprites
 
                 Texture2D tex = texDb.GetLayer(
                     tool.ToolType, layerDef.textureSubfolder, matSuffix);
-
-                UnityEngine.Debug.Log($"[ToolCompositor]   Layer {l} ({layerDef.textureSubfolder}): part={matchedPart.Value.PartType}, mat={matchedPart.Value.MaterialId}, suffix={matSuffix}, texture={(tex != null ? tex.name : "NULL")}");
 
                 if (tex != null)
                 {

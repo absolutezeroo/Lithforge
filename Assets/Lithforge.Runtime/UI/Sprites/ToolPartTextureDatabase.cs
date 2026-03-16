@@ -77,8 +77,6 @@ namespace Lithforge.Runtime.UI.Sprites
                     string path = $"{BasePath}/{def.textureFolderName}/{layer.textureSubfolder}";
                     Texture2D[] textures = Resources.LoadAll<Texture2D>(path);
 
-                    UnityEngine.Debug.Log($"[ToolTexDb] {def.toolType}/{layer.textureSubfolder}: loaded {textures.Length} textures from '{path}' (prefix={layer.filenamePrefix}, partTypes={layer.partTypes?.Length ?? 0})");
-
                     for (int t = 0; t < textures.Length; t++)
                     {
                         Texture2D tex = textures[t];
@@ -95,10 +93,6 @@ namespace Lithforge.Runtime.UI.Sprites
                         if (extractedSuffix != null)
                         {
                             _layers[(def.toolType, layer.textureSubfolder, extractedSuffix)] = tex;
-                        }
-                        else
-                        {
-                            UnityEngine.Debug.LogWarning($"[ToolTexDb]   Could not extract suffix from '{tex.name}' with prefix '{layer.filenamePrefix}'");
                         }
                     }
                 }
