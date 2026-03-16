@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8931409058928645b002277650b32f9, type: 3}
+  m_Name: SoundGroup_Wood
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Audio.SoundGroupDefinition
+  groupName: wood
+  breakClips:
+  - {fileID: 8300000, guid: 5e64a41028cd82244bb089d008013978, type: 3}
+  - {fileID: 8300000, guid: df2ee73a659f5db4e83837b83f3b3b76, type: 3}
+  - {fileID: 8300000, guid: 8f660477d92cf5247bf1f2f9043c4c5e, type: 3}
+  breakVolume: 1.0
+  breakPitchMin: 0.8
+  breakPitchMax: 1.0
+  placeClips:
+  - {fileID: 8300000, guid: 5e64a41028cd82244bb089d008013978, type: 3}
+  - {fileID: 8300000, guid: df2ee73a659f5db4e83837b83f3b3b76, type: 3}
+  - {fileID: 8300000, guid: 8f660477d92cf5247bf1f2f9043c4c5e, type: 3}
+  placeVolume: 1.0
+  placePitchMin: 0.8
+  placePitchMax: 1.0
+  stepClips:
+  - {fileID: 8300000, guid: 5e64a41028cd82244bb089d008013978, type: 3}
+  - {fileID: 8300000, guid: df2ee73a659f5db4e83837b83f3b3b76, type: 3}
+  - {fileID: 8300000, guid: 8f660477d92cf5247bf1f2f9043c4c5e, type: 3}
+  - {fileID: 8300000, guid: 9d2b82ec9285ae54dbd124ebbd45a79d, type: 3}
+  - {fileID: 8300000, guid: 8b546244bba61e147a8c9a860d4eae5c, type: 3}
+  - {fileID: 8300000, guid: f6de69a5190f5f843976a701a9a27363, type: 3}
+  - {fileID: 8300000, guid: 9577d6804232e3a4a9b5fb8740b222c3, type: 3}
+  - {fileID: 8300000, guid: fb5d1aa3cab5a1b49b8894b3e1150808, type: 3}
+  - {fileID: 8300000, guid: 88da41280029bc945bdfdaf8e2358623, type: 3}
+  - {fileID: 8300000, guid: bcd168aee4dcbfc4aad8558d8782470a, type: 3}
+  - {fileID: 8300000, guid: 3be31baaff05ba74db559f9daf0f7190, type: 3}
+  stepVolume: 0.5
+  stepPitchMin: 0.9
+  stepPitchMax: 1.1
+  hitClips:
+  - {fileID: 8300000, guid: 9d2b82ec9285ae54dbd124ebbd45a79d, type: 3}
+  - {fileID: 8300000, guid: 8b546244bba61e147a8c9a860d4eae5c, type: 3}
+  - {fileID: 8300000, guid: f6de69a5190f5f843976a701a9a27363, type: 3}
+  hitVolume: 0.6
+  hitPitchMin: 0.5
+  hitPitchMax: 0.7
+  fallClips: []
+  fallVolume: 1.0
+  fallPitchMin: 0.75
+  fallPitchMax: 1.0

@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8931409058928645b002277650b32f9, type: 3}
+  m_Name: SoundGroup_Mud
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Audio.SoundGroupDefinition
+  groupName: mud
+  breakClips:
+  - {fileID: 8300000, guid: 7156389b6dcf1314b8b8297966771c75, type: 3}
+  - {fileID: 8300000, guid: 5343228ab5d411f488d0358b35f0b552, type: 3}
+  - {fileID: 8300000, guid: 461f0b9c59ce0f5468eb591e5dcf500e, type: 3}
+  - {fileID: 8300000, guid: a26b1057c28bdd14fb415945bdfbf8d5, type: 3}
+  breakVolume: 1.0
+  breakPitchMin: 0.8
+  breakPitchMax: 1.0
+  placeClips:
+  - {fileID: 8300000, guid: 7156389b6dcf1314b8b8297966771c75, type: 3}
+  - {fileID: 8300000, guid: 5343228ab5d411f488d0358b35f0b552, type: 3}
+  - {fileID: 8300000, guid: 461f0b9c59ce0f5468eb591e5dcf500e, type: 3}
+  - {fileID: 8300000, guid: a26b1057c28bdd14fb415945bdfbf8d5, type: 3}
+  placeVolume: 1.0
+  placePitchMin: 0.8
+  placePitchMax: 1.0
+  stepClips:
+  - {fileID: 8300000, guid: 4e4614993dd008c4aa8f64f8173a96a8, type: 3}
+  - {fileID: 8300000, guid: 4a7721072f0f9b24daad8476405a3e6c, type: 3}
+  - {fileID: 8300000, guid: 7c3536954c2c9c9448ab73198ad1d6c8, type: 3}
+  - {fileID: 8300000, guid: e8e68878a79d99d4f9d8f3992ff25c1d, type: 3}
+  - {fileID: 8300000, guid: 42308def6799da24491018b4535ffe0e, type: 3}
+  - {fileID: 8300000, guid: 4f30739b18be2a44d9ca2cd9e7536961, type: 3}
+  stepVolume: 0.5
+  stepPitchMin: 0.85
+  stepPitchMax: 1.05
+  hitClips:
+  - {fileID: 8300000, guid: 4e4614993dd008c4aa8f64f8173a96a8, type: 3}
+  - {fileID: 8300000, guid: 4a7721072f0f9b24daad8476405a3e6c, type: 3}
+  - {fileID: 8300000, guid: 7c3536954c2c9c9448ab73198ad1d6c8, type: 3}
+  hitVolume: 0.6
+  hitPitchMin: 0.5
+  hitPitchMax: 0.7
+  fallClips: []
+  fallVolume: 1.0
+  fallPitchMin: 0.75
+  fallPitchMax: 1.0

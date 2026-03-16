@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19ccfee1a85394f4ab65a05943e26983, type: 3}
+  m_Name: AudioSettings
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.AudioSettings
+  sfxPoolSize: 24
+  soundCooldownMs: 50
+  footstepDistance: 2.5
+  sprintFootstepDistance: 1.5
+  fallSoundThreshold: 3
+  fallMaxVolume: 1
+  fallMaxHeight: 20
+  miningHitInterval: 4
+  underwaterCutoff: 300
+  surfaceCutoff: 22000
+  underwaterLerpSpeed: 8
+  enclosureRayCount: 10
+  enclosureMaxDistance: 20
+  enclosureUpdateTicks: 15
+  enclosureReverbThreshold: 0.5
+  reverbLerpSpeed: 3
+  ambientCrossfadeTime: 6
+  scatterMinInterval: 10
+  scatterMaxInterval: 30
+  scatterMinDistance: 5
+  scatterMaxDistance: 15

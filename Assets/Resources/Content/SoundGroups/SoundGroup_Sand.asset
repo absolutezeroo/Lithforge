@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8931409058928645b002277650b32f9, type: 3}
+  m_Name: SoundGroup_Sand
+  m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Audio.SoundGroupDefinition
+  groupName: sand
+  breakClips:
+  - {fileID: 8300000, guid: 7b9fe7d4b162e42408a62b668d7311ee, type: 3}
+  - {fileID: 8300000, guid: 0df69fa24fc643846a4e69b286de42fd, type: 3}
+  - {fileID: 8300000, guid: 8aca7cd4d35c80d44a0d8ffe472d6f33, type: 3}
+  breakVolume: 1.0
+  breakPitchMin: 0.8
+  breakPitchMax: 1.0
+  placeClips:
+  - {fileID: 8300000, guid: 7b9fe7d4b162e42408a62b668d7311ee, type: 3}
+  - {fileID: 8300000, guid: 0df69fa24fc643846a4e69b286de42fd, type: 3}
+  - {fileID: 8300000, guid: 8aca7cd4d35c80d44a0d8ffe472d6f33, type: 3}
+  placeVolume: 1.0
+  placePitchMin: 0.8
+  placePitchMax: 1.0
+  stepClips:
+  - {fileID: 8300000, guid: 7b9fe7d4b162e42408a62b668d7311ee, type: 3}
+  - {fileID: 8300000, guid: 0df69fa24fc643846a4e69b286de42fd, type: 3}
+  - {fileID: 8300000, guid: 8aca7cd4d35c80d44a0d8ffe472d6f33, type: 3}
+  - {fileID: 8300000, guid: 73c47c658bea6844fa2e781c84d58f3d, type: 3}
+  - {fileID: 8300000, guid: 544a46356e2ac1b4bbd36e33a1bb403a, type: 3}
+  - {fileID: 8300000, guid: ba60336d30d0003418c5544f53246173, type: 3}
+  - {fileID: 8300000, guid: 36e2e66a73eaba74d9c6ffd2889d05d4, type: 3}
+  - {fileID: 8300000, guid: ed01df389ac77514eac7501883252b40, type: 3}
+  - {fileID: 8300000, guid: 7477a378194dfa2428cda2c0d520b16c, type: 3}
+  - {fileID: 8300000, guid: e381aebfac84c044c9afbc8d331a4c87, type: 3}
+  - {fileID: 8300000, guid: c9c2f15798cc2e542b066e2f1f3fb8f7, type: 3}
+  - {fileID: 8300000, guid: b806662e2ce6cc54391f556eb41d90fb, type: 3}
+  - {fileID: 8300000, guid: f3a3eb50411c7a04bb9e547c6a03c439, type: 3}
+  - {fileID: 8300000, guid: e39d8813c2f6f3b4a9865b471b1d0a29, type: 3}
+  - {fileID: 8300000, guid: 2b26085e320d48a41ae6112c69435146, type: 3}
+  - {fileID: 8300000, guid: fee831357601694409cfff38564007d3, type: 3}
+  - {fileID: 8300000, guid: fe907ec8a1c2f1d468c420f5852e166a, type: 3}
+  - {fileID: 8300000, guid: e93b5c0d89aecfd439f9557713f2e31d, type: 3}
+  - {fileID: 8300000, guid: 359257f8b0c25c94fbf1f6345ca0563c, type: 3}
+  - {fileID: 8300000, guid: a678fbeb1b0deeb45be0b387a31ae011, type: 3}
+  - {fileID: 8300000, guid: 7be55e09dec31db468231bf5d8fae928, type: 3}
+  - {fileID: 8300000, guid: 7c42e775d7a04ee499d52a4e2796daca, type: 3}
+  stepVolume: 0.5
+  stepPitchMin: 0.9
+  stepPitchMax: 1.1
+  hitClips:
+  - {fileID: 8300000, guid: 73c47c658bea6844fa2e781c84d58f3d, type: 3}
+  - {fileID: 8300000, guid: 544a46356e2ac1b4bbd36e33a1bb403a, type: 3}
+  - {fileID: 8300000, guid: ba60336d30d0003418c5544f53246173, type: 3}
+  hitVolume: 0.6
+  hitPitchMin: 0.5
+  hitPitchMax: 0.7
+  fallClips: []
+  fallVolume: 1.0
+  fallPitchMin: 0.75
+  fallPitchMax: 1.0
