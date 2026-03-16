@@ -33,6 +33,7 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
         private readonly List<float> _meshScoreCache = new List<float>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
+        private readonly List<int3> _deferredDirtiedCache = new List<int3>();
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new HashSet<int3>();
         private readonly HashSet<ManagedChunk> _generatedChunks = new HashSet<ManagedChunk>();
         private readonly HashSet<ManagedChunk> _readyChunks = new HashSet<ManagedChunk>();
@@ -58,6 +59,13 @@ namespace Lithforge.Voxel.Chunk
         /// Parameters: chunkCoord, flatIndex, oldStateId.
         /// </summary>
         public Action<int3, int, StateId> OnBlockEntityRemoved;
+
+        /// <summary>
+        /// Called after any block change (both immediate and deferred paths).
+        /// Parameters: worldCoord, newStateId.
+        /// Used by <see cref="Network.ChunkDirtyTracker"/> for network delta sync.
+        /// </summary>
+        public Action<int3, StateId> OnBlockChanged;
 
         /// <summary>
         /// NativeStateRegistry reference for checking HasBlockEntity flag during SetBlock.
@@ -703,6 +711,8 @@ namespace Lithforge.Voxel.Chunk
                 {
                     OnBlockEntityPlaced?.Invoke(chunkCoord, index, state);
                 }
+
+                OnBlockChanged?.Invoke(worldCoord, state);
             }
 
             dirtiedChunks.Add(chunkCoord);
@@ -717,12 +727,20 @@ namespace Lithforge.Voxel.Chunk
         public void ApplyDeferredEdits(ManagedChunk chunk)
         {
             NativeArray<StateId> chunkData = chunk.Data;
+            _deferredDirtiedCache.Clear();
+            _deferredDirtiedCache.Add(chunk.Coord);
 
             for (int di = 0; di < chunk.DeferredEdits.Count; di++)
             {
                 DeferredEdit edit = chunk.DeferredEdits[di];
                 chunkData[edit.FlatIndex] = edit.NewState;
                 chunk.PendingEditIndices.Add(edit.FlatIndex);
+
+                // Unpack flat index to local coordinates
+                int localY = edit.FlatIndex / ChunkConstants.SizeSquared;
+                int remainder = edit.FlatIndex % ChunkConstants.SizeSquared;
+                int localZ = remainder / ChunkConstants.Size;
+                int localX = remainder % ChunkConstants.Size;
 
                 // Fire block entity events now that the voxel write has happened
                 bool editOldHasEntity = _nativeStateRegistry.States.IsCreated &&
@@ -741,6 +759,19 @@ namespace Lithforge.Voxel.Chunk
                 {
                     OnBlockEntityPlaced?.Invoke(chunk.Coord, edit.FlatIndex, edit.NewState);
                 }
+
+                // Fire network dirty tracking event
+                if (OnBlockChanged != null)
+                {
+                    int3 worldCoord = new int3(
+                        chunk.Coord.x * ChunkConstants.Size + localX,
+                        chunk.Coord.y * ChunkConstants.Size + localY,
+                        chunk.Coord.z * ChunkConstants.Size + localZ);
+                    OnBlockChanged.Invoke(worldCoord, edit.NewState);
+                }
+
+                // Dirty neighbor chunks for border-touching edits
+                DirtyNeighborBorders(chunk.Coord, localX, localY, localZ, _deferredDirtiedCache);
             }
 
             chunk.DeferredEdits.Clear();
