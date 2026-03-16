@@ -61,12 +61,13 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// How many LOD mesh completions to process per frame.
+        /// How many LOD mesh completions to process per frame. Kept low to avoid
+        /// GPU upload floods — LOD meshes are ~35KB each, so 4 completions ≈ 140KB/frame.
         /// </summary>
         /// <param name="rd">Current render distance in chunks.</param>
         public static int MaxLODCompletionsPerFrame(int rd)
         {
-            return math.min(16, 2 + rd / 4);
+            return math.min(4, 2 + rd / 6);
         }
 
         /// <summary>

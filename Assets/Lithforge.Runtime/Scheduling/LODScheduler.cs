@@ -34,6 +34,26 @@ namespace Lithforge.Runtime.Scheduling
         private int _lod2Distance;
         private int _lod3Distance;
 
+        /// <summary>
+        /// Exponential moving average of GPU upload bytes contributed by LOD completions.
+        /// Updated each frame in ScheduleJobs. When this exceeds the budget,
+        /// LOD scheduling is throttled to prevent GPU saturation.
+        /// </summary>
+        private long _recentLodUploadBytes;
+
+        /// <summary>
+        /// Per-frame GPU upload budget for LOD meshes in bytes.
+        /// 150KB/frame ~ 9MB/s at 60fps — lower than MeshScheduler's 200KB
+        /// because LOD uploads are less urgent.
+        /// </summary>
+        private const long LodGpuUploadBudgetPerFrame = 150_000;
+
+        /// <summary>
+        /// Running byte total of LOD uploads processed so far this frame in PollCompleted.
+        /// Reset at the start of each PollCompleted call.
+        /// </summary>
+        private long _lodUploadBytesThisFrame;
+
         // Reusable caches to avoid per-frame allocation
         private readonly List<ManagedChunk> _readyChunksCache = new List<ManagedChunk>();
         private readonly List<ManagedChunk> _generatedLODCache = new List<ManagedChunk>();
@@ -97,6 +117,7 @@ namespace Lithforge.Runtime.Scheduling
 
             FrameBudget budget = new FrameBudget(_completionBudgetMs);
             int completedThisFrame = 0;
+            _lodUploadBytesThisFrame = 0;
 
             for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
             {
@@ -109,7 +130,19 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (pending.Handle.IsCompleted)
                 {
+                    // Estimate upload size before committing: PackedMeshVertex=16 bytes, int index=4 bytes
+                    long uploadBytes = (long)pending.Data.Vertices.Length * 16
+                                     + (long)pending.Data.Indices.Length * 4;
+
+                    // If we already uploaded some data this frame and adding this would
+                    // exceed our per-frame budget, defer to next frame.
+                    if (completedThisFrame > 0 && _lodUploadBytesThisFrame + uploadBytes > LodGpuUploadBudgetPerFrame)
+                    {
+                        break;
+                    }
+
                     completedThisFrame++;
+                    _lodUploadBytesThisFrame += uploadBytes;
                     pending.Handle.Complete();
 
                     // Upload as single-submesh opaque mesh
@@ -191,6 +224,16 @@ namespace Lithforge.Runtime.Scheduling
             if (slotsAvailable <= 0)
             {
                 return;
+            }
+
+            // GPU bandwidth throttle: mirror MeshScheduler's EMA pattern.
+            // Use the LOD upload bytes from this frame's PollCompleted as the signal.
+            _recentLodUploadBytes = (_recentLodUploadBytes * 7 + _lodUploadBytesThisFrame * 3) / 10;
+
+            if (_recentLodUploadBytes > LodGpuUploadBudgetPerFrame)
+            {
+                float overload = (float)_recentLodUploadBytes / LodGpuUploadBudgetPerFrame;
+                slotsAvailable = math.max(1, (int)(slotsAvailable / overload));
             }
 
             Profiler.BeginSample("LOD.Schedule");
