@@ -5,6 +5,7 @@ using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
 using ILogger = Lithforge.Core.Logging.ILogger;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items;
 using Lithforge.Runtime.Content.Loot;
@@ -110,7 +111,8 @@ namespace Lithforge.Runtime.Bootstrap
                     block.RequiresTool,
                     block.IsFluid,
                     materialType: block.MaterialType,
-                    requiredToolLevel: block.RequiredToolLevel);
+                    requiredToolLevel: block.RequiredToolLevel,
+                    soundGroup: block.SoundGroup);
 
                 stateRegistry.Register(regData);
                 blockLookup[id.ToString()] = block;
@@ -581,6 +583,24 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Generated {legacyToolTemplates.Count} legacy tool templates.");
 
+            // Phase 18: Load sound group definitions
+            yield return "Loading sound groups...";
+            SoundGroupRegistry soundGroupRegistry = new SoundGroupRegistry();
+            SoundGroupDefinition[] soundGroups =
+                Resources.LoadAll<SoundGroupDefinition>("Content/SoundGroups");
+
+            for (int i = 0; i < soundGroups.Length; i++)
+            {
+                SoundGroupDefinition sg = soundGroups[i];
+
+                if (!string.IsNullOrEmpty(sg.GroupName))
+                {
+                    soundGroupRegistry.Register(sg.GroupName, sg);
+                }
+            }
+
+            _logger.LogInfo($"Loaded {soundGroupRegistry.Count} sound groups.");
+
             Result = new ContentPipelineResult(
                 stateRegistry,
                 nativeStateRegistry,
@@ -599,7 +619,8 @@ namespace Lithforge.Runtime.Bootstrap
                 displayTransformLookup,
                 toolMaterialRegistry,
                 toolTraitRegistry,
-                legacyToolTemplates);
+                legacyToolTemplates,
+                soundGroupRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

@@ -23,5 +23,8 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Inventory layout, crafting grid size, and items granted on first spawn.</summary>
         public GameplaySettings Gameplay;
+
+        /// <summary>SFX pool size, distances, cooldowns, reverb, crossfade, and scatter tuning.</summary>
+        public AudioSettings Audio;
     }
 }

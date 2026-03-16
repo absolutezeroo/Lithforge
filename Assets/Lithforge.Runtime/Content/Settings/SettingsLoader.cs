@@ -23,6 +23,7 @@ namespace Lithforge.Runtime.Content.Settings
                 Rendering = LoadOrCreate<RenderingSettings>("Settings/RenderingSettings"),
                 Debug = LoadOrCreate<DebugSettings>("Settings/DebugSettings"),
                 Gameplay = LoadOrCreate<GameplaySettings>("Settings/GameplaySettings"),
+                Audio = LoadOrCreate<AudioSettings>("Settings/AudioSettings"),
             };
 
             return result;

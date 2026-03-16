@@ -27,6 +27,10 @@ namespace Lithforge.Runtime.Content.Settings
         public float FieldOfView { get; set; }
         public float MouseSensitivity { get; set; }
         public float AOStrength { get; set; }
+        public float MasterVolume { get; set; }
+        public float SfxVolume { get; set; }
+        public float MusicVolume { get; set; }
+        public float AmbientVolume { get; set; }
 
         public bool HasRenderDistance
         {
@@ -48,6 +52,26 @@ namespace Lithforge.Runtime.Content.Settings
             get { return AOStrength >= 0f; }
         }
 
+        public bool HasMasterVolume
+        {
+            get { return MasterVolume >= 0f; }
+        }
+
+        public bool HasSfxVolume
+        {
+            get { return SfxVolume >= 0f; }
+        }
+
+        public bool HasMusicVolume
+        {
+            get { return MusicVolume >= 0f; }
+        }
+
+        public bool HasAmbientVolume
+        {
+            get { return AmbientVolume >= 0f; }
+        }
+
         public UserPreferences()
         {
             Version = CurrentVersion;
@@ -55,6 +79,10 @@ namespace Lithforge.Runtime.Content.Settings
             FieldOfView = -1f;
             MouseSensitivity = -1f;
             AOStrength = -1f;
+            MasterVolume = -1f;
+            SfxVolume = -1f;
+            MusicVolume = -1f;
+            AmbientVolume = -1f;
         }
 
         /// <summary>
@@ -71,6 +99,10 @@ namespace Lithforge.Runtime.Content.Settings
                 ["field_of_view"] = FieldOfView,
                 ["mouse_sensitivity"] = MouseSensitivity,
                 ["ao_strength"] = AOStrength,
+                ["master_volume"] = MasterVolume,
+                ["sfx_volume"] = SfxVolume,
+                ["music_volume"] = MusicVolume,
+                ["ambient_volume"] = AmbientVolume,
             };
 
             string dir = Path.GetDirectoryName(filePath);
@@ -141,6 +173,10 @@ namespace Lithforge.Runtime.Content.Settings
                     prefs.FieldOfView = root["field_of_view"]?.Value<float>() ?? -1f;
                     prefs.MouseSensitivity = root["mouse_sensitivity"]?.Value<float>() ?? -1f;
                     prefs.AOStrength = root["ao_strength"]?.Value<float>() ?? -1f;
+                    prefs.MasterVolume = root["master_volume"]?.Value<float>() ?? -1f;
+                    prefs.SfxVolume = root["sfx_volume"]?.Value<float>() ?? -1f;
+                    prefs.MusicVolume = root["music_volume"]?.Value<float>() ?? -1f;
+                    prefs.AmbientVolume = root["ambient_volume"]?.Value<float>() ?? -1f;
 
                     return prefs;
                 }

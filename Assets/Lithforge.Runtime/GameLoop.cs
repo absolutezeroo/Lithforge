@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
@@ -41,6 +42,10 @@ namespace Lithforge.Runtime
         private BlockInteraction _blockInteraction;
         private AutoSaveManager _autoSaveManager;
         private Debug.MetricsRegistry _metricsRegistry;
+        private FootstepController _footstepController;
+        private FallSoundDetector _fallSoundDetector;
+        private SfxSourcePool _sfxSourcePool;
+        private AudioEnvironmentController _audioEnvironmentController;
         private readonly List<int3> _unloadedCoords = new List<int3>();
         private float _unloadBudgetMs;
         private bool _initialized;
@@ -220,6 +225,21 @@ namespace Lithforge.Runtime
         public void SetMetricsRegistry(Debug.MetricsRegistry metricsRegistry)
         {
             _metricsRegistry = metricsRegistry;
+        }
+
+        /// <summary>
+        /// Sets the audio subsystems for footstep, fall, pool cleanup, and environment.
+        /// </summary>
+        public void SetAudioSystems(
+            FootstepController footstepController,
+            FallSoundDetector fallSoundDetector,
+            SfxSourcePool sfxSourcePool,
+            AudioEnvironmentController audioEnvironmentController)
+        {
+            _footstepController = footstepController;
+            _fallSoundDetector = fallSoundDetector;
+            _sfxSourcePool = sfxSourcePool;
+            _audioEnvironmentController = audioEnvironmentController;
         }
 
         /// <summary>
@@ -410,6 +430,12 @@ namespace Lithforge.Runtime
                 Profiler.EndSample();
             }
 
+            // Audio environment frame-rate updates (filter/reverb smoothing, crossfade)
+            if (_audioEnvironmentController != null)
+            {
+                _audioEnvironmentController.UpdateFrame(Time.deltaTime);
+            }
+
             // Auto-save: periodic metadata + dirty chunk flush
             if (_autoSaveManager != null)
             {
@@ -444,6 +470,23 @@ namespace Lithforge.Runtime
                     _playerPhysicsBody.CurrentPosition,
                     alpha);
                 _playerTransform.position = new Vector3(interpPos.x, interpPos.y, interpPos.z);
+            }
+
+            // Footstep and fall detection (after interpolation, before render)
+            if (_footstepController != null)
+            {
+                _footstepController.Update();
+            }
+
+            if (_fallSoundDetector != null)
+            {
+                _fallSoundDetector.Update();
+            }
+
+            // Release finished SFX sources
+            if (_sfxSourcePool != null)
+            {
+                _sfxSourcePool.ReleaseFinished();
             }
 
             FrameProfiler.Begin(FrameProfiler.Render);

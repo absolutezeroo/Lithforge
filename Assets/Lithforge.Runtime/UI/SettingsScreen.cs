@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
@@ -31,13 +32,19 @@ namespace Lithforge.Runtime.UI
         private Camera _mainCamera;
         private System.Action<int> _onRenderDistanceChanged;
 
+        // Audio mixer
+        private AudioMixerController _audioMixerController;
+
         // Current values
         private int _renderDistance;
         private float _fov;
         private float _mouseSensitivity;
         private float _aoStrength;
         private float _dayLength;
-        private float _audioVolume;
+        private float _masterVolume;
+        private float _sfxVolume;
+        private float _musicVolume;
+        private float _ambientVolume;
 
         private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
 
@@ -66,7 +73,10 @@ namespace Lithforge.Runtime.UI
             _mouseSensitivity = cameraController != null ? cameraController.LookSensitivity : 0.1f;
             _aoStrength = 0.4f;
             _dayLength = timeOfDayController != null ? timeOfDayController.DayLengthSeconds : 600f;
-            _audioVolume = 1.0f;
+            _masterVolume = 1.0f;
+            _sfxVolume = 1.0f;
+            _musicVolume = 1.0f;
+            _ambientVolume = 1.0f;
 
             // Override with persisted PlayerPrefs values and apply to systems
             LoadPersistedSettings();
@@ -211,10 +221,56 @@ namespace Lithforge.Runtime.UI
 
             // --- Audio Section ---
             AddSectionHeader(scrollView, "Audio");
-            AddSliderFloat(scrollView, "Master Volume", _audioVolume, 0f, 1f, (float value) =>
+            AddSliderFloat(scrollView, "Master Volume", _masterVolume, 0f, 1f, (float value) =>
             {
-                _audioVolume = value;
-                AudioListener.volume = value;
+                _masterVolume = value;
+
+                if (_audioMixerController != null)
+                {
+                    _audioMixerController.SetMasterVolume(value);
+                }
+                else
+                {
+                    AudioListener.volume = value;
+                }
+
+                _preferences.MasterVolume = value;
+            });
+
+            AddSliderFloat(scrollView, "SFX Volume", _sfxVolume, 0f, 1f, (float value) =>
+            {
+                _sfxVolume = value;
+
+                if (_audioMixerController != null)
+                {
+                    _audioMixerController.SetSfxVolume(value);
+                }
+
+                _preferences.SfxVolume = value;
+            });
+
+            AddSliderFloat(scrollView, "Music Volume", _musicVolume, 0f, 1f, (float value) =>
+            {
+                _musicVolume = value;
+
+                if (_audioMixerController != null)
+                {
+                    _audioMixerController.SetMusicVolume(value);
+                }
+
+                _preferences.MusicVolume = value;
+            });
+
+            AddSliderFloat(scrollView, "Ambient Volume", _ambientVolume, 0f, 1f, (float value) =>
+            {
+                _ambientVolume = value;
+
+                if (_audioMixerController != null)
+                {
+                    _audioMixerController.SetAmbientVolume(value);
+                }
+
+                _preferences.AmbientVolume = value;
             });
 
             // --- Keybinds Section ---
@@ -409,6 +465,15 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
+        /// Sets the audio mixer controller for volume persistence through the mixer.
+        /// Call after Initialize.
+        /// </summary>
+        public void SetAudioMixerController(AudioMixerController controller)
+        {
+            _audioMixerController = controller;
+        }
+
+        /// <summary>
         /// Controls the root document visibility (used by HudVisibilityController).
         /// </summary>
         public void SetVisible(bool visible)
@@ -478,6 +543,45 @@ namespace Lithforge.Runtime.UI
                         _chunkMeshStore.TranslucentMaterial.SetFloat(s_aoStrengthId, _aoStrength);
                     }
                 }
+            }
+
+            if (_preferences.HasMasterVolume)
+            {
+                _masterVolume = _preferences.MasterVolume;
+            }
+
+            if (_preferences.HasSfxVolume)
+            {
+                _sfxVolume = _preferences.SfxVolume;
+            }
+
+            if (_preferences.HasMusicVolume)
+            {
+                _musicVolume = _preferences.MusicVolume;
+            }
+
+            if (_preferences.HasAmbientVolume)
+            {
+                _ambientVolume = _preferences.AmbientVolume;
+            }
+        }
+
+        /// <summary>
+        /// Applies persisted volume values to the mixer. Must be called after
+        /// SetAudioMixerController so the mixer reference is available.
+        /// </summary>
+        public void ApplyPersistedVolumes()
+        {
+            if (_audioMixerController != null)
+            {
+                _audioMixerController.SetMasterVolume(_masterVolume);
+                _audioMixerController.SetSfxVolume(_sfxVolume);
+                _audioMixerController.SetMusicVolume(_musicVolume);
+                _audioMixerController.SetAmbientVolume(_ambientVolume);
+            }
+            else
+            {
+                AudioListener.volume = _masterVolume;
             }
         }
     }

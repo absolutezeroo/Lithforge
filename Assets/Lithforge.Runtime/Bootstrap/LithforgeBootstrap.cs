@@ -5,6 +5,7 @@ using Lithforge.Core.Logging;
 using Lithforge.Core.Validation;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Physics;
+using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Content.Blocks;
@@ -81,6 +82,8 @@ namespace Lithforge.Runtime.Bootstrap
         private AsyncChunkSaver _asyncChunkSaver;
         private PauseMenuScreen _pauseMenuScreen;
         private UserPreferences _userPreferences;
+        private SfxSourcePool _sfxSourcePool;
+        private BiomeAmbientPlayer _biomeAmbientPlayer;
         private bool _quitToTitle;
         private bool _quitInProgress;
         private bool _sessionShutdownComplete;
@@ -397,6 +400,26 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             _sessionShutdownComplete = true;
+
+            // Dispose audio resources (before native resources)
+            try
+            {
+                if (_sfxSourcePool != null)
+                {
+                    _sfxSourcePool.Dispose();
+                    _sfxSourcePool = null;
+                }
+
+                if (_biomeAmbientPlayer != null)
+                {
+                    _biomeAmbientPlayer.Dispose();
+                    _biomeAmbientPlayer = null;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[Lithforge] Error disposing audio: {ex}");
+            }
 
             // Dispose native resources
             try
@@ -1315,6 +1338,182 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkManager);
             }
 
+            // Initialize audio systems
+            AudioMixerController audioMixerController = null;
+            UnityEngine.Audio.AudioMixer mixer =
+                Resources.Load<UnityEngine.Audio.AudioMixer>("Audio/LithforgeMixer");
+
+            if (mixer != null)
+            {
+                audioMixerController = new AudioMixerController(mixer);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarning(
+                    "[Lithforge] LithforgeMixer not found at Resources/Audio/. " +
+                    "Audio will use AudioListener.volume fallback.");
+            }
+
+            Content.Settings.AudioSettings audioSettings = _settings.Audio;
+            Camera audioCamera = Camera.main;
+
+            if (audioCamera != null && _contentResult.SoundGroupRegistry != null)
+            {
+                // Create SFX source pool
+                UnityEngine.Audio.AudioMixerGroup sfxGroup =
+                    audioMixerController != null ? audioMixerController.GetGroup("SFX") : null;
+
+                GameObject poolHost = new GameObject("SfxSourcePool");
+                _sfxSourcePool = new SfxSourcePool(
+                    poolHost, audioSettings.SfxPoolSize, sfxGroup);
+
+                // Create block sound player
+                BlockSoundPlayer blockSoundPlayer = new BlockSoundPlayer(
+                    _contentResult.SoundGroupRegistry,
+                    _contentResult.StateRegistry,
+                    _sfxSourcePool,
+                    audioSettings.SoundCooldownMs);
+
+                // Wire block sound player to BlockInteraction
+                BlockInteraction blockInteractionRef =
+                    audioCamera.GetComponent<BlockInteraction>();
+
+                if (blockInteractionRef != null)
+                {
+                    blockInteractionRef.SetBlockSoundPlayer(
+                        blockSoundPlayer, audioSettings.MiningHitInterval);
+                }
+
+                // Create footstep controller
+                Transform playerTransformForAudio = audioCamera.transform.parent;
+                PlayerController pcForAudio =
+                    playerTransformForAudio != null
+                        ? playerTransformForAudio.GetComponent<PlayerController>()
+                        : null;
+
+                FootstepController footstepController = null;
+
+                if (playerTransformForAudio != null && pcForAudio != null)
+                {
+                    footstepController = new FootstepController(
+                        blockSoundPlayer,
+                        _chunkManager,
+                        _contentResult.StateRegistry,
+                        _contentResult.NativeStateRegistry,
+                        playerTransformForAudio,
+                        audioSettings.FootstepDistance,
+                        audioSettings.SprintFootstepDistance,
+                        () => { return pcForAudio.OnGround; },
+                        () => { return pcForAudio.IsFlying; },
+                        () =>
+                        {
+                            return pcForAudio.PhysicsBody != null &&
+                                   pcForAudio.PhysicsBody.IsSprinting;
+                        });
+                }
+
+                // Create fall sound detector
+                FallSoundDetector fallSoundDetector = null;
+
+                if (playerTransformForAudio != null && pcForAudio != null)
+                {
+                    fallSoundDetector = new FallSoundDetector(
+                        blockSoundPlayer,
+                        _chunkManager,
+                        playerTransformForAudio,
+                        audioSettings.FallSoundThreshold,
+                        audioSettings.FallMaxVolume,
+                        audioSettings.FallMaxHeight,
+                        () => { return pcForAudio.OnGround; },
+                        () => { return pcForAudio.IsFlying; });
+                }
+
+                // Create environmental audio subsystems
+                AudioLowPassFilter lowPassFilter =
+                    audioCamera.gameObject.AddComponent<AudioLowPassFilter>();
+                lowPassFilter.cutoffFrequency = audioSettings.SurfaceCutoff;
+
+                AudioReverbFilter reverbFilter =
+                    audioCamera.gameObject.AddComponent<AudioReverbFilter>();
+                reverbFilter.reverbPreset = AudioReverbPreset.Off;
+
+                UnderwaterAudioFilter underwaterFilter = new UnderwaterAudioFilter(
+                    _chunkManager,
+                    _contentResult.NativeStateRegistry,
+                    lowPassFilter,
+                    audioCamera.transform,
+                    audioSettings.UnderwaterCutoff,
+                    audioSettings.SurfaceCutoff,
+                    audioSettings.UnderwaterLerpSpeed);
+
+                EnclosureProbe enclosureProbe = new EnclosureProbe(
+                    (Unity.Mathematics.int3 pos) =>
+                    {
+                        StateId sid = _chunkManager.GetBlock(pos);
+                        return sid.Value != 0 &&
+                               _contentResult.NativeStateRegistry.States.IsCreated &&
+                               sid.Value < _contentResult.NativeStateRegistry.States.Length &&
+                               (_contentResult.NativeStateRegistry.States[sid.Value].Flags &
+                                BlockStateCompact.FlagFullCube) != 0;
+                    },
+                    audioCamera.transform,
+                    audioSettings.EnclosureRayCount,
+                    audioSettings.EnclosureMaxDistance,
+                    audioSettings.EnclosureUpdateTicks);
+
+                CaveReverbController caveReverb = new CaveReverbController(
+                    reverbFilter,
+                    enclosureProbe,
+                    audioSettings.EnclosureReverbThreshold,
+                    audioSettings.ReverbLerpSpeed);
+
+                RuntimeBiomeSampler biomeSampler = new RuntimeBiomeSampler(
+                    _contentResult.BiomeDefinitions,
+                    _worldMetadata.Seed);
+
+                UnityEngine.Audio.AudioMixerGroup ambientGroup =
+                    audioMixerController != null ? audioMixerController.GetGroup("Ambient") : null;
+
+                _biomeAmbientPlayer = new BiomeAmbientPlayer(
+                    audioCamera.gameObject,
+                    ambientGroup,
+                    audioSettings.AmbientCrossfadeTime);
+
+                ScatterSoundPlayer scatterPlayer = new ScatterSoundPlayer(
+                    _sfxSourcePool,
+                    playerTransformForAudio,
+                    audioSettings.ScatterMinInterval,
+                    audioSettings.ScatterMaxInterval,
+                    audioSettings.ScatterMinDistance,
+                    audioSettings.ScatterMaxDistance,
+                    () =>
+                    {
+                        return _timeOfDayController != null
+                            ? _timeOfDayController.TimeOfDay
+                            : 0f;
+                    });
+
+                AudioEnvironmentController audioEnvController = new AudioEnvironmentController(
+                    underwaterFilter,
+                    enclosureProbe,
+                    caveReverb,
+                    biomeSampler,
+                    _biomeAmbientPlayer,
+                    scatterPlayer,
+                    playerTransformForAudio);
+
+                // Register audio environment tick adapter
+                if (tickRegistryRef != null)
+                {
+                    tickRegistryRef.Register(
+                        new Tick.AudioEnvironmentTickAdapter(audioEnvController));
+                }
+
+                // Wire all audio systems to GameLoop
+                _gameLoop.SetAudioSystems(
+                    footstepController, fallSoundDetector, _sfxSourcePool, audioEnvController);
+            }
+
             // Initialize SettingsScreen now that all systems are available
             if (settingsScreenRef != null)
             {
@@ -1326,6 +1525,13 @@ namespace Lithforge.Runtime.Bootstrap
                     panelSettings,
                     _userPreferences,
                     _gameLoop.NotifyRenderDistanceChanged);
+
+                if (audioMixerController != null)
+                {
+                    settingsScreenRef.SetAudioMixerController(audioMixerController);
+                }
+
+                settingsScreenRef.ApplyPersistedVolumes();
             }
 
             // Initialize PauseMenuScreen with callbacks

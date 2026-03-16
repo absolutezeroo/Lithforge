@@ -47,6 +47,7 @@ namespace Lithforge.Runtime.Tick
         // Physics state
         private float _verticalSpeed;
         private bool _onGround;
+        private bool _isSprinting;
 
         // Fly mode state
         private bool _flyMode;
@@ -79,6 +80,11 @@ namespace Lithforge.Runtime.Tick
         public bool IsNoclip
         {
             get { return _noclip; }
+        }
+
+        public bool IsSprinting
+        {
+            get { return _isSprinting; }
         }
 
         public float FlySpeed
@@ -309,6 +315,7 @@ namespace Lithforge.Runtime.Tick
         private float3 ComputeHorizontalDisplacement(
             Keyboard keyboard, float dt, float normalSpeed, float fastSpeed)
         {
+            _isSprinting = keyboard.leftShiftKey.isPressed && !_flyMode;
             float speed = keyboard.leftShiftKey.isPressed ? fastSpeed : normalSpeed;
 
             // Read yaw from the player transform (set by CameraController at frame rate)

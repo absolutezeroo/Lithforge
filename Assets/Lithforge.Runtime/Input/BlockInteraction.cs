@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Physics;
+using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.UI.Screens;
@@ -89,6 +90,11 @@ namespace Lithforge.Runtime.Input
         // Tool system registries
         private ToolTraitRegistry _toolTraitRegistry;
 
+        // Audio
+        private BlockSoundPlayer _blockSoundPlayer;
+        private int _miningHitInterval = 4;
+        private int _miningHitTickCounter;
+
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
 
@@ -139,6 +145,15 @@ namespace Lithforge.Runtime.Input
             _blockEntityTickScheduler = scheduler;
             _screenManager = screenManager;
             _toolTraitRegistry = toolTraitRegistry;
+        }
+
+        /// <summary>
+        /// Sets the block sound player for break/place/hit audio.
+        /// </summary>
+        public void SetBlockSoundPlayer(BlockSoundPlayer player, int miningHitInterval)
+        {
+            _blockSoundPlayer = player;
+            _miningHitInterval = miningHitInterval;
         }
 
         private void Update()
@@ -285,6 +300,16 @@ namespace Lithforge.Runtime.Input
 
             _miningProgress += tickDt;
 
+            // Play mining hit sound at regular tick intervals
+            _miningHitTickCounter++;
+
+            if (_miningHitTickCounter >= _miningHitInterval && _blockSoundPlayer != null)
+            {
+                _miningHitTickCounter = 0;
+                StateId hitState = _chunkManager.GetBlock(_miningBlockCoord);
+                _blockSoundPlayer.PlayBlockSound(hitState, SoundEventType.Hit, _miningBlockCoord);
+            }
+
             if (_miningProgress >= _miningRequiredTime)
             {
                 BreakBlock(_miningBlockCoord);
@@ -297,6 +322,7 @@ namespace Lithforge.Runtime.Input
             _isMining = true;
             _miningBlockCoord = blockCoord;
             _miningProgress = 0f;
+            _miningHitTickCounter = 0;
             _canHarvest = true;
 
             StateId stateId = _chunkManager.GetBlock(blockCoord);
@@ -392,8 +418,13 @@ namespace Lithforge.Runtime.Input
 
         private void BreakBlock(int3 blockCoord)
         {
-            // Drop block entity inventory items before breaking
+            // Play break sound before the block is replaced with air
             StateId stateId = _chunkManager.GetBlock(blockCoord);
+
+            if (_blockSoundPlayer != null)
+            {
+                _blockSoundPlayer.PlayBlockSound(stateId, SoundEventType.Break, blockCoord);
+            }
 
             if (_blockEntityTickScheduler != null &&
                 _nativeStateRegistry.States.IsCreated &&
@@ -583,6 +614,12 @@ namespace Lithforge.Runtime.Input
 
             _dirtiedChunks.Clear();
             _chunkManager.SetBlock(placeCoord, placeState, _dirtiedChunks);
+
+            // Play place sound after block is set
+            if (_blockSoundPlayer != null)
+            {
+                _blockSoundPlayer.PlayBlockSound(placeState, SoundEventType.Place, placeCoord);
+            }
 
             // Consume one item from inventory
             _inventory.RemoveFromSlot(_inventory.SelectedSlot, 1);

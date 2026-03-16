@@ -41,6 +41,8 @@ namespace Lithforge.Voxel.Block
 
         public string BlockEntityTypeId { get; }
 
+        public string SoundGroup { get; }
+
         public BlockRegistrationData(
             ResourceId id,
             int stateCount,
@@ -57,7 +59,8 @@ namespace Lithforge.Voxel.Block
             BlockMaterialType materialType = BlockMaterialType.None,
             int requiredToolLevel = 0,
             bool hasBlockEntity = false,
-            string blockEntityTypeId = null)
+            string blockEntityTypeId = null,
+            string soundGroup = "stone")
         {
             Id = id;
             StateCount = stateCount;
@@ -75,6 +78,7 @@ namespace Lithforge.Voxel.Block
             RequiredToolLevel = requiredToolLevel;
             HasBlockEntity = hasBlockEntity;
             BlockEntityTypeId = blockEntityTypeId;
+            SoundGroup = soundGroup ?? "stone";
         }
     }
 }

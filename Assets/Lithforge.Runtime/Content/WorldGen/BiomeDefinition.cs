@@ -141,6 +141,20 @@ namespace Lithforge.Runtime.Content.WorldGen
         [Tooltip("Color shown on the world map")]
         [SerializeField] private Color mapColor = Color.green;
 
+        /// <summary>Looping ambient audio clip for this biome (e.g. forest ambience, ocean waves).</summary>
+        [FormerlySerializedAs("_ambientLoop"),Header("Audio")]
+        [Tooltip("Ambient loop clip for this biome")]
+        [SerializeField] private AudioClip ambientLoop;
+
+        /// <summary>Random one-shot clips played at intervals near the player (e.g. bird calls, crickets).</summary>
+        [FormerlySerializedAs("_scatterClips"),Tooltip("Scatter sound clips (random ambient one-shots)")]
+        [SerializeField] private AudioClip[] scatterClips;
+
+        /// <summary>Time restriction for scatter sounds: 0=any time, 1=day only, 2=night only.</summary>
+        [FormerlySerializedAs("_scatterTimeRestriction"),Tooltip("0=any time, 1=day only, 2=night only")]
+        [Range(0, 2)]
+        [SerializeField] private int scatterTimeRestriction;
+
         /// <summary>Resource-id namespace (typically "lithforge").</summary>
         public string Namespace
         {
@@ -289,6 +303,24 @@ namespace Lithforge.Runtime.Content.WorldGen
         public Color MapColor
         {
             get { return mapColor; }
+        }
+
+        /// <summary>Looping ambient audio clip for this biome.</summary>
+        public AudioClip AmbientLoop
+        {
+            get { return ambientLoop; }
+        }
+
+        /// <summary>Random one-shot scatter clips for this biome.</summary>
+        public AudioClip[] ScatterClips
+        {
+            get { return scatterClips; }
+        }
+
+        /// <summary>Time restriction for scatter sounds: 0=any, 1=day, 2=night.</summary>
+        public int ScatterTimeRestriction
+        {
+            get { return scatterTimeRestriction; }
         }
 
         private void OnValidate()

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering.Atlas;
@@ -45,6 +46,8 @@ namespace Lithforge.Runtime.Bootstrap
         /// </summary>
         public Dictionary<ResourceId, byte[]> LegacyToolTemplates { get; }
 
+        public SoundGroupRegistry SoundGroupRegistry { get; }
+
         public ContentPipelineResult(
             StateRegistry stateRegistry,
             NativeStateRegistry nativeStateRegistry,
@@ -63,7 +66,8 @@ namespace Lithforge.Runtime.Bootstrap
             ItemDisplayTransformLookup displayTransformLookup,
             ToolMaterialRegistry toolMaterialRegistry,
             ToolTraitRegistry toolTraitRegistry,
-            Dictionary<ResourceId, byte[]> legacyToolTemplates)
+            Dictionary<ResourceId, byte[]> legacyToolTemplates,
+            SoundGroupRegistry soundGroupRegistry)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -83,6 +87,7 @@ namespace Lithforge.Runtime.Bootstrap
             ToolMaterialRegistry = toolMaterialRegistry;
             ToolTraitRegistry = toolTraitRegistry;
             LegacyToolTemplates = legacyToolTemplates;
+            SoundGroupRegistry = soundGroupRegistry;
         }
     }
 }

@@ -17,6 +17,7 @@ namespace Lithforge.Voxel.Block
         public bool RequiresTool { get; }
         public BlockMaterialType MaterialType { get; }
         public int RequiredToolLevel { get; }
+        public string SoundGroup { get; }
 
         /// <summary>
         /// The block entity type identifier for this block, or null if none.
@@ -34,7 +35,8 @@ namespace Lithforge.Voxel.Block
             float blastResistance,
             bool requiresTool,
             BlockMaterialType materialType,
-            int requiredToolLevel)
+            int requiredToolLevel,
+            string soundGroup)
         {
             Id = id;
             BaseStateId = baseStateId;
@@ -46,6 +48,7 @@ namespace Lithforge.Voxel.Block
             RequiresTool = requiresTool;
             MaterialType = materialType;
             RequiredToolLevel = requiredToolLevel;
+            SoundGroup = soundGroup ?? "stone";
         }
     }
 }
