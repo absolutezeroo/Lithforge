@@ -8,23 +8,23 @@ namespace Lithforge.Runtime.UI.Sprites
 {
     /// <summary>
     /// Indexes tool part layer textures for sprite compositing.
-    /// Driven entirely by ToolDefinitionSO and ToolMaterialDefinition assets.
+    /// Driven entirely by ToolDefinition and ToolMaterialDefinition assets.
     /// </summary>
     public sealed class ToolPartTextureDatabase
     {
         private readonly Dictionary<(ToolType, string, string), Texture2D> _layers;
-        private readonly Dictionary<ToolType, ToolDefinitionSO> _toolDefs;
+        private readonly Dictionary<ToolType, ToolDefinition> _toolDefs;
         private readonly Dictionary<string, string> _materialSuffixes;
         private readonly string _fallbackSuffix;
 
         private const string BasePath = "Content/Textures/Items/Tool";
 
         public ToolPartTextureDatabase(
-            ToolDefinitionSO[] toolDefinitions,
+            ToolDefinition[] toolDefinitions,
             ToolMaterialDefinition[] materials)
         {
             _layers = new Dictionary<(ToolType, string, string), Texture2D>();
-            _toolDefs = new Dictionary<ToolType, ToolDefinitionSO>();
+            _toolDefs = new Dictionary<ToolType, ToolDefinition>();
             _materialSuffixes = new Dictionary<string, string>(materials.Length);
 
             // Resolve fallback material suffix and pre-cache all material suffixes
@@ -61,7 +61,7 @@ namespace Lithforge.Runtime.UI.Sprites
             // Index tool definitions
             for (int i = 0; i < toolDefinitions.Length; i++)
             {
-                ToolDefinitionSO def = toolDefinitions[i];
+                ToolDefinition def = toolDefinitions[i];
                 _toolDefs[def.toolType] = def;
 
                 if (def.spriteLayers == null)
@@ -99,11 +99,11 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Gets the ToolDefinitionSO for a given tool type. Returns null if not configured.
+        /// Gets the ToolDefinition for a given tool type. Returns null if not configured.
         /// </summary>
-        public ToolDefinitionSO GetDefinition(ToolType toolType)
+        public ToolDefinition GetDefinition(ToolType toolType)
         {
-            _toolDefs.TryGetValue(toolType, out ToolDefinitionSO def);
+            _toolDefs.TryGetValue(toolType, out ToolDefinition def);
             return def;
         }
 
@@ -144,14 +144,14 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        /// Searches all registered ToolDefinitionSOs for a texture matching
+        /// Searches all registered ToolDefinitions for a texture matching
         /// the given part type and material suffix. Returns the first match.
         /// </summary>
         public Texture2D FindPartTexture(ToolPartType partType, string materialSuffix)
         {
-            foreach (KeyValuePair<ToolType, ToolDefinitionSO> kvp in _toolDefs)
+            foreach (KeyValuePair<ToolType, ToolDefinition> kvp in _toolDefs)
             {
-                ToolDefinitionSO def = kvp.Value;
+                ToolDefinition def = kvp.Value;
 
                 if (def.spriteLayers == null)
                 {

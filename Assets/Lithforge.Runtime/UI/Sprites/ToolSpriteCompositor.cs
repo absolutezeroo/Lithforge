@@ -6,7 +6,7 @@ namespace Lithforge.Runtime.UI.Sprites
 {
     /// <summary>
     /// Composites tool part layer textures into a single sprite.
-    /// Layer order and part-to-layer mapping are driven by ToolDefinitionSO.
+    /// Layer order and part-to-layer mapping are driven by ToolDefinition.
     /// </summary>
     public static class ToolSpriteCompositor
     {
@@ -14,7 +14,7 @@ namespace Lithforge.Runtime.UI.Sprites
 
         /// <summary>
         /// Creates a composite sprite for a ToolInstance by layering its part textures.
-        /// Layer order is defined by the ToolDefinitionSO's spriteLayers array (bottom to top).
+        /// Layer order is defined by the ToolDefinition's spriteLayers array (bottom to top).
         /// Returns null if no layers could be resolved.
         /// </summary>
         public static Sprite Composite(
@@ -26,7 +26,7 @@ namespace Lithforge.Runtime.UI.Sprites
                 return null;
             }
 
-            ToolDefinitionSO def = texDb.GetDefinition(tool.ToolType);
+            ToolDefinition def = texDb.GetDefinition(tool.ToolType);
 
             if (def == null || def.spriteLayers == null || def.spriteLayers.Length == 0)
             {

@@ -276,12 +276,12 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 8.55: Load tool definitions (sprite compositing config)
             yield return "Loading tool definitions...";
-            ToolDefinitionSO[] toolDefinitions =
-                Resources.LoadAll<ToolDefinitionSO>("Content/ToolDefinitions");
+            ToolDefinition[] toolDefinitions =
+                Resources.LoadAll<ToolDefinition>("Content/ToolDefinitions");
 
             if (toolDefinitions.Length == 0)
             {
-                _logger.LogWarning("No ToolDefinitionSO assets found in Content/ToolDefinitions/. Tool sprite compositing disabled.");
+                _logger.LogWarning("No ToolDefinition assets found in Content/ToolDefinitions/. Tool sprite compositing disabled.");
             }
             else
             {

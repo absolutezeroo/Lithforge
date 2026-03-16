@@ -6,7 +6,7 @@ namespace Lithforge.Runtime.Content.Tools
 {
     [CreateAssetMenu(fileName = "NewToolDefinition",
         menuName = "Lithforge/Content/Tool Definition")]
-    public sealed class ToolDefinitionSO : ScriptableObject
+    public sealed class ToolDefinition : ScriptableObject
     {
         [Header("Identity")]
         [Tooltip("The ToolType enum this definition configures")]
