@@ -56,9 +56,16 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>
         /// Per-frame GPU upload budget in bytes. When the EMA of recent uploads
         /// exceeds this, effectiveMax is scaled down proportionally.
-        /// 200KB/frame ~ 12MB/s at 60fps — enough for steady-state but throttles bursts.
+        /// 800KB/frame ~ 48MB/s at 60fps — baseline peaks at ~500KB so this gives headroom.
         /// </summary>
-        private const long GpuUploadBudgetPerFrame = 200_000;
+        private const long GpuUploadBudgetPerFrame = 800_000;
+
+        /// <summary>
+        /// Previous frame's GPU upload bytes. Fed into the EMA instead of the current
+        /// frame's value to break the feedback loop (throttle → uploads drop → EMA drops
+        /// → scheduling increases → uploads spike → repeat).
+        /// </summary>
+        private long _prevFrameUploadBytes;
 
         /// <summary>
         /// Dummy NativeArray passed to ExtractAllBordersJob for missing neighbors.
@@ -299,8 +306,10 @@ namespace Lithforge.Runtime.Scheduling
 
             // GPU bandwidth throttle: when recent uploads are heavy, reduce mesh output
             // to prevent GPU saturation during active generation phases.
-            // GpuUploadBytes is the current frame's upload total (set by PollCompleted above).
-            long frameDelta = _pipelineStats.GpuUploadBytes;
+            // Use previous frame's upload bytes to avoid feedback loop (current frame's
+            // value is influenced by THIS frame's throttle decision).
+            long frameDelta = _prevFrameUploadBytes;
+            _prevFrameUploadBytes = _pipelineStats.GpuUploadBytes;
 
             // Exponential moving average (alpha ~ 0.3): smooths spikes while responding quickly
             _recentUploadBytes = (_recentUploadBytes * 7 + frameDelta * 3) / 10;
@@ -308,7 +317,12 @@ namespace Lithforge.Runtime.Scheduling
             if (_recentUploadBytes > GpuUploadBudgetPerFrame)
             {
                 float overload = (float)_recentUploadBytes / GpuUploadBudgetPerFrame;
-                effectiveMax = math.max(1, (int)(effectiveMax / overload));
+
+                // Only throttle above 1.5x overload, and never below 2 slots
+                if (overload > 1.5f)
+                {
+                    effectiveMax = math.max(2, (int)(effectiveMax / (overload - 0.5f)));
+                }
             }
 
             int slotsAvailable = effectiveMax - math.min(pendingCount, effectiveMax);

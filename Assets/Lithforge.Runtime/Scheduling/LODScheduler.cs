@@ -196,14 +196,14 @@ namespace Lithforge.Runtime.Scheduling
             _chunkManager.FillReadyChunks(_readyChunksCache);
             AssignLODLevels(_readyChunksCache, cameraChunkCoord);
 
-            // Debounce Generated chunk LOD assignment to every 4th frame.
-            // LOD levels on unmeshed chunks are less urgent — they'll get assigned
-            // before meshing anyway via LODScheduler.ScheduleJobs filter.
-            // This avoids iterating all Generated chunks every frame during
-            // heavy generation phases where the list can be very large.
+            // Debounce Generated chunk LOD assignment to every 4th frame in steady-state.
+            // During initial world load (few generated chunks), assign every frame so
+            // chunks get their LOD level immediately and can be scheduled for meshing.
+            // Once stable (>500 generated chunks), debounce to save CPU.
             _lodFrameCounter++;
+            bool worldStable = _chunkManager.GeneratedChunkCount > 500;
 
-            if (_lodFrameCounter >= 4)
+            if (_lodFrameCounter >= 4 || !worldStable)
             {
                 _lodFrameCounter = 0;
                 _chunkManager.FillGeneratedChunks(_generatedChunksCache);
