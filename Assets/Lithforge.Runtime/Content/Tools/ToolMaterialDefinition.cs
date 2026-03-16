@@ -53,6 +53,31 @@ namespace Lithforge.Runtime.Content.Tools
         [Min(0)] public int toolLevel = 0;
 
         /// <summary>
+        /// If true, this material can be used in the Part Builder (wood, stone, flint...).
+        /// If false, parts must be made via Smeltery/Casting (iron, gold, diamond...).
+        /// </summary>
+        [Header("Part Builder")]
+        [Tooltip("If true, this material can be used in the Part Builder (wood, stone, flint...). " +
+                 "If false, parts must be made via Smeltery/Casting (iron, gold, diamond...).")]
+        public bool isCraftable = true;
+
+        /// <summary>
+        /// Material cost in items to craft one part in the Part Builder.
+        /// Individual recipes can override this via costOverride.
+        /// </summary>
+        [Tooltip("Material cost in items to craft one part in the Part Builder. " +
+                 "Individual recipes can override this via costOverride.")]
+        [Min(1)] public int partBuilderCost = 2;
+
+        /// <summary>
+        /// Item IDs accepted as material input in the Part Builder.
+        /// E.g. "lithforge:oak_planks" for wood, "lithforge:cobblestone" for stone.
+        /// </summary>
+        [Tooltip("Item IDs accepted as material input in the Part Builder. " +
+                 "E.g. 'lithforge:oak_planks' for wood, 'lithforge:cobblestone' for stone.")]
+        public string[] craftingItemIds = System.Array.Empty<string>();
+
+        /// <summary>
         /// Suffix used in texture filenames (e.g. "iron", "wood").
         /// Must match the part after the underscore in texture names like "head_iron.png".
         /// If empty, defaults to the Name part of materialId.

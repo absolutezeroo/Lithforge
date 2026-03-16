@@ -572,6 +572,7 @@ namespace Lithforge.Runtime.Bootstrap
                 "FurnaceScreen",
                 "ToolStationScreen",
                 "CraftingTableScreen",
+                "PartBuilderScreen",
                 "SavingScreen",
             };
 
@@ -1129,7 +1130,9 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ToolTraitRegistry,
                     _contentResult.ToolPartTextures,
                     _contentResult.ToolMaterials,
-                    _contentResult.ToolTemplateRegistry);
+                    _contentResult.ToolTemplateRegistry,
+                    _contentResult.PartBuilderRecipeRegistry,
+                    _contentResult.ToolMaterialRegistry);
 
                 // Add PlayerInventoryScreen (not a block entity screen, managed separately)
                 GameObject inventoryObject = new("PlayerInventoryScreen");
@@ -1195,6 +1198,20 @@ namespace Lithforge.Runtime.Bootstrap
                     (s, e) =>
                     {
                         ((CraftingTableScreen)s).OpenForEntity(e);
+                    });
+
+                screenManager.Register(
+                    PartBuilderBlockEntity.TypeIdValue,
+                    () =>
+                    {
+                        GameObject obj = new("PartBuilderScreen");
+                        PartBuilderScreen screen = obj.AddComponent<PartBuilderScreen>();
+                        screen.Initialize(screenContext);
+                        return screen;
+                    },
+                    (s, e) =>
+                    {
+                        ((PartBuilderScreen)s).OpenForEntity(e);
                     });
 
                 // Wire screen manager to BlockInteraction (replaces 6-arg SetBlockEntityReferences)

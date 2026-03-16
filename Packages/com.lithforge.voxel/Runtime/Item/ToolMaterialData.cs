@@ -18,6 +18,9 @@ namespace Lithforge.Voxel.Item
         public int BindingDurabilityBonus { get; }
         public string[] TraitIds { get; }
         public int ToolLevel { get; }
+        public bool IsCraftable { get; }
+        public int PartBuilderCost { get; }
+        public string[] CraftingItemIds { get; }
 
         public ToolMaterialData(
             ResourceId materialId,
@@ -29,7 +32,10 @@ namespace Lithforge.Voxel.Item
             float handleSpeedMultiplier,
             int bindingDurabilityBonus,
             string[] traitIds,
-            int toolLevel)
+            int toolLevel,
+            bool isCraftable,
+            int partBuilderCost,
+            string[] craftingItemIds)
         {
             MaterialId = materialId;
             CompatibleParts = compatibleParts;
@@ -41,6 +47,9 @@ namespace Lithforge.Voxel.Item
             BindingDurabilityBonus = bindingDurabilityBonus;
             TraitIds = traitIds;
             ToolLevel = toolLevel;
+            IsCraftable = isCraftable;
+            PartBuilderCost = partBuilderCost;
+            CraftingItemIds = craftingItemIds;
         }
     }
 }

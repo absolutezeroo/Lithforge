@@ -22,6 +22,8 @@ namespace Lithforge.Runtime.UI.Screens
         private readonly ToolPartTextureDatabase _toolPartTextures;
         private readonly ToolMaterialDefinition[] _toolMaterials;
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
+        private readonly PartBuilderRecipeRegistry _partBuilderRecipeRegistry;
+        private readonly ToolMaterialRegistry _toolMaterialRegistry;
 
         public Inventory PlayerInventory
         {
@@ -83,6 +85,23 @@ namespace Lithforge.Runtime.UI.Screens
             get { return _toolTemplateRegistry; }
         }
 
+        /// <summary>
+        /// Part Builder recipe registry. May be null if no Part Builder recipes are loaded.
+        /// </summary>
+        public PartBuilderRecipeRegistry PartBuilderRecipeRegistry
+        {
+            get { return _partBuilderRecipeRegistry; }
+        }
+
+        /// <summary>
+        /// Tool material registry with craftable material lookup.
+        /// May be null if no tool materials are loaded.
+        /// </summary>
+        public ToolMaterialRegistry ToolMaterialRegistry
+        {
+            get { return _toolMaterialRegistry; }
+        }
+
         public ScreenContext(
             Inventory playerInventory,
             ItemRegistry itemRegistry,
@@ -92,7 +111,9 @@ namespace Lithforge.Runtime.UI.Screens
             ToolTraitRegistry toolTraitRegistry,
             ToolPartTextureDatabase toolPartTextures,
             ToolMaterialDefinition[] toolMaterials,
-            ToolTemplateRegistry toolTemplateRegistry)
+            ToolTemplateRegistry toolTemplateRegistry,
+            PartBuilderRecipeRegistry partBuilderRecipeRegistry,
+            ToolMaterialRegistry toolMaterialRegistry)
         {
             _playerInventory = playerInventory;
             _itemRegistry = itemRegistry;
@@ -103,6 +124,8 @@ namespace Lithforge.Runtime.UI.Screens
             _toolPartTextures = toolPartTextures;
             _toolMaterials = toolMaterials;
             _toolTemplateRegistry = toolTemplateRegistry;
+            _partBuilderRecipeRegistry = partBuilderRecipeRegistry;
+            _toolMaterialRegistry = toolMaterialRegistry;
         }
     }
 }

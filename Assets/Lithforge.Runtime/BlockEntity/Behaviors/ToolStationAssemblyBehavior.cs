@@ -56,10 +56,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     continue;
                 }
 
-                // Part items store their material ID and part type in tags
-                // Convention: tag "tool_part_head", "tool_part_handle", "tool_part_binding"
-                // and item's BlockId is used as MaterialId
-                ToolPartType partType = ResolvePartType(itemDef, i);
+                // Resolve part type and material from CustomData (generic parts)
+                // or fall back to tag-based resolution (legacy items)
+                ToolPartType partType = ResolvePartType(itemDef, i, stack);
 
                 if (partType == ToolPartType.None)
                 {
@@ -68,7 +67,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
                 ToolPart part = ToolPart.Empty;
                 part.PartType = partType;
-                part.MaterialId = ResolveMaterialId(itemDef);
+                part.MaterialId = ResolveMaterialId(itemDef, stack);
                 parts[partCount] = part;
                 partCount++;
             }
@@ -113,9 +112,16 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
-        private static ToolPartType ResolvePartType(ItemEntry itemDef, int slotPosition)
+        private static ToolPartType ResolvePartType(ItemEntry itemDef, int slotPosition, ItemStack stack)
         {
-            // Slot-based resolution: slot 0 = head/blade, slot 1 = handle, slot 2 = binding
+            // New path: generic parts with CustomData
+            if (stack.HasCustomData &&
+                ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
+            {
+                return partData.PartType;
+            }
+
+            // Legacy fallback: tag-based resolution
             if (itemDef.Tags != null)
             {
                 for (int t = 0; t < itemDef.Tags.Count; t++)
@@ -159,11 +165,16 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
-        private static ResourceId ResolveMaterialId(ItemEntry itemDef)
+        private static ResourceId ResolveMaterialId(ItemEntry itemDef, ItemStack stack)
         {
-            // Convention: part items carry their material ID as the item's own ResourceId
-            // e.g., "lithforge:iron_pickaxe_head" resolves to material "lithforge:iron"
-            // For now, use a tag-based convention: tag "material:lithforge:iron"
+            // New path: generic parts with CustomData
+            if (stack.HasCustomData &&
+                ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
+            {
+                return partData.MaterialId;
+            }
+
+            // Legacy fallback: tag-based convention "material:lithforge:iron"
             if (itemDef.Tags != null)
             {
                 for (int t = 0; t < itemDef.Tags.Count; t++)

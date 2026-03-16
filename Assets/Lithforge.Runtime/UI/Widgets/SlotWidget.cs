@@ -1,3 +1,4 @@
+using Lithforge.Core.Data;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Item;
 using UnityEngine;
@@ -53,7 +54,8 @@ namespace Lithforge.Runtime.UI.Widgets
         {
             if (stack.ItemId == _lastStack.ItemId &&
                 stack.Count == _lastStack.Count &&
-                stack.Durability == _lastStack.Durability)
+                stack.Durability == _lastStack.Durability &&
+                stack.CustomData == _lastStack.CustomData)
             {
                 return;
             }
@@ -73,6 +75,21 @@ namespace Lithforge.Runtime.UI.Widgets
             if (atlas != null)
             {
                 Sprite sprite = atlas.Get(stack.ItemId);
+
+                // Generic tool parts: resolve sprite from CustomData material
+                if (stack.HasCustomData &&
+                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
+                {
+                    ResourceId cacheKey = new ResourceId(
+                        stack.ItemId.Namespace,
+                        stack.ItemId.Name + "__" + partData.MaterialId.Name);
+
+                    if (atlas.Contains(cacheKey))
+                    {
+                        sprite = atlas.Get(cacheKey);
+                    }
+                }
+
                 _icon.sprite = sprite;
                 _icon.style.display = DisplayStyle.Flex;
             }

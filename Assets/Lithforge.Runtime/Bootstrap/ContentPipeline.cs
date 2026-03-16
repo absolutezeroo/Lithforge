@@ -268,7 +268,10 @@ namespace Lithforge.Runtime.Bootstrap
                     mat.handleSpeedMultiplier,
                     mat.bindingDurabilityBonus,
                     mat.traitIds ?? Array.Empty<string>(),
-                    mat.toolLevel);
+                    mat.toolLevel,
+                    mat.isCraftable,
+                    mat.partBuilderCost,
+                    mat.craftingItemIds ?? Array.Empty<string>());
 
                 toolMaterialRegistry.Register(matData);
             }
@@ -309,6 +312,27 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             _logger.LogInfo($"Loaded {toolTraitRegistry.Count} tool traits.");
+
+            // Phase 8.7: Load part builder recipes
+            yield return "Loading part builder recipes...";
+            PartBuilderRecipeDefinition[] pbRecipeDefs =
+                Resources.LoadAll<PartBuilderRecipeDefinition>("Content/Recipes/PartBuilder");
+            PartBuilderRecipeRegistry partBuilderRecipeRegistry = new();
+
+            for (int i = 0; i < pbRecipeDefs.Length; i++)
+            {
+                PartBuilderRecipeDefinition def = pbRecipeDefs[i];
+                int cost = def.costOverride > 0 ? def.costOverride : 0;
+                string tag = string.IsNullOrEmpty(def.requiredPatternTag)
+                    ? "pattern"
+                    : def.requiredPatternTag;
+
+                partBuilderRecipeRegistry.Register(new PartBuilderRecipe(
+                    def.resultPartType, def.displayName, cost,
+                    ResourceId.Parse(def.resultItemId), def.resultCount, tag));
+            }
+
+            _logger.LogInfo($"Loaded {partBuilderRecipeRegistry.Count} part builder recipes.");
 
             // Phase 9: Load loot tables and build lookup
             yield return "Loading loot tables...";
@@ -547,6 +571,9 @@ namespace Lithforge.Runtime.Bootstrap
             blockEntityRegistry.Register(new BlockEntityType(
                 CraftingTableBlockEntity.TypeIdValue,
                 new CraftingTableBlockEntityFactory()));
+            blockEntityRegistry.Register(new BlockEntityType(
+                PartBuilderBlockEntity.TypeIdValue,
+                new PartBuilderBlockEntityFactory()));
             blockEntityRegistry.Freeze();
 
             _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
@@ -594,7 +621,8 @@ namespace Lithforge.Runtime.Bootstrap
                 soundGroupRegistry,
                 toolTexDb,
                 toolMaterials,
-                toolTemplateRegistry);
+                toolTemplateRegistry,
+                partBuilderRecipeRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

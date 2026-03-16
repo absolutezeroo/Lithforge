@@ -1,0 +1,68 @@
+using System.IO;
+using Lithforge.Core.Data;
+
+namespace Lithforge.Voxel.Item
+{
+    /// <summary>
+    /// Serializes/deserializes ToolPartData to/from byte[] for ItemStack.CustomData.
+    /// Format: [byte version=1] [byte partType] [string materialId]
+    /// </summary>
+    public static class ToolPartDataSerializer
+    {
+        private const byte Version = 1;
+
+        public static byte[] Serialize(ToolPartData data)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (BinaryWriter w = new BinaryWriter(ms))
+                {
+                    w.Write(Version);
+                    w.Write((byte)data.PartType);
+                    w.Write(data.MaterialId.ToString());
+                }
+
+                return ms.ToArray();
+            }
+        }
+
+        public static ToolPartData Deserialize(byte[] bytes)
+        {
+            using (MemoryStream ms = new MemoryStream(bytes))
+            {
+                using (BinaryReader r = new BinaryReader(ms))
+                {
+                    byte version = r.ReadByte();
+                    ToolPartType partType = (ToolPartType)r.ReadByte();
+                    ResourceId materialId = ResourceId.Parse(r.ReadString());
+
+                    return new ToolPartData
+                    {
+                        PartType = partType,
+                        MaterialId = materialId
+                    };
+                }
+            }
+        }
+
+        public static bool TryDeserialize(byte[] bytes, out ToolPartData data)
+        {
+            data = default;
+
+            if (bytes == null || bytes.Length < 3)
+            {
+                return false;
+            }
+
+            try
+            {
+                data = Deserialize(bytes);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+}

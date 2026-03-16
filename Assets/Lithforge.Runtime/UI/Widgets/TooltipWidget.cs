@@ -1,3 +1,4 @@
+using Lithforge.Core.Data;
 using Lithforge.Voxel.Item;
 using UnityEngine.UIElements;
 
@@ -61,16 +62,32 @@ namespace Lithforge.Runtime.UI.Widgets
 
             // Resolve tool data from CustomData
             ToolInstance tool = null;
+            bool isToolPart = false;
 
             if (stack.HasCustomData)
             {
                 tool = ToolInstanceSerializer.Deserialize(stack.CustomData);
+
+                // Check for generic tool part (if not a tool instance)
+                if (tool == null &&
+                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
+                {
+                    isToolPart = true;
+                    string matName = FormatFullName(partData.MaterialId.Name);
+                    string partName = partData.PartType.ToString();
+                    _nameLabel.text = matName + " " + partName;
+                }
             }
 
-            // Type (tool type)
+            // Type (tool type or part type)
             if (tool != null)
             {
                 _typeLabel.text = tool.ToolType.ToString();
+                _typeLabel.style.display = DisplayStyle.Flex;
+            }
+            else if (isToolPart)
+            {
+                _typeLabel.text = "Tool Part";
                 _typeLabel.style.display = DisplayStyle.Flex;
             }
             else if (entry.IsBlockItem)

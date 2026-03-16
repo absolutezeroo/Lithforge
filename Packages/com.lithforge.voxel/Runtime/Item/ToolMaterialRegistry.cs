@@ -40,5 +40,39 @@ namespace Lithforge.Voxel.Item
         {
             get { return _materials.Count; }
         }
+
+        /// <summary>
+        /// Finds the craftable material that accepts the given item as input in the Part Builder.
+        /// Returns null if no match or material is not craftable.
+        /// </summary>
+        public ToolMaterialData FindCraftableMaterialForItem(ResourceId itemId)
+        {
+            string itemIdStr = itemId.ToString();
+
+            foreach (KeyValuePair<ResourceId, ToolMaterialData> kvp in _materials)
+            {
+                ToolMaterialData mat = kvp.Value;
+
+                if (!mat.IsCraftable)
+                {
+                    continue;
+                }
+
+                if (mat.CraftingItemIds == null)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < mat.CraftingItemIds.Length; i++)
+                {
+                    if (mat.CraftingItemIds[i] == itemIdStr)
+                    {
+                        return mat;
+                    }
+                }
+            }
+
+            return null;
+        }
     }
 }
