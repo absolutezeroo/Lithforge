@@ -4,196 +4,122 @@ using System.Runtime.CompilerServices;
 namespace Lithforge.Runtime.Debug
 {
     /// <summary>
-    /// Static frame profiler that measures CPU cost of each GameLoop section.
-    /// Uses System.Diagnostics.Stopwatch for sub-microsecond precision with zero GC.
-    /// All arrays are pre-allocated at Init(). Zero allocation per frame.
-    /// Gated by static bool Enabled — when false, Begin/End are near-zero-cost
-    /// (single branch on a static bool, predicted correctly after first call).
+    /// Stopwatch-based frame profiler implementing IFrameProfiler.
+    /// Zero GC per frame. All arrays pre-allocated in constructor.
+    /// Gated by Enabled — when false, Begin/End/BeginFrame branch once
+    /// on an instance bool and return.
+    /// Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
-    public static class FrameProfiler
+    public sealed class FrameProfiler : IFrameProfiler
     {
-        // Section index constants — used as array indices, never as strings at runtime
-        public const int PollGen = 0;
-        public const int PollMesh = 1;
-        public const int PollLOD = 2;
-        public const int LoadQueue = 3;
-        public const int Unload = 4;
-        public const int SchedGen = 5;
-        public const int CrossLight = 6;
-        public const int Relight = 7;
-        public const int LODLevels = 8;
-        public const int SchedMesh = 9;
-        public const int SchedLOD = 10;
-        public const int Render = 11;
-        public const int UpdateTotal = 12;
-        public const int Frame = 13;
-        public const int TickLoop = 14;
-        public const int SectionCount = 15;
+        private bool _enabled;
+        private readonly Stopwatch[] _stopwatches;
+        private readonly float[] _currentMs;
+        private readonly float[][] _history;
+        private int _historyHead;
+        private int _historyFilled;
+        private readonly double _ticksToMs;
 
-        /// <summary>Number of frames stored in the rolling history buffer.</summary>
-        public const int HistorySize = 300;
-
-        /// <summary>Human-readable names for each section. Indexed by section constant.</summary>
-        public static readonly string[] SectionNames = new string[]
+        public bool Enabled
         {
-            "PollGen",
-            "PollMesh",
-            "PollLOD",
-            "LoadQueue",
-            "Unload",
-            "SchedGen",
-            "CrossLight",
-            "Relight",
-            "LODLevels",
-            "SchedMesh",
-            "SchedLOD",
-            "Render",
-            "UpdateTotal",
-            "Frame",
-            "TickLoop",
-        };
-
-        public static bool Enabled;
-
-        private static Stopwatch[] s_stopwatches;
-        private static float[] s_currentMs;
-        private static float[][] s_history;
-        private static int s_historyHead;
-        private static int s_historyFilled;
-        private static bool s_initialized;
-        private static double s_ticksToMs;
-
-        /// <summary>
-        /// Allocates all internal arrays. Call once at startup.
-        /// </summary>
-        public static void Init()
-        {
-            s_stopwatches = new Stopwatch[SectionCount];
-            s_currentMs = new float[SectionCount];
-            s_history = new float[SectionCount][];
-
-            for (int i = 0; i < SectionCount; i++)
-            {
-                s_stopwatches[i] = new Stopwatch();
-                s_history[i] = new float[HistorySize];
-            }
-
-            s_historyHead = 0;
-            s_historyFilled = 0;
-            s_ticksToMs = 1000.0 / Stopwatch.Frequency;
-            s_initialized = true;
+            get { return _enabled; }
+            set { _enabled = value; }
         }
 
-        /// <summary>
-        /// Called at the start of each frame. Stores previous frame's measurements
-        /// into the rolling history and resets all stopwatches.
-        /// The Frame section is set from unscaledDeltaTime (total frame time
-        /// including rendering, vsync, etc. — not measurable via Stopwatch).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void BeginFrame()
+        public int HistoryHead
         {
-            if (!Enabled || !s_initialized)
+            get { return _historyHead; }
+        }
+
+        public int HistoryFilled
+        {
+            get { return _historyFilled; }
+        }
+
+        public FrameProfiler()
+        {
+            int count = FrameProfilerSections.SectionCount;
+            _stopwatches = new Stopwatch[count];
+            _currentMs = new float[count];
+            _history = new float[count][];
+
+            for (int i = 0; i < count; i++)
+            {
+                _stopwatches[i] = new Stopwatch();
+                _history[i] = new float[FrameProfilerSections.HistorySize];
+            }
+
+            _ticksToMs = 1000.0 / Stopwatch.Frequency;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void BeginFrame()
+        {
+            if (!_enabled)
             {
                 return;
             }
 
-            // Record total frame time from Unity's delta (includes everything)
             float frameDeltaMs = UnityEngine.Time.unscaledDeltaTime * 1000f;
+            int count = FrameProfilerSections.SectionCount;
 
-            // Store previous frame's results into history ring buffer
-            for (int i = 0; i < SectionCount; i++)
+            for (int i = 0; i < count; i++)
             {
                 float ms;
 
-                if (i == Frame)
+                if (i == FrameProfilerSections.Frame)
                 {
                     ms = frameDeltaMs;
                 }
                 else
                 {
-                    ms = (float)(s_stopwatches[i].ElapsedTicks * s_ticksToMs);
+                    ms = (float)(_stopwatches[i].ElapsedTicks * _ticksToMs);
                 }
 
-                s_currentMs[i] = ms;
-                s_history[i][s_historyHead] = ms;
-                s_stopwatches[i].Reset();
+                _currentMs[i] = ms;
+                _history[i][_historyHead] = ms;
+                _stopwatches[i].Reset();
             }
 
-            s_historyHead = (s_historyHead + 1) % HistorySize;
+            _historyHead = (_historyHead + 1) % FrameProfilerSections.HistorySize;
 
-            if (s_historyFilled < HistorySize)
+            if (_historyFilled < FrameProfilerSections.HistorySize)
             {
-                s_historyFilled++;
+                _historyFilled++;
             }
         }
 
-        /// <summary>
-        /// Starts timing the given section. Pairs with End(sectionIndex).
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Begin(int sectionIndex)
+        public void Begin(int sectionIndex)
         {
-            if (!Enabled || !s_initialized)
+            if (!_enabled)
             {
                 return;
             }
 
-            s_stopwatches[sectionIndex].Start();
+            _stopwatches[sectionIndex].Start();
         }
 
-        /// <summary>
-        /// Stops timing the given section. Pairs with Begin(sectionIndex).
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void End(int sectionIndex)
+        public void End(int sectionIndex)
         {
-            if (!Enabled || !s_initialized)
+            if (!_enabled)
             {
                 return;
             }
 
-            s_stopwatches[sectionIndex].Stop();
+            _stopwatches[sectionIndex].Stop();
         }
 
-        /// <summary>
-        /// Returns the most recent frame's measurement for the given section in milliseconds.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float GetMs(int sectionIndex)
+        public float GetMs(int sectionIndex)
         {
-            if (!s_initialized)
-            {
-                return 0f;
-            }
-
-            return s_currentMs[sectionIndex];
+            return _currentMs[sectionIndex];
         }
 
-        /// <summary>
-        /// Returns the rolling history buffer for the given section.
-        /// Use HistoryHead and HistoryFilled to interpret the ring buffer.
-        /// </summary>
-        public static float[] GetHistory(int sectionIndex)
+        public float[] GetHistory(int sectionIndex)
         {
-            if (!s_initialized)
-            {
-                return null;
-            }
-
-            return s_history[sectionIndex];
-        }
-
-        /// <summary>Current write position in the ring buffer (most recent entry is at Head-1).</summary>
-        public static int HistoryHead
-        {
-            get { return s_historyHead; }
-        }
-
-        /// <summary>Number of valid entries in the history (0..HistorySize).</summary>
-        public static int HistoryFilled
-        {
-            get { return s_historyFilled; }
+            return _history[sectionIndex];
         }
     }
 }

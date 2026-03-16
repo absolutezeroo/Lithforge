@@ -1,160 +1,92 @@
+using System;
 using System.Runtime.CompilerServices;
-using Lithforge.Voxel.Chunk;
 
 namespace Lithforge.Runtime.Debug
 {
     /// <summary>
-    /// Static pipeline statistics collector. Counters are incremented by schedulers
-    /// and MegaMeshBuffer at the appropriate points. Per-frame counters are reset
-    /// at the start of each frame by BeginFrame(). Cumulative counters persist.
-    /// All increment methods are AggressiveInlining and gated by Enabled.
+    ///     Pipeline statistics collector implementing IPipelineStats.
+    ///     Counters are incremented by schedulers and MegaMeshBuffer.
+    ///     Per-frame counters are reset at the start of each frame by BeginFrame().
+    ///     Cumulative counters persist. All increment methods are AggressiveInlining
+    ///     and gated by Enabled.
+    ///     Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
-    public static class PipelineStats
+    public sealed class PipelineStats : IPipelineStats
     {
-        /// <summary>Gate for all counter operations. When false, increment methods early-out.</summary>
-        public static bool Enabled;
+        private int _prevGc0;
 
-        // --- Per-frame counters (reset each frame) ---
+        private int _prevGc1;
 
-        /// <summary>Worldgen jobs dispatched to workers this frame.</summary>
-        public static int GenScheduled;
+        private int _prevGc2;
 
-        /// <summary>Worldgen jobs that finished and were polled this frame.</summary>
-        public static int GenCompleted;
+        public bool Enabled { get; set; }
 
-        /// <summary>LOD0 mesh jobs dispatched to workers this frame.</summary>
-        public static int MeshScheduled;
+        public int GenScheduled { get; private set; }
 
-        /// <summary>LOD0 mesh jobs that finished and were polled this frame.</summary>
-        public static int MeshCompleted;
+        public int GenCompleted { get; private set; }
 
-        /// <summary>LOD>0 mesh jobs dispatched to workers this frame.</summary>
-        public static int LODScheduled;
+        public int MeshScheduled { get; private set; }
 
-        /// <summary>LOD>0 mesh jobs that finished and were polled this frame.</summary>
-        public static int LODCompleted;
+        public int MeshCompleted { get; private set; }
 
-        /// <summary>Decoration passes (tree placement, etc.) executed this frame.</summary>
-        public static int DecorateCount;
+        public int LODScheduled { get; private set; }
 
-        /// <summary>Total wall-clock time spent in decoration passes this frame.</summary>
-        public static float DecorateMs;
+        public int LODCompleted { get; private set; }
 
-        /// <summary>Bytes uploaded to GPU vertex/index buffers this frame.</summary>
-        public static long GpuUploadBytes;
+        public int DecorateCount { get; private set; }
 
-        /// <summary>Number of individual GPU upload operations this frame.</summary>
-        public static int GpuUploadCount;
+        public float DecorateMs { get; private set; }
 
-        /// <summary>Slots available in the MegaMeshBuffer free list at snapshot time.</summary>
-        public static int FreeListSize;
+        public long GpuUploadBytes { get; private set; }
 
-        /// <summary>MegaMeshBuffer grow (reallocation) events triggered this frame.</summary>
-        public static int GrowEvents;
+        public int GpuUploadCount { get; private set; }
 
-        /// <summary>Chunk mesh invalidations (remesh requests) issued this frame.</summary>
-        public static int InvalidateCount;
+        public int GrowEvents { get; private set; }
 
-        /// <summary>GC generation-0 collections that occurred during the previous frame.</summary>
-        public static int GcGen0;
+        public int InvalidateCount { get; private set; }
 
-        /// <summary>GC generation-1 collections that occurred during the previous frame.</summary>
-        public static int GcGen1;
+        public int GcGen0 { get; private set; }
 
-        /// <summary>GC generation-2 (full) collections that occurred during the previous frame.</summary>
-        public static int GcGen2;
+        public int GcGen1 { get; private set; }
 
-        /// <summary>Slowest mesh job Complete() call this frame in milliseconds.</summary>
-        public static float MeshCompleteMaxMs;
+        public int GcGen2 { get; private set; }
 
-        /// <summary>Mesh Complete() calls that exceeded 1ms, indicating main-thread stalls.</summary>
-        public static int MeshCompleteStalls;
+        public float MeshCompleteMaxMs { get; private set; }
 
-        /// <summary>Slowest generation job Complete() call this frame in milliseconds.</summary>
-        public static float GenCompleteMaxMs;
+        public int MeshCompleteStalls { get; private set; }
 
-        /// <summary>Generation Complete() calls that exceeded 1ms, indicating main-thread stalls.</summary>
-        public static int GenCompleteStalls;
+        public float GenCompleteMaxMs { get; private set; }
 
-        /// <summary>Time spent disposing completed mesh NativeArrays during polling.</summary>
-        public static float PollMeshDisposalsMs;
+        public int GenCompleteStalls { get; private set; }
 
-        /// <summary>Time spent uploading mesh data to GPU during polling.</summary>
-        public static float PollMeshUploadMs;
+        public float PollMeshDisposalsMs { get; set; }
 
-        /// <summary>Time spent iterating the in-flight mesh list during polling.</summary>
-        public static float PollMeshIterateMs;
+        public float PollMeshUploadMs { get; set; }
 
-        /// <summary>Time spent on the first IsCompleted check during mesh polling.</summary>
-        public static float PollMeshFirstIsCompletedMs;
+        public float PollMeshIterateMs { get; set; }
 
-        // --- SchedMesh sub-timings (instrumentation for bottleneck isolation) ---
+        public float PollMeshFirstIsCompletedMs { get; set; }
 
-        /// <summary>Time spent filling the mesh candidate list in MeshScheduler.</summary>
-        public static float SchedMeshFillMs;
+        public float SchedMeshFillMs { get; set; }
 
-        /// <summary>Time spent filtering and sorting mesh candidates by priority.</summary>
-        public static float SchedMeshFilterMs;
+        public float SchedMeshFilterMs { get; set; }
 
-        /// <summary>Time spent allocating NativeArrays for mesh output.</summary>
-        public static float SchedMeshAllocMs;
+        public float SchedMeshAllocMs { get; set; }
 
-        /// <summary>Time spent calling Schedule() on mesh jobs.</summary>
-        public static float SchedMeshScheduleMs;
+        public float SchedMeshScheduleMs { get; set; }
 
-        /// <summary>Time spent flushing completed mesh data to GPU buffers.</summary>
-        public static float SchedMeshFlushMs;
+        public float SchedMeshFlushMs { get; set; }
 
-        // --- Previous-frame GC counts for delta computation ---
+        public int TotalGenerated { get; private set; }
 
-        private static int s_prevGc0;
-        private static int s_prevGc1;
-        private static int s_prevGc2;
+        public int TotalMeshed { get; private set; }
 
-        // --- Cumulative counters (never reset) ---
+        public int TotalLOD { get; private set; }
 
-        /// <summary>Lifetime count of worldgen jobs completed since launch.</summary>
-        public static int TotalGenerated;
+        public double TotalGpuUploadBytes { get; private set; }
 
-        /// <summary>Lifetime count of LOD0 mesh jobs completed since launch.</summary>
-        public static int TotalMeshed;
-
-        /// <summary>Lifetime count of LOD>0 mesh jobs completed since launch.</summary>
-        public static int TotalLOD;
-
-        /// <summary>Lifetime bytes uploaded to GPU since launch.</summary>
-        public static double TotalGpuUploadBytes;
-
-        // --- Chunk state histogram (filled once per frame by UpdateChunkHistogram) ---
-
-        /// <summary>
-        /// Chunk count per ChunkState. Indexed by (int)ChunkState.
-        /// Length = ChunkState enum value count (8).
-        /// </summary>
-        public static readonly int[] StateHistogram = new int[8];
-
-        /// <summary>Chunks flagged for remeshing due to block edits or neighbor changes.</summary>
-        public static int NeedsRemeshCount;
-
-        /// <summary>Chunks flagged for light recalculation after block edits.</summary>
-        public static int NeedsLightUpdateCount;
-
-        // --- Pool stats ---
-
-        /// <summary>NativeArray chunks in the pool ready for reuse.</summary>
-        public static int PoolAvailable;
-
-        /// <summary>NativeArray chunks currently checked out to active ManagedChunks.</summary>
-        public static int PoolCheckedOut;
-
-        /// <summary>Total NativeArray allocations (available + checked out) in the pool.</summary>
-        public static int PoolTotal;
-
-        /// <summary>
-        /// Resets all per-frame counters. Called at the start of each frame.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void BeginFrame()
+        public void BeginFrame()
         {
             if (!Enabled)
             {
@@ -171,19 +103,18 @@ namespace Lithforge.Runtime.Debug
             DecorateMs = 0f;
             GpuUploadBytes = 0;
             GpuUploadCount = 0;
-            FreeListSize = 0;
             GrowEvents = 0;
             InvalidateCount = 0;
 
-            int gc0 = System.GC.CollectionCount(0);
-            int gc1 = System.GC.CollectionCount(1);
-            int gc2 = System.GC.CollectionCount(2);
-            GcGen0 = gc0 - s_prevGc0;
-            GcGen1 = gc1 - s_prevGc1;
-            GcGen2 = gc2 - s_prevGc2;
-            s_prevGc0 = gc0;
-            s_prevGc1 = gc1;
-            s_prevGc2 = gc2;
+            int gc0 = GC.CollectionCount(0);
+            int gc1 = GC.CollectionCount(1);
+            int gc2 = GC.CollectionCount(2);
+            GcGen0 = gc0 - _prevGc0;
+            GcGen1 = gc1 - _prevGc1;
+            GcGen2 = gc2 - _prevGc2;
+            _prevGc0 = gc0;
+            _prevGc1 = gc1;
+            _prevGc2 = gc2;
 
             MeshCompleteMaxMs = 0f;
             MeshCompleteStalls = 0;
@@ -200,9 +131,8 @@ namespace Lithforge.Runtime.Debug
             SchedMeshFlushMs = 0f;
         }
 
-        /// <summary>Increments the generation-scheduled counter for this frame.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrGenScheduled()
+        public void IncrGenScheduled()
         {
             if (!Enabled)
             {
@@ -212,9 +142,8 @@ namespace Lithforge.Runtime.Debug
             GenScheduled++;
         }
 
-        /// <summary>Increments both the per-frame and lifetime generation-completed counters.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrGenCompleted()
+        public void IncrGenCompleted()
         {
             if (!Enabled)
             {
@@ -225,9 +154,8 @@ namespace Lithforge.Runtime.Debug
             TotalGenerated++;
         }
 
-        /// <summary>Increments the LOD0 mesh-scheduled counter for this frame.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrMeshScheduled()
+        public void IncrMeshScheduled()
         {
             if (!Enabled)
             {
@@ -237,9 +165,8 @@ namespace Lithforge.Runtime.Debug
             MeshScheduled++;
         }
 
-        /// <summary>Increments both the per-frame and lifetime LOD0 mesh-completed counters.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrMeshCompleted()
+        public void IncrMeshCompleted()
         {
             if (!Enabled)
             {
@@ -250,9 +177,8 @@ namespace Lithforge.Runtime.Debug
             TotalMeshed++;
         }
 
-        /// <summary>Increments the LOD>0 mesh-scheduled counter for this frame.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrLODScheduled()
+        public void IncrLODScheduled()
         {
             if (!Enabled)
             {
@@ -262,9 +188,8 @@ namespace Lithforge.Runtime.Debug
             LODScheduled++;
         }
 
-        /// <summary>Increments both the per-frame and lifetime LOD>0 mesh-completed counters.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrLODCompleted()
+        public void IncrLODCompleted()
         {
             if (!Enabled)
             {
@@ -275,10 +200,30 @@ namespace Lithforge.Runtime.Debug
             TotalLOD++;
         }
 
-        /// <summary>Records one decoration pass, adding its duration to the frame total.</summary>
-        /// <param name="ms">Wall-clock milliseconds the decoration pass took.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void AddDecorate(float ms)
+        public void IncrGrow()
+        {
+            if (!Enabled)
+            {
+                return;
+            }
+
+            GrowEvents++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void IncrInvalidate()
+        {
+            if (!Enabled)
+            {
+                return;
+            }
+
+            InvalidateCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddDecorate(float ms)
         {
             if (!Enabled)
             {
@@ -289,10 +234,8 @@ namespace Lithforge.Runtime.Debug
             DecorateMs += ms;
         }
 
-        /// <summary>Records a GPU buffer upload, accumulating byte count for this frame and lifetime.</summary>
-        /// <param name="bytes">Size of the upload in bytes.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void AddGpuUpload(int bytes)
+        public void AddGpuUpload(int bytes)
         {
             if (!Enabled)
             {
@@ -304,25 +247,8 @@ namespace Lithforge.Runtime.Debug
             TotalGpuUploadBytes += bytes;
         }
 
-        /// <summary>Records a MegaMeshBuffer grow event (buffer reallocation to increase capacity).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrGrow()
-        {
-            if (!Enabled)
-            {
-                return;
-            }
-
-            GrowEvents++;
-        }
-
-        /// <summary>
-        /// Records the time a mesh job Complete() call took. Tracks the per-frame max
-        /// and counts stalls (calls exceeding 1ms).
-        /// </summary>
-        /// <param name="ms">Wall-clock milliseconds the Complete() call blocked.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void RecordMeshComplete(float ms)
+        public void RecordMeshComplete(float ms)
         {
             if (!Enabled)
             {
@@ -340,13 +266,8 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
-        /// <summary>
-        /// Records the time a generation job Complete() call took. Tracks the per-frame max
-        /// and counts stalls (calls exceeding 1ms).
-        /// </summary>
-        /// <param name="ms">Wall-clock milliseconds the Complete() call blocked.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void RecordGenComplete(float ms)
+        public void RecordGenComplete(float ms)
         {
             if (!Enabled)
             {
@@ -362,50 +283,6 @@ namespace Lithforge.Runtime.Debug
             {
                 GenCompleteStalls++;
             }
-        }
-
-        /// <summary>Records a chunk mesh invalidation (triggered by block edits or neighbor changes).</summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void IncrInvalidate()
-        {
-            if (!Enabled)
-            {
-                return;
-            }
-
-            InvalidateCount++;
-        }
-
-        /// <summary>
-        /// Updates chunk state histogram and pool stats. Called once per frame
-        /// from DebugOverlayHUD when benchmark mode is active.
-        /// </summary>
-        public static void UpdateChunkHistogram(ChunkManager chunkManager, ChunkPool pool)
-        {
-            if (!Enabled)
-            {
-                return;
-            }
-
-            chunkManager.FillStateHistogram(
-                StateHistogram,
-                out int needsRemesh,
-                out int needsLightUpdate);
-
-            NeedsRemeshCount = needsRemesh;
-            NeedsLightUpdateCount = needsLightUpdate;
-
-            PoolAvailable = pool.AvailableCount;
-            PoolCheckedOut = pool.CheckedOutCount;
-            PoolTotal = pool.TotalAllocated;
-        }
-
-        /// <summary>
-        /// Total GPU upload in megabytes since launch.
-        /// </summary>
-        public static float TotalGpuUploadMb
-        {
-            get { return (float)(TotalGpuUploadBytes / (1024.0 * 1024.0)); }
         }
     }
 }

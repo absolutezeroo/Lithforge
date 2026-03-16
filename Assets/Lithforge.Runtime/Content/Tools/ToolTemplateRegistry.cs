@@ -6,33 +6,34 @@ using Lithforge.Core.Data;
 namespace Lithforge.Runtime.Content.Tools
 {
     /// <summary>
-    ///     Provides pre-baked ToolInstance CustomData for legacy tool items.
-    ///     Populated by ContentPipeline at startup. Each call to GetTemplate
-    ///     returns a fresh copy so each ItemStack gets independent durability.
+    /// Provides pre-baked ToolInstance CustomData for legacy tool items.
+    /// Populated by ContentPipeline at startup, stored in ContentPipelineResult.
+    /// Each call to GetTemplate returns a fresh copy so each ItemStack gets
+    /// independent durability.
     /// </summary>
-    public static class ToolTemplateRegistry
+    public sealed class ToolTemplateRegistry
     {
-        private static Dictionary<ResourceId, byte[]> s_templates = new();
+        private readonly Dictionary<ResourceId, byte[]> _templates;
 
-        public static void Initialize(Dictionary<ResourceId, byte[]> templates)
+        public ToolTemplateRegistry(Dictionary<ResourceId, byte[]> templates)
         {
-            s_templates = new Dictionary<ResourceId, byte[]>();
+            _templates = new Dictionary<ResourceId, byte[]>();
 
             if (templates != null)
             {
                 foreach (KeyValuePair<ResourceId, byte[]> pair in templates)
                 {
-                    s_templates[pair.Key] = pair.Value;
+                    _templates[pair.Key] = pair.Value;
                 }
             }
         }
 
         /// <summary>
-        ///     Returns a COPY of the template CustomData for this item, or null if not a legacy tool.
+        /// Returns a COPY of the template CustomData for this item, or null if not a legacy tool.
         /// </summary>
-        public static byte[] GetTemplate(ResourceId itemId)
+        public byte[] GetTemplate(ResourceId itemId)
         {
-            if (s_templates.TryGetValue(itemId, out byte[] template))
+            if (_templates.TryGetValue(itemId, out byte[] template))
             {
                 byte[] copy = new byte[template.Length];
 
@@ -44,14 +45,9 @@ namespace Lithforge.Runtime.Content.Tools
             return null;
         }
 
-        public static bool IsLegacyTool(ResourceId itemId)
+        public bool IsLegacyTool(ResourceId itemId)
         {
-            return s_templates.ContainsKey(itemId);
-        }
-
-        public static void Clear()
-        {
-            s_templates.Clear();
+            return _templates.ContainsKey(itemId);
         }
     }
 }
