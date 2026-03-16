@@ -370,6 +370,7 @@ namespace Lithforge.Voxel.Chunk
             // --- Single-pass top-K selection over _generatedChunks ---
             foreach (ManagedChunk chunk in _generatedChunks)
             {
+                bool hasEdit = chunk.HasPlayerEdit;
                 bool neverMeshed = chunk.RenderedLODLevel < 0;
                 bool allNeighbors = (chunk.ReadyNeighborMask & 0x3F) == 0x3F;
 
@@ -395,12 +396,13 @@ namespace Lithforge.Voxel.Chunk
                     }
 
                     // Compare incoming chunk against worst
+                    bool worstHasEdit = _meshCandidateCache[worstIdx].HasPlayerEdit;
                     bool worstNeverMeshed = _meshCandidateCache[worstIdx].RenderedLODLevel < 0;
                     bool worstAllNeighbors = (_meshCandidateCache[worstIdx].ReadyNeighborMask & 0x3F) == 0x3F;
                     int worstScore = _meshScoreCache[worstIdx];
 
-                    if (IsBetterPriority(neverMeshed, allNeighbors, distScore,
-                        worstNeverMeshed, worstAllNeighbors, worstScore))
+                    if (IsBetterPriority(hasEdit, neverMeshed, allNeighbors, distScore,
+                        worstHasEdit, worstNeverMeshed, worstAllNeighbors, worstScore))
                     {
                         _meshCandidateCache[worstIdx] = chunk;
                         _meshScoreCache[worstIdx] = distScore;
@@ -413,19 +415,21 @@ namespace Lithforge.Voxel.Chunk
             {
                 ManagedChunk tempChunk = _meshCandidateCache[i];
                 int tempScore = _meshScoreCache[i];
+                bool tempHasEdit = tempChunk.HasPlayerEdit;
                 bool tempNeverMeshed = tempChunk.RenderedLODLevel < 0;
                 bool tempAllNeighbors = (tempChunk.ReadyNeighborMask & 0x3F) == 0x3F;
                 int j = i - 1;
 
                 while (j >= 0)
                 {
+                    bool jHasEdit = _meshCandidateCache[j].HasPlayerEdit;
                     bool jNeverMeshed = _meshCandidateCache[j].RenderedLODLevel < 0;
                     bool jAllNeighbors = (_meshCandidateCache[j].ReadyNeighborMask & 0x3F) == 0x3F;
                     int jScore = _meshScoreCache[j];
 
                     // Stop if current position is correct (j is better or equal)
-                    if (!IsBetterPriority(tempNeverMeshed, tempAllNeighbors, tempScore,
-                        jNeverMeshed, jAllNeighbors, jScore))
+                    if (!IsBetterPriority(tempHasEdit, tempNeverMeshed, tempAllNeighbors, tempScore,
+                        jHasEdit, jNeverMeshed, jAllNeighbors, jScore))
                     {
                         break;
                     }
@@ -447,10 +451,18 @@ namespace Lithforge.Voxel.Chunk
 
         /// <summary>
         /// Returns true if buffer element at indexA is worse priority than element at indexB.
-        /// Priority: neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
+        /// Priority: hasPlayerEdit (DESC) > neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
         /// </summary>
         private bool IsWorseThan(int indexA, int indexB)
         {
+            bool aHasEdit = _meshCandidateCache[indexA].HasPlayerEdit;
+            bool bHasEdit = _meshCandidateCache[indexB].HasPlayerEdit;
+
+            if (aHasEdit != bHasEdit)
+            {
+                return !aHasEdit;
+            }
+
             bool aNeverMeshed = _meshCandidateCache[indexA].RenderedLODLevel < 0;
             bool bNeverMeshed = _meshCandidateCache[indexB].RenderedLODLevel < 0;
 
@@ -471,14 +483,19 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        /// Returns true if (neverMeshed, allNeighbors, distScore) is strictly better
-        /// than (worstNeverMeshed, worstAllNeighbors, worstScore).
-        /// Better = neverMeshed first, then allNeighbors, then lower distScore.
+        /// Returns true if (hasEdit, neverMeshed, allNeighbors, distScore) is strictly better
+        /// than (worstHasEdit, worstNeverMeshed, worstAllNeighbors, worstScore).
+        /// Better = hasEdit first, then neverMeshed, then allNeighbors, then lower distScore.
         /// </summary>
         private static bool IsBetterPriority(
-            bool neverMeshed, bool allNeighbors, int distScore,
-            bool worstNeverMeshed, bool worstAllNeighbors, int worstScore)
+            bool hasEdit, bool neverMeshed, bool allNeighbors, int distScore,
+            bool worstHasEdit, bool worstNeverMeshed, bool worstAllNeighbors, int worstScore)
         {
+            if (hasEdit != worstHasEdit)
+            {
+                return hasEdit;
+            }
+
             if (neverMeshed != worstNeverMeshed)
             {
                 return neverMeshed;
@@ -668,6 +685,7 @@ namespace Lithforge.Voxel.Chunk
             int index = ChunkData.GetIndex(localX, localY, localZ);
 
             chunk.IsDirty = true;
+            chunk.HasPlayerEdit = true;
 
             // Check block entity flags for old and new states
             StateId oldState = chunk.Data[index];
@@ -821,6 +839,8 @@ namespace Lithforge.Voxel.Chunk
             {
                 return;
             }
+
+            neighbor.HasPlayerEdit = true;
 
             if (neighbor.State == ChunkState.Ready)
             {

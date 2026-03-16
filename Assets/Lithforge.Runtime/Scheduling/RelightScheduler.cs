@@ -238,7 +238,10 @@ namespace Lithforge.Runtime.Scheduling
             {
                 PendingRelight entry = _inFlightRelights[i];
 
-                if ((entry.FrameAge >= 4 && entry.Handle.IsCompleted) || entry.FrameAge > 300)
+                bool isUrgent = entry.Chunk != null && entry.Chunk.HasPlayerEdit;
+                int minAge = isUrgent ? 1 : 4;
+
+                if ((entry.FrameAge >= minAge && entry.Handle.IsCompleted) || entry.FrameAge > 300)
                 {
                     if (entry.FrameAge > 300)
                     {

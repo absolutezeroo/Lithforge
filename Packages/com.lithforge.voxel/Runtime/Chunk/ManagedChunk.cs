@@ -55,6 +55,14 @@ namespace Lithforge.Voxel.Chunk
         public bool NeedsRemesh { get; set; }
 
         /// <summary>
+        /// Set when a player block edit dirties this chunk. Cleared when the resulting
+        /// mesh job completes successfully (reaches Ready state). Gives this chunk
+        /// highest priority in FillChunksToMesh, bypasses relight FrameAge gate,
+        /// and is polled first in MeshScheduler.PollCompleted.
+        /// </summary>
+        public bool HasPlayerEdit { get; set; }
+
+        /// <summary>
         /// Current LOD level for this chunk. 0 = full detail, 1-3 = downsampled.
         /// </summary>
         public int LODLevel { get; set; }

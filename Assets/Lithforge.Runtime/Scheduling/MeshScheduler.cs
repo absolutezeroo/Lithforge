@@ -115,11 +115,61 @@ namespace Lithforge.Runtime.Scheduling
             long td1 = System.Diagnostics.Stopwatch.GetTimestamp();
             _pipelineStats.PollMeshDisposalsMs = (float)((td1 - td0) * 1000.0 / freq);
 
-            FrameBudget budget = new FrameBudget(_completionBudgetMs);
             int completedThisFrame = 0;
-            int i = 0;
             float uploadAccum = 0f;
             bool firstCheck = true;
+
+            // First pass: process urgent (player-edit) completions regardless of budget.
+            // Mirrors Luanti's m_queue_out_urgent being drained first.
+            for (int u = 0; u < _pendingMeshes.Count; )
+            {
+                PendingMesh pending = _pendingMeshes[u];
+
+                if (!pending.IsUrgent || pending.FrameAge < 1)
+                {
+                    if (pending.IsUrgent)
+                    {
+                        pending.FrameAge++;
+                        _pendingMeshes[u] = pending;
+                    }
+
+                    u++;
+                    continue;
+                }
+
+                bool urgentForceComplete = pending.FrameAge > 300;
+
+                if (!pending.Handle.IsCompleted && !urgentForceComplete)
+                {
+                    pending.FrameAge++;
+                    _pendingMeshes[u] = pending;
+                    u++;
+                    continue;
+                }
+
+                if (urgentForceComplete)
+                {
+                    UnityEngine.Debug.LogWarning(
+                        $"[MeshScheduler] Force-completing stale urgent mesh job for chunk " +
+                        $"{pending.Coord} after {pending.FrameAge} frames");
+                }
+
+                CompleteMesh(pending, ref completedThisFrame, ref uploadAccum, freq);
+
+                // Swap-back removal
+                int last = _pendingMeshes.Count - 1;
+
+                if (u < last)
+                {
+                    _pendingMeshes[u] = _pendingMeshes[last];
+                }
+
+                _pendingMeshes.RemoveAt(last);
+            }
+
+            // Second pass: process remaining (non-urgent) completions within budget.
+            FrameBudget budget = new FrameBudget(_completionBudgetMs);
+            int i = 0;
 
             while (i < _pendingMeshes.Count)
             {
@@ -130,9 +180,14 @@ namespace Lithforge.Runtime.Scheduling
 
                 PendingMesh pending = _pendingMeshes[i];
 
-                // Don't poll IsCompleted on jobs younger than 1 frame.
-                // Avoids Unity work-stealing the job + its border extraction deps
-                // on the main thread (measured: up to 134ms stalls).
+                // Skip urgent items — already handled by the first pass.
+                // Prevents double FrameAge increment.
+                if (pending.IsUrgent)
+                {
+                    i++;
+                    continue;
+                }
+
                 bool forceComplete = false;
 
                 if (pending.FrameAge > 300)
@@ -171,61 +226,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (isCompleted)
                 {
-                    completedThisFrame++;
-                    long tc0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    pending.Handle.Complete();
-                    long tc1 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    float completeMs = (float)((tc1 - tc0) * 1000.0 / freq);
-                    _pipelineStats.RecordMeshComplete(completeMs);
-
-                    long tu0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    Profiler.BeginSample("MS.GPUUpload");
-                    _chunkMeshStore.UpdateRenderer(
-                        pending.Coord,
-                        pending.Data.OpaqueVertices,
-                        pending.Data.OpaqueIndices,
-                        pending.Data.CutoutVertices,
-                        pending.Data.CutoutIndices,
-                        pending.Data.TranslucentVertices,
-                        pending.Data.TranslucentIndices);
-                    Profiler.EndSample();
-                    long tu1 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    uploadAccum += (float)((tu1 - tu0) * 1000.0 / freq);
-
-                    pending.Data.Dispose();
-                    _pipelineStats.IncrMeshCompleted();
-
-                    ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
-
-                    if (chunk != null)
-                    {
-                        if (chunk.NeedsRelightAfterMesh)
-                        {
-                            chunk.NeedsRelightAfterMesh = false;
-                            _chunkManager.SetChunkState(chunk, ChunkState.RelightPending);
-                        }
-                        else if (chunk.DeferredEdits.Count > 0)
-                        {
-                            Profiler.BeginSample("MS.DeferredEdits");
-                            // Apply deferred edits that arrived while the mesh job was in-flight.
-                            // This writes to ChunkData now that the job is complete and no
-                            // worker thread is reading it. Also fires block entity events.
-                            _chunkManager.ApplyDeferredEdits(chunk);
-                            Profiler.EndSample();
-                        }
-                        else if (chunk.NeedsRemesh)
-                        {
-                            chunk.NeedsRemesh = false;
-                            _chunkManager.SetChunkState(chunk, ChunkState.Generated);
-                        }
-                        else
-                        {
-                            _chunkManager.SetChunkState(chunk, ChunkState.Ready);
-                        }
-
-                        chunk.ActiveJobHandle = default;
-                        chunk.RenderedLODLevel = 0;
-                    }
+                    CompleteMesh(pending, ref completedThisFrame, ref uploadAccum, freq);
 
                     // Swap-back: O(1) removal instead of O(n) RemoveAt shift
                     int last = _pendingMeshes.Count - 1;
@@ -236,7 +237,6 @@ namespace Lithforge.Runtime.Scheduling
                     }
 
                     _pendingMeshes.RemoveAt(last);
-                    // Do not increment i — recheck position (now holds old last element)
                 }
                 else
                 {
@@ -256,6 +256,72 @@ namespace Lithforge.Runtime.Scheduling
                 - uploadAccum;
 
             Profiler.EndSample();
+        }
+
+        /// <summary>
+        /// Completes a single mesh job: calls Handle.Complete(), uploads to GPU,
+        /// disposes native data, and handles post-mesh state transitions.
+        /// Shared between the urgent-first pass and the normal budgeted pass.
+        /// </summary>
+        private void CompleteMesh(
+            PendingMesh pending,
+            ref int completedThisFrame,
+            ref float uploadAccum,
+            long freq)
+        {
+            completedThisFrame++;
+            long tc0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            pending.Handle.Complete();
+            long tc1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            float completeMs = (float)((tc1 - tc0) * 1000.0 / freq);
+            _pipelineStats.RecordMeshComplete(completeMs);
+
+            long tu0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            Profiler.BeginSample("MS.GPUUpload");
+            _chunkMeshStore.UpdateRenderer(
+                pending.Coord,
+                pending.Data.OpaqueVertices,
+                pending.Data.OpaqueIndices,
+                pending.Data.CutoutVertices,
+                pending.Data.CutoutIndices,
+                pending.Data.TranslucentVertices,
+                pending.Data.TranslucentIndices);
+            Profiler.EndSample();
+            long tu1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            uploadAccum += (float)((tu1 - tu0) * 1000.0 / freq);
+
+            pending.Data.Dispose();
+            _pipelineStats.IncrMeshCompleted();
+
+            ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
+
+            if (chunk != null)
+            {
+                if (chunk.NeedsRelightAfterMesh)
+                {
+                    chunk.NeedsRelightAfterMesh = false;
+                    _chunkManager.SetChunkState(chunk, ChunkState.RelightPending);
+                }
+                else if (chunk.DeferredEdits.Count > 0)
+                {
+                    Profiler.BeginSample("MS.DeferredEdits");
+                    _chunkManager.ApplyDeferredEdits(chunk);
+                    Profiler.EndSample();
+                }
+                else if (chunk.NeedsRemesh)
+                {
+                    chunk.NeedsRemesh = false;
+                    _chunkManager.SetChunkState(chunk, ChunkState.Generated);
+                }
+                else
+                {
+                    _chunkManager.SetChunkState(chunk, ChunkState.Ready);
+                    chunk.HasPlayerEdit = false;
+                }
+
+                chunk.ActiveJobHandle = default;
+                chunk.RenderedLODLevel = 0;
+            }
         }
 
         /// <summary>
@@ -389,6 +455,7 @@ namespace Lithforge.Runtime.Scheduling
                     Handle = meshHandle,
                     Data = meshData,
                     FrameAge = 0,
+                    IsUrgent = chunk.HasPlayerEdit,
                 });
                 _pipelineStats.IncrMeshScheduled();
             }
@@ -592,6 +659,7 @@ namespace Lithforge.Runtime.Scheduling
             public JobHandle Handle;
             public GreedyMeshData Data;
             public int FrameAge;
+            public bool IsUrgent;
         }
     }
 }
