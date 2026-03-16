@@ -24,8 +24,8 @@ MonoBehaviour:
   keys:
   - key: 112
     item: {fileID: 0}
-    itemId: ''
-    tagId: lithforge:planks
+    itemId: lithforge:oak_planks
+    tagId: ''
   - key: 115
     item: {fileID: 0}
     itemId: lithforge:stick
