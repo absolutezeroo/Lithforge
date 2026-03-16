@@ -13,12 +13,14 @@ namespace Lithforge.Runtime.UI.Container
     public sealed class CraftingOutputContainerAdapter : ISlotContainer
     {
         private readonly ItemRegistry _itemRegistry;
+        private readonly ToolTemplateRegistry _toolTemplateRegistry;
         private RecipeEntry _currentMatch;
         private ItemStack _displayStack;
 
-        public CraftingOutputContainerAdapter(ItemRegistry itemRegistry)
+        public CraftingOutputContainerAdapter(ItemRegistry itemRegistry, ToolTemplateRegistry toolTemplateRegistry)
         {
             _itemRegistry = itemRegistry;
+            _toolTemplateRegistry = toolTemplateRegistry;
         }
 
         public int SlotCount
@@ -56,7 +58,9 @@ namespace Lithforge.Runtime.UI.Container
 
             if (match != null)
             {
-                byte[] toolData = ToolTemplateRegistry.GetTemplate(match.ResultItem);
+                byte[] toolData = _toolTemplateRegistry != null
+                    ? _toolTemplateRegistry.GetTemplate(match.ResultItem)
+                    : null;
 
                 if (toolData != null)
                 {

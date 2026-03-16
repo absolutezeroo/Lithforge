@@ -50,6 +50,8 @@ namespace Lithforge.Runtime
         private float _unloadBudgetMs;
         private bool _initialized;
         private GameState _gameState = GameState.Playing;
+        private IFrameProfiler _frameProfiler = new NullFrameProfiler();
+        private IPipelineStats _pipelineStats = new NullPipelineStats();
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
@@ -87,6 +89,16 @@ namespace Lithforge.Runtime
             get { return _spawnManager != null && _spawnManager.IsComplete; }
         }
 
+        public void SetFrameProfiler(IFrameProfiler frameProfiler)
+        {
+            _frameProfiler = frameProfiler;
+        }
+
+        public void SetPipelineStats(IPipelineStats pipelineStats)
+        {
+            _pipelineStats = pipelineStats;
+        }
+
         public void Initialize(
             ChunkManager chunkManager,
             GenerationPipeline generationPipeline,
@@ -113,6 +125,7 @@ namespace Lithforge.Runtime
                 decorationStage,
                 worldStorage,
                 nativeStateRegistry,
+                _pipelineStats,
                 seed,
                 SchedulingConfig.MaxGenerationsPerFrame(rd),
                 SchedulingConfig.MaxGenCompletionsPerFrame(rd),
@@ -126,6 +139,7 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
+                _pipelineStats,
                 SchedulingConfig.MaxMeshesPerFrame(rd),
                 SchedulingConfig.MaxMeshCompletionsPerFrame(rd),
                 chunkSettings.MeshCompletionBudgetMs);
@@ -141,6 +155,7 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
+                _pipelineStats,
                 SchedulingConfig.MaxLODMeshesPerFrame(rd),
                 SchedulingConfig.MaxLODCompletionsPerFrame(rd),
                 chunkSettings.LodCompletionBudgetMs,
@@ -275,15 +290,15 @@ namespace Lithforge.Runtime
                 return;
             }
 
-            FrameProfiler.BeginFrame();
-            PipelineStats.BeginFrame();
+            _frameProfiler.BeginFrame();
+            _pipelineStats.BeginFrame();
 
-            FrameProfiler.Begin(FrameProfiler.UpdateTotal);
+            _frameProfiler.Begin(FrameProfilerSections.UpdateTotal);
 
             // ── Fixed tick accumulator (skipped when fully paused) ──
             if (_tickRegistry != null && _gameState != GameState.PausedFull)
             {
-                FrameProfiler.Begin(FrameProfiler.TickLoop);
+                _frameProfiler.Begin(FrameProfilerSections.TickLoop);
                 Profiler.BeginSample("GL.TickLoop");
 
                 // Update spawn-ready flag on physics body
@@ -316,14 +331,14 @@ namespace Lithforge.Runtime
                 }
 
                 Profiler.EndSample();
-                FrameProfiler.End(FrameProfiler.TickLoop);
+                _frameProfiler.End(FrameProfilerSections.TickLoop);
             }
 
             // ── Async pipeline poll ──
             Profiler.BeginSample("GL.PollGen");
-            FrameProfiler.Begin(FrameProfiler.PollGen);
+            _frameProfiler.Begin(FrameProfilerSections.PollGen);
             _generationScheduler.PollCompleted();
-            FrameProfiler.End(FrameProfiler.PollGen);
+            _frameProfiler.End(FrameProfilerSections.PollGen);
             Profiler.EndSample();
 
             Profiler.BeginSample("GL.PollRelight");
@@ -331,15 +346,15 @@ namespace Lithforge.Runtime
             Profiler.EndSample();
 
             Profiler.BeginSample("GL.PollMesh");
-            FrameProfiler.Begin(FrameProfiler.PollMesh);
+            _frameProfiler.Begin(FrameProfilerSections.PollMesh);
             _meshScheduler.PollCompleted();
-            FrameProfiler.End(FrameProfiler.PollMesh);
+            _frameProfiler.End(FrameProfilerSections.PollMesh);
             Profiler.EndSample();
 
             Profiler.BeginSample("GL.PollLOD");
-            FrameProfiler.Begin(FrameProfiler.PollLOD);
+            _frameProfiler.Begin(FrameProfilerSections.PollLOD);
             _lodScheduler.PollCompleted();
-            FrameProfiler.End(FrameProfiler.PollLOD);
+            _frameProfiler.End(FrameProfilerSections.PollLOD);
             Profiler.EndSample();
 
             // ── Frustum + load/unload (skipped when fully paused) ──
@@ -350,13 +365,13 @@ namespace Lithforge.Runtime
                 _culling.UpdateFrustum(_mainCamera);
 
                 Profiler.BeginSample("GL.LoadQueue");
-                FrameProfiler.Begin(FrameProfiler.LoadQueue);
+                _frameProfiler.Begin(FrameProfilerSections.LoadQueue);
                 _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
-                FrameProfiler.End(FrameProfiler.LoadQueue);
+                _frameProfiler.End(FrameProfilerSections.LoadQueue);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.Unload");
-                FrameProfiler.Begin(FrameProfiler.Unload);
+                _frameProfiler.Begin(FrameProfilerSections.Unload);
                 _chunkManager.UnloadDistantChunks(
                     cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
 
@@ -384,7 +399,7 @@ namespace Lithforge.Runtime
                     _meshScheduler.CleanupCoord(coord);
                     _lodScheduler.CleanupCoord(coord);
                 }
-                FrameProfiler.End(FrameProfiler.Unload);
+                _frameProfiler.End(FrameProfilerSections.Unload);
                 Profiler.EndSample();
             }
 
@@ -392,43 +407,43 @@ namespace Lithforge.Runtime
             if (_gameState != GameState.PausedFull)
             {
                 Profiler.BeginSample("GL.SchedGen");
-                FrameProfiler.Begin(FrameProfiler.SchedGen);
+                _frameProfiler.Begin(FrameProfilerSections.SchedGen);
                 _generationScheduler.ScheduleJobs();
-                FrameProfiler.End(FrameProfiler.SchedGen);
+                _frameProfiler.End(FrameProfilerSections.SchedGen);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.CrossLight");
-                FrameProfiler.Begin(FrameProfiler.CrossLight);
+                _frameProfiler.Begin(FrameProfilerSections.CrossLight);
                 _generationScheduler.ProcessCrossChunkLightUpdates();
-                FrameProfiler.End(FrameProfiler.CrossLight);
+                _frameProfiler.End(FrameProfilerSections.CrossLight);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.Relight");
-                FrameProfiler.Begin(FrameProfiler.Relight);
+                _frameProfiler.Begin(FrameProfilerSections.Relight);
                 _relightScheduler.ScheduleJobs();
-                FrameProfiler.End(FrameProfiler.Relight);
+                _frameProfiler.End(FrameProfilerSections.Relight);
                 Profiler.EndSample();
 
                 // LOD level assignment must run BEFORE mesh scheduling
                 // so chunks get their LOD level before MeshScheduler decides who to mesh
                 Profiler.BeginSample("GL.LODLevels");
-                FrameProfiler.Begin(FrameProfiler.LODLevels);
+                _frameProfiler.Begin(FrameProfilerSections.LODLevels);
                 _lodScheduler.UpdateLODLevels(cameraChunkCoord);
-                FrameProfiler.End(FrameProfiler.LODLevels);
+                _frameProfiler.End(FrameProfilerSections.LODLevels);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.SchedMesh");
-                FrameProfiler.Begin(FrameProfiler.SchedMesh);
+                _frameProfiler.Begin(FrameProfilerSections.SchedMesh);
                 float3 camForwardXZ = math.normalizesafe(
                     new float3(_mainCamera.transform.forward.x, 0, _mainCamera.transform.forward.z));
                 _meshScheduler.ScheduleJobs(SpawnReady, cameraChunkCoord, camForwardXZ);
-                FrameProfiler.End(FrameProfiler.SchedMesh);
+                _frameProfiler.End(FrameProfilerSections.SchedMesh);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.SchedLOD");
-                FrameProfiler.Begin(FrameProfiler.SchedLOD);
+                _frameProfiler.Begin(FrameProfilerSections.SchedLOD);
                 _lodScheduler.ScheduleJobs();
-                FrameProfiler.End(FrameProfiler.SchedLOD);
+                _frameProfiler.End(FrameProfilerSections.SchedLOD);
                 Profiler.EndSample();
             }
 
@@ -444,7 +459,7 @@ namespace Lithforge.Runtime
                 _autoSaveManager.Tick(Time.realtimeSinceStartup);
             }
 
-            FrameProfiler.End(FrameProfiler.UpdateTotal);
+            _frameProfiler.End(FrameProfilerSections.UpdateTotal);
 
             // CommitFrame AFTER all systems have run so the snapshot captures
             // incremented PipelineStats counters and completed FrameProfiler sections.
@@ -491,7 +506,7 @@ namespace Lithforge.Runtime
                 _sfxSourcePool.ReleaseFinished();
             }
 
-            FrameProfiler.Begin(FrameProfiler.Render);
+            _frameProfiler.Begin(FrameProfilerSections.Render);
             _chunkMeshStore.RenderAll(_mainCamera);
 
             if (_playerRenderer != null)
@@ -502,7 +517,7 @@ namespace Lithforge.Runtime
                     _blockInteraction != null && _blockInteraction.IsMining);
             }
 
-            FrameProfiler.End(FrameProfiler.Render);
+            _frameProfiler.End(FrameProfilerSections.Render);
         }
 
         private int3 GetCameraChunkCoord()

@@ -31,6 +31,8 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Debug/log label identifying this layer (e.g. "Opaque", "Cutout").</summary>
         private readonly string _name;
 
+        private readonly IPipelineStats _pipelineStats;
+
         /// <summary>Maps chunk coord to its vertex/index region in the shared buffers.</summary>
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
 
@@ -155,9 +157,10 @@ namespace Lithforge.Runtime.Rendering
         /// The buffer grows automatically by doubling when capacity is exceeded.
         /// </summary>
         public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity,
-            int maxChunkSlots)
+            int maxChunkSlots, IPipelineStats pipelineStats)
         {
             _name = bufferName;
+            _pipelineStats = pipelineStats;
             _maxChunkSlots = maxChunkSlots;
             _vertexCapacity = initialVertexCapacity;
             _indexCapacity = initialIndexCapacity;
@@ -450,7 +453,7 @@ namespace Lithforge.Runtime.Rendering
             _dirtyVertexRanges.Add(vOff, vOff + vertCount);
             _dirtyIndexRanges.Add(iOff, iOff + idxCount);
 
-            PipelineStats.AddGpuUpload(vertCount * s_vertexStride + idxCount * sizeof(int));
+            _pipelineStats.AddGpuUpload(vertCount * s_vertexStride + idxCount * sizeof(int));
         }
 
         /// <summary>
@@ -711,7 +714,7 @@ namespace Lithforge.Runtime.Rendering
             _dirtyVertexRanges.Clear();
             _dirtyIndexRanges.Clear();
 
-            PipelineStats.IncrGrow();
+            _pipelineStats.IncrGrow();
 
 #if LITHFORGE_DEBUG
             UnityEngine.Debug.Log(

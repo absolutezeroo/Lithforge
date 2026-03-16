@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Lithforge.Meshing;
+using Lithforge.Runtime.Debug;
 using Lithforge.Voxel.Chunk;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -108,7 +109,8 @@ namespace Lithforge.Runtime.Rendering
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
             int renderDistance, int yLoadMin, int yLoadMax,
             int yUnloadMin, int yUnloadMax,
-            ComputeShader frustumCullShader, ComputeShader hiZGenerateShader)
+            ComputeShader frustumCullShader, ComputeShader hiZGenerateShader,
+            IPipelineStats pipelineStats)
         {
             OpaqueMaterial = opaqueMaterial;
             CutoutMaterial = cutoutMaterial;
@@ -175,9 +177,9 @@ namespace Lithforge.Runtime.Rendering
             int smallVerts = maxChunks * 300 * 3 / 2;
             int smallIdx = maxChunks * 450 * 3 / 2;
 
-            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots);
-            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots);
-            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots);
+            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, pipelineStats);
+            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, pipelineStats);
+            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, pipelineStats);
 
             // Shared chunk bounds buffer — same AABB regardless of render layer.
             // Slot IDs are sourced from the opaque buffer.

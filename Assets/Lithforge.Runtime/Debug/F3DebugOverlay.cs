@@ -18,6 +18,8 @@ namespace Lithforge.Runtime.Debug
         private VisualElement _root;
         private MetricsRegistry _metrics;
         private ChunkBorderRenderer _borderRenderer;
+        private IFrameProfiler _frameProfiler;
+        private IPipelineStats _pipelineStats;
 
         // Three-state cycle
         private OverlayState _state = OverlayState.Off;
@@ -82,19 +84,19 @@ namespace Lithforge.Runtime.Debug
         // Display section indices (excludes UpdateTotal and Frame which are shown separately)
         private static readonly int[] s_displaySections = new int[]
         {
-            FrameProfiler.TickLoop,
-            FrameProfiler.PollGen,
-            FrameProfiler.PollMesh,
-            FrameProfiler.PollLOD,
-            FrameProfiler.LoadQueue,
-            FrameProfiler.Unload,
-            FrameProfiler.SchedGen,
-            FrameProfiler.CrossLight,
-            FrameProfiler.Relight,
-            FrameProfiler.LODLevels,
-            FrameProfiler.SchedMesh,
-            FrameProfiler.SchedLOD,
-            FrameProfiler.Render,
+            FrameProfilerSections.TickLoop,
+            FrameProfilerSections.PollGen,
+            FrameProfilerSections.PollMesh,
+            FrameProfilerSections.PollLOD,
+            FrameProfilerSections.LoadQueue,
+            FrameProfilerSections.Unload,
+            FrameProfilerSections.SchedGen,
+            FrameProfilerSections.CrossLight,
+            FrameProfilerSections.Relight,
+            FrameProfilerSections.LODLevels,
+            FrameProfilerSections.SchedMesh,
+            FrameProfilerSections.SchedLOD,
+            FrameProfilerSections.Render,
         };
 
         private static readonly string[] s_paddedNames = new string[]
@@ -131,10 +133,14 @@ namespace Lithforge.Runtime.Debug
             MetricsRegistry metrics,
             ChunkBorderRenderer borderRenderer,
             DebugSettings settings,
-            PanelSettings panelSettings)
+            PanelSettings panelSettings,
+            IFrameProfiler frameProfiler,
+            IPipelineStats pipelineStats)
         {
             _metrics = metrics;
             _borderRenderer = borderRenderer;
+            _frameProfiler = frameProfiler;
+            _pipelineStats = pipelineStats;
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.panelSettings = panelSettings;
@@ -440,8 +446,8 @@ namespace Lithforge.Runtime.Debug
                 // Enable profiling when entering any visible state
                 if (_state != OverlayState.Off)
                 {
-                    FrameProfiler.Enabled = true;
-                    PipelineStats.Enabled = true;
+                    _frameProfiler.Enabled = true;
+                    _pipelineStats.Enabled = true;
                 }
             }
         }
@@ -504,7 +510,7 @@ namespace Lithforge.Runtime.Debug
 
             _sb.Clear();
             _sb.Append("Update:     ");
-            DebugTextUtil.AppendMs(_sb, snap.GetSectionMs(FrameProfiler.UpdateTotal));
+            DebugTextUtil.AppendMs(_sb, snap.GetSectionMs(FrameProfilerSections.UpdateTotal));
             _updateTotalLabel.text = _sb.ToString();
 
             float headroom = 16.667f - snap.FrameMs;

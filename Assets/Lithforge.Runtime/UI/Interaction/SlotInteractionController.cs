@@ -22,6 +22,7 @@ namespace Lithforge.Runtime.UI.Interaction
     {
         private readonly HeldStack _held;
         private readonly ItemRegistry _itemRegistry;
+        private readonly ToolTemplateRegistry _toolTemplateRegistry;
 
         // Paint mode state
         private bool _isPainting;
@@ -37,10 +38,11 @@ namespace Lithforge.Runtime.UI.Interaction
         private ISlotContainer _hoveredContainer;
         private int _hoveredSlotIndex = -1;
 
-        public SlotInteractionController(HeldStack held, ItemRegistry itemRegistry)
+        public SlotInteractionController(HeldStack held, ItemRegistry itemRegistry, ToolTemplateRegistry toolTemplateRegistry)
         {
             _held = held;
             _itemRegistry = itemRegistry;
+            _toolTemplateRegistry = toolTemplateRegistry;
         }
 
         public HeldStack Held
@@ -355,7 +357,9 @@ namespace Lithforge.Runtime.UI.Interaction
                 ItemEntry resultDef = _itemRegistry.Get(match.ResultItem);
                 int maxStack = resultDef != null ? resultDef.MaxStackSize : 64;
 
-                byte[] toolData = ToolTemplateRegistry.GetTemplate(match.ResultItem);
+                byte[] toolData = _toolTemplateRegistry != null
+                    ? _toolTemplateRegistry.GetTemplate(match.ResultItem)
+                    : null;
 
                 if (toolData != null)
                 {

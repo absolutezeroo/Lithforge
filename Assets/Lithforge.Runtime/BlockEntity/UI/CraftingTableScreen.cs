@@ -27,7 +27,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
         {
             _craftingGrid = new CraftingGrid(3, 3);
 
-            _outputAdapter = new CraftingOutputContainerAdapter(context.ItemRegistry);
+            _outputAdapter = new CraftingOutputContainerAdapter(context.ItemRegistry, context.ToolTemplateRegistry);
             _hotbarAdapter = new InventoryContainerAdapter(
                 context.PlayerInventory, 0, Inventory.HotbarSize);
             _mainAdapter = new InventoryContainerAdapter(

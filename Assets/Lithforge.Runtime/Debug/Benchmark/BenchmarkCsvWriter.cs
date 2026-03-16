@@ -25,10 +25,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
             // Header
             csv.Append("frame_index,frame_ms");
 
-            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            for (int i = 0; i < FrameProfilerSections.SectionCount; i++)
             {
                 csv.Append(',');
-                csv.Append(FrameProfiler.SectionNames[i]);
+                csv.Append(FrameProfilerSections.SectionNames[i]);
                 csv.Append("_ms");
             }
 
@@ -50,7 +50,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 csv.Append(',');
                 csv.Append(result.FrameMs[f].ToString("F3", CultureInfo.InvariantCulture));
 
-                for (int i = 0; i < FrameProfiler.SectionCount; i++)
+                for (int i = 0; i < FrameProfilerSections.SectionCount; i++)
                 {
                     csv.Append(',');
                     csv.Append(result.SectionMs[i][f].ToString("F3", CultureInfo.InvariantCulture));

@@ -34,6 +34,8 @@ namespace Lithforge.Runtime.Debug
         private PlayerController _playerController;
         private Camera _mainCamera;
         private GameLoop _gameLoop;
+        private IFrameProfiler _frameProfiler;
+        private IPipelineStats _pipelineStats;
 
         // Scratch histogram — reused each frame (no alloc)
         private readonly int[] _histogramScratch = new int[8];
@@ -80,6 +82,8 @@ namespace Lithforge.Runtime.Debug
             PlayerController playerController,
             Camera mainCamera,
             GameLoop gameLoop,
+            IFrameProfiler frameProfiler,
+            IPipelineStats pipelineStats,
             float fpsAlpha)
         {
             _chunkManager = chunkManager;
@@ -88,6 +92,8 @@ namespace Lithforge.Runtime.Debug
             _playerController = playerController;
             _mainCamera = mainCamera;
             _gameLoop = gameLoop;
+            _frameProfiler = frameProfiler;
+            _pipelineStats = pipelineStats;
             _fpsAlpha = fpsAlpha;
         }
 
@@ -119,57 +125,57 @@ namespace Lithforge.Runtime.Debug
             _current.FpsSmoothed = _fpsSmoothed;
 
             // FrameProfiler sections
-            _current.SectionMs0 = FrameProfiler.GetMs(0);
-            _current.SectionMs1 = FrameProfiler.GetMs(1);
-            _current.SectionMs2 = FrameProfiler.GetMs(2);
-            _current.SectionMs3 = FrameProfiler.GetMs(3);
-            _current.SectionMs4 = FrameProfiler.GetMs(4);
-            _current.SectionMs5 = FrameProfiler.GetMs(5);
-            _current.SectionMs6 = FrameProfiler.GetMs(6);
-            _current.SectionMs7 = FrameProfiler.GetMs(7);
-            _current.SectionMs8 = FrameProfiler.GetMs(8);
-            _current.SectionMs9 = FrameProfiler.GetMs(9);
-            _current.SectionMs10 = FrameProfiler.GetMs(10);
-            _current.SectionMs11 = FrameProfiler.GetMs(11);
-            _current.SectionMs12 = FrameProfiler.GetMs(12);
-            _current.SectionMs13 = FrameProfiler.GetMs(13);
-            _current.SectionMs14 = FrameProfiler.GetMs(14);
+            _current.SectionMs0 = _frameProfiler.GetMs(0);
+            _current.SectionMs1 = _frameProfiler.GetMs(1);
+            _current.SectionMs2 = _frameProfiler.GetMs(2);
+            _current.SectionMs3 = _frameProfiler.GetMs(3);
+            _current.SectionMs4 = _frameProfiler.GetMs(4);
+            _current.SectionMs5 = _frameProfiler.GetMs(5);
+            _current.SectionMs6 = _frameProfiler.GetMs(6);
+            _current.SectionMs7 = _frameProfiler.GetMs(7);
+            _current.SectionMs8 = _frameProfiler.GetMs(8);
+            _current.SectionMs9 = _frameProfiler.GetMs(9);
+            _current.SectionMs10 = _frameProfiler.GetMs(10);
+            _current.SectionMs11 = _frameProfiler.GetMs(11);
+            _current.SectionMs12 = _frameProfiler.GetMs(12);
+            _current.SectionMs13 = _frameProfiler.GetMs(13);
+            _current.SectionMs14 = _frameProfiler.GetMs(14);
 
             // PipelineStats — per-frame
-            _current.GenScheduled = PipelineStats.GenScheduled;
-            _current.GenCompleted = PipelineStats.GenCompleted;
-            _current.MeshScheduled = PipelineStats.MeshScheduled;
-            _current.MeshCompleted = PipelineStats.MeshCompleted;
-            _current.LodScheduled = PipelineStats.LODScheduled;
-            _current.LodCompleted = PipelineStats.LODCompleted;
-            _current.DecorateCount = PipelineStats.DecorateCount;
-            _current.DecorateMs = PipelineStats.DecorateMs;
-            _current.GpuUploadBytes = PipelineStats.GpuUploadBytes;
-            _current.GpuUploadCount = PipelineStats.GpuUploadCount;
-            _current.GrowEvents = PipelineStats.GrowEvents;
-            _current.InvalidateCount = PipelineStats.InvalidateCount;
-            _current.MeshCompleteMaxMs = PipelineStats.MeshCompleteMaxMs;
-            _current.MeshCompleteStalls = PipelineStats.MeshCompleteStalls;
-            _current.GenCompleteMaxMs = PipelineStats.GenCompleteMaxMs;
-            _current.GenCompleteStalls = PipelineStats.GenCompleteStalls;
+            _current.GenScheduled = _pipelineStats.GenScheduled;
+            _current.GenCompleted = _pipelineStats.GenCompleted;
+            _current.MeshScheduled = _pipelineStats.MeshScheduled;
+            _current.MeshCompleted = _pipelineStats.MeshCompleted;
+            _current.LodScheduled = _pipelineStats.LODScheduled;
+            _current.LodCompleted = _pipelineStats.LODCompleted;
+            _current.DecorateCount = _pipelineStats.DecorateCount;
+            _current.DecorateMs = _pipelineStats.DecorateMs;
+            _current.GpuUploadBytes = _pipelineStats.GpuUploadBytes;
+            _current.GpuUploadCount = _pipelineStats.GpuUploadCount;
+            _current.GrowEvents = _pipelineStats.GrowEvents;
+            _current.InvalidateCount = _pipelineStats.InvalidateCount;
+            _current.MeshCompleteMaxMs = _pipelineStats.MeshCompleteMaxMs;
+            _current.MeshCompleteStalls = _pipelineStats.MeshCompleteStalls;
+            _current.GenCompleteMaxMs = _pipelineStats.GenCompleteMaxMs;
+            _current.GenCompleteStalls = _pipelineStats.GenCompleteStalls;
 
             // SchedMesh sub-timings
-            _current.SchedMeshFillMs = PipelineStats.SchedMeshFillMs;
-            _current.SchedMeshFilterMs = PipelineStats.SchedMeshFilterMs;
-            _current.SchedMeshAllocMs = PipelineStats.SchedMeshAllocMs;
-            _current.SchedMeshScheduleMs = PipelineStats.SchedMeshScheduleMs;
-            _current.SchedMeshFlushMs = PipelineStats.SchedMeshFlushMs;
+            _current.SchedMeshFillMs = _pipelineStats.SchedMeshFillMs;
+            _current.SchedMeshFilterMs = _pipelineStats.SchedMeshFilterMs;
+            _current.SchedMeshAllocMs = _pipelineStats.SchedMeshAllocMs;
+            _current.SchedMeshScheduleMs = _pipelineStats.SchedMeshScheduleMs;
+            _current.SchedMeshFlushMs = _pipelineStats.SchedMeshFlushMs;
 
             // PipelineStats — cumulative
-            _current.TotalGenerated = PipelineStats.TotalGenerated;
-            _current.TotalMeshed = PipelineStats.TotalMeshed;
-            _current.TotalLod = PipelineStats.TotalLOD;
-            _current.TotalGpuUploadBytes = PipelineStats.TotalGpuUploadBytes;
+            _current.TotalGenerated = _pipelineStats.TotalGenerated;
+            _current.TotalMeshed = _pipelineStats.TotalMeshed;
+            _current.TotalLod = _pipelineStats.TotalLOD;
+            _current.TotalGpuUploadBytes = _pipelineStats.TotalGpuUploadBytes;
 
             // GC
-            _current.GcGen0 = PipelineStats.GcGen0;
-            _current.GcGen1 = PipelineStats.GcGen1;
-            _current.GcGen2 = PipelineStats.GcGen2;
+            _current.GcGen0 = _pipelineStats.GcGen0;
+            _current.GcGen1 = _pipelineStats.GcGen1;
+            _current.GcGen2 = _pipelineStats.GcGen2;
 
             // Chunk histogram and pool
             if (_chunkManager != null && _chunkPool != null)

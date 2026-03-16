@@ -21,6 +21,7 @@ namespace Lithforge.Runtime.UI.Screens
         private readonly ToolTraitRegistry _toolTraitRegistry;
         private readonly ToolPartTextureDatabase _toolPartTextures;
         private readonly ToolMaterialDefinition[] _toolMaterials;
+        private readonly ToolTemplateRegistry _toolTemplateRegistry;
 
         public Inventory PlayerInventory
         {
@@ -74,6 +75,14 @@ namespace Lithforge.Runtime.UI.Screens
             get { return _toolMaterials; }
         }
 
+        /// <summary>
+        /// May be null if no legacy tool templates are loaded.
+        /// </summary>
+        public ToolTemplateRegistry ToolTemplateRegistry
+        {
+            get { return _toolTemplateRegistry; }
+        }
+
         public ScreenContext(
             Inventory playerInventory,
             ItemRegistry itemRegistry,
@@ -82,7 +91,8 @@ namespace Lithforge.Runtime.UI.Screens
             CraftingEngine craftingEngine,
             ToolTraitRegistry toolTraitRegistry,
             ToolPartTextureDatabase toolPartTextures,
-            ToolMaterialDefinition[] toolMaterials)
+            ToolMaterialDefinition[] toolMaterials,
+            ToolTemplateRegistry toolTemplateRegistry)
         {
             _playerInventory = playerInventory;
             _itemRegistry = itemRegistry;
@@ -92,6 +102,7 @@ namespace Lithforge.Runtime.UI.Screens
             _toolTraitRegistry = toolTraitRegistry;
             _toolPartTextures = toolPartTextures;
             _toolMaterials = toolMaterials;
+            _toolTemplateRegistry = toolTemplateRegistry;
         }
     }
 }

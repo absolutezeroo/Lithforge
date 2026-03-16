@@ -26,6 +26,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly NativeAtlasLookup _nativeAtlasLookup;
         private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
+        private readonly IPipelineStats _pipelineStats;
         private int _maxLODMeshesPerFrame;
         private int _maxLODCompletionsPerFrame;
         private readonly float _completionBudgetMs;
@@ -49,6 +50,7 @@ namespace Lithforge.Runtime.Scheduling
             NativeAtlasLookup nativeAtlasLookup,
             ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
+            IPipelineStats pipelineStats,
             int maxLODMeshesPerFrame,
             int maxLODCompletionsPerFrame,
             float completionBudgetMs,
@@ -61,6 +63,7 @@ namespace Lithforge.Runtime.Scheduling
             _nativeAtlasLookup = nativeAtlasLookup;
             _chunkMeshStore = chunkMeshStore;
             _culling = culling;
+            _pipelineStats = pipelineStats;
             _maxLODMeshesPerFrame = maxLODMeshesPerFrame;
             _maxLODCompletionsPerFrame = maxLODCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
@@ -108,7 +111,7 @@ namespace Lithforge.Runtime.Scheduling
                         pending.Data.Indices);
 
                     pending.Data.Dispose();
-                    PipelineStats.IncrLODCompleted();
+                    _pipelineStats.IncrLODCompleted();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 
@@ -374,7 +377,7 @@ namespace Lithforge.Runtime.Scheduling
                 Data = lodData,
                 LODLevel = lodLevel,
             });
-            PipelineStats.IncrLODScheduled();
+            _pipelineStats.IncrLODScheduled();
         }
 
         private struct PendingLODMesh

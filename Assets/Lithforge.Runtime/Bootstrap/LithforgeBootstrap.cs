@@ -99,6 +99,9 @@ namespace Lithforge.Runtime.Bootstrap
         private UserPreferences _userPreferences;
         private WorldMetadata _worldMetadata;
         private WorldStorage _worldStorage;
+        private IFrameProfiler _frameProfiler;
+        private IPipelineStats _pipelineStats;
+        private WorldSession _pendingSession;
 
         private void Awake()
         {
@@ -107,9 +110,10 @@ namespace Lithforge.Runtime.Bootstrap
             _userPreferences = UserPreferences.Load();
 
             // Initialize profiling systems
-            FrameProfiler.Init();
-            FrameProfiler.Enabled = _settings.Debug.EnableProfiling;
-            PipelineStats.Enabled = _settings.Debug.EnableProfiling;
+            _frameProfiler = new FrameProfiler();
+            _frameProfiler.Enabled = _settings.Debug.EnableProfiling;
+            _pipelineStats = new PipelineStats();
+            _pipelineStats.Enabled = _settings.Debug.EnableProfiling;
         }
 
         private IEnumerator Start()
@@ -120,11 +124,15 @@ namespace Lithforge.Runtime.Bootstrap
             while (true)
             {
                 // Show world selection screen and wait for user to choose a world
+                _pendingSession = null;
                 GameObject selectionObject = new("WorldSelectionScreen");
                 WorldSelectionScreen selectionScreen = selectionObject.AddComponent<WorldSelectionScreen>();
-                selectionScreen.Initialize(earlyPanelSettings);
+                selectionScreen.Initialize(earlyPanelSettings, (WorldSession session) =>
+                {
+                    _pendingSession = session;
+                });
 
-                while (WorldLauncher.SelectedWorldPath == null)
+                while (_pendingSession == null)
                 {
                     yield return null;
                 }
@@ -472,7 +480,6 @@ namespace Lithforge.Runtime.Bootstrap
 
                     _contentResult.NativeAtlasLookup.Dispose();
                     _contentResult = null;
-                    ToolTemplateRegistry.Clear();
                 }
 
                 if (_nativeBiomeData.IsCreated)
@@ -540,7 +547,7 @@ namespace Lithforge.Runtime.Bootstrap
             _worldMetadata = null;
             _pauseMenuScreen = null;
 
-            WorldLauncher.Clear();
+            _pendingSession = null;
 
             UnityEngine.Debug.Log("[Lithforge] Session resources shut down.");
         }
@@ -591,7 +598,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         private void InitializeStorage()
         {
-            string worldDir = WorldLauncher.SelectedWorldPath;
+            string worldDir = _pendingSession.WorldPath;
 
             // Acquire session lock before opening storage
             if (!SessionLock.TryAcquire(worldDir, out _sessionLockHandle))
@@ -609,9 +616,9 @@ namespace Lithforge.Runtime.Bootstrap
             {
                 // New world or corrupt metadata — create fresh
                 _worldMetadata = new WorldMetadata();
-                _worldMetadata.DisplayName = WorldLauncher.SelectedDisplayName ?? "New World";
-                _worldMetadata.Seed = WorldLauncher.SelectedSeed;
-                _worldMetadata.GameMode = WorldLauncher.SelectedGameMode;
+                _worldMetadata.DisplayName = _pendingSession.DisplayName ?? "New World";
+                _worldMetadata.Seed = _pendingSession.Seed;
+                _worldMetadata.GameMode = _pendingSession.GameMode;
                 _worldStorage.SaveMetadataFull(_worldMetadata);
             }
 
@@ -858,7 +865,8 @@ namespace Lithforge.Runtime.Bootstrap
                 _settings.Chunk.YUnloadMin,
                 _settings.Chunk.YUnloadMax,
                 cullShader,
-                hiZShader);
+                hiZShader,
+                _pipelineStats);
 
             // Build water color array indexed by biomeId
             BiomeDefinition[] biomes = _contentResult.BiomeDefinitions;
@@ -894,6 +902,8 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Create GameLoop first (needed by PlayerController for spawn readiness)
             _gameLoop = gameObject.AddComponent<GameLoop>();
+            _gameLoop.SetFrameProfiler(_frameProfiler);
+            _gameLoop.SetPipelineStats(_pipelineStats);
             _gameLoop.Initialize(
                 _chunkManager,
                 _generationPipeline,
@@ -956,7 +966,7 @@ namespace Lithforge.Runtime.Bootstrap
                 LootResolver lootResolver = new(_contentResult.LootTables);
 
                 // Restore player state from metadata, or grant starting items for new worlds
-                if (_worldMetadata.PlayerState != null && !WorldLauncher.IsNewWorld)
+                if (_worldMetadata.PlayerState != null && !_pendingSession.IsNewWorld)
                 {
                     PlayerStateSerializer.Restore(
                         _worldMetadata.PlayerState,
@@ -981,7 +991,7 @@ namespace Lithforge.Runtime.Bootstrap
                             ? itemDef.MaxStackSize
                             : _settings.Physics.DefaultMaxStackSize;
 
-                        byte[] toolData = ToolTemplateRegistry.GetTemplate(itemId);
+                        byte[] toolData = _contentResult.ToolTemplateRegistry.GetTemplate(itemId);
 
                         if (toolData != null)
                         {
@@ -1118,7 +1128,8 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.CraftingEngine,
                     _contentResult.ToolTraitRegistry,
                     _contentResult.ToolPartTextures,
-                    _contentResult.ToolMaterials);
+                    _contentResult.ToolMaterials,
+                    _contentResult.ToolTemplateRegistry);
 
                 // Add PlayerInventoryScreen (not a block entity screen, managed separately)
                 GameObject inventoryObject = new("PlayerInventoryScreen");
@@ -1203,6 +1214,8 @@ namespace Lithforge.Runtime.Bootstrap
                     playerController,
                     mainCamera,
                     _gameLoop,
+                    _frameProfiler,
+                    _pipelineStats,
                     _settings.Debug.FpsAlpha);
                 _gameLoop.SetMetricsRegistry(metricsRegistry);
 
@@ -1220,7 +1233,9 @@ namespace Lithforge.Runtime.Bootstrap
                     metricsRegistry,
                     chunkBorderRenderer,
                     _settings.Debug,
-                    panelSettings);
+                    panelSettings,
+                    _frameProfiler,
+                    _pipelineStats);
 
                 // Add benchmark runner (F5 trigger, SO-driven scenarios)
                 BenchmarkContext benchmarkContext = new();
@@ -1238,7 +1253,9 @@ namespace Lithforge.Runtime.Bootstrap
                     _settings.Debug,
                     metricsRegistry,
                     playerController,
-                    panelSettings);
+                    panelSettings,
+                    _frameProfiler,
+                    _pipelineStats);
 
                 // Create PauseMenuScreen (initialized later after SettingsScreen)
                 GameObject pauseMenuObject = new("PauseMenuScreen");

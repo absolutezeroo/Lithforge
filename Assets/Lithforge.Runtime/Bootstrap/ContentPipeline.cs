@@ -569,6 +569,10 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Loaded {soundGroupRegistry.Count} sound groups.");
 
+            // Create tool template registry (empty for now — tool templates are populated
+            // by mod/content packs in a future pipeline phase)
+            ToolTemplateRegistry toolTemplateRegistry = new ToolTemplateRegistry(null);
+
             Result = new ContentPipelineResult(
                 stateRegistry,
                 nativeStateRegistry,
@@ -589,7 +593,8 @@ namespace Lithforge.Runtime.Bootstrap
                 toolTraitRegistry,
                 soundGroupRegistry,
                 toolTexDb,
-                toolMaterials);
+                toolMaterials,
+                toolTemplateRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

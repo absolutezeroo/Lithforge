@@ -31,7 +31,7 @@ namespace Lithforge.Runtime.UI.Screens
         {
             _craftingGrid = new CraftingGrid(2, 2);
 
-            _outputAdapter = new CraftingOutputContainerAdapter(context.ItemRegistry);
+            _outputAdapter = new CraftingOutputContainerAdapter(context.ItemRegistry, context.ToolTemplateRegistry);
             _hotbarAdapter = new InventoryContainerAdapter(
                 context.PlayerInventory, 0, Inventory.HotbarSize);
             _mainAdapter = new InventoryContainerAdapter(

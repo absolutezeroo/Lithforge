@@ -13,8 +13,8 @@ namespace Lithforge.Runtime.World
     /// Full-screen UI Toolkit overlay that lets the player browse, create, and delete
     /// world saves before entering a game session. Scans the worlds directory on a
     /// background thread, then populates a scrollable list on the main thread.
-    /// Sets <see cref="WorldLauncher"/> fields and destroys itself once the player
-    /// picks a world.
+    /// Invokes a callback with a <see cref="WorldSession"/> and destroys itself once
+    /// the player picks a world.
     /// </summary>
     public sealed class WorldSelectionScreen : MonoBehaviour
     {
@@ -45,6 +45,7 @@ namespace Lithforge.Runtime.World
         private Label _detailInfo;
         private VisualElement _modalOverlay;
 
+        private Action<WorldSession> _onWorldSelected;
         private string _worldsRoot;
         private List<WorldScanEntry> _scanResults;
         private volatile bool _scanComplete;
@@ -64,8 +65,9 @@ namespace Lithforge.Runtime.World
         /// Must be called exactly once after the component is added.
         /// </summary>
         /// <param name="panelSettings">Shared panel settings for the UIDocument (sortingOrder 600).</param>
-        public void Initialize(PanelSettings panelSettings)
+        public void Initialize(PanelSettings panelSettings, Action<WorldSession> onWorldSelected)
         {
+            _onWorldSelected = onWorldSelected;
             _worldsRoot = System.IO.Path.Combine(Application.persistentDataPath, "worlds");
 
             _document = gameObject.AddComponent<UIDocument>();
@@ -420,12 +422,13 @@ namespace Lithforge.Runtime.World
                 return;
             }
 
-            WorldLauncher.SetWorld(
+            WorldSession session = new WorldSession(
                 entry.DirectoryPath,
                 entry.Metadata.DisplayName,
                 entry.Metadata.Seed,
                 entry.Metadata.GameMode,
                 false);
+            _onWorldSelected?.Invoke(session);
 
             Destroy(gameObject);
         }
@@ -537,7 +540,8 @@ namespace Lithforge.Runtime.World
 
                 string worldDir = WorldDirectoryScanner.CreateWorld(_worldsRoot, worldName, seed, mode);
 
-                WorldLauncher.SetWorld(worldDir, worldName, seed, mode, true);
+                WorldSession session = new WorldSession(worldDir, worldName, seed, mode, true);
+                _onWorldSelected?.Invoke(session);
                 _modalOverlay.style.display = DisplayStyle.None;
                 Destroy(gameObject);
             });

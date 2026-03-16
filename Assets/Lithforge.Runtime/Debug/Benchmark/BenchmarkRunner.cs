@@ -21,6 +21,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private DebugSettings _settings;
         private MetricsRegistry _metrics;
         private PlayerController _playerController;
+        private IFrameProfiler _frameProfiler;
+        private IPipelineStats _pipelineStats;
 
         private bool _running;
         private Coroutine _activeCoroutine;
@@ -120,12 +122,16 @@ namespace Lithforge.Runtime.Debug.Benchmark
             DebugSettings settings,
             MetricsRegistry metrics,
             PlayerController playerController,
-            PanelSettings panelSettings)
+            PanelSettings panelSettings,
+            IFrameProfiler frameProfiler,
+            IPipelineStats pipelineStats)
         {
             _context = context;
             _settings = settings;
             _metrics = metrics;
             _playerController = playerController;
+            _frameProfiler = frameProfiler;
+            _pipelineStats = pipelineStats;
 
             // Pre-allocate for estimated max frames
             _capacity = 60000;
@@ -364,9 +370,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private void AllocateArrays(int capacity)
         {
             _frameMs = new float[capacity];
-            _sectionMs = new float[FrameProfiler.SectionCount][];
+            _sectionMs = new float[FrameProfilerSections.SectionCount][];
 
-            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            for (int i = 0; i < FrameProfilerSections.SectionCount; i++)
             {
                 _sectionMs[i] = new float[capacity];
             }
@@ -523,8 +529,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
             UnityEngine.Debug.Log("[Benchmark] Starting scenario: " + scenario.ScenarioName);
 
             // Enable profiling
-            FrameProfiler.Enabled = true;
-            PipelineStats.Enabled = true;
+            _frameProfiler.Enabled = true;
+            _pipelineStats.Enabled = true;
 
             // Disable tick-driven physics so benchmark commands can move the player directly.
             Tick.PlayerPhysicsBody physicsBody = _playerController != null
@@ -597,7 +603,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
                     _frameMs[f] = snap.FrameMs;
 
-                    for (int i = 0; i < FrameProfiler.SectionCount; i++)
+                    for (int i = 0; i < FrameProfilerSections.SectionCount; i++)
                     {
                         _sectionMs[i][f] = snap.GetSectionMs(i);
                     }
@@ -673,7 +679,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             Array.Copy(_frameMs, newFrameMs, _capacity);
             _frameMs = newFrameMs;
 
-            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            for (int i = 0; i < FrameProfilerSections.SectionCount; i++)
             {
                 float[] newSection = new float[newCapacity];
                 Array.Copy(_sectionMs[i], newSection, _capacity);
@@ -876,9 +882,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
             result.TotalGrowEvents = totalGrow;
 
             // Section averages and top costs
-            float[] sectionAvg = new float[FrameProfiler.SectionCount];
+            float[] sectionAvg = new float[FrameProfilerSections.SectionCount];
 
-            for (int s = 0; s < FrameProfiler.SectionCount; s++)
+            for (int s = 0; s < FrameProfilerSections.SectionCount; s++)
             {
                 float sum = 0f;
 
@@ -891,9 +897,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
 
             // Sort section indices by avg ms descending
-            int[] sectionOrder = new int[FrameProfiler.SectionCount];
+            int[] sectionOrder = new int[FrameProfilerSections.SectionCount];
 
-            for (int i = 0; i < FrameProfiler.SectionCount; i++)
+            for (int i = 0; i < FrameProfilerSections.SectionCount; i++)
             {
                 sectionOrder[i] = i;
             }
@@ -921,7 +927,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             {
                 int s = sectionOrder[i];
 
-                if (s == FrameProfiler.UpdateTotal || s == FrameProfiler.Frame)
+                if (s == FrameProfilerSections.UpdateTotal || s == FrameProfilerSections.Frame)
                 {
                     continue;
                 }
@@ -942,7 +948,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             {
                 int s = sectionOrder[i];
 
-                if (s == FrameProfiler.UpdateTotal || s == FrameProfiler.Frame)
+                if (s == FrameProfilerSections.UpdateTotal || s == FrameProfilerSections.Frame)
                 {
                     continue;
                 }
@@ -951,7 +957,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
                 if (pct >= 15f)
                 {
-                    result.BottleneckDescription = FrameProfiler.SectionNames[s] + " (" +
+                    result.BottleneckDescription = FrameProfilerSections.SectionNames[s] + " (" +
                         sectionAvg[s].ToString("F1") + "ms, " +
                         pct.ToString("F1") + "% of frame)";
                     break;
@@ -1014,7 +1020,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
 
                 float pct = (avg / result.AvgFrameMs) * 100f;
-                _summaryBuilder.Append(FrameProfiler.SectionNames[s]);
+                _summaryBuilder.Append(FrameProfilerSections.SectionNames[s]);
                 _summaryBuilder.Append(":  ");
                 _summaryBuilder.Append(avg.ToString("F1"));
                 _summaryBuilder.Append("ms (");

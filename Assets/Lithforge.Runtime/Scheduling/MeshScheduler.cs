@@ -32,6 +32,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly NativeAtlasLookup _nativeAtlasLookup;
         private readonly ChunkMeshStore _chunkMeshStore;
         private readonly ChunkCulling _culling;
+        private readonly IPipelineStats _pipelineStats;
         private int _maxMeshesPerFrame;
         private int _maxMeshCompletionsPerFrame;
 
@@ -69,6 +70,7 @@ namespace Lithforge.Runtime.Scheduling
             NativeAtlasLookup nativeAtlasLookup,
             ChunkMeshStore chunkMeshStore,
             ChunkCulling culling,
+            IPipelineStats pipelineStats,
             int maxMeshesPerFrame,
             int maxMeshCompletionsPerFrame,
             float completionBudgetMs)
@@ -78,6 +80,7 @@ namespace Lithforge.Runtime.Scheduling
             _nativeAtlasLookup = nativeAtlasLookup;
             _chunkMeshStore = chunkMeshStore;
             _culling = culling;
+            _pipelineStats = pipelineStats;
             _maxMeshesPerFrame = maxMeshesPerFrame;
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
@@ -110,7 +113,7 @@ namespace Lithforge.Runtime.Scheduling
             long td0 = System.Diagnostics.Stopwatch.GetTimestamp();
             PollPendingDisposals();
             long td1 = System.Diagnostics.Stopwatch.GetTimestamp();
-            PipelineStats.PollMeshDisposalsMs = (float)((td1 - td0) * 1000.0 / freq);
+            _pipelineStats.PollMeshDisposalsMs = (float)((td1 - td0) * 1000.0 / freq);
 
             FrameBudget budget = new FrameBudget(_completionBudgetMs);
             int completedThisFrame = 0;
@@ -158,7 +161,7 @@ namespace Lithforge.Runtime.Scheduling
                     long tf0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     isCompleted = pending.Handle.IsCompleted;
                     long tf1 = System.Diagnostics.Stopwatch.GetTimestamp();
-                    PipelineStats.PollMeshFirstIsCompletedMs = (float)((tf1 - tf0) * 1000.0 / freq);
+                    _pipelineStats.PollMeshFirstIsCompletedMs = (float)((tf1 - tf0) * 1000.0 / freq);
                     firstCheck = false;
                 }
                 else
@@ -173,7 +176,7 @@ namespace Lithforge.Runtime.Scheduling
                     pending.Handle.Complete();
                     long tc1 = System.Diagnostics.Stopwatch.GetTimestamp();
                     float completeMs = (float)((tc1 - tc0) * 1000.0 / freq);
-                    PipelineStats.RecordMeshComplete(completeMs);
+                    _pipelineStats.RecordMeshComplete(completeMs);
 
                     long tu0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     Profiler.BeginSample("MS.GPUUpload");
@@ -190,7 +193,7 @@ namespace Lithforge.Runtime.Scheduling
                     uploadAccum += (float)((tu1 - tu0) * 1000.0 / freq);
 
                     pending.Data.Dispose();
-                    PipelineStats.IncrMeshCompleted();
+                    _pipelineStats.IncrMeshCompleted();
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 
@@ -243,13 +246,13 @@ namespace Lithforge.Runtime.Scheduling
                 }
             }
 
-            PipelineStats.PollMeshUploadMs = uploadAccum;
+            _pipelineStats.PollMeshUploadMs = uploadAccum;
 
             // Iterate time = residual (total method time minus all measured sub-parts)
             long tEnd = System.Diagnostics.Stopwatch.GetTimestamp();
             float totalMethodMs = (float)((tEnd - td0) * 1000.0 / freq);
-            PipelineStats.PollMeshIterateMs = totalMethodMs
-                - PipelineStats.PollMeshDisposalsMs
+            _pipelineStats.PollMeshIterateMs = totalMethodMs
+                - _pipelineStats.PollMeshDisposalsMs
                 - uploadAccum;
 
             Profiler.EndSample();
@@ -295,7 +298,7 @@ namespace Lithforge.Runtime.Scheduling
             _chunkManager.FillChunksToMesh(
                 _meshCandidateCache, candidateCount, cameraChunkCoord, cameraForwardXZ);
             long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
-            PipelineStats.SchedMeshFillMs = (float)((t1 - t0) * 1000.0 / freq);
+            _pipelineStats.SchedMeshFillMs = (float)((t1 - t0) * 1000.0 / freq);
 
             // ── Filter + sort ──
             if (applyFilters)
@@ -327,7 +330,7 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
-            PipelineStats.SchedMeshFilterMs = (float)((t2 - t1) * 1000.0 / freq);
+            _pipelineStats.SchedMeshFilterMs = (float)((t2 - t1) * 1000.0 / freq);
 
             // Schedule up to slotsAvailable from the prioritized list
             int scheduleCount = _meshCandidateCache.Count < slotsAvailable
@@ -387,11 +390,11 @@ namespace Lithforge.Runtime.Scheduling
                     Data = meshData,
                     FrameAge = 0,
                 });
-                PipelineStats.IncrMeshScheduled();
+                _pipelineStats.IncrMeshScheduled();
             }
 
-            PipelineStats.SchedMeshAllocMs = allocAccum;
-            PipelineStats.SchedMeshScheduleMs = schedAccum;
+            _pipelineStats.SchedMeshAllocMs = allocAccum;
+            _pipelineStats.SchedMeshScheduleMs = schedAccum;
 
             // ── Flush ──
             long tf0 = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -402,7 +405,7 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             long tf1 = System.Diagnostics.Stopwatch.GetTimestamp();
-            PipelineStats.SchedMeshFlushMs = (float)((tf1 - tf0) * 1000.0 / freq);
+            _pipelineStats.SchedMeshFlushMs = (float)((tf1 - tf0) * 1000.0 / freq);
 
             Profiler.EndSample();
         }

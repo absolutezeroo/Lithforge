@@ -43,7 +43,8 @@ namespace Lithforge.Runtime.Bootstrap
             ToolTraitRegistry toolTraitRegistry,
             SoundGroupRegistry soundGroupRegistry,
             ToolPartTextureDatabase toolPartTextures,
-            ToolMaterialDefinition[] toolMaterials)
+            ToolMaterialDefinition[] toolMaterials,
+            ToolTemplateRegistry toolTemplateRegistry)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -65,6 +66,7 @@ namespace Lithforge.Runtime.Bootstrap
             SoundGroupRegistry = soundGroupRegistry;
             ToolPartTextures = toolPartTextures;
             ToolMaterials = toolMaterials;
+            ToolTemplateRegistry = toolTemplateRegistry;
         }
         public StateRegistry StateRegistry { get; }
 
@@ -104,5 +106,7 @@ namespace Lithforge.Runtime.Bootstrap
         public ToolPartTextureDatabase ToolPartTextures { get; }
 
         public ToolMaterialDefinition[] ToolMaterials { get; }
+
+        public ToolTemplateRegistry ToolTemplateRegistry { get; }
     }
 }

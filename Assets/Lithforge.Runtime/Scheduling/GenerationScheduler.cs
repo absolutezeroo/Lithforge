@@ -38,6 +38,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly DecorationStage _decorationStage;
         private readonly WorldStorage _worldStorage;
         private readonly NativeStateRegistry _nativeStateRegistry;
+        private readonly IPipelineStats _pipelineStats;
         private readonly long _seed;
         private int _maxGenerationsPerFrame;
         private int _maxGenCompletionsPerFrame;
@@ -140,6 +141,7 @@ namespace Lithforge.Runtime.Scheduling
             DecorationStage decorationStage,
             WorldStorage worldStorage,
             NativeStateRegistry nativeStateRegistry,
+            IPipelineStats pipelineStats,
             long seed,
             int maxGenerationsPerFrame,
             int maxGenCompletionsPerFrame,
@@ -151,6 +153,7 @@ namespace Lithforge.Runtime.Scheduling
             _decorationStage = decorationStage;
             _worldStorage = worldStorage;
             _nativeStateRegistry = nativeStateRegistry;
+            _pipelineStats = pipelineStats;
             _seed = seed;
             _maxGenerationsPerFrame = maxGenerationsPerFrame;
             _maxGenCompletionsPerFrame = maxGenCompletionsPerFrame;
@@ -200,7 +203,7 @@ namespace Lithforge.Runtime.Scheduling
                     pending.Handle.FinalHandle.Complete();
                     long t1 = Stopwatch.GetTimestamp();
                     float completeMs = (float)((t1 - t0) * (1000.0 / Stopwatch.Frequency));
-                    PipelineStats.RecordGenComplete(completeMs);
+                    _pipelineStats.RecordGenComplete(completeMs);
 
                     ManagedChunk chunk = _chunkManager.GetChunk(pending.Coord);
 
@@ -223,7 +226,7 @@ namespace Lithforge.Runtime.Scheduling
                             Profiler.EndSample();
                             long decorEnd = Stopwatch.GetTimestamp();
                             float decorMs = (float)((decorEnd - decorStart) * 1000.0 / Stopwatch.Frequency);
-                            PipelineStats.AddDecorate(decorMs);
+                            _pipelineStats.AddDecorate(decorMs);
                         }
 
                         // Transfer LightData, HeightMap, and RiverFlags ownership to chunk
@@ -232,7 +235,7 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.RiverFlags = pending.Handle.RiverFlags;
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
-                        PipelineStats.IncrGenCompleted();
+                        _pipelineStats.IncrGenCompleted();
 
                         // Collect border light leaks for cross-chunk propagation
                         CollectBorderLightEntries(chunk, pending.Handle.BorderLightOutput);
@@ -249,7 +252,7 @@ namespace Lithforge.Runtime.Scheduling
 
                         // Invalidate neighbors for remeshing and cross-chunk light
                         _chunkManager.InvalidateReadyNeighbors(pending.Coord);
-                        PipelineStats.IncrInvalidate();
+                        _pipelineStats.IncrInvalidate();
                         InvalidateLightNeighbors(pending.Coord, chunk);
                     }
                     else
@@ -597,10 +600,10 @@ namespace Lithforge.Runtime.Scheduling
                             OnChunkEntitiesLoaded?.Invoke(chunk.Coord, chunk);
                         }
 
-                        PipelineStats.IncrGenCompleted();
+                        _pipelineStats.IncrGenCompleted();
 
                         _chunkManager.InvalidateReadyNeighbors(chunk.Coord);
-                        PipelineStats.IncrInvalidate();
+                        _pipelineStats.IncrInvalidate();
 
                         continue;
                     }
@@ -618,7 +621,7 @@ namespace Lithforge.Runtime.Scheduling
                 });
 
                 _pendingCoords.Add(chunk.Coord);
-                PipelineStats.IncrGenScheduled();
+                _pipelineStats.IncrGenScheduled();
                 scheduled = true;
             }
 
