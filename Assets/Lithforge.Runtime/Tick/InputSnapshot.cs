@@ -29,7 +29,7 @@ namespace Lithforge.Runtime.Tick
         /// <summary>Space key held (fly-up when flying).</summary>
         public bool JumpHeld;
 
-        // --- Edge-triggered movement (replaces InputLatchSnapshot fields) ---
+        // --- Edge-triggered movement ---
 
         /// <summary>Space wasPressedThisFrame (jump when walking).</summary>
         public bool JumpPressed;
