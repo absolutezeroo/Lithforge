@@ -44,5 +44,13 @@ namespace Lithforge.Runtime.UI.Sprites
         {
             get { return _sprites.Count; }
         }
+
+        /// <summary>
+        /// Registers a dynamically composited sprite (e.g., for assembled tools).
+        /// </summary>
+        public void Register(ResourceId itemId, Sprite sprite)
+        {
+            _sprites[itemId] = sprite;
+        }
     }
 }

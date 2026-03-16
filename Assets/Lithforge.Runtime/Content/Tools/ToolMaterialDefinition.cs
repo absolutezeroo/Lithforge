@@ -51,5 +51,24 @@ namespace Lithforge.Runtime.Content.Tools
         /// </summary>
         [Header("Tool Level")]
         [Min(0)] public int toolLevel = 0;
+
+        /// <summary>
+        /// Suffix used in texture filenames (e.g. "iron", "wood").
+        /// Must match the part after the underscore in texture names like "head_iron.png".
+        /// If empty, defaults to the Name part of materialId.
+        /// </summary>
+        [Header("Sprite Compositing")]
+        [Tooltip("Suffix used in texture filenames (e.g. 'iron', 'wood'). " +
+                 "Must match the part after the underscore in texture names like 'head_iron.png'. " +
+                 "If empty, defaults to the Name part of materialId.")]
+        public string textureSuffix;
+
+        /// <summary>
+        /// If true, this material's textureSuffix is used as the fallback
+        /// when another material has no matching texture.
+        /// </summary>
+        [Tooltip("If true, this material's textureSuffix is used as the fallback " +
+                 "when another material has no matching texture.")]
+        public bool isFallbackMaterial;
     }
 }

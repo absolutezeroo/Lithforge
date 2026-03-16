@@ -1,3 +1,4 @@
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
@@ -18,6 +19,8 @@ namespace Lithforge.Runtime.UI.Screens
         private readonly PanelSettings _panelSettings;
         private readonly CraftingEngine _craftingEngine;
         private readonly ToolTraitRegistry _toolTraitRegistry;
+        private readonly ToolPartTextureDatabase _toolPartTextures;
+        private readonly ToolMaterialDefinition[] _toolMaterials;
 
         public Inventory PlayerInventory
         {
@@ -55,13 +58,31 @@ namespace Lithforge.Runtime.UI.Screens
             get { return _toolTraitRegistry; }
         }
 
+        /// <summary>
+        /// May be null if no ToolDefinitionSO assets are loaded.
+        /// </summary>
+        public ToolPartTextureDatabase ToolPartTextures
+        {
+            get { return _toolPartTextures; }
+        }
+
+        /// <summary>
+        /// May be null if no ToolMaterialDefinition assets are loaded.
+        /// </summary>
+        public ToolMaterialDefinition[] ToolMaterials
+        {
+            get { return _toolMaterials; }
+        }
+
         public ScreenContext(
             Inventory playerInventory,
             ItemRegistry itemRegistry,
             ItemSpriteAtlas itemSpriteAtlas,
             PanelSettings panelSettings,
             CraftingEngine craftingEngine,
-            ToolTraitRegistry toolTraitRegistry)
+            ToolTraitRegistry toolTraitRegistry,
+            ToolPartTextureDatabase toolPartTextures,
+            ToolMaterialDefinition[] toolMaterials)
         {
             _playerInventory = playerInventory;
             _itemRegistry = itemRegistry;
@@ -69,6 +90,8 @@ namespace Lithforge.Runtime.UI.Screens
             _panelSettings = panelSettings;
             _craftingEngine = craftingEngine;
             _toolTraitRegistry = toolTraitRegistry;
+            _toolPartTextures = toolPartTextures;
+            _toolMaterials = toolMaterials;
         }
     }
 }

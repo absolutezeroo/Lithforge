@@ -1101,7 +1101,9 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ItemSpriteAtlas,
                     panelSettings,
                     _contentResult.CraftingEngine,
-                    _contentResult.ToolTraitRegistry);
+                    _contentResult.ToolTraitRegistry,
+                    _contentResult.ToolPartTextures,
+                    _contentResult.ToolMaterials);
 
                 // Add PlayerInventoryScreen (not a block entity screen, managed separately)
                 GameObject inventoryObject = new GameObject("PlayerInventoryScreen");

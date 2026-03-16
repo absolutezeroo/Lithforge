@@ -274,6 +274,20 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Loaded {toolMaterialRegistry.Count} tool materials.");
 
+            // Phase 8.55: Load tool definitions (sprite compositing config)
+            yield return "Loading tool definitions...";
+            ToolDefinitionSO[] toolDefinitions =
+                Resources.LoadAll<ToolDefinitionSO>("Content/ToolDefinitions");
+
+            if (toolDefinitions.Length == 0)
+            {
+                _logger.LogWarning("No ToolDefinitionSO assets found in Content/ToolDefinitions/. Tool sprite compositing disabled.");
+            }
+            else
+            {
+                _logger.LogInfo($"Loaded {toolDefinitions.Length} tool definitions.");
+            }
+
             // Phase 8.6: Load tool trait definitions
             yield return "Loading tool traits...";
             ToolTraitDefinitionSO[] toolTraits =
@@ -416,8 +430,9 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 15: Build item sprite atlas for UI
             yield return "Building item sprites...";
+            ToolPartTextureDatabase toolTexDb = new ToolPartTextureDatabase(toolDefinitions, toolMaterials);
             ItemSpriteAtlas itemSpriteAtlas = ItemSpriteAtlasBuilder.Build(
-                itemEntries, stateRegistry, resolvedFaces);
+                itemEntries, stateRegistry, resolvedFaces, toolTexDb);
             _logger.LogInfo($"Built item sprite atlas: {itemSpriteAtlas.Count} sprites.");
 
             // Phase 15.5: Build item display transform lookup for first-person held items
@@ -583,6 +598,27 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Generated {legacyToolTemplates.Count} legacy tool templates.");
 
+            // Composite sprites for legacy tools
+            int compositedCount = 0;
+
+            foreach (KeyValuePair<ResourceId, byte[]> kvp in legacyToolTemplates)
+            {
+                ToolInstance legacyTool = ToolInstanceSerializer.Deserialize(kvp.Value);
+
+                if (legacyTool != null)
+                {
+                    Sprite sprite = ToolSpriteCompositor.Composite(legacyTool, toolTexDb);
+
+                    if (sprite != null)
+                    {
+                        itemSpriteAtlas.Register(kvp.Key, sprite);
+                        compositedCount++;
+                    }
+                }
+            }
+
+            _logger.LogInfo($"Composited {compositedCount} legacy tool sprites.");
+
             // Phase 18: Load sound group definitions
             yield return "Loading sound groups...";
             SoundGroupRegistry soundGroupRegistry = new SoundGroupRegistry();
@@ -620,7 +656,9 @@ namespace Lithforge.Runtime.Bootstrap
                 toolMaterialRegistry,
                 toolTraitRegistry,
                 legacyToolTemplates,
-                soundGroupRegistry);
+                soundGroupRegistry,
+                toolTexDb,
+                toolMaterials);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

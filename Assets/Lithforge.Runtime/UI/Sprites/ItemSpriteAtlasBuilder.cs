@@ -11,6 +11,7 @@ namespace Lithforge.Runtime.UI.Sprites
     /// Builds an ItemSpriteAtlas from item textures and block top-face textures.
     /// Standalone items use textures from Content/Textures/Items/.
     /// Block items use the top face texture from resolvedFaces.
+    /// Tool parts use tag-based resolution via ToolPartTextureDatabase.
     /// Uses the same RenderTexture blit pattern as AtlasBuilder for non-readable textures.
     /// </summary>
     public static class ItemSpriteAtlasBuilder
@@ -23,7 +24,8 @@ namespace Lithforge.Runtime.UI.Sprites
         public static ItemSpriteAtlas Build(
             List<ItemEntry> itemEntries,
             StateRegistry stateRegistry,
-            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
+            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces,
+            ToolPartTextureDatabase toolTexDb)
         {
             Dictionary<ResourceId, Sprite> sprites = new Dictionary<ResourceId, Sprite>();
 
@@ -51,6 +53,46 @@ namespace Lithforge.Runtime.UI.Sprites
                     {
                         sprites[itemId] = sprite;
                         continue;
+                    }
+                }
+
+                // Fallback: resolve tool part texture from item tags
+                if (toolTexDb != null && entry.Tags != null)
+                {
+                    ResourceId materialId = default;
+                    bool hasMaterial = false;
+
+                    // Extract material ResourceId from tags
+                    for (int t = 0; t < entry.Tags.Count; t++)
+                    {
+                        string tag = entry.Tags[t];
+
+                        if (tag.StartsWith("material:") &&
+                            ResourceId.TryParse(tag.Substring("material:".Length), out ResourceId matId))
+                        {
+                            materialId = matId;
+                            hasMaterial = true;
+                        }
+                    }
+
+                    if (hasMaterial)
+                    {
+                        // Resolve suffix through ToolPartTextureDatabase (respects textureSuffix overrides)
+                        string materialSuffix = toolTexDb.ResolveSuffix(materialId);
+
+                        // Determine part type from tags, then find matching layer
+                        ToolPartType tagPartType = ResolvePartTypeFromTags(entry.Tags);
+
+                        if (tagPartType != ToolPartType.None)
+                        {
+                            Texture2D partTex = toolTexDb.FindPartTexture(tagPartType, materialSuffix);
+
+                            if (partTex != null)
+                            {
+                                sprites[itemId] = CreateSpriteFromTexture(partTex);
+                                continue;
+                            }
+                        }
                     }
                 }
             }
@@ -91,6 +133,25 @@ namespace Lithforge.Runtime.UI.Sprites
             Sprite fallback = CreateFallbackSprite();
 
             return new ItemSpriteAtlas(sprites, fallback);
+        }
+
+        private static ToolPartType ResolvePartTypeFromTags(List<string> tags)
+        {
+            for (int t = 0; t < tags.Count; t++)
+            {
+                switch (tags[t])
+                {
+                    case "tool_part_head": return ToolPartType.Head;
+                    case "tool_part_blade": return ToolPartType.Blade;
+                    case "tool_part_handle": return ToolPartType.Handle;
+                    case "tool_part_binding": return ToolPartType.Binding;
+                    case "tool_part_guard": return ToolPartType.Guard;
+                    case "tool_part_point": return ToolPartType.Point;
+                    case "tool_part_shaft": return ToolPartType.Shaft;
+                }
+            }
+
+            return ToolPartType.None;
         }
 
         private static Sprite CreateSpriteFromTexture(Texture2D source)

@@ -317,6 +317,19 @@ namespace Lithforge.Runtime.BlockEntity.UI
             // Determine the result item ID based on tool type and head material
             ResourceId resultItemId = GetResultItemId(tool);
 
+            // Generate composite sprite on-demand if not cached
+            if (!Context.ItemSpriteAtlas.Contains(resultItemId) &&
+                Context.ToolPartTextures != null)
+            {
+                Sprite composite = ToolSpriteCompositor.Composite(
+                    tool, Context.ToolPartTextures);
+
+                if (composite != null)
+                {
+                    Context.ItemSpriteAtlas.Register(resultItemId, composite);
+                }
+            }
+
             ItemStack resultStack = new ItemStack(resultItemId, 1);
             resultStack.Durability = tool.MaxDurability;
             resultStack.CustomData = toolData;
