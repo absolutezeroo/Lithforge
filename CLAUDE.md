@@ -293,5 +293,6 @@ All documentation lives in `Docs/`:
 | `Docs/10_ERROR_HANDLING.md` | Error categories, fallbacks, save recovery |
 | `Docs/11_PLATFORM_ARCHITECTURE.md` | Game/mod/content pack hierarchy, version compat |
 | `Docs/12_OBSERVABILITY.md` | Metrics, ProfilerMarker, logging, benchmarks |
-| `Docs/CONVENTIONS.md` | Naming conventions: C#, Unity, DOTS/ECS, assets, shaders, namespaces |
-| `Docs/adr/` | Architecture Decision Records |
+| `Docs/13_CONVENTIONS.md` | Naming conventions: C#, Unity, DOTS/ECS, assets, shaders, namespaces |
+| `Docs/14_MULTIPLAYER.md` | Multiplayer architecture: command layer, service extraction, physics, chunk protocol, inventory sync |
+| `Docs/adr/` | Architecture Decision Records (ADR-001 through ADR-004) |
