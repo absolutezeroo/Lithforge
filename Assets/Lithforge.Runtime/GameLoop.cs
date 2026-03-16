@@ -531,6 +531,7 @@ namespace Lithforge.Runtime
             _meshScheduler?.Shutdown();
             _lodScheduler?.Shutdown();
             _playerRenderer?.Dispose();
+            _playerRenderer = null;
         }
     }
 }
