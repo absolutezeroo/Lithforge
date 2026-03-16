@@ -1,34 +1,34 @@
+using System;
+
 using Lithforge.Physics;
+
 using Unity.Mathematics;
+
 using UnityEngine;
+
+using RaycastHit = Lithforge.Physics.RaycastHit;
 
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Probes the environment around the player using DDA raycasts in
-    /// fibonacci-sphere distributed directions to measure enclosure ratio.
-    /// Used by <see cref="CaveReverbController"/> to drive reverb intensity.
-    /// Updates at a configurable tick interval (~0.5s).
+    ///     Probes the environment around the player using DDA raycasts in
+    ///     fibonacci-sphere distributed directions to measure enclosure ratio.
+    ///     Used by <see cref="CaveReverbController" /> to drive reverb intensity.
+    ///     Updates at a configurable tick interval (~0.5s).
     /// </summary>
     public sealed class EnclosureProbe
     {
-        private readonly System.Func<int3, bool> _isSolidDelegate;
         private readonly Transform _cameraTransform;
-        private readonly int _rayCount;
-        private readonly int _maxDistance;
-        private readonly int _updateTicks;
 
         private readonly float3[] _directions;
+        private readonly Func<int3, bool> _isSolidDelegate;
+        private readonly int _maxDistance;
+        private readonly int _rayCount;
+        private readonly int _updateTicks;
         private int _tickCounter;
-        private float _enclosureRatio;
-
-        public float EnclosureRatio
-        {
-            get { return _enclosureRatio; }
-        }
 
         public EnclosureProbe(
-            System.Func<int3, bool> isSolidDelegate,
+            Func<int3, bool> isSolidDelegate,
             Transform cameraTransform,
             int rayCount,
             int maxDistance,
@@ -43,8 +43,10 @@ namespace Lithforge.Runtime.Audio
             _directions = GenerateFibonacciSphere(rayCount);
         }
 
+        public float EnclosureRatio { get; private set; }
+
         /// <summary>
-        /// Called at 30 TPS. Re-evaluates enclosure every N ticks.
+        ///     Called at 30 TPS. Re-evaluates enclosure every N ticks.
         /// </summary>
         public void Tick()
         {
@@ -62,7 +64,7 @@ namespace Lithforge.Runtime.Audio
                 return;
             }
 
-            float3 origin = new float3(
+            float3 origin = new(
                 _cameraTransform.position.x,
                 _cameraTransform.position.y,
                 _cameraTransform.position.z);
@@ -80,12 +82,12 @@ namespace Lithforge.Runtime.Audio
                 }
             }
 
-            _enclosureRatio = (float)hits / _rayCount;
+            EnclosureRatio = (float)hits / _rayCount;
         }
 
         /// <summary>
-        /// Generates evenly distributed directions on a unit sphere using the
-        /// Fibonacci lattice method.
+        ///     Generates evenly distributed directions on a unit sphere using the
+        ///     Fibonacci lattice method.
         /// </summary>
         private static float3[] GenerateFibonacciSphere(int count)
         {
@@ -94,7 +96,7 @@ namespace Lithforge.Runtime.Audio
 
             for (int i = 0; i < count; i++)
             {
-                float y = 1f - ((float)i / (count - 1)) * 2f;
+                float y = 1f - (float)i / (count - 1) * 2f;
                 float radius = math.sqrt(1f - y * y);
                 float theta = goldenAngle * i;
 
