@@ -283,6 +283,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>
         /// Collects border light entries from the NativeList produced by LightPropagationJob
         /// and stores them in the ManagedChunk for use by neighbor light updates.
+        /// Also rebuilds the BorderFaceMask bitmask for O(1) face-presence checks.
         /// </summary>
         private static void CollectBorderLightEntries(
             ManagedChunk chunk,
@@ -292,6 +293,8 @@ namespace Lithforge.Runtime.Scheduling
 
             if (!borderLightOutput.IsCreated)
             {
+                chunk.BorderFaceMask = 0;
+
                 return;
             }
 
@@ -305,47 +308,37 @@ namespace Lithforge.Runtime.Scheduling
                     Face = native.Face,
                 });
             }
+
+            ChunkManager.RebuildBorderFaceMask(chunk);
         }
 
         /// <summary>
         /// Checks neighbor chunks and marks them for light re-propagation
         /// if this chunk's border light values would affect them.
+        /// Uses BorderFaceMask for O(1) face-presence check and cached Neighbors[]
+        /// to avoid dictionary lookups.
         /// </summary>
         private void InvalidateLightNeighbors(int3 coord, ManagedChunk sourceChunk)
         {
-            if (sourceChunk.BorderLightEntries.Count == 0)
+            if (sourceChunk.BorderFaceMask == 0)
             {
                 return;
             }
 
             for (int f = 0; f < 6; f++)
             {
-                // Check if any border entries exist for this face
-                bool hasFaceEntries = false;
-
-                for (int i = 0; i < sourceChunk.BorderLightEntries.Count; i++)
-                {
-                    if (sourceChunk.BorderLightEntries[i].Face == f)
-                    {
-                        hasFaceEntries = true;
-
-                        break;
-                    }
-                }
-
-                if (!hasFaceEntries)
+                if ((sourceChunk.BorderFaceMask & (1 << f)) == 0)
                 {
                     continue;
                 }
 
-                int3 neighborCoord = coord + s_faceOffsets[f];
-                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+                ManagedChunk neighbor = sourceChunk.Neighbors[f];
 
                 if (neighbor != null &&
                     neighbor.State >= ChunkState.RelightPending &&
                     neighbor.LightData.IsCreated)
                 {
-                    _chunkManager.MarkNeedsLightUpdate(neighborCoord);
+                    _chunkManager.MarkNeedsLightUpdate(neighbor.Coord);
                 }
             }
         }
@@ -432,15 +425,20 @@ namespace Lithforge.Runtime.Scheduling
 
                 for (int f = 0; f < 6; f++)
                 {
-                    int3 neighborCoord = chunk.Coord + s_faceOffsets[f];
-                    ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+                    ManagedChunk neighbor = chunk.Neighbors[f];
 
-                    if (neighbor == null || neighbor.BorderLightEntries.Count == 0)
+                    if (neighbor == null || neighbor.BorderFaceMask == 0)
                     {
                         continue;
                     }
 
                     int expectedFace = s_oppositeFace[f];
+
+                    // O(1) bitmask pre-check before iterating entries
+                    if ((neighbor.BorderFaceMask & (1 << expectedFace)) == 0)
+                    {
+                        continue;
+                    }
 
                     for (int i = 0; i < neighbor.BorderLightEntries.Count; i++)
                     {

@@ -261,7 +261,7 @@ namespace Lithforge.Runtime.Scheduling
         /// are prioritized (but off-frustum chunks still mesh if budget remains).
         /// During spawn (applyFilters=false), all Generated chunks are meshed unconditionally.
         /// </summary>
-        public void ScheduleJobs(bool applyFilters)
+        public void ScheduleJobs(bool applyFilters, int3 cameraChunkCoord, float3 cameraForwardXZ)
         {
             int pendingCount = _pendingMeshes.Count;
 
@@ -292,7 +292,8 @@ namespace Lithforge.Runtime.Scheduling
             // ── Fill candidates ──
             long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             int candidateCount = applyFilters ? slotsAvailable * 2 : slotsAvailable;
-            _chunkManager.FillChunksToMesh(_meshCandidateCache, candidateCount);
+            _chunkManager.FillChunksToMesh(
+                _meshCandidateCache, candidateCount, cameraChunkCoord, cameraForwardXZ);
             long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             PipelineStats.SchedMeshFillMs = (float)((t1 - t0) * 1000.0 / freq);
 
@@ -527,18 +528,19 @@ namespace Lithforge.Runtime.Scheduling
 
         /// <summary>
         /// Schedules a single Burst-compiled ExtractAllBordersJob that extracts all 6
-        /// border slices from neighboring chunks. Replaces the previous 6 separate
-        /// ExtractSingleBorderJob schedules to reduce scheduling overhead.
+        /// border slices from neighboring chunks using cached Neighbors[] references.
         /// Missing neighbors use _dummyBorder with HasXxx=false to skip extraction.
         /// </summary>
         private JobHandle ScheduleBorderExtractionJob(int3 coord, GreedyMeshData meshData)
         {
-            ManagedChunk nPX = GetMeshableNeighbor(coord + new int3(1, 0, 0));
-            ManagedChunk nNX = GetMeshableNeighbor(coord + new int3(-1, 0, 0));
-            ManagedChunk nPY = GetMeshableNeighbor(coord + new int3(0, 1, 0));
-            ManagedChunk nNY = GetMeshableNeighbor(coord + new int3(0, -1, 0));
-            ManagedChunk nPZ = GetMeshableNeighbor(coord + new int3(0, 0, 1));
-            ManagedChunk nNZ = GetMeshableNeighbor(coord + new int3(0, 0, -1));
+            ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+            ManagedChunk nPX = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[0] : null);
+            ManagedChunk nNX = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[1] : null);
+            ManagedChunk nPY = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[2] : null);
+            ManagedChunk nNY = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[3] : null);
+            ManagedChunk nPZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[4] : null);
+            ManagedChunk nNZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[5] : null);
 
             ExtractAllBordersJob job = new ExtractAllBordersJob
             {
@@ -568,20 +570,17 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Returns the neighbor chunk if it exists, has progressed past RelightPending,
-        /// and still owns valid ChunkData. Returns null otherwise, causing the border
-        /// extraction job to skip that face.
+        /// Validates a cached neighbor reference for border extraction.
+        /// Returns null if the neighbor is missing, not yet generated, or data not valid.
         /// </summary>
-        private ManagedChunk GetMeshableNeighbor(int3 coord)
+        private static ManagedChunk ValidateMeshableNeighbor(ManagedChunk candidate)
         {
-            ManagedChunk c = _chunkManager.GetChunk(coord);
-
-            if (c == null || c.State < ChunkState.RelightPending || !c.Data.IsCreated)
+            if (candidate == null || candidate.State < ChunkState.RelightPending || !candidate.Data.IsCreated)
             {
                 return null;
             }
 
-            return c;
+            return candidate;
         }
 
         private struct PendingMesh

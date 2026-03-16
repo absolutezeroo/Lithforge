@@ -355,6 +355,8 @@ namespace Lithforge.Runtime.Scheduling
                 });
             }
 
+            ChunkManager.RebuildBorderFaceMask(chunk);
+
             // Build O(1) lookup: flat voxel index → old packed light (0 = absent).
             // PackedLight is never 0 for border entries (filtered by sun > 1 || block > 1
             // in CollectBorderLightLeaks), so 0 is a safe sentinel.
@@ -370,8 +372,7 @@ namespace Lithforge.Runtime.Scheduling
             // For each face, compare old vs new border entries and cascade to neighbors
             for (int f = 0; f < 6; f++)
             {
-                int3 neighborCoord = chunk.Coord + s_faceOffsets[f];
-                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+                ManagedChunk neighbor = chunk.Neighbors[f];
 
                 if (neighbor == null ||
                     neighbor.State < ChunkState.RelightPending ||
@@ -475,37 +476,29 @@ namespace Lithforge.Runtime.Scheduling
                 // Cascade increases: mark neighbor for LightUpdateJob
                 if (hasIncreased)
                 {
-                    _chunkManager.MarkNeedsLightUpdate(neighborCoord);
+                    _chunkManager.MarkNeedsLightUpdate(neighbor.Coord);
                 }
             }
 
             // Check if THIS chunk should receive incoming light from neighbors
             // (e.g., sunlight column restoration from the chunk above after block removal,
-            // or torch light from a neighboring chunk after this chunk's border cleared)
+            // or torch light from a neighboring chunk after this chunk's border cleared).
+            // Uses BorderFaceMask for O(1) face-presence check instead of O(N) scan.
             for (int f = 0; f < 6; f++)
             {
-                int3 neighborCoord = chunk.Coord + s_faceOffsets[f];
-                ManagedChunk neighbor = _chunkManager.GetChunk(neighborCoord);
+                ManagedChunk neighbor = chunk.Neighbors[f];
 
-                if (neighbor == null || neighbor.BorderLightEntries.Count == 0)
+                if (neighbor == null || neighbor.BorderFaceMask == 0)
                 {
                     continue;
                 }
 
                 int oppFace = s_oppositeFace[f];
 
-                for (int ni = 0; ni < neighbor.BorderLightEntries.Count; ni++)
+                if ((neighbor.BorderFaceMask & (1 << oppFace)) != 0)
                 {
-                    if (neighbor.BorderLightEntries[ni].Face == oppFace)
-                    {
-                        _chunkManager.MarkNeedsLightUpdate(chunk.Coord);
+                    _chunkManager.MarkNeedsLightUpdate(chunk.Coord);
 
-                        break;
-                    }
-                }
-
-                if (chunk.NeedsLightUpdate)
-                {
                     break;
                 }
             }

@@ -31,10 +31,12 @@ namespace Lithforge.Voxel.Chunk
         private readonly List<int3> _loadQueue = new List<int3>();
         private bool _disposed;
         private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
-        private readonly List<int> _neighborCountCache = new List<int>();
+        private readonly List<float> _meshScoreCache = new List<float>();
         private readonly List<int3> _toRemoveCache = new List<int3>();
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new HashSet<int3>();
         private readonly HashSet<ManagedChunk> _generatedChunks = new HashSet<ManagedChunk>();
+        private readonly HashSet<ManagedChunk> _readyChunks = new HashSet<ManagedChunk>();
+        private readonly HashSet<ManagedChunk> _relightPendingChunks = new HashSet<ManagedChunk>();
         private int3 _lastCameraChunkCoord = new int3(int.MinValue, int.MinValue, int.MinValue);
         private AsyncChunkSaver _asyncSaver;
 
@@ -102,7 +104,9 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        /// Centralized state transition. Maintains _generatedChunks index.
+        /// Centralized state transition. Maintains all secondary indices
+        /// (_generatedChunks, _readyChunks, _relightPendingChunks) and updates
+        /// neighbor ReadyNeighborMask bits when crossing the RelightPending threshold.
         /// All external callers (schedulers) MUST use this instead of chunk.State = x.
         /// </summary>
         public void SetChunkState(ManagedChunk chunk, ChunkState newState)
@@ -110,6 +114,7 @@ namespace Lithforge.Voxel.Chunk
             ChunkState oldState = chunk.State;
             chunk.State = newState;
 
+            // --- _generatedChunks ---
             if (oldState == ChunkState.Generated && newState != ChunkState.Generated)
             {
                 _generatedChunks.Remove(chunk);
@@ -119,6 +124,56 @@ namespace Lithforge.Voxel.Chunk
                 if (!chunk.LightJobInFlight)
                 {
                     _generatedChunks.Add(chunk);
+                }
+            }
+
+            // --- _readyChunks ---
+            if (oldState == ChunkState.Ready && newState != ChunkState.Ready)
+            {
+                _readyChunks.Remove(chunk);
+            }
+            else if (newState == ChunkState.Ready && oldState != ChunkState.Ready)
+            {
+                _readyChunks.Add(chunk);
+            }
+
+            // --- _relightPendingChunks ---
+            if (oldState == ChunkState.RelightPending && newState != ChunkState.RelightPending)
+            {
+                _relightPendingChunks.Remove(chunk);
+            }
+            else if (newState == ChunkState.RelightPending && oldState != ChunkState.RelightPending)
+            {
+                _relightPendingChunks.Add(chunk);
+            }
+
+            // --- Neighbor ReadyNeighborMask maintenance ---
+            // When this chunk crosses the RelightPending threshold (in either direction),
+            // flip the corresponding bit on each existing neighbor's mask.
+            bool wasReady = oldState >= ChunkState.RelightPending;
+            bool isReady = newState >= ChunkState.RelightPending;
+
+            if (wasReady != isReady)
+            {
+                for (int f = 0; f < 6; f++)
+                {
+                    ManagedChunk neighbor = chunk.Neighbors[f];
+
+                    if (neighbor == null)
+                    {
+                        continue;
+                    }
+
+                    int oppF = s_oppositeFace[f];
+
+                    if (isReady)
+                    {
+                        neighbor.ReadyNeighborMask |= (byte)(1 << oppF);
+                    }
+                    else
+                    {
+                        neighbor.ReadyNeighborMask &= (byte)~(1 << oppF);
+                    }
                 }
             }
         }
@@ -274,6 +329,7 @@ namespace Lithforge.Voxel.Chunk
                 ManagedChunk chunk = new ManagedChunk(coord, data);
                 chunk.State = ChunkState.Generating;
                 _chunks[coord] = chunk;
+                RegisterChunk(chunk);
                 result.Add(chunk);
                 created++;
             }
@@ -287,31 +343,38 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        /// Fills the provided list with chunks in the Generated state, sorted by
-        /// ready neighbor count (descending). Uses cached lists to avoid per-frame
-        /// allocations. The caller must NOT store the result list reference beyond
-        /// the current frame.
+        /// Fills the provided list with Generated chunks, prioritized for meshing.
+        /// Priority: neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
+        /// distScore uses the same forward-weighted formula as the load queue:
+        /// distSq * (2 - dot(chunkDir, cameraForward)).
+        /// Uses a single-pass top-K selection over _generatedChunks with cached bitmask
+        /// reads (zero dictionary lookups for neighbor counting).
         /// </summary>
-        public void FillChunksToMesh(List<ManagedChunk> result, int maxCount)
+        public void FillChunksToMesh(
+            List<ManagedChunk> result,
+            int maxCount,
+            int3 cameraChunkCoord,
+            float3 cameraForwardXZ)
         {
             result.Clear();
             _meshCandidateCache.Clear();
-            _neighborCountCache.Clear();
+            _meshScoreCache.Clear();
 
             // --- Single-pass top-K selection over _generatedChunks ---
-            // Buffer stays at most maxCount elements. For each incoming chunk,
-            // we compare against the worst element in the buffer.
-
             foreach (ManagedChunk chunk in _generatedChunks)
             {
-                int nc = CountReadyNeighbors(chunk.Coord);
                 bool neverMeshed = chunk.RenderedLODLevel < 0;
+                bool allNeighbors = (chunk.ReadyNeighborMask & 0x3F) == 0x3F;
+
+                int3 d = chunk.Coord - cameraChunkCoord;
+                float3 dirXZ = math.normalizesafe(new float3(d.x, 0, d.z));
+                float dot = math.dot(dirXZ, cameraForwardXZ);
+                float distScore = math.lengthsq(d) * (2.0f - dot);
 
                 if (_meshCandidateCache.Count < maxCount)
                 {
-                    // Buffer not full — insert unconditionally
                     _meshCandidateCache.Add(chunk);
-                    _neighborCountCache.Add(nc);
+                    _meshScoreCache.Add(distScore);
                 }
                 else
                 {
@@ -328,11 +391,14 @@ namespace Lithforge.Voxel.Chunk
 
                     // Compare incoming chunk against worst
                     bool worstNeverMeshed = _meshCandidateCache[worstIdx].RenderedLODLevel < 0;
+                    bool worstAllNeighbors = (_meshCandidateCache[worstIdx].ReadyNeighborMask & 0x3F) == 0x3F;
+                    float worstScore = _meshScoreCache[worstIdx];
 
-                    if (IsBetterPriority(neverMeshed, nc, worstNeverMeshed, _neighborCountCache[worstIdx]))
+                    if (IsBetterPriority(neverMeshed, allNeighbors, distScore,
+                        worstNeverMeshed, worstAllNeighbors, worstScore))
                     {
                         _meshCandidateCache[worstIdx] = chunk;
-                        _neighborCountCache[worstIdx] = nc;
+                        _meshScoreCache[worstIdx] = distScore;
                     }
                 }
             }
@@ -341,41 +407,31 @@ namespace Lithforge.Voxel.Chunk
             for (int i = 1; i < _meshCandidateCache.Count; i++)
             {
                 ManagedChunk tempChunk = _meshCandidateCache[i];
-                int tempCount = _neighborCountCache[i];
+                float tempScore = _meshScoreCache[i];
                 bool tempNeverMeshed = tempChunk.RenderedLODLevel < 0;
+                bool tempAllNeighbors = (tempChunk.ReadyNeighborMask & 0x3F) == 0x3F;
                 int j = i - 1;
 
                 while (j >= 0)
                 {
                     bool jNeverMeshed = _meshCandidateCache[j].RenderedLODLevel < 0;
+                    bool jAllNeighbors = (_meshCandidateCache[j].ReadyNeighborMask & 0x3F) == 0x3F;
+                    float jScore = _meshScoreCache[j];
 
-                    if (tempNeverMeshed && !jNeverMeshed)
+                    // Stop if current position is correct (j is better or equal)
+                    if (!IsBetterPriority(tempNeverMeshed, tempAllNeighbors, tempScore,
+                        jNeverMeshed, jAllNeighbors, jScore))
                     {
                         break;
-                    }
-
-                    bool sameGroup = tempNeverMeshed == jNeverMeshed;
-
-                    if (sameGroup && _neighborCountCache[j] >= tempCount)
-                    {
-                        break;
-                    }
-
-                    if (!sameGroup)
-                    {
-                        _meshCandidateCache[j + 1] = _meshCandidateCache[j];
-                        _neighborCountCache[j + 1] = _neighborCountCache[j];
-                        j--;
-                        continue;
                     }
 
                     _meshCandidateCache[j + 1] = _meshCandidateCache[j];
-                    _neighborCountCache[j + 1] = _neighborCountCache[j];
+                    _meshScoreCache[j + 1] = _meshScoreCache[j];
                     j--;
                 }
 
                 _meshCandidateCache[j + 1] = tempChunk;
-                _neighborCountCache[j + 1] = tempCount;
+                _meshScoreCache[j + 1] = tempScore;
             }
 
             for (int i = 0; i < _meshCandidateCache.Count; i++)
@@ -386,7 +442,7 @@ namespace Lithforge.Voxel.Chunk
 
         /// <summary>
         /// Returns true if buffer element at indexA is worse priority than element at indexB.
-        /// Worse = already-meshed when other is never-meshed, or fewer neighbors in same group.
+        /// Priority: neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
         /// </summary>
         private bool IsWorseThan(int indexA, int indexB)
         {
@@ -398,55 +454,37 @@ namespace Lithforge.Voxel.Chunk
                 return !aNeverMeshed;
             }
 
-            return _neighborCountCache[indexA] < _neighborCountCache[indexB];
+            bool aAllNeighbors = (_meshCandidateCache[indexA].ReadyNeighborMask & 0x3F) == 0x3F;
+            bool bAllNeighbors = (_meshCandidateCache[indexB].ReadyNeighborMask & 0x3F) == 0x3F;
+
+            if (aAllNeighbors != bAllNeighbors)
+            {
+                return !aAllNeighbors;
+            }
+
+            return _meshScoreCache[indexA] > _meshScoreCache[indexB];
         }
 
         /// <summary>
-        /// Returns true if (neverMeshed, neighborCount) is strictly better priority
-        /// than (worstNeverMeshed, worstNc).
+        /// Returns true if (neverMeshed, allNeighbors, distScore) is strictly better
+        /// than (worstNeverMeshed, worstAllNeighbors, worstScore).
+        /// Better = neverMeshed first, then allNeighbors, then lower distScore.
         /// </summary>
         private static bool IsBetterPriority(
-            bool neverMeshed, int neighborCount,
-            bool worstNeverMeshed, int worstNc)
+            bool neverMeshed, bool allNeighbors, float distScore,
+            bool worstNeverMeshed, bool worstAllNeighbors, float worstScore)
         {
             if (neverMeshed != worstNeverMeshed)
             {
                 return neverMeshed;
             }
 
-            return neighborCount > worstNc;
-        }
+            if (allNeighbors != worstAllNeighbors)
+            {
+                return allNeighbors;
+            }
 
-        /// <summary>
-        /// Backward-compatible wrapper. Callers that cannot be updated yet
-        /// may use this, but prefer FillChunksToMesh for zero-allocation usage.
-        /// </summary>
-        public List<ManagedChunk> GetChunksToMesh(int maxCount)
-        {
-            List<ManagedChunk> result = new List<ManagedChunk>();
-            FillChunksToMesh(result, maxCount);
-
-            return result;
-        }
-
-        private int CountReadyNeighbors(int3 coord)
-        {
-            int count = 0;
-
-            if (HasGeneratedNeighbor(coord + new int3(1, 0, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(-1, 0, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, 1, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, -1, 0))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, 0, 1))) { count++; }
-            if (HasGeneratedNeighbor(coord + new int3(0, 0, -1))) { count++; }
-
-            return count;
-        }
-
-        private bool HasGeneratedNeighbor(int3 coord)
-        {
-            return _chunks.TryGetValue(coord, out ManagedChunk neighbor)
-                && neighbor.State >= ChunkState.RelightPending;
+            return distScore < worstScore;
         }
 
         /// <summary>
@@ -483,17 +521,15 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>
         /// Fills the provided list with all chunks in the Ready state.
         /// Clears the list before filling. Used for LOD level assignment.
+        /// Uses _readyChunks secondary index — O(ready count) not O(all loaded).
         /// </summary>
         public void FillReadyChunks(List<ManagedChunk> result)
         {
             result.Clear();
 
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            foreach (ManagedChunk chunk in _readyChunks)
             {
-                if (kvp.Value.State == ChunkState.Ready)
-                {
-                    result.Add(kvp.Value);
-                }
+                result.Add(chunk);
             }
         }
 
@@ -544,18 +580,19 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        /// Fills the provided list with all chunks in the RelightPending state.
-        /// Clears the list before filling.
+        /// Fills the provided list with all chunks in the RelightPending state
+        /// that do not have a light job in-flight.
+        /// Uses _relightPendingChunks secondary index — O(relight count) not O(all loaded).
         /// </summary>
         public void FillChunksNeedingRelight(List<ManagedChunk> result)
         {
             result.Clear();
 
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            foreach (ManagedChunk chunk in _relightPendingChunks)
             {
-                if (kvp.Value.State == ChunkState.RelightPending && !kvp.Value.LightJobInFlight)
+                if (!chunk.LightJobInFlight)
                 {
-                    result.Add(kvp.Value);
+                    result.Add(chunk);
                 }
             }
         }
@@ -905,7 +942,10 @@ namespace Lithforge.Voxel.Chunk
             {
                 if (_chunks.TryGetValue(unloaded[i], out ManagedChunk unloadedChunk))
                 {
+                    UnregisterChunk(unloadedChunk);
                     _generatedChunks.Remove(unloadedChunk);
+                    _readyChunks.Remove(unloadedChunk);
+                    _relightPendingChunks.Remove(unloadedChunk);
                 }
 
                 _chunksNeedingLightUpdate.Remove(unloaded[i]);
@@ -950,13 +990,19 @@ namespace Lithforge.Voxel.Chunk
 
         private static readonly int3[] s_neighborOffsets = new int3[]
         {
-            new int3(1, 0, 0),
-            new int3(-1, 0, 0),
-            new int3(0, 1, 0),
-            new int3(0, -1, 0),
-            new int3(0, 0, 1),
-            new int3(0, 0, -1),
+            new int3(1, 0, 0),   // 0: +X
+            new int3(-1, 0, 0),  // 1: -X
+            new int3(0, 1, 0),   // 2: +Y
+            new int3(0, -1, 0),  // 3: -Y
+            new int3(0, 0, 1),   // 4: +Z
+            new int3(0, 0, -1),  // 5: -Z
         };
+
+        /// <summary>
+        /// Maps face index to its opposite: +X(0)↔-X(1), +Y(2)↔-Y(3), +Z(4)↔-Z(5).
+        /// Used by RegisterChunk, UnregisterChunk, and SetChunkState for bitmask updates.
+        /// </summary>
+        private static readonly int[] s_oppositeFace = { 1, 0, 3, 2, 5, 4 };
 
         /// <summary>
         /// Marks all Ready neighbors of the given coord as Generated (needing remesh),
@@ -1002,10 +1048,16 @@ namespace Lithforge.Voxel.Chunk
 
         public void InvalidateReadyNeighbors(int3 coord)
         {
-            for (int i = 0; i < s_neighborOffsets.Length; i++)
+            ManagedChunk chunk = GetChunk(coord);
+
+            if (chunk == null)
             {
-                int3 neighborCoord = coord + s_neighborOffsets[i];
-                ManagedChunk neighbor = GetChunk(neighborCoord);
+                return;
+            }
+
+            for (int f = 0; f < 6; f++)
+            {
+                ManagedChunk neighbor = chunk.Neighbors[f];
 
                 if (neighbor == null)
                 {
@@ -1022,6 +1074,95 @@ namespace Lithforge.Voxel.Chunk
                     neighbor.NeedsRemesh = true;
                 }
             }
+        }
+
+        /// <summary>
+        /// Wires bidirectional Neighbors references and initializes ReadyNeighborMask
+        /// for a newly created chunk. Pre-sets bits for Y-boundary faces so that
+        /// world-edge chunks pass the "all neighbors" gate with fewer actual neighbors.
+        /// Must be called after the chunk is inserted into _chunks.
+        /// </summary>
+        private void RegisterChunk(ManagedChunk chunk)
+        {
+            // Pre-set bits for Y-boundary faces that will never have a neighbor.
+            byte boundaryMask = 0;
+
+            if (chunk.Coord.y <= _yLoadMin)
+            {
+                boundaryMask |= (1 << 3); // face 3 = -Y: no chunk below world range
+            }
+
+            if (chunk.Coord.y >= _yLoadMax)
+            {
+                boundaryMask |= (1 << 2); // face 2 = +Y: no chunk above world range
+            }
+
+            chunk.ReadyNeighborMask = boundaryMask;
+
+            for (int f = 0; f < 6; f++)
+            {
+                int3 neighborCoord = chunk.Coord + s_neighborOffsets[f];
+
+                if (!_chunks.TryGetValue(neighborCoord, out ManagedChunk neighbor))
+                {
+                    continue;
+                }
+
+                // Wire new chunk -> existing neighbor
+                chunk.Neighbors[f] = neighbor;
+
+                if (neighbor.State >= ChunkState.RelightPending)
+                {
+                    chunk.ReadyNeighborMask |= (byte)(1 << f);
+                }
+
+                // Wire existing neighbor -> new chunk (opposite face)
+                int oppF = s_oppositeFace[f];
+                neighbor.Neighbors[oppF] = chunk;
+
+                // New chunk starts at Generating (< RelightPending), so don't set
+                // the neighbor's bitmask bit yet — it will be set when this chunk
+                // transitions to >= RelightPending via SetChunkState.
+            }
+        }
+
+        /// <summary>
+        /// Clears bidirectional Neighbors references for a chunk being unloaded.
+        /// Clears the corresponding ReadyNeighborMask bit on each neighbor.
+        /// Must be called before the chunk is removed from _chunks.
+        /// </summary>
+        private void UnregisterChunk(ManagedChunk chunk)
+        {
+            for (int f = 0; f < 6; f++)
+            {
+                ManagedChunk neighbor = chunk.Neighbors[f];
+
+                if (neighbor == null)
+                {
+                    continue;
+                }
+
+                int oppF = s_oppositeFace[f];
+                neighbor.ReadyNeighborMask &= (byte)~(1 << oppF);
+                neighbor.Neighbors[oppF] = null;
+                chunk.Neighbors[f] = null;
+            }
+        }
+
+        /// <summary>
+        /// Rebuilds the BorderFaceMask bitmask from the chunk's current BorderLightEntries.
+        /// Must be called after any modification to BorderLightEntries.
+        /// </summary>
+        public static void RebuildBorderFaceMask(ManagedChunk chunk)
+        {
+            byte mask = 0;
+
+            for (int i = 0; i < chunk.BorderLightEntries.Count; i++)
+            {
+                mask |= (byte)(1 << chunk.BorderLightEntries[i].Face);
+            }
+
+            chunk.BorderFaceMask = mask;
         }
 
         public void Dispose()
@@ -1061,6 +1202,8 @@ namespace Lithforge.Voxel.Chunk
             _chunks.Clear();
             _chunksNeedingLightUpdate.Clear();
             _generatedChunks.Clear();
+            _readyChunks.Clear();
+            _relightPendingChunks.Clear();
         }
     }
 }

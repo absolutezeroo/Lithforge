@@ -419,7 +419,9 @@ namespace Lithforge.Runtime
 
                 Profiler.BeginSample("GL.SchedMesh");
                 FrameProfiler.Begin(FrameProfiler.SchedMesh);
-                _meshScheduler.ScheduleJobs(SpawnReady);
+                float3 camForwardXZ = math.normalizesafe(
+                    new float3(_mainCamera.transform.forward.x, 0, _mainCamera.transform.forward.z));
+                _meshScheduler.ScheduleJobs(SpawnReady, cameraChunkCoord, camForwardXZ);
                 FrameProfiler.End(FrameProfiler.SchedMesh);
                 Profiler.EndSample();
 

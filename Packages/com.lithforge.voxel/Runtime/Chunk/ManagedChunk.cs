@@ -134,6 +134,32 @@ namespace Lithforge.Voxel.Chunk
         public Dictionary<int, IBlockEntity> BlockEntities { get; private set; }
 
         /// <summary>
+        /// 6-bit bitmask: bit f is set when the face-f neighbor exists at state
+        /// >= RelightPending. Face order: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z.
+        /// Bits for Y-boundary faces (no chunk above/below world range) are pre-set
+        /// at registration so that world-edge chunks pass the "all neighbors" gate.
+        /// Maintained exclusively by ChunkManager. Read-only for all other code.
+        /// </summary>
+        public byte ReadyNeighborMask { get; set; }
+
+        /// <summary>
+        /// Direct references to the 6 face neighbors in face-index order
+        /// (0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z).
+        /// Element is null when the neighbor is not loaded.
+        /// Allocated in the constructor. Populated by ChunkManager.RegisterChunk,
+        /// cleared by ChunkManager.UnregisterChunk.
+        /// </summary>
+        public ManagedChunk[] Neighbors { get; }
+
+        /// <summary>
+        /// 6-bit bitmask: bit f is set when BorderLightEntries contains at least
+        /// one entry whose Face == f. Cleared when BorderLightEntries is cleared.
+        /// Maintained by ChunkManager.RebuildBorderFaceMask after any modification
+        /// to BorderLightEntries.
+        /// </summary>
+        public byte BorderFaceMask { get; set; }
+
+        /// <summary>
         /// Lazily creates the BlockEntities dictionary and returns it.
         /// </summary>
         public Dictionary<int, IBlockEntity> GetOrCreateBlockEntities()
@@ -157,6 +183,7 @@ namespace Lithforge.Voxel.Chunk
             PendingEditIndices = new List<int>();
             PendingBorderRemovals = new List<BorderLightEntry>();
             DeferredEdits = new List<DeferredEdit>();
+            Neighbors = new ManagedChunk[6];
         }
     }
 }

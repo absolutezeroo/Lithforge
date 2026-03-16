@@ -51,30 +51,29 @@ namespace Lithforge.Voxel.Tests
         }
 
         [Test]
-        public void FillChunksToMesh_UsesSchwartzianSort()
+        public void FillChunksToMesh_PrioritizesByDistanceAndNeighbors()
         {
-            // Create 3 chunks in Generated state with different neighbor counts
-            // Chunk at origin with 2 generated neighbors should sort first
+            // Create chunks in Generated state — center chunks should sort first
+            // because they have more ready neighbors and lower distance score
             _chunkManager.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1));
 
             List<ManagedChunk> generated = new List<ManagedChunk>();
             _chunkManager.FillChunksToGenerate(generated, 100);
 
-            // Set all to Generated
+            // Set all to Generated via SetChunkState so secondary indices are maintained
             for (int i = 0; i < generated.Count; i++)
             {
-                generated[i].State = ChunkState.Generated;
+                _chunkManager.SetChunkState(generated[i], ChunkState.Generated);
             }
 
             List<ManagedChunk> meshResult = new List<ManagedChunk>();
-            _chunkManager.FillChunksToMesh(meshResult, 10);
+            float3 forwardXZ = math.normalizesafe(new float3(0, 0, 1));
+            _chunkManager.FillChunksToMesh(meshResult, 10, int3.zero, forwardXZ);
 
-            // Should be sorted by neighbor count descending
-            // Center chunks have more neighbors than edge chunks
+            // Should be sorted by priority: neverMeshed, then allNeighbors, then distance
             Assert.Greater(meshResult.Count, 0, "Should have chunks to mesh");
 
-            // Verify descending neighbor count ordering by checking the first chunk
-            // has coords near center (more neighbors)
+            // Verify the first chunk has coords near center (more neighbors, lower distance)
             ManagedChunk first = meshResult[0];
             int3 diff = first.Coord - int3.zero;
             int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
