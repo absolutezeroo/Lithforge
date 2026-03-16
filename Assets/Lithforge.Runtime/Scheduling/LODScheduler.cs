@@ -130,6 +130,8 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (pending.Handle.IsCompleted)
                 {
+                    pending.Handle.Complete();
+
                     // Estimate upload size before committing: PackedMeshVertex=16 bytes, int index=4 bytes
                     long uploadBytes = (long)pending.Data.Vertices.Length * 16
                                      + (long)pending.Data.Indices.Length * 4;
@@ -143,7 +145,6 @@ namespace Lithforge.Runtime.Scheduling
 
                     completedThisFrame++;
                     _lodUploadBytesThisFrame += uploadBytes;
-                    pending.Handle.Complete();
 
                     // Upload as single-submesh opaque mesh
                     _chunkMeshStore.UpdateRendererSingleMesh(
