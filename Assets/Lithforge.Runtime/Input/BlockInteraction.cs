@@ -310,48 +310,49 @@ namespace Lithforge.Runtime.Input
                 ctx.RequiredToolLevel = entry.RequiredToolLevel;
 
                 ItemStack heldItem = _inventory.GetSelectedItem();
+                ToolInstance tool = null;
 
-                // Apply modular tool traits
                 if (!heldItem.IsEmpty && heldItem.HasCustomData)
                 {
-                    ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
-                    if (tool != null)
-                    {
-                        ctx.ToolType = tool.ToolType;
-                        ctx.ToolSpeed = tool.GetEffectiveSpeed(entry.MaterialType);
-                        ctx.ToolLevel = tool.GetEffectiveToolLevel();
-                        ctx.SpeedMultiplier *= tool.DurabilityState.GetEffectiveSpeedMultiplier();
-
-                        // Re-evaluate correct tool with modular tool's ToolType
-                        if (s_toolTagMap.TryGetValue(tool.ToolType, out ResourceId modularTag))
-                        {
-                            ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, modularTag);
-                        }
-
-                        // Apply default harvest denial rules
-                        if (entry.RequiredToolLevel > 0 && ctx.ToolLevel < entry.RequiredToolLevel)
-                        {
-                            ctx.CanHarvest = false;
-                        }
-
-                        if (entry.RequiresTool && !ctx.IsCorrectTool)
-                        {
-                            ctx.CanHarvest = false;
-                        }
-
-                        // Apply traits after denial checks (GrantHarvest can override)
-                        IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
-                        Array.Sort(traits, s_traitPrioritySort);
-                        for (int i = 0; i < traits.Length; i++)
-                        {
-                            ctx = traits[i].Apply(ctx);
-                        }
-                    }
+                    tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
                 }
 
-                // Bare-hand harvest denial (no tool equipped)
-                if (heldItem.IsEmpty || !heldItem.HasCustomData)
+                // Apply modular tool traits
+                if (tool != null)
                 {
+                    ctx.ToolType = tool.ToolType;
+                    ctx.ToolSpeed = tool.GetEffectiveSpeed(entry.MaterialType);
+                    ctx.ToolLevel = tool.GetEffectiveToolLevel();
+                    ctx.SpeedMultiplier *= tool.DurabilityState.GetEffectiveSpeedMultiplier();
+
+                    // Re-evaluate correct tool with modular tool's ToolType
+                    if (s_toolTagMap.TryGetValue(tool.ToolType, out ResourceId modularTag))
+                    {
+                        ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, modularTag);
+                    }
+
+                    // Apply default harvest denial rules
+                    if (entry.RequiredToolLevel > 0 && ctx.ToolLevel < entry.RequiredToolLevel)
+                    {
+                        ctx.CanHarvest = false;
+                    }
+
+                    if (entry.RequiresTool && !ctx.IsCorrectTool)
+                    {
+                        ctx.CanHarvest = false;
+                    }
+
+                    // Apply traits after denial checks (GrantHarvest can override)
+                    IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
+                    Array.Sort(traits, s_traitPrioritySort);
+                    for (int i = 0; i < traits.Length; i++)
+                    {
+                        ctx = traits[i].Apply(ctx);
+                    }
+                }
+                else
+                {
+                    // Bare-hand / non-tool / deserialization failure: apply denial
                     if (entry.RequiredToolLevel > 0)
                     {
                         ctx.CanHarvest = false;

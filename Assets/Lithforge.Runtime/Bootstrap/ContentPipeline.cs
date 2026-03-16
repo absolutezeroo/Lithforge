@@ -536,6 +536,8 @@ namespace Lithforge.Runtime.Bootstrap
             _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
 
             // Phase 17: Generate legacy tool templates for items with flat tool fields
+            // Intentionally reads Obsolete ItemDefinition properties to bake templates
+#pragma warning disable CS0612, CS0618
             Dictionary<ResourceId, byte[]> legacyToolTemplates = new Dictionary<ResourceId, byte[]>();
 
             for (int i = 0; i < items.Length; i++)
@@ -576,6 +578,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 legacyToolTemplates[itemId] = ToolInstanceSerializer.Serialize(tool);
             }
+#pragma warning restore CS0612, CS0618
 
             _logger.LogInfo($"Generated {legacyToolTemplates.Count} legacy tool templates.");
 
