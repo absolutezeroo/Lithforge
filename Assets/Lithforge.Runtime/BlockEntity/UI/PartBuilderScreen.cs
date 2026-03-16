@@ -1,11 +1,13 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
+using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -13,34 +15,62 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    /// Screen for the Part Builder block entity (TiC-faithful).
-    /// Shows pattern buttons on the left, Pattern + Material input slots,
-    /// an output slot, and info labels. Player inventory and hotbar below.
+    ///     Screen for the Part Builder block entity (TiC-faithful).
+    ///     Shows pattern buttons on the left, Pattern + Material input slots,
+    ///     an output slot, and info labels. Player inventory and hotbar below.
     /// </summary>
     public sealed class PartBuilderScreen : ContainerScreen
     {
+        private readonly List<PartBuilderRecipe> _availableRecipes = new();
+        private readonly List<Button> _patternButtons = new();
+        private Label _costLabel;
         private PartBuilderBlockEntity _currentBuilder;
-
-        private BlockEntityContainerAdapter _patternAdapter;
-        private BlockEntityContainerAdapter _materialAdapter;
-        private BlockEntityContainerAdapter _outputAdapter;
+        private Label _haveLabel;
         private InventoryContainerAdapter _hotbarAdapter;
         private InventoryContainerAdapter _mainAdapter;
+        private BlockEntityContainerAdapter _materialAdapter;
+        private Label _materialLabel;
+
+        private bool _needsRefresh = true;
+        private BlockEntityContainerAdapter _outputAdapter;
+
+        private BlockEntityContainerAdapter _patternAdapter;
+
+        // UI elements
+        private VisualElement _patternButtonContainer;
+        private ToolMaterialData _resolvedMaterial;
 
         // Pattern selection state
         private int _selectedPatternIndex = -1;
         private PartBuilderRecipe _selectedRecipe;
-        private ToolMaterialData _resolvedMaterial;
-        private readonly List<PartBuilderRecipe> _availableRecipes = new List<PartBuilderRecipe>();
 
-        // UI elements
-        private VisualElement _patternButtonContainer;
-        private Label _materialLabel;
-        private Label _costLabel;
-        private Label _haveLabel;
-        private readonly List<Button> _patternButtons = new List<Button>();
+        private void Update()
+        {
+            if (Context == null)
+            {
+                return;
+            }
 
-        private bool _needsRefresh = true;
+            if (IsOpen && Keyboard.current != null &&
+                Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                Close();
+                return;
+            }
+
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            if (_needsRefresh)
+            {
+                _needsRefresh = false;
+                RefreshPatternButtons();
+            }
+
+            RefreshAllSlots();
+        }
 
         public void Initialize(ScreenContext context)
         {
@@ -69,9 +99,9 @@ namespace Lithforge.Runtime.BlockEntity.UI
             InventoryBehavior inv = builder.Inventory;
 
             _patternAdapter = new BlockEntityContainerAdapter(
-                inv, PartBuilderBlockEntity.PatternSlot, 1, false);
+                inv, PartBuilderBlockEntity.PatternSlot, 1);
             _materialAdapter = new BlockEntityContainerAdapter(
-                inv, PartBuilderBlockEntity.MaterialSlot, 1, false);
+                inv, PartBuilderBlockEntity.MaterialSlot, 1);
             _outputAdapter = new BlockEntityContainerAdapter(
                 inv, PartBuilderBlockEntity.OutputSlot, 1, true);
 
@@ -90,33 +120,33 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Panel.Clear();
             Panel.AddToClassList("lf-overlay");
 
-            VisualElement container = new VisualElement();
+            VisualElement container = new();
             container.AddToClassList("lf-panel");
             Panel.Add(container);
 
             // Title
-            Label title = new Label("Part Builder");
+            Label title = new("Part Builder");
             title.AddToClassList("lf-panel__title");
             container.Add(title);
 
             // Main content row: pattern buttons | slots
-            VisualElement contentRow = new VisualElement();
+            VisualElement contentRow = new();
             contentRow.style.flexDirection = FlexDirection.Row;
             contentRow.style.marginBottom = 8;
             container.Add(contentRow);
 
             // Pattern buttons column (left side)
-            VisualElement patternColumn = new VisualElement();
+            VisualElement patternColumn = new();
             patternColumn.style.width = 160;
             patternColumn.style.marginRight = 8;
             contentRow.Add(patternColumn);
 
-            Label patternLabel = new Label("Patterns");
+            Label patternLabel = new("Patterns");
             patternLabel.AddToClassList("lf-section-label");
             patternColumn.Add(patternLabel);
 
             // Scrollable pattern button container (4 columns)
-            ScrollView scrollView = new ScrollView(ScrollViewMode.Vertical);
+            ScrollView scrollView = new(ScrollViewMode.Vertical);
             scrollView.style.maxHeight = 120;
             patternColumn.Add(scrollView);
 
@@ -126,42 +156,42 @@ namespace Lithforge.Runtime.BlockEntity.UI
             scrollView.Add(_patternButtonContainer);
 
             // Slots column (right side)
-            VisualElement slotsColumn = new VisualElement();
+            VisualElement slotsColumn = new();
             contentRow.Add(slotsColumn);
 
             // Input slots row
-            VisualElement inputRow = new VisualElement();
+            VisualElement inputRow = new();
             inputRow.AddToClassList("lf-craft-section");
             slotsColumn.Add(inputRow);
 
             // Pattern slot
-            VisualElement patternSlotCol = new VisualElement();
-            Label patternSlotLabel = new Label("Pattern");
+            VisualElement patternSlotCol = new();
+            Label patternSlotLabel = new("Pattern");
             patternSlotLabel.AddToClassList("lf-section-label");
             patternSlotCol.Add(patternSlotLabel);
             BuildSingleSlot(_patternAdapter, 0, patternSlotCol);
             inputRow.Add(patternSlotCol);
 
             // Material slot
-            VisualElement materialSlotCol = new VisualElement();
-            Label materialSlotLabel = new Label("Material");
+            VisualElement materialSlotCol = new();
+            Label materialSlotLabel = new("Material");
             materialSlotLabel.AddToClassList("lf-section-label");
             materialSlotCol.Add(materialSlotLabel);
             BuildSingleSlot(_materialAdapter, 0, materialSlotCol);
             inputRow.Add(materialSlotCol);
 
             // Arrow
-            VisualElement arrowCol = new VisualElement();
+            VisualElement arrowCol = new();
             arrowCol.style.justifyContent = Justify.Center;
             arrowCol.style.alignItems = Align.Center;
-            Label arrow = new Label("=>");
+            Label arrow = new("=>");
             arrow.AddToClassList("lf-craft-arrow");
             arrowCol.Add(arrow);
             inputRow.Add(arrowCol);
 
             // Output slot
-            VisualElement outputCol = new VisualElement();
-            Label outputLabel = new Label("Result");
+            VisualElement outputCol = new();
+            Label outputLabel = new("Result");
             outputLabel.AddToClassList("lf-section-label");
             outputCol.Add(outputLabel);
             BuildSingleSlot(_outputAdapter, 0, outputCol);
@@ -184,12 +214,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
             slotsColumn.Add(_haveLabel);
 
             // Separator
-            VisualElement sep1 = new VisualElement();
+            VisualElement sep1 = new();
             sep1.AddToClassList("lf-separator");
             container.Add(sep1);
 
             // Main inventory: 9x3
-            Label mainLabel = new Label("Inventory");
+            Label mainLabel = new("Inventory");
             mainLabel.AddToClassList("lf-section-label");
             container.Add(mainLabel);
 
@@ -197,13 +227,13 @@ namespace Lithforge.Runtime.BlockEntity.UI
             BuildSlotGroup(mainGroupDef, _mainAdapter, container);
 
             // Separator
-            VisualElement sep2 = new VisualElement();
+            VisualElement sep2 = new();
             sep2.AddToClassList("lf-separator");
             sep2.style.marginTop = 8;
             container.Add(sep2);
 
             // Hotbar: 9x1
-            Label hotbarLabel = new Label("Hotbar");
+            Label hotbarLabel = new("Hotbar");
             hotbarLabel.AddToClassList("lf-section-label");
             container.Add(hotbarLabel);
 
@@ -292,15 +322,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             // Build result
-            ToolPartData partData = new ToolPartData
+            ToolPartData partData = new()
             {
-                PartType = _selectedRecipe.ResultPartType,
-                MaterialId = _resolvedMaterial.MaterialId
+                PartType = _selectedRecipe.ResultPartType, MaterialId = _resolvedMaterial.MaterialId,
             };
             byte[] customData = ToolPartDataSerializer.Serialize(partData);
 
             ResourceId resultId = _selectedRecipe.ResultItemId;
-            ItemStack resultStack = new ItemStack(resultId, _selectedRecipe.ResultCount);
+            ItemStack resultStack = new(resultId, _selectedRecipe.ResultCount);
             resultStack.CustomData = customData;
 
             // Generate sprite if not cached
@@ -308,7 +337,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 ? Context.ToolPartTextures.ResolveSuffix(_resolvedMaterial.MaterialId)
                 : _resolvedMaterial.MaterialId.Name;
 
-            ResourceId spriteCacheKey = new ResourceId(
+            ResourceId spriteCacheKey = new(
                 resultId.Namespace,
                 resultId.Name + "__" + _resolvedMaterial.MaterialId.Name);
 
@@ -333,8 +362,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             // Give to player
             bool isShift = Keyboard.current != null &&
-                (Keyboard.current.leftShiftKey.isPressed ||
-                 Keyboard.current.rightShiftKey.isPressed);
+                           (Keyboard.current.leftShiftKey.isPressed ||
+                            Keyboard.current.rightShiftKey.isPressed);
 
             bool given = false;
 
@@ -471,7 +500,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartBuilderRecipe recipe = _availableRecipes[i];
                 int capturedIndex = i;
 
-                Button btn = new Button();
+                Button btn = new();
                 btn.text = recipe.DisplayName;
                 btn.style.width = 72;
                 btn.style.height = 24;
@@ -603,34 +632,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             _currentBuilder = null;
-        }
-
-        private void Update()
-        {
-            if (Context == null)
-            {
-                return;
-            }
-
-            if (IsOpen && Keyboard.current != null &&
-                Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                Close();
-                return;
-            }
-
-            if (!IsOpen)
-            {
-                return;
-            }
-
-            if (_needsRefresh)
-            {
-                _needsRefresh = false;
-                RefreshPatternButtons();
-            }
-
-            RefreshAllSlots();
         }
     }
 }
