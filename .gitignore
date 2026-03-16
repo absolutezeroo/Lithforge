@@ -104,3 +104,6 @@ InitTestScene*.unity*
 
 # Sources
 Sources/
+
+# Claude Code
+.claude/
