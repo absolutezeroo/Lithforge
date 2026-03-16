@@ -23,5 +23,8 @@ MonoBehaviour:
   traitIds:
   - lithforge:reinforced
   toolLevel: 2
+  isCraftable: 0
+  partBuilderCost: 2
+  craftingItemIds: []
   textureSuffix: iron
   isFallbackMaterial: 0

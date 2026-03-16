@@ -23,5 +23,9 @@ MonoBehaviour:
   traitIds:
   - lithforge:ecological
   toolLevel: 0
+  isCraftable: 1
+  partBuilderCost: 1
+  craftingItemIds:
+  - lithforge:oak_planks
   textureSuffix: wood
   isFallbackMaterial: 0

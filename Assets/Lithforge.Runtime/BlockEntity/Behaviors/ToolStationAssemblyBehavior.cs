@@ -56,9 +56,16 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     continue;
                 }
 
+                // Deserialize CustomData once per slot (avoid double deserialization)
+                ToolPartData customPartData = default;
+                bool hasPartData = stack.HasCustomData &&
+                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out customPartData);
+
                 // Resolve part type and material from CustomData (generic parts)
                 // or fall back to tag-based resolution (legacy items)
-                ToolPartType partType = ResolvePartType(itemDef, i, stack);
+                ToolPartType partType = hasPartData
+                    ? customPartData.PartType
+                    : ResolvePartType(itemDef, i);
 
                 if (partType == ToolPartType.None)
                 {
@@ -67,7 +74,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
                 ToolPart part = ToolPart.Empty;
                 part.PartType = partType;
-                part.MaterialId = ResolveMaterialId(itemDef, stack);
+                part.MaterialId = hasPartData
+                    ? customPartData.MaterialId
+                    : ResolveMaterialId(itemDef);
                 parts[partCount] = part;
                 partCount++;
             }
@@ -112,16 +121,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
-        private static ToolPartType ResolvePartType(ItemEntry itemDef, int slotPosition, ItemStack stack)
+        private static ToolPartType ResolvePartType(ItemEntry itemDef, int slotPosition)
         {
-            // New path: generic parts with CustomData
-            if (stack.HasCustomData &&
-                ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
-            {
-                return partData.PartType;
-            }
-
-            // Legacy fallback: tag-based resolution
+            // Tag-based resolution (legacy items)
             if (itemDef.Tags != null)
             {
                 for (int t = 0; t < itemDef.Tags.Count; t++)
@@ -165,15 +167,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
-        private static ResourceId ResolveMaterialId(ItemEntry itemDef, ItemStack stack)
+        private static ResourceId ResolveMaterialId(ItemEntry itemDef)
         {
-            // New path: generic parts with CustomData
-            if (stack.HasCustomData &&
-                ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
-            {
-                return partData.MaterialId;
-            }
-
             // Legacy fallback: tag-based convention "material:lithforge:iron"
             if (itemDef.Tags != null)
             {

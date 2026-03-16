@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: unknown
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Tools.ToolMaterialDefinition
   materialId: lithforge:unknown
-  compatibleParts:
+  compatibleParts: 
   headMiningSpeed: 1
   headDurability: 1
   headAttackDamage: 1
@@ -22,5 +22,8 @@ MonoBehaviour:
   bindingDurabilityBonus: 0
   traitIds: []
   toolLevel: 0
+  isCraftable: 0
+  partBuilderCost: 1
+  craftingItemIds: []
   textureSuffix: unknown
   isFallbackMaterial: 1

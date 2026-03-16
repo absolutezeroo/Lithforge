@@ -107,5 +107,25 @@ namespace Lithforge.Voxel.Item
                 return tool;
             }
         }
+
+        public static bool TryDeserialize(byte[] data, out ToolInstance result)
+        {
+            result = null;
+
+            if (data == null || data.Length < 4)
+            {
+                return false;
+            }
+
+            try
+            {
+                result = Deserialize(data);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

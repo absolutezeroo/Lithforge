@@ -66,7 +66,7 @@ namespace Lithforge.Runtime.UI.Widgets
 
             if (stack.HasCustomData)
             {
-                tool = ToolInstanceSerializer.Deserialize(stack.CustomData);
+                ToolInstanceSerializer.TryDeserialize(stack.CustomData, out tool);
 
                 // Check for generic tool part (if not a tool instance)
                 if (tool == null &&

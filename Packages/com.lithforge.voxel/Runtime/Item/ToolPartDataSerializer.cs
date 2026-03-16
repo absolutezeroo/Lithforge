@@ -33,6 +33,13 @@ namespace Lithforge.Voxel.Item
                 using (BinaryReader r = new BinaryReader(ms))
                 {
                     byte version = r.ReadByte();
+
+                    if (version != Version)
+                    {
+                        throw new InvalidDataException(
+                            "Unsupported ToolPartData version " + version);
+                    }
+
                     ToolPartType partType = (ToolPartType)r.ReadByte();
                     ResourceId materialId = ResourceId.Parse(r.ReadString());
 

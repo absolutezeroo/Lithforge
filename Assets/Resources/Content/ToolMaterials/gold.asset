@@ -23,5 +23,8 @@ MonoBehaviour:
   traitIds:
   - lithforge:haste
   toolLevel: 0
-  textureSuffix:
+  isCraftable: 0
+  partBuilderCost: 2
+  craftingItemIds: []
+  textureSuffix: 
   isFallbackMaterial: 0

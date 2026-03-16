@@ -102,11 +102,10 @@ namespace Lithforge.Runtime.UI.Widgets
             _count.text = stack.Count > 1 ? stack.Count.ToString() : "";
 
             // Durability bar (from modular ToolInstance)
-            if (stack.HasCustomData)
+            if (stack.HasCustomData &&
+                ToolInstanceSerializer.TryDeserialize(stack.CustomData, out ToolInstance tool))
             {
-                ToolInstance tool = ToolInstanceSerializer.Deserialize(stack.CustomData);
-
-                if (tool != null && tool.MaxDurability > 0)
+                if (tool.MaxDurability > 0)
                 {
                     float ratio = (float)tool.CurrentDurability / tool.MaxDurability;
                     _durabilityTrack.style.display = DisplayStyle.Flex;

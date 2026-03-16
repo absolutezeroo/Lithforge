@@ -23,5 +23,9 @@ MonoBehaviour:
   traitIds:
   - lithforge:stonebound
   toolLevel: 1
-  textureSuffix:
+  isCraftable: 1
+  partBuilderCost: 1
+  craftingItemIds:
+  - lithforge:cobblestone
+  textureSuffix: 
   isFallbackMaterial: 0
