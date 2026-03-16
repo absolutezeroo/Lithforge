@@ -59,7 +59,7 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// May be null if no ToolDefinitionSO assets are loaded.
+        /// May be null if no ToolDefinition assets are loaded.
         /// </summary>
         public ToolPartTextureDatabase ToolPartTextures
         {
