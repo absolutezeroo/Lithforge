@@ -46,6 +46,21 @@ namespace Lithforge.Runtime.Scheduling
         private readonly float _completionBudgetMs;
 
         /// <summary>
+        /// Exponential moving average of GPU upload bytes per frame.
+        /// Updated each frame in ScheduleJobs from PipelineStats.GpuUploadBytes.
+        /// When this exceeds the budget, mesh scheduling is throttled
+        /// to prevent GPU saturation during heavy generation phases.
+        /// </summary>
+        private long _recentUploadBytes;
+
+        /// <summary>
+        /// Per-frame GPU upload budget in bytes. When the EMA of recent uploads
+        /// exceeds this, effectiveMax is scaled down proportionally.
+        /// 200KB/frame ~ 12MB/s at 60fps — enough for steady-state but throttles bursts.
+        /// </summary>
+        private const long GpuUploadBudgetPerFrame = 200_000;
+
+        /// <summary>
         /// Dummy NativeArray passed to ExtractAllBordersJob for missing neighbors.
         /// The job's HasXxx flags prevent reading from it; this satisfies the safety system.
         /// Owner: MeshScheduler. Lifetime: application. Allocator: Persistent.
@@ -280,6 +295,20 @@ namespace Lithforge.Runtime.Scheduling
             else
             {
                 effectiveMax = math.max(1, _maxMeshesPerFrame - (pendingCount - _throttleThreshold) / 2);
+            }
+
+            // GPU bandwidth throttle: when recent uploads are heavy, reduce mesh output
+            // to prevent GPU saturation during active generation phases.
+            // GpuUploadBytes is the current frame's upload total (set by PollCompleted above).
+            long frameDelta = _pipelineStats.GpuUploadBytes;
+
+            // Exponential moving average (alpha ~ 0.3): smooths spikes while responding quickly
+            _recentUploadBytes = (_recentUploadBytes * 7 + frameDelta * 3) / 10;
+
+            if (_recentUploadBytes > GpuUploadBudgetPerFrame)
+            {
+                float overload = (float)_recentUploadBytes / GpuUploadBudgetPerFrame;
+                effectiveMax = math.max(1, (int)(effectiveMax / overload));
             }
 
             int slotsAvailable = effectiveMax - math.min(pendingCount, effectiveMax);

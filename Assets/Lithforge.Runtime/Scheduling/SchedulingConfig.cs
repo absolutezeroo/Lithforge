@@ -31,13 +31,14 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// How many generation job completions to poll per frame. Higher than the
-        /// scheduling cap because completion is cheaper than scheduling.
+        /// How many generation job completions to poll per frame. Capped at 6 to keep
+        /// PollGen under ~1.5ms — each completion runs decoration on the main thread
+        /// (~0.22ms), so 6 completions ~ 1.3ms vs 10 completions ~ 2.2ms.
         /// </summary>
         /// <param name="rd">Current render distance in chunks.</param>
         public static int MaxGenCompletionsPerFrame(int rd)
         {
-            return math.min(32, 4 + rd / 2);
+            return math.min(6, 3 + rd / 4);
         }
 
         /// <summary>

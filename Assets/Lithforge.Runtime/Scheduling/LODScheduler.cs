@@ -39,6 +39,14 @@ namespace Lithforge.Runtime.Scheduling
         private readonly List<ManagedChunk> _generatedLODCache = new List<ManagedChunk>();
         private readonly List<ManagedChunk> _generatedChunksCache = new List<ManagedChunk>();
 
+        /// <summary>
+        /// Frame counter for debouncing Generated chunk LOD assignment.
+        /// Generated chunks only get LOD levels reassigned every 4th frame,
+        /// since their LOD level is less urgent — they'll be assigned before
+        /// meshing anyway via the LODScheduler.ScheduleJobs filter.
+        /// </summary>
+        private int _lodFrameCounter;
+
         public int PendingCount
         {
             get { return _pendingLODMeshes.Count; }
@@ -150,14 +158,23 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public void UpdateLODLevels(int3 cameraChunkCoord)
         {
-            // Assign LOD to Ready chunks (LOD transitions)
+            // Always update Ready chunks every frame (LOD transitions on meshed chunks)
             _chunkManager.FillReadyChunks(_readyChunksCache);
             AssignLODLevels(_readyChunksCache, cameraChunkCoord);
 
-            // Assign LOD to Generated chunks so distant ones go to LODScheduler
-            // instead of being skipped by MeshScheduler's LODLevel > 0 filter
-            _chunkManager.FillGeneratedChunks(_generatedChunksCache);
-            AssignLODLevels(_generatedChunksCache, cameraChunkCoord);
+            // Debounce Generated chunk LOD assignment to every 4th frame.
+            // LOD levels on unmeshed chunks are less urgent — they'll get assigned
+            // before meshing anyway via LODScheduler.ScheduleJobs filter.
+            // This avoids iterating all Generated chunks every frame during
+            // heavy generation phases where the list can be very large.
+            _lodFrameCounter++;
+
+            if (_lodFrameCounter >= 4)
+            {
+                _lodFrameCounter = 0;
+                _chunkManager.FillGeneratedChunks(_generatedChunksCache);
+                AssignLODLevels(_generatedChunksCache, cameraChunkCoord);
+            }
         }
 
         /// <summary>
