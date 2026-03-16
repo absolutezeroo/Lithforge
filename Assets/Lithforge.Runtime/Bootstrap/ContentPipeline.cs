@@ -750,30 +750,7 @@ namespace Lithforge.Runtime.Bootstrap
             ResourceId id = new ResourceId(item.Namespace, item.ItemName);
             ItemEntry def = new ItemEntry(id);
             def.MaxStackSize = item.MaxStackSize;
-            def.ToolType = item.ToolType;
-            def.ToolLevel = item.ToolLevel;
-            def.Durability = item.Durability;
-            def.AttackDamage = item.AttackDamage;
-            def.AttackSpeed = item.AttackSpeed;
-            def.MiningSpeed = item.MiningSpeed;
-
             def.FuelTime = item.FuelTime;
-            def.ToolSpeedProfile = item.ToolSpeedProfile;
-
-            AffixDefinition[] sourceAffixes = item.Affixes ?? Array.Empty<AffixDefinition>();
-            List<IMiningModifier> modList = new List<IMiningModifier>(sourceAffixes.Length);
-
-            for (int a = 0; a < sourceAffixes.Length; a++)
-            {
-                if (sourceAffixes[a] != null)
-                {
-                    modList.Add(sourceAffixes[a]);
-                }
-            }
-
-            IMiningModifier[] mods = modList.ToArray();
-            Array.Sort(mods, (x, y) => x.Priority.CompareTo(y.Priority));
-            def.Modifiers = mods;
 
             if (item.PlacesBlock != null)
             {

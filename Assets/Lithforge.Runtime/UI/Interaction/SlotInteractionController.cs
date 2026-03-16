@@ -354,26 +354,16 @@ namespace Lithforge.Runtime.UI.Interaction
                 RecipeEntry match = output.CurrentMatch;
                 ItemEntry resultDef = _itemRegistry.Get(match.ResultItem);
                 int maxStack = resultDef != null ? resultDef.MaxStackSize : 64;
-                int durability = (resultDef != null && resultDef.Durability > 0)
-                    ? resultDef.Durability
-                    : -1;
 
                 byte[] toolData = ToolTemplateRegistry.GetTemplate(match.ResultItem);
 
                 if (toolData != null)
                 {
+                    ToolInstance tool = ToolInstanceSerializer.Deserialize(toolData);
+                    int durability = tool != null ? tool.MaxDurability : -1;
                     ItemStack resultStack = new ItemStack(match.ResultItem, 1, durability);
                     resultStack.CustomData = toolData;
                     int leftOver = inventory.AddItemStack(resultStack);
-
-                    if (leftOver > 0)
-                    {
-                        break;
-                    }
-                }
-                else if (durability > 0)
-                {
-                    int leftOver = inventory.AddItemWithDurability(match.ResultItem, durability);
 
                     if (leftOver > 0)
                     {

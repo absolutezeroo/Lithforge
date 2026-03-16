@@ -56,16 +56,18 @@ namespace Lithforge.Runtime.UI.Container
 
             if (match != null)
             {
-                ItemEntry resultDef = _itemRegistry.Get(match.ResultItem);
-                int durability = (resultDef != null && resultDef.Durability > 0)
-                    ? resultDef.Durability
-                    : -1;
-                _displayStack = new ItemStack(match.ResultItem, match.ResultCount, durability);
                 byte[] toolData = ToolTemplateRegistry.GetTemplate(match.ResultItem);
 
                 if (toolData != null)
                 {
+                    ToolInstance tool = ToolInstanceSerializer.Deserialize(toolData);
+                    int durability = tool != null ? tool.MaxDurability : -1;
+                    _displayStack = new ItemStack(match.ResultItem, match.ResultCount, durability);
                     _displayStack.CustomData = toolData;
+                }
+                else
+                {
+                    _displayStack = new ItemStack(match.ResultItem, match.ResultCount, -1);
                 }
             }
             else

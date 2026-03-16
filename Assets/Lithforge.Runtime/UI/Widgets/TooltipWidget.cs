@@ -59,10 +59,18 @@ namespace Lithforge.Runtime.UI.Widgets
             // Name
             _nameLabel.text = FormatFullName(stack.ItemId.Name);
 
-            // Type (tool type)
-            if (entry.ToolType != ToolType.None)
+            // Resolve tool data from CustomData
+            ToolInstance tool = null;
+
+            if (stack.HasCustomData)
             {
-                _typeLabel.text = entry.ToolType.ToString();
+                tool = ToolInstanceSerializer.Deserialize(stack.CustomData);
+            }
+
+            // Type (tool type)
+            if (tool != null)
+            {
+                _typeLabel.text = tool.ToolType.ToString();
                 _typeLabel.style.display = DisplayStyle.Flex;
             }
             else if (entry.IsBlockItem)
@@ -78,19 +86,22 @@ namespace Lithforge.Runtime.UI.Widgets
             // Stats
             string stats = "";
 
-            if (entry.AttackDamage > 0 && entry.ToolType != ToolType.None)
+            if (tool != null)
             {
-                stats += $"Attack: {entry.AttackDamage:F1}\n";
-            }
+                if (tool.BaseDamage > 0)
+                {
+                    stats += $"Attack: {tool.BaseDamage:F1}\n";
+                }
 
-            if (entry.MiningSpeed > 1f)
-            {
-                stats += $"Mining Speed: {entry.MiningSpeed:F1}\n";
-            }
+                if (tool.BaseSpeed > 1f)
+                {
+                    stats += $"Mining Speed: {tool.BaseSpeed:F1}\n";
+                }
 
-            if (entry.ToolLevel > 0)
-            {
-                stats += $"Mining Level: {entry.ToolLevel}\n";
+                if (tool.EffectiveToolLevel > 0)
+                {
+                    stats += $"Mining Level: {tool.EffectiveToolLevel}\n";
+                }
             }
 
             if (stats.Length > 0)
@@ -104,9 +115,9 @@ namespace Lithforge.Runtime.UI.Widgets
             }
 
             // Durability
-            if (stack.Durability > 0 && entry.Durability > 0)
+            if (tool != null && tool.MaxDurability > 0)
             {
-                _durabilityLabel.text = $"Durability: {stack.Durability} / {entry.Durability}";
+                _durabilityLabel.text = $"Durability: {tool.CurrentDurability} / {tool.MaxDurability}";
                 _durabilityLabel.style.display = DisplayStyle.Flex;
             }
             else

@@ -84,14 +84,14 @@ namespace Lithforge.Runtime.UI.Widgets
             // Count
             _count.text = stack.Count > 1 ? stack.Count.ToString() : "";
 
-            // Durability bar
-            if (itemRegistry != null && stack.Durability > 0)
+            // Durability bar (from modular ToolInstance)
+            if (stack.HasCustomData)
             {
-                ItemEntry entry = itemRegistry.Get(stack.ItemId);
+                ToolInstance tool = ToolInstanceSerializer.Deserialize(stack.CustomData);
 
-                if (entry != null && entry.Durability > 0)
+                if (tool != null && tool.MaxDurability > 0)
                 {
-                    float ratio = (float)stack.Durability / entry.Durability;
+                    float ratio = (float)tool.CurrentDurability / tool.MaxDurability;
                     _durabilityTrack.style.display = DisplayStyle.Flex;
                     _durabilityFill.style.width = new StyleLength(new Length(ratio * 100f, LengthUnit.Percent));
 

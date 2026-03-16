@@ -4,7 +4,6 @@ using Lithforge.Core.Data;
 using Lithforge.Physics;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
-using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.Rendering;
 using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
@@ -311,56 +310,8 @@ namespace Lithforge.Runtime.Input
                 ctx.RequiredToolLevel = entry.RequiredToolLevel;
 
                 ItemStack heldItem = _inventory.GetSelectedItem();
-                IMiningModifier[] mods = null;
 
-                if (!heldItem.IsEmpty)
-                {
-                    ItemEntry itemDef = _itemRegistry.Get(heldItem.ItemId);
-
-                    if (itemDef != null && itemDef.ToolType != ToolType.None)
-                    {
-                        ctx.ToolType = itemDef.ToolType;
-                        ctx.ToolLevel = itemDef.ToolLevel;
-
-                        if (s_toolTagMap.TryGetValue(itemDef.ToolType, out ResourceId requiredTag))
-                        {
-                            ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, requiredTag);
-                        }
-
-                        if (itemDef.ToolSpeedProfile is ToolSpeedProfile profile)
-                        {
-                            ctx.ToolSpeed = profile.GetSpeed(ctx.Material);
-                        }
-                        else
-                        {
-                            ctx.ToolSpeed = itemDef.MiningSpeed;
-                        }
-
-                        mods = itemDef.Modifiers;
-                    }
-                }
-
-                // Apply default harvest denial rules first
-                if (entry.RequiredToolLevel > 0 && ctx.ToolLevel < entry.RequiredToolLevel)
-                {
-                    ctx.CanHarvest = false;
-                }
-
-                if (entry.RequiresTool && !ctx.IsCorrectTool)
-                {
-                    ctx.CanHarvest = false;
-                }
-
-                // Apply modifiers after denial checks (GrantHarvest can override)
-                if (mods != null)
-                {
-                    for (int i = 0; i < mods.Length; i++)
-                    {
-                        ctx = mods[i].Apply(ctx);
-                    }
-                }
-
-                // Apply modular tool traits (Tinkers-like system)
+                // Apply modular tool traits
                 if (!heldItem.IsEmpty && heldItem.HasCustomData)
                 {
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
@@ -377,12 +328,38 @@ namespace Lithforge.Runtime.Input
                             ctx.IsCorrectTool = _tagRegistry.HasTag(entry.Id, modularTag);
                         }
 
+                        // Apply default harvest denial rules
+                        if (entry.RequiredToolLevel > 0 && ctx.ToolLevel < entry.RequiredToolLevel)
+                        {
+                            ctx.CanHarvest = false;
+                        }
+
+                        if (entry.RequiresTool && !ctx.IsCorrectTool)
+                        {
+                            ctx.CanHarvest = false;
+                        }
+
+                        // Apply traits after denial checks (GrantHarvest can override)
                         IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
                         Array.Sort(traits, s_traitPrioritySort);
                         for (int i = 0; i < traits.Length; i++)
                         {
                             ctx = traits[i].Apply(ctx);
                         }
+                    }
+                }
+
+                // Bare-hand harvest denial (no tool equipped)
+                if (heldItem.IsEmpty || !heldItem.HasCustomData)
+                {
+                    if (entry.RequiredToolLevel > 0)
+                    {
+                        ctx.CanHarvest = false;
+                    }
+
+                    if (entry.RequiresTool)
+                    {
+                        ctx.CanHarvest = false;
                     }
                 }
 
@@ -500,26 +477,6 @@ namespace Lithforge.Runtime.Input
                             ItemStack updated = heldItem;
                             updated.Durability = tool.CurrentDurability;
                             updated.CustomData = ToolInstanceSerializer.Serialize(tool);
-                            _inventory.SetSlot(_inventory.SelectedSlot, updated);
-                        }
-                    }
-                }
-                else
-                {
-                    // Standard tool: consume durability from ItemStack.Durability
-                    ItemEntry heldDef = _itemRegistry.Get(heldItem.ItemId);
-
-                    if (heldDef != null && heldDef.Durability > 0 && heldItem.Durability != -1)
-                    {
-                        ItemStack updated = heldItem;
-                        updated.Durability -= 1;
-
-                        if (updated.Durability <= 0)
-                        {
-                            _inventory.SetSlot(_inventory.SelectedSlot, ItemStack.Empty);
-                        }
-                        else
-                        {
                             _inventory.SetSlot(_inventory.SelectedSlot, updated);
                         }
                     }

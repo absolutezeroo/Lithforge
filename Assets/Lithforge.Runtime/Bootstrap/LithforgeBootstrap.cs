@@ -947,9 +947,10 @@ namespace Lithforge.Runtime.Bootstrap
 
                         if (toolData != null)
                         {
-                            int durability = itemDef != null && itemDef.Durability > 0
-                                ? itemDef.Durability
-                                : -1;
+                            ToolInstance toolTemplate =
+                                ToolInstanceSerializer.Deserialize(toolData);
+                            int durability = toolTemplate != null
+                                ? toolTemplate.MaxDurability : -1;
                             ItemStack toolStack = new ItemStack(itemId, 1, durability);
                             toolStack.CustomData = toolData;
                             playerInventory.AddItemStack(toolStack);

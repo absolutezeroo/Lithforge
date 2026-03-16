@@ -1,8 +1,8 @@
+using System;
 using System.Collections.Generic;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Runtime.Content.Models;
-using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Item;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -35,36 +35,38 @@ namespace Lithforge.Runtime.Content.Items
         /// <summary>Which tool category this item belongs to (None, Pickaxe, Axe, Shovel, Sword, Hoe).</summary>
         [FormerlySerializedAs("_toolType"),Header("Tool Properties")]
         [Tooltip("Tool type")]
+        [HideInInspector]
         [SerializeField] private ToolType toolType = ToolType.None;
 
         /// <summary>Mining tier (0 = hand, 1 = wood, 2 = stone, 3 = iron, 4 = diamond). Determines which blocks yield drops.</summary>
         [FormerlySerializedAs("_toolLevel"),Tooltip("Tool mining level")]
         [Min(0)]
+        [HideInInspector]
         [SerializeField] private int toolLevel;
 
         /// <summary>Total durability before the tool breaks. 0 = indestructible.</summary>
         [FormerlySerializedAs("_durability"),Tooltip("Item durability (0 = unbreakable)")]
         [Min(0)]
+        [HideInInspector]
         [SerializeField] private int durability;
 
         /// <summary>Base damage dealt to entities on hit.</summary>
         [FormerlySerializedAs("_attackDamage"),Tooltip("Attack damage")]
         [Min(0f)]
+        [HideInInspector]
         [SerializeField] private float attackDamage = 1.0f;
 
         /// <summary>Attacks per second — lower values mean slower swings but often pair with higher damage.</summary>
         [FormerlySerializedAs("_attackSpeed"),Tooltip("Attack speed")]
         [Min(0f)]
+        [HideInInspector]
         [SerializeField] private float attackSpeed = 4.0f;
 
-        /// <summary>Base mining speed multiplier. Overridden per-material by ToolSpeedProfile if set.</summary>
+        /// <summary>Base mining speed multiplier.</summary>
         [FormerlySerializedAs("_miningSpeed"),Tooltip("Mining speed multiplier")]
         [Min(0f)]
+        [HideInInspector]
         [SerializeField] private float miningSpeed = 1.0f;
-
-        /// <summary>Per-material speed overrides (e.g. pickaxe mines stone faster than dirt). Null = use flat MiningSpeed.</summary>
-        [FormerlySerializedAs("_toolSpeedProfile"),Tooltip("Speed profile per block material (optional, overrides MiningSpeed)")]
-        [SerializeField] private ToolSpeedProfile toolSpeedProfile;
 
         /// <summary>Passive modifiers applied while this item is held (e.g. efficiency, fortune).</summary>
         [FormerlySerializedAs("_affixes"),Tooltip("Tool affixes")]
@@ -111,45 +113,45 @@ namespace Lithforge.Runtime.Content.Items
         }
 
         /// <summary>Which tool category this item belongs to (None, Pickaxe, Axe, Shovel, Sword, Hoe).</summary>
+        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public ToolType ToolType
         {
             get { return toolType; }
         }
 
         /// <summary>Mining tier (0 = hand, 1 = wood, 2 = stone, 3 = iron, 4 = diamond). Determines which blocks yield drops.</summary>
+        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public int ToolLevel
         {
             get { return toolLevel; }
         }
 
         /// <summary>Total durability before the tool breaks. 0 = indestructible.</summary>
+        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public int Durability
         {
             get { return durability; }
         }
 
         /// <summary>Base damage dealt to entities on hit.</summary>
+        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public float AttackDamage
         {
             get { return attackDamage; }
         }
 
         /// <summary>Attacks per second — lower values mean slower swings but often pair with higher damage.</summary>
+        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public float AttackSpeed
         {
             get { return attackSpeed; }
         }
 
-        /// <summary>Base mining speed multiplier. Overridden per-material by ToolSpeedProfile if set.</summary>
+        /// <summary>Base mining speed multiplier.</summary>
+        [Obsolete("Use modular tool system (ToolInstance via CustomData)")]
         public float MiningSpeed
         {
             get { return miningSpeed; }
-        }
-
-        /// <summary>Per-material speed overrides (e.g. pickaxe mines stone faster than dirt). Null = use flat MiningSpeed.</summary>
-        public ToolSpeedProfile ToolSpeedProfile
-        {
-            get { return toolSpeedProfile; }
         }
 
         /// <summary>Passive modifiers applied while this item is held (e.g. efficiency, fortune).</summary>
