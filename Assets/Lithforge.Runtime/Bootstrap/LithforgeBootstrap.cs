@@ -1027,6 +1027,14 @@ namespace Lithforge.Runtime.Bootstrap
                     _settings.Physics,
                     playerController);
 
+                // Wire command processor for block placement/break validation
+                LocalCommandProcessor commandProcessor = new LocalCommandProcessor(
+                    _chunkManager,
+                    playerObject.transform,
+                    _settings.Physics.PlayerHalfWidth,
+                    _settings.Physics.PlayerHeight);
+                blockInteraction.SetCommandProcessor(commandProcessor);
+
                 // Initialize first-person arm renderer
                 SkinLoader skinLoader = new();
                 Texture2D skinTexture = skinLoader.LoadSkin("default.png");

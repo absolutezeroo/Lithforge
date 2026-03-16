@@ -10,6 +10,7 @@ using Lithforge.Runtime.Rendering;
 using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
@@ -95,9 +96,20 @@ namespace Lithforge.Runtime.Input
         private int _miningHitInterval = 4;
         private int _miningHitTickCounter;
 
+        // Command processor (delegates validation + state mutation to LocalCommandProcessor)
+        private ICommandProcessor _commandProcessor;
+
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
 
+        /// <summary>
+        /// Sets the command processor used for block placement and break validation.
+        /// When null, falls back to direct ChunkManager calls.
+        /// </summary>
+        public void SetCommandProcessor(ICommandProcessor processor)
+        {
+            _commandProcessor = processor;
+        }
 
         public void Initialize(
             ChunkManager chunkManager,
@@ -515,8 +527,23 @@ namespace Lithforge.Runtime.Input
                 }
             }
 
-            _dirtiedChunks.Clear();
-            _chunkManager.SetBlock(blockCoord, StateId.Air, _dirtiedChunks);
+            // Delegate state mutation (set to air) to command processor
+            if (_commandProcessor != null)
+            {
+                BreakBlockCommand cmd = new BreakBlockCommand();
+                cmd.Tick = 0;
+                cmd.SequenceId = 0;
+                cmd.PlayerId = 0;
+                cmd.Position = blockCoord;
+
+                _commandProcessor.ProcessBreak(in cmd, _dirtiedChunks);
+            }
+            else
+            {
+                // Fallback: direct SetBlock if no processor wired
+                _dirtiedChunks.Clear();
+                _chunkManager.SetBlock(blockCoord, StateId.Air, _dirtiedChunks);
+            }
         }
 
         private void HandlePlacement(Mouse mouse, VoxelRaycastHit hit)
@@ -584,36 +611,56 @@ namespace Lithforge.Runtime.Input
             // Place on the adjacent face
             int3 placeCoord = hit.BlockCoord + hit.Normal;
 
-            // Check the target position is air
-            StateId existing = _chunkManager.GetBlock(placeCoord);
-
-            if (existing != StateId.Air)
+            // Delegate validation (air check, player overlap) and state mutation to command processor
+            if (_commandProcessor != null)
             {
-                return;
-            }
+                PlaceBlockCommand cmd = new PlaceBlockCommand();
+                cmd.Tick = 0;
+                cmd.SequenceId = 0;
+                cmd.PlayerId = 0;
+                cmd.Position = placeCoord;
+                cmd.BlockState = placeState;
+                cmd.Face = NormalToBlockFace(hit.Normal);
 
-            // Check that the placed block does not overlap the player AABB
-            if (_playerTransform != null)
-            {
-                float3 feetPos = new float3(
-                    _playerTransform.position.x,
-                    _playerTransform.position.y,
-                    _playerTransform.position.z);
+                CommandResult result = _commandProcessor.ProcessPlace(in cmd, _dirtiedChunks);
 
-                Aabb playerBox = new Aabb(
-                    new float3(feetPos.x - _playerHalfWidth, feetPos.y, feetPos.z - _playerHalfWidth),
-                    new float3(feetPos.x + _playerHalfWidth, feetPos.y + _playerHeight, feetPos.z + _playerHalfWidth));
-
-                Aabb blockBox = Aabb.FromBlockCoord(placeCoord);
-
-                if (playerBox.Intersects(blockBox))
+                if (result != CommandResult.Success)
                 {
                     return;
                 }
             }
+            else
+            {
+                // Fallback: direct validation + SetBlock if no processor wired
+                StateId existing = _chunkManager.GetBlock(placeCoord);
 
-            _dirtiedChunks.Clear();
-            _chunkManager.SetBlock(placeCoord, placeState, _dirtiedChunks);
+                if (existing != StateId.Air)
+                {
+                    return;
+                }
+
+                if (_playerTransform != null)
+                {
+                    float3 feetPos = new float3(
+                        _playerTransform.position.x,
+                        _playerTransform.position.y,
+                        _playerTransform.position.z);
+
+                    Aabb playerBox = new Aabb(
+                        new float3(feetPos.x - _playerHalfWidth, feetPos.y, feetPos.z - _playerHalfWidth),
+                        new float3(feetPos.x + _playerHalfWidth, feetPos.y + _playerHeight, feetPos.z + _playerHalfWidth));
+
+                    Aabb blockBox = Aabb.FromBlockCoord(placeCoord);
+
+                    if (playerBox.Intersects(blockBox))
+                    {
+                        return;
+                    }
+                }
+
+                _dirtiedChunks.Clear();
+                _chunkManager.SetBlock(placeCoord, placeState, _dirtiedChunks);
+            }
 
             // Play place sound after block is set
             if (_blockSoundPlayer != null)
@@ -643,6 +690,16 @@ namespace Lithforge.Runtime.Input
             }
 
             return StateId.Air;
+        }
+
+        private static BlockFace NormalToBlockFace(int3 normal)
+        {
+            if (normal.x > 0) { return BlockFace.East; }
+            if (normal.x < 0) { return BlockFace.West; }
+            if (normal.y > 0) { return BlockFace.Up; }
+            if (normal.y < 0) { return BlockFace.Down; }
+            if (normal.z > 0) { return BlockFace.North; }
+            return BlockFace.South;
         }
 
         private static int FloorDiv(int a, int b)
