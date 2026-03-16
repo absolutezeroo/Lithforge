@@ -17,6 +17,7 @@ using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
+using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.UI;
@@ -1341,14 +1342,18 @@ namespace Lithforge.Runtime.Bootstrap
 
                 playerController.SetPhysicsBody(physicsBody);
 
-                PlayerInputLatch inputLatch = new();
+                InputSnapshotBuilder inputSnapshotBuilder = new InputSnapshotBuilder(
+                    playerObject.transform, mainCamera.transform);
 
                 tickRegistryRef = new TickRegistry();
                 tickRegistryRef.Register(new MiningTickAdapter(blockInteraction));
                 tickRegistryRef.Register(new BlockEntityTickAdapter(blockEntityTickScheduler));
 
+                WorldSimulation worldSimulation = new WorldSimulation(
+                    tickRegistryRef, physicsBody, inputSnapshotBuilder);
+
                 _gameLoop.SetTickSystems(
-                    tickRegistryRef, inputLatch, physicsBody, playerObject.transform);
+                    worldSimulation, inputSnapshotBuilder, physicsBody, playerObject.transform);
             }
 
             // Initialize day/night cycle

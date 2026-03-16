@@ -8,6 +8,7 @@ using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
+using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
@@ -55,8 +56,8 @@ namespace Lithforge.Runtime
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
-        private TickRegistry _tickRegistry;
-        private PlayerInputLatch _playerInputLatch;
+        private WorldSimulation _worldSimulation;
+        private InputSnapshotBuilder _inputSnapshotBuilder;
         private PlayerPhysicsBody _playerPhysicsBody;
         private Transform _playerTransform;
         private int _ticksThisFrame;
@@ -272,13 +273,13 @@ namespace Lithforge.Runtime
         /// Wires the fixed tick rate systems. Must be called after Initialize.
         /// </summary>
         public void SetTickSystems(
-            TickRegistry tickRegistry,
-            PlayerInputLatch playerInputLatch,
+            WorldSimulation worldSimulation,
+            InputSnapshotBuilder inputSnapshotBuilder,
             PlayerPhysicsBody playerPhysicsBody,
             Transform playerTransform)
         {
-            _tickRegistry = tickRegistry;
-            _playerInputLatch = playerInputLatch;
+            _worldSimulation = worldSimulation;
+            _inputSnapshotBuilder = inputSnapshotBuilder;
             _playerPhysicsBody = playerPhysicsBody;
             _playerTransform = playerTransform;
         }
@@ -296,7 +297,7 @@ namespace Lithforge.Runtime
             _frameProfiler.Begin(FrameProfilerSections.UpdateTotal);
 
             // ── Fixed tick accumulator (skipped when fully paused) ──
-            if (_tickRegistry != null && _gameState != GameState.PausedFull)
+            if (_worldSimulation != null && _gameState != GameState.PausedFull)
             {
                 _frameProfiler.Begin(FrameProfilerSections.TickLoop);
                 Profiler.BeginSample("GL.TickLoop");
@@ -308,7 +309,7 @@ namespace Lithforge.Runtime
                 }
 
                 // Latch edge-triggered inputs before the tick loop
-                _playerInputLatch.LatchFrame();
+                _inputSnapshotBuilder.LatchFrame();
 
                 _tickAccumulator.Accumulate(Time.deltaTime);
 
@@ -316,15 +317,7 @@ namespace Lithforge.Runtime
 
                 while (_tickAccumulator.ShouldTick)
                 {
-                    InputLatchSnapshot latch = _playerInputLatch.ConsumeTick();
-
-                    if (_playerPhysicsBody != null)
-                    {
-                        _playerPhysicsBody.TickWithLatch(
-                            FixedTickRate.TickDeltaTime, in latch);
-                    }
-
-                    _tickRegistry.TickAll(FixedTickRate.TickDeltaTime);
+                    _worldSimulation.Tick(FixedTickRate.TickDeltaTime);
 
                     _tickAccumulator.ConsumeOneTick();
                     _ticksThisFrame++;

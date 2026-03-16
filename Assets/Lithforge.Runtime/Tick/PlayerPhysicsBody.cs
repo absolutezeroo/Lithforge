@@ -99,7 +99,7 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// When true, TickWithLatch is skipped and GameLoop does not interpolate position.
+        /// When true, tick methods are skipped and GameLoop does not interpolate position.
         /// Used by BenchmarkRunner to control the player transform directly at frame rate.
         /// Call Teleport() after clearing this to sync position back to the physics body.
         /// </summary>
@@ -154,9 +154,210 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
+        /// Called once per fixed tick by GameLoop with the current input snapshot.
+        /// All input reads come from the snapshot — no direct Keyboard/Mouse access.
+        /// Forward/right vectors are computed from <see cref="InputSnapshot.Yaw"/>
+        /// using trig, removing the dependency on Transform.forward.
+        /// </summary>
+        public void TickWithSnapshot(float tickDt, in InputSnapshot snapshot)
+        {
+            if (ExternallyControlled)
+            {
+                return;
+            }
+
+            if (!_spawnReady)
+            {
+                return;
+            }
+
+            // Toggle fly mode (edge input from snapshot)
+            if (snapshot.FlyTogglePressed)
+            {
+                _flyMode = !_flyMode;
+                _verticalSpeed = 0f;
+
+                if (_flyMode)
+                {
+                    _onGround = false;
+                }
+                else
+                {
+                    _noclip = false;
+                }
+            }
+
+            // Toggle noclip (edge input from snapshot)
+            if (snapshot.NoclipTogglePressed && _flyMode)
+            {
+                _noclip = !_noclip;
+            }
+
+            // Fly speed adjustment via scroll (accumulated in snapshot)
+            if (_flyMode && snapshot.ScrollDelta != 0)
+            {
+                if (snapshot.ScrollDelta > 0)
+                {
+                    _flySpeed = math.clamp(
+                        _flySpeed * FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
+                }
+                else
+                {
+                    _flySpeed = math.clamp(
+                        _flySpeed / FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
+                }
+            }
+
+            // Snapshot previous position for interpolation
+            _previousPosition = _currentPosition;
+
+            if (_flyMode)
+            {
+                TickFlyFromSnapshot(in snapshot, tickDt);
+            }
+            else
+            {
+                TickWalkFromSnapshot(in snapshot, tickDt);
+            }
+
+            // Write position back to transform so CameraController (child) tracks correctly.
+            // LateUpdate will overwrite with the interpolated position for rendering.
+            _playerTransform.position = new Vector3(
+                _currentPosition.x, _currentPosition.y, _currentPosition.z);
+        }
+
+        private void TickWalkFromSnapshot(in InputSnapshot snapshot, float dt)
+        {
+            float3 displacement = ComputeHorizontalFromSnapshot(
+                in snapshot, dt, _walkSpeed, _sprintSpeed);
+
+            _verticalSpeed += _gravity * dt;
+
+            if (_verticalSpeed < _maxFallSpeed)
+            {
+                _verticalSpeed = _maxFallSpeed;
+            }
+
+            // Jump — edge input from snapshot
+            if (snapshot.JumpPressed && _onGround)
+            {
+                _verticalSpeed = _jumpSpeed;
+                _onGround = false;
+            }
+
+            displacement.y = _verticalSpeed * dt;
+
+            SolidBlockQuery query = SolidBlockHelper.Build(
+                _currentPosition, displacement, _playerHalfWidth, _playerHeight,
+                _chunkManager, _nativeStateRegistry);
+
+            CollisionResult result = VoxelCollider.Resolve(
+                ref _currentPosition, ref displacement,
+                _playerHalfWidth, _playerHeight, query);
+
+            query.SolidMap.Dispose();
+
+            _onGround = result.OnGround;
+
+            if (result.OnGround && _verticalSpeed < 0f)
+            {
+                _verticalSpeed = 0f;
+            }
+
+            if (result.HitCeiling && _verticalSpeed > 0f)
+            {
+                _verticalSpeed = 0f;
+            }
+        }
+
+        private void TickFlyFromSnapshot(in InputSnapshot snapshot, float dt)
+        {
+            float3 displacement = ComputeHorizontalFromSnapshot(
+                in snapshot, dt, _flySpeed, _flySpeed);
+
+            if (snapshot.JumpHeld)
+            {
+                displacement.y += _flySpeed * dt;
+            }
+
+            if (snapshot.Sprint)
+            {
+                displacement.y -= _flySpeed * dt;
+            }
+
+            if (_noclip)
+            {
+                _currentPosition += displacement;
+            }
+            else
+            {
+                SolidBlockQuery query = SolidBlockHelper.Build(
+                    _currentPosition, displacement, _playerHalfWidth, _playerHeight,
+                    _chunkManager, _nativeStateRegistry);
+
+                CollisionResult result = VoxelCollider.Resolve(
+                    ref _currentPosition, ref displacement,
+                    _playerHalfWidth, _playerHeight, query);
+
+                query.SolidMap.Dispose();
+                _onGround = result.OnGround;
+            }
+        }
+
+        /// <summary>
+        /// Computes horizontal movement from InputSnapshot fields and yaw.
+        /// Forward/right are derived from snapshot.Yaw using trig (no Transform read).
+        /// </summary>
+        private float3 ComputeHorizontalFromSnapshot(
+            in InputSnapshot snapshot, float dt, float normalSpeed, float fastSpeed)
+        {
+            _isSprinting = snapshot.Sprint && !_flyMode;
+            float speed = snapshot.Sprint ? fastSpeed : normalSpeed;
+
+            // Derive forward/right from yaw (degrees) — no Transform.forward dependency
+            float yawRad = math.radians(snapshot.Yaw);
+            float3 forward = new float3(math.sin(yawRad), 0f, math.cos(yawRad));
+            float3 right = new float3(math.cos(yawRad), 0f, -math.sin(yawRad));
+
+            float3 moveDir = float3.zero;
+
+            if (snapshot.MoveForward)
+            {
+                moveDir += forward;
+            }
+
+            if (snapshot.MoveBack)
+            {
+                moveDir -= forward;
+            }
+
+            if (snapshot.MoveRight)
+            {
+                moveDir += right;
+            }
+
+            if (snapshot.MoveLeft)
+            {
+                moveDir -= right;
+            }
+
+            if (math.lengthsq(moveDir) > 0.001f)
+            {
+                moveDir = math.normalize(moveDir);
+            }
+
+            return new float3(moveDir.x * speed * dt, 0f, moveDir.z * speed * dt);
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Legacy path — will be removed once GameLoop switches to InputSnapshot
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
         /// Called once per fixed tick by GameLoop with the current latch snapshot.
         /// Advances physics by tickDt.
         /// </summary>
+        [System.Obsolete("Use TickWithSnapshot instead. Will be removed after GameLoop migration.")]
         public void TickWithLatch(float tickDt, in InputLatchSnapshot latch)
         {
             if (ExternallyControlled)
@@ -223,11 +424,11 @@ namespace Lithforge.Runtime.Tick
 
             if (_flyMode)
             {
-                TickFly(keyboard, tickDt);
+                TickFlyLegacy(keyboard, tickDt);
             }
             else
             {
-                TickWalk(keyboard, tickDt, in latch);
+                TickWalkLegacy(keyboard, tickDt, in latch);
             }
 
             // Write position back to transform so CameraController (child) tracks correctly.
@@ -236,9 +437,9 @@ namespace Lithforge.Runtime.Tick
                 _currentPosition.x, _currentPosition.y, _currentPosition.z);
         }
 
-        private void TickWalk(Keyboard keyboard, float dt, in InputLatchSnapshot latch)
+        private void TickWalkLegacy(Keyboard keyboard, float dt, in InputLatchSnapshot latch)
         {
-            float3 displacement = ComputeHorizontalDisplacement(keyboard, dt, _walkSpeed, _sprintSpeed);
+            float3 displacement = ComputeHorizontalLegacy(keyboard, dt, _walkSpeed, _sprintSpeed);
 
             _verticalSpeed += _gravity * dt;
 
@@ -279,9 +480,9 @@ namespace Lithforge.Runtime.Tick
             }
         }
 
-        private void TickFly(Keyboard keyboard, float dt)
+        private void TickFlyLegacy(Keyboard keyboard, float dt)
         {
-            float3 displacement = ComputeHorizontalDisplacement(keyboard, dt, _flySpeed, _flySpeed);
+            float3 displacement = ComputeHorizontalLegacy(keyboard, dt, _flySpeed, _flySpeed);
 
             if (keyboard.spaceKey.isPressed)
             {
@@ -312,7 +513,7 @@ namespace Lithforge.Runtime.Tick
             }
         }
 
-        private float3 ComputeHorizontalDisplacement(
+        private float3 ComputeHorizontalLegacy(
             Keyboard keyboard, float dt, float normalSpeed, float fastSpeed)
         {
             _isSprinting = keyboard.leftShiftKey.isPressed && !_flyMode;
