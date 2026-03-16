@@ -535,6 +535,50 @@ namespace Lithforge.Runtime.Bootstrap
 
             _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
 
+            // Phase 17: Generate legacy tool templates for items with flat tool fields
+            Dictionary<ResourceId, byte[]> legacyToolTemplates = new Dictionary<ResourceId, byte[]>();
+
+            for (int i = 0; i < items.Length; i++)
+            {
+                ItemDefinition item = items[i];
+
+                if (item.ToolType == ToolType.None)
+                {
+                    continue;
+                }
+
+                ResourceId itemId = new ResourceId(item.Namespace, item.ItemName);
+                int maxDur = item.Durability > 0 ? item.Durability : -1;
+
+                ToolPart headPart = new ToolPart
+                {
+                    PartType = ToolPartType.Head,
+                    MaterialId = ResourceId.Parse("lithforge:legacy"),
+                    SpeedContribution = item.MiningSpeed,
+                    DurabilityContribution = maxDur > 0 ? maxDur : 0,
+                    DamageContribution = item.AttackDamage,
+                    DurabilityMultiplier = 1.0f,
+                    SpeedMultiplier = 1.0f,
+                    TraitIds = System.Array.Empty<ResourceId>(),
+                };
+
+                ToolInstance tool = new ToolInstance
+                {
+                    ToolType = item.ToolType,
+                    BaseSpeed = item.MiningSpeed,
+                    BaseDamage = item.AttackDamage,
+                    MaxDurability = maxDur,
+                    CurrentDurability = maxDur,
+                    EffectiveToolLevel = item.ToolLevel,
+                    Parts = new ToolPart[] { headPart },
+                    Slots = new ModifierSlot[ToolInstance.MaxModifierSlots],
+                };
+
+                legacyToolTemplates[itemId] = ToolInstanceSerializer.Serialize(tool);
+            }
+
+            _logger.LogInfo($"Generated {legacyToolTemplates.Count} legacy tool templates.");
+
             Result = new ContentPipelineResult(
                 stateRegistry,
                 nativeStateRegistry,
@@ -552,7 +596,8 @@ namespace Lithforge.Runtime.Bootstrap
                 smeltingRecipeRegistry,
                 displayTransformLookup,
                 toolMaterialRegistry,
-                toolTraitRegistry);
+                toolTraitRegistry,
+                legacyToolTemplates);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

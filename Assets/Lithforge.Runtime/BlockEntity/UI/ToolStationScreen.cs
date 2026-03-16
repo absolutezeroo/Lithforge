@@ -327,14 +327,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (isShift)
             {
-                // Transfer to player inventory
-                ItemEntry def = ItemRegistryRef.Get(resultItemId);
-                int maxStack = def != null ? def.MaxStackSize : 1;
-                int leftOver = Context.PlayerInventory.AddItem(resultItemId, 1, maxStack);
+                // Transfer to player inventory (preserves CustomData)
+                int leftOver = Context.PlayerInventory.AddItemStack(resultStack);
 
                 if (leftOver == 0)
                 {
-                    // TODO: CustomData not preserved by AddItem — needs ItemStack-level AddItem
                     _currentStation.Assembly.ConsumeInputParts();
                 }
             }

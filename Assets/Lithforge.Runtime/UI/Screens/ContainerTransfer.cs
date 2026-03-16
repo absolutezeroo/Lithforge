@@ -34,11 +34,11 @@ namespace Lithforge.Runtime.UI.Screens
             int maxStack = def != null ? def.MaxStackSize : 64;
             int remaining = stack.Count;
 
-            remaining = TryFillContainer(stack.ItemId, remaining, maxStack, primaryTarget);
+            remaining = TryFillContainer(stack, remaining, maxStack, primaryTarget);
 
             if (remaining > 0 && secondaryTarget != null)
             {
-                remaining = TryFillContainer(stack.ItemId, remaining, maxStack, secondaryTarget);
+                remaining = TryFillContainer(stack, remaining, maxStack, secondaryTarget);
             }
 
             if (remaining == 0)
@@ -56,15 +56,17 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>
         /// Attempts to fill <paramref name="target"/> container slots with the given item.
         /// Merges into existing stacks first, then fills empty slots.
+        /// Preserves Durability and CustomData from the source stack.
         /// Returns the count that could not be placed.
         /// </summary>
         public static int TryFillContainer(
-            ResourceId itemId,
+            ItemStack source,
             int count,
             int maxStack,
             ISlotContainer target)
         {
             int remaining = count;
+            ResourceId itemId = source.ItemId;
 
             // Merge into existing stacks first
             for (int i = 0; i < target.SlotCount && remaining > 0; i++)
@@ -88,7 +90,9 @@ namespace Lithforge.Runtime.UI.Screens
                 if (target.GetSlot(i).IsEmpty)
                 {
                     int toAdd = remaining < maxStack ? remaining : maxStack;
-                    target.SetSlot(i, new ItemStack(itemId, toAdd));
+                    ItemStack newSlot = new ItemStack(itemId, toAdd, source.Durability);
+                    newSlot.CustomData = source.CustomData;
+                    target.SetSlot(i, newSlot);
                     remaining -= toAdd;
                 }
             }

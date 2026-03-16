@@ -1,4 +1,5 @@
 using Lithforge.Core.Data;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 
@@ -60,6 +61,12 @@ namespace Lithforge.Runtime.UI.Container
                     ? resultDef.Durability
                     : -1;
                 _displayStack = new ItemStack(match.ResultItem, match.ResultCount, durability);
+                byte[] toolData = ToolTemplateRegistry.GetTemplate(match.ResultItem);
+
+                if (toolData != null)
+                {
+                    _displayStack.CustomData = toolData;
+                }
             }
             else
             {

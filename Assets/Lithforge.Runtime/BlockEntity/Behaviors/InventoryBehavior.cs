@@ -85,8 +85,15 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             return false;
         }
 
+        /// <summary>
+        /// Version sentinel: a negative first int distinguishes versioned format
+        /// from v1 (which writes slotCount as the first positive int).
+        /// </summary>
+        private const int VersionSentinel = -2;
+
         public override void Serialize(BinaryWriter writer)
         {
+            writer.Write(VersionSentinel);
             writer.Write(_slots.Length);
 
             for (int i = 0; i < _slots.Length; i++)
@@ -103,13 +110,34 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     writer.Write(slot.ItemId.ToString());
                     writer.Write(slot.Count);
                     writer.Write(slot.Durability);
+                    writer.Write(slot.HasCustomData);
+
+                    if (slot.HasCustomData)
+                    {
+                        writer.Write(slot.CustomData.Length);
+                        writer.Write(slot.CustomData);
+                    }
                 }
             }
         }
 
         public override void Deserialize(BinaryReader reader)
         {
-            int count = reader.ReadInt32();
+            int firstInt = reader.ReadInt32();
+            bool hasCustomDataSupport;
+            int count;
+
+            if (firstInt == VersionSentinel)
+            {
+                hasCustomDataSupport = true;
+                count = reader.ReadInt32();
+            }
+            else
+            {
+                hasCustomDataSupport = false;
+                count = firstInt;
+            }
+
             int readCount = count < _slots.Length ? count : _slots.Length;
 
             for (int i = 0; i < readCount; i++)
@@ -122,7 +150,20 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     int itemCount = reader.ReadInt32();
                     int durability = reader.ReadInt32();
                     ResourceId id = ResourceId.Parse(idStr);
-                    _slots[i] = new ItemStack(id, itemCount, durability);
+                    ItemStack stack = new ItemStack(id, itemCount, durability);
+
+                    if (hasCustomDataSupport)
+                    {
+                        bool hasCustomData = reader.ReadBoolean();
+
+                        if (hasCustomData)
+                        {
+                            int dataLen = reader.ReadInt32();
+                            stack.CustomData = reader.ReadBytes(dataLen);
+                        }
+                    }
+
+                    _slots[i] = stack;
                 }
                 else
                 {
@@ -140,6 +181,17 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     reader.ReadString();
                     reader.ReadInt32();
                     reader.ReadInt32();
+
+                    if (hasCustomDataSupport)
+                    {
+                        bool hasCustomData = reader.ReadBoolean();
+
+                        if (hasCustomData)
+                        {
+                            int dataLen = reader.ReadInt32();
+                            reader.ReadBytes(dataLen);
+                        }
+                    }
                 }
             }
         }

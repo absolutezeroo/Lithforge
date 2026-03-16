@@ -38,6 +38,13 @@ namespace Lithforge.Runtime.Bootstrap
         public ToolMaterialRegistry ToolMaterialRegistry { get; }
         public ToolTraitRegistry ToolTraitRegistry { get; }
 
+        /// <summary>
+        /// Pre-baked serialized ToolInstance data for legacy tool items.
+        /// Keyed by item ResourceId. Used to populate CustomData when
+        /// these items are created at runtime (crafting, commands, etc.).
+        /// </summary>
+        public Dictionary<ResourceId, byte[]> LegacyToolTemplates { get; }
+
         public ContentPipelineResult(
             StateRegistry stateRegistry,
             NativeStateRegistry nativeStateRegistry,
@@ -55,7 +62,8 @@ namespace Lithforge.Runtime.Bootstrap
             SmeltingRecipeRegistry smeltingRecipeRegistry,
             ItemDisplayTransformLookup displayTransformLookup,
             ToolMaterialRegistry toolMaterialRegistry,
-            ToolTraitRegistry toolTraitRegistry)
+            ToolTraitRegistry toolTraitRegistry,
+            Dictionary<ResourceId, byte[]> legacyToolTemplates)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -74,6 +82,7 @@ namespace Lithforge.Runtime.Bootstrap
             DisplayTransformLookup = displayTransformLookup;
             ToolMaterialRegistry = toolMaterialRegistry;
             ToolTraitRegistry = toolTraitRegistry;
+            LegacyToolTemplates = legacyToolTemplates;
         }
     }
 }

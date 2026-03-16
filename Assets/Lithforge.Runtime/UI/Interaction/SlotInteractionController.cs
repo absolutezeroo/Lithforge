@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Core.Data;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
@@ -29,6 +30,7 @@ namespace Lithforge.Runtime.UI.Interaction
         private ISlotContainer _paintOriginContainer;
         private ResourceId _paintItemId;
         private int _paintDurability;
+        private byte[] _paintCustomData;
         private readonly HashSet<long> _paintedSlots = new HashSet<long>();
 
         // Hover tracking
@@ -163,7 +165,9 @@ namespace Lithforge.Runtime.UI.Interaction
             {
                 // Pick up half (rounded up)
                 int half = (slotItem.Count + 1) / 2;
-                _held.Set(new ItemStack(slotItem.ItemId, half, slotItem.Durability));
+                ItemStack pickup = new ItemStack(slotItem.ItemId, half, slotItem.Durability);
+                pickup.CustomData = slotItem.CustomData;
+                _held.Set(pickup);
 
                 ItemStack remaining = slotItem;
                 remaining.Count -= half;
@@ -172,8 +176,9 @@ namespace Lithforge.Runtime.UI.Interaction
             else if (slotItem.IsEmpty)
             {
                 // Place 1
-                container.SetSlot(slotIndex,
-                    new ItemStack(_held.Stack.ItemId, 1, _held.Stack.Durability));
+                ItemStack placed = new ItemStack(_held.Stack.ItemId, 1, _held.Stack.Durability);
+                placed.CustomData = _held.Stack.CustomData;
+                container.SetSlot(slotIndex, placed);
 
                 ItemStack newHeld = _held.Stack;
                 newHeld.Count -= 1;
@@ -240,9 +245,18 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             int remaining = TransferToContainer(slotItem, target, maxStack);
-            source.SetSlot(slotIndex, remaining > 0
-                ? new ItemStack(slotItem.ItemId, remaining, slotItem.Durability)
-                : ItemStack.Empty);
+
+            if (remaining > 0)
+            {
+                ItemStack remainder = new ItemStack(slotItem.ItemId, remaining, slotItem.Durability);
+                remainder.CustomData = slotItem.CustomData;
+                source.SetSlot(slotIndex, remainder);
+            }
+            else
+            {
+                source.SetSlot(slotIndex, ItemStack.Empty);
+            }
+
             source.OnSlotChanged(slotIndex);
         }
 
@@ -344,7 +358,20 @@ namespace Lithforge.Runtime.UI.Interaction
                     ? resultDef.Durability
                     : -1;
 
-                if (durability > 0)
+                byte[] toolData = ToolTemplateRegistry.GetTemplate(match.ResultItem);
+
+                if (toolData != null)
+                {
+                    ItemStack resultStack = new ItemStack(match.ResultItem, 1, durability);
+                    resultStack.CustomData = toolData;
+                    int leftOver = inventory.AddItemStack(resultStack);
+
+                    if (leftOver > 0)
+                    {
+                        break;
+                    }
+                }
+                else if (durability > 0)
                 {
                     int leftOver = inventory.AddItemWithDurability(match.ResultItem, durability);
 
@@ -395,7 +422,12 @@ namespace Lithforge.Runtime.UI.Interaction
             ItemEntry def = _itemRegistry.Get(heldStack.ItemId);
             int maxStack = def != null ? def.MaxStackSize : 64;
 
-            if (heldStack.Durability > 0)
+            if (heldStack.HasCustomData)
+            {
+                int leftOver = inventory.AddItemStack(heldStack);
+                _held.Set(leftOver == 0 ? ItemStack.Empty : heldStack);
+            }
+            else if (heldStack.Durability > 0)
             {
                 int leftOver = inventory.AddItemWithDurability(heldStack.ItemId, heldStack.Durability);
                 _held.Set(leftOver == 0 ? ItemStack.Empty : heldStack);
@@ -441,6 +473,7 @@ namespace Lithforge.Runtime.UI.Interaction
             _paintOriginContainer = container;
             _paintItemId = _held.IsEmpty ? default : _held.Stack.ItemId;
             _paintDurability = _held.Stack.Durability;
+            _paintCustomData = _held.Stack.CustomData;
             _paintedSlots.Clear();
             _paintedSlots.Add(MakePaintKey(container, slotIndex));
         }
@@ -501,7 +534,9 @@ namespace Lithforge.Runtime.UI.Interaction
             // Place 1
             if (slotItem.IsEmpty)
             {
-                container.SetSlot(slotIndex, new ItemStack(_paintItemId, 1, _paintDurability));
+                ItemStack paintStack = new ItemStack(_paintItemId, 1, _paintDurability);
+                paintStack.CustomData = _paintCustomData;
+                container.SetSlot(slotIndex, paintStack);
             }
             else
             {
@@ -565,7 +600,9 @@ namespace Lithforge.Runtime.UI.Interaction
                 }
 
                 int toMove = Mathf.Min(remaining, maxStack);
-                target.SetSlot(i, new ItemStack(source.ItemId, toMove, source.Durability));
+                ItemStack newSlot = new ItemStack(source.ItemId, toMove, source.Durability);
+                newSlot.CustomData = source.CustomData;
+                target.SetSlot(i, newSlot);
                 remaining -= toMove;
             }
 

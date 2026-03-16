@@ -139,6 +139,26 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
+        /// Adds a complete ItemStack preserving all fields (Durability, CustomData).
+        /// Used for tools and other items with custom runtime data.
+        /// Tools always occupy their own slot with count=1.
+        /// Returns 0 on success, 1 if no empty slot available.
+        /// </summary>
+        public int AddItemStack(ItemStack stack)
+        {
+            for (int i = 0; i < SlotCount; i++)
+            {
+                if (_slots[i].IsEmpty)
+                {
+                    _slots[i] = stack;
+                    return 0;
+                }
+            }
+
+            return 1;
+        }
+
+        /// <summary>
         /// Removes a number of items from a specific slot.
         /// Returns the number actually removed.
         /// </summary>

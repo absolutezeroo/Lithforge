@@ -9,6 +9,7 @@ using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Debug.Benchmark;
@@ -164,6 +165,8 @@ namespace Lithforge.Runtime.Bootstrap
                 $"{_contentResult.ItemEntries.Count} items, " +
                 $"{_contentResult.LootTables.Count} loot tables, " +
                 $"{_contentResult.TagRegistry.TagCount} tags.");
+
+            ToolTemplateRegistry.Initialize(_contentResult.LegacyToolTemplates);
 
             InitializeStorage();
             InitializeChunkSystem();
@@ -431,6 +434,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                     _contentResult.NativeAtlasLookup.Dispose();
                     _contentResult = null;
+                    ToolTemplateRegistry.Clear();
                 }
 
                 if (_nativeBiomeData.IsCreated)
@@ -938,7 +942,22 @@ namespace Lithforge.Runtime.Bootstrap
                         int maxStack = itemDef != null
                             ? itemDef.MaxStackSize
                             : _settings.Physics.DefaultMaxStackSize;
-                        playerInventory.AddItem(itemId, entry.count, maxStack);
+
+                        byte[] toolData = ToolTemplateRegistry.GetTemplate(itemId);
+
+                        if (toolData != null)
+                        {
+                            int durability = itemDef != null && itemDef.Durability > 0
+                                ? itemDef.Durability
+                                : -1;
+                            ItemStack toolStack = new ItemStack(itemId, 1, durability);
+                            toolStack.CustomData = toolData;
+                            playerInventory.AddItemStack(toolStack);
+                        }
+                        else
+                        {
+                            playerInventory.AddItem(itemId, entry.count, maxStack);
+                        }
                     }
                 }
 

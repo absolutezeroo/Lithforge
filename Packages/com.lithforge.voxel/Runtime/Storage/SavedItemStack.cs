@@ -8,6 +8,12 @@ namespace Lithforge.Voxel.Storage
         public int Count { get; set; }
         public int Durability { get; set; }
 
+        /// <summary>
+        /// Base64-encoded CustomData (e.g. serialized ToolInstance).
+        /// Null when item has no custom data.
+        /// </summary>
+        public string CustomDataBase64 { get; set; }
+
         public SavedItemStack()
         {
             Slot = 0;
@@ -15,6 +21,7 @@ namespace Lithforge.Voxel.Storage
             Name = "";
             Count = 0;
             Durability = -1;
+            CustomDataBase64 = null;
         }
 
         public SavedItemStack(int slot, string ns, string name, int count, int durability)
@@ -24,6 +31,17 @@ namespace Lithforge.Voxel.Storage
             Name = name;
             Count = count;
             Durability = durability;
+            CustomDataBase64 = null;
+        }
+
+        public SavedItemStack(int slot, string ns, string name, int count, int durability, string customDataBase64)
+        {
+            Slot = slot;
+            Ns = ns;
+            Name = name;
+            Count = count;
+            Durability = durability;
+            CustomDataBase64 = customDataBase64;
         }
     }
 }

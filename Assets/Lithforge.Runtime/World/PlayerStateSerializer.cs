@@ -1,3 +1,4 @@
+using System;
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Storage;
@@ -80,12 +81,17 @@ namespace Lithforge.Runtime.World
 
                     if (stack.Count > 0)
                     {
+                        string customBase64 = stack.HasCustomData
+                            ? Convert.ToBase64String(stack.CustomData)
+                            : null;
+
                         slots[idx] = new SavedItemStack(
                             i,
                             stack.ItemId.Namespace,
                             stack.ItemId.Name,
                             stack.Count,
-                            stack.Durability);
+                            stack.Durability,
+                            customBase64);
                         idx++;
                     }
                 }
@@ -172,6 +178,11 @@ namespace Lithforge.Runtime.World
                     ItemStack stack = saved.Durability >= 0
                         ? new ItemStack(itemId, saved.Count, saved.Durability)
                         : new ItemStack(itemId, saved.Count);
+
+                    if (!string.IsNullOrEmpty(saved.CustomDataBase64))
+                    {
+                        stack.CustomData = Convert.FromBase64String(saved.CustomDataBase64);
+                    }
 
                     inventory.SetSlot(saved.Slot, stack);
                 }
