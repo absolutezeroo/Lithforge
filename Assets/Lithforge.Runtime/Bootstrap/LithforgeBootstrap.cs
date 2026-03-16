@@ -1141,7 +1141,8 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ToolMaterials,
                     _contentResult.ToolTemplateRegistry,
                     _contentResult.PartBuilderRecipeRegistry,
-                    _contentResult.ToolMaterialRegistry);
+                    _contentResult.ToolMaterialRegistry,
+                    _contentResult.MaterialInputRegistry);
 
                 // Add PlayerInventoryScreen (not a block entity screen, managed separately)
                 GameObject inventoryObject = new("PlayerInventoryScreen");

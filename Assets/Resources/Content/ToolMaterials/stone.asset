@@ -25,7 +25,10 @@ MonoBehaviour:
   toolLevel: 1
   isCraftable: 1
   partBuilderCost: 1
-  craftingItemIds:
-  - lithforge:cobblestone
+  materialInputs:
+  - itemId: lithforge:cobblestone
+    value: 1
+    needed: 1
+    leftoverItemId:
   textureSuffix: 
   isFallbackMaterial: 0

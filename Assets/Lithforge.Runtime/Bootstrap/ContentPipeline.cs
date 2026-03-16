@@ -270,13 +270,73 @@ namespace Lithforge.Runtime.Bootstrap
                     mat.traitIds ?? Array.Empty<string>(),
                     mat.toolLevel,
                     mat.isCraftable,
-                    mat.partBuilderCost,
-                    mat.craftingItemIds ?? Array.Empty<string>());
+                    mat.partBuilderCost);
 
                 toolMaterialRegistry.Register(matData);
             }
 
             _logger.LogInfo($"Loaded {toolMaterialRegistry.Count} tool materials.");
+
+            // Build MaterialInputRegistry (TiC-style value/needed/leftover per item)
+            MaterialInputRegistry materialInputRegistry = new();
+
+            for (int i = 0; i < toolMaterials.Length; i++)
+            {
+                ToolMaterialDefinition def = toolMaterials[i];
+
+                if (!def.isCraftable)
+                {
+                    continue;
+                }
+
+                if (def.materialInputs == null || def.materialInputs.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!ResourceId.TryParse(def.materialId, out ResourceId materialId))
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < def.materialInputs.Length; j++)
+                {
+                    MaterialInputEntry entry = def.materialInputs[j];
+
+                    if (string.IsNullOrEmpty(entry.itemId))
+                    {
+                        continue;
+                    }
+
+                    if (!ResourceId.TryParse(entry.itemId, out ResourceId itemId))
+                    {
+                        _logger.LogWarning(
+                            $"Invalid material input item id: {entry.itemId} on {def.materialId}");
+                        continue;
+                    }
+
+                    ResourceId leftoverId = default;
+
+                    if (!string.IsNullOrEmpty(entry.leftoverItemId))
+                    {
+                        if (!ResourceId.TryParse(entry.leftoverItemId, out leftoverId))
+                        {
+                            _logger.LogWarning(
+                                $"Invalid leftover item id: {entry.leftoverItemId} on {def.materialId}");
+                            leftoverId = default;
+                        }
+                    }
+
+                    int value = entry.value > 0 ? entry.value : 1;
+                    int needed = entry.needed > 0 ? entry.needed : 1;
+
+                    materialInputRegistry.Register(new MaterialInputData(
+                        itemId, materialId, value, needed, leftoverId));
+                }
+            }
+
+            _logger.LogInfo(
+                $"MaterialInputRegistry: {materialInputRegistry.Count} item->material mappings.");
 
             // Phase 8.55: Load tool definitions (sprite compositing config)
             yield return "Loading tool definitions...";
@@ -622,7 +682,8 @@ namespace Lithforge.Runtime.Bootstrap
                 toolTexDb,
                 toolMaterials,
                 toolTemplateRegistry,
-                partBuilderRecipeRegistry);
+                partBuilderRecipeRegistry,
+                materialInputRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)

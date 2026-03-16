@@ -45,7 +45,8 @@ namespace Lithforge.Runtime.Bootstrap
             ToolPartTextureDatabase toolPartTextures,
             ToolMaterialDefinition[] toolMaterials,
             ToolTemplateRegistry toolTemplateRegistry,
-            PartBuilderRecipeRegistry partBuilderRecipeRegistry)
+            PartBuilderRecipeRegistry partBuilderRecipeRegistry,
+            MaterialInputRegistry materialInputRegistry)
         {
             StateRegistry = stateRegistry;
             NativeStateRegistry = nativeStateRegistry;
@@ -69,6 +70,7 @@ namespace Lithforge.Runtime.Bootstrap
             ToolMaterials = toolMaterials;
             ToolTemplateRegistry = toolTemplateRegistry;
             PartBuilderRecipeRegistry = partBuilderRecipeRegistry;
+            MaterialInputRegistry = materialInputRegistry;
         }
         public StateRegistry StateRegistry { get; }
 
@@ -83,7 +85,8 @@ namespace Lithforge.Runtime.Bootstrap
         public OreDefinition[] OreDefinitions { get; }
 
         public List<ItemEntry> ItemEntries { get; }
- public Dictionary<ResourceId, LootTableDefinition> LootTables { get; }
+
+        public Dictionary<ResourceId, LootTableDefinition> LootTables { get; }
 
         public TagRegistry TagRegistry { get; }
 
@@ -112,5 +115,7 @@ namespace Lithforge.Runtime.Bootstrap
         public ToolTemplateRegistry ToolTemplateRegistry { get; }
 
         public PartBuilderRecipeRegistry PartBuilderRecipeRegistry { get; }
+
+        public MaterialInputRegistry MaterialInputRegistry { get; }
     }
 }

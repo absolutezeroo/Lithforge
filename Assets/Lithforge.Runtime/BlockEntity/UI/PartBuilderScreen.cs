@@ -17,7 +17,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// <summary>
     ///     Screen for the Part Builder block entity (TiC-faithful).
     ///     Shows pattern buttons on the left, Pattern + Material input slots,
-    ///     an output slot, and info labels. Player inventory and hotbar below.
+    ///     an output slot with live preview, and info labels. Player inventory and hotbar below.
     /// </summary>
     public sealed class PartBuilderScreen : ContainerScreen
     {
@@ -31,13 +31,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private BlockEntityContainerAdapter _materialAdapter;
         private Label _materialLabel;
 
-        private bool _needsRefresh = true;
+        private bool _needsRefresh;
         private BlockEntityContainerAdapter _outputAdapter;
 
         private BlockEntityContainerAdapter _patternAdapter;
 
         // UI elements
         private VisualElement _patternButtonContainer;
+
+        // Material resolution (TiC-style)
+        private MaterialInputData _resolvedInput;
         private ToolMaterialData _resolvedMaterial;
 
         // Pattern selection state
@@ -107,6 +110,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             _selectedPatternIndex = -1;
             _selectedRecipe = null;
+            _resolvedInput = null;
             _resolvedMaterial = null;
             _needsRefresh = true;
 
@@ -299,7 +303,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void HandleOutputTake()
         {
-            if (_currentBuilder == null || _selectedRecipe == null || _resolvedMaterial == null)
+            if (_currentBuilder == null || _selectedRecipe == null ||
+                _resolvedInput == null || _resolvedMaterial == null)
             {
                 return;
             }
@@ -308,60 +313,23 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartBuilderBlockEntity.MaterialSlot);
             ItemStack patternStack = _currentBuilder.Inventory.GetSlot(
                 PartBuilderBlockEntity.PatternSlot);
+            ItemStack outputStack = _currentBuilder.Inventory.GetSlot(
+                PartBuilderBlockEntity.OutputSlot);
 
-            if (materialStack.IsEmpty || patternStack.IsEmpty)
+            if (materialStack.IsEmpty || patternStack.IsEmpty || outputStack.IsEmpty)
             {
                 return;
             }
 
-            int cost = GetEffectiveCost(_selectedRecipe);
+            int recipeCost = GetRecipeCost(_selectedRecipe);
+            int itemsUsed = _resolvedInput.GetItemsUsed(recipeCost);
 
-            if (materialStack.Count < cost)
+            if (materialStack.Count < itemsUsed)
             {
                 return;
             }
 
-            // Build result
-            ToolPartData partData = new ToolPartData
-            {
-                PartType = _selectedRecipe.ResultPartType,
-                MaterialId = _resolvedMaterial.MaterialId,
-            };
-            byte[] customData = ToolPartDataSerializer.Serialize(partData);
-
-            ResourceId resultId = _selectedRecipe.ResultItemId;
-            ItemStack resultStack = new ItemStack(resultId, _selectedRecipe.ResultCount);
-            resultStack.CustomData = customData;
-
-            // Generate sprite if not cached
-            string matSuffix = Context.ToolPartTextures != null
-                ? Context.ToolPartTextures.ResolveSuffix(_resolvedMaterial.MaterialId)
-                : _resolvedMaterial.MaterialId.Name;
-
-            ResourceId spriteCacheKey = new ResourceId(
-                resultId.Namespace,
-                resultId.Name + "__" + _resolvedMaterial.MaterialId.Name);
-
-            if (!SpriteAtlas.Contains(spriteCacheKey))
-            {
-                if (Context.ToolPartTextures != null)
-                {
-                    Texture2D tex = Context.ToolPartTextures.FindPartTexture(
-                        _selectedRecipe.ResultPartType, matSuffix);
-
-                    if (tex != null)
-                    {
-                        Sprite sprite = Sprite.Create(
-                            tex,
-                            new Rect(0, 0, tex.width, tex.height),
-                            new Vector2(0.5f, 0.5f),
-                            tex.width);
-                        SpriteAtlas.Register(spriteCacheKey, sprite);
-                    }
-                }
-            }
-
-            // Give to player
+            // Give result to player (output slot already contains the preview item)
             bool isShift = Keyboard.current != null &&
                            (Keyboard.current.leftShiftKey.isPressed ||
                             Keyboard.current.rightShiftKey.isPressed);
@@ -370,12 +338,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (isShift)
             {
-                int leftOver = Context.PlayerInventory.AddItemStack(resultStack);
+                int leftOver = Context.PlayerInventory.AddItemStack(outputStack);
                 given = leftOver == 0;
             }
             else if (Interaction.Held.IsEmpty)
             {
-                Interaction.Held.Set(resultStack);
+                Interaction.Held.Set(outputStack);
                 given = true;
             }
 
@@ -384,9 +352,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
+            // Clear output slot
+            _currentBuilder.Inventory.SetSlot(PartBuilderBlockEntity.OutputSlot, ItemStack.Empty);
+
             // Consume material
             ItemStack updatedMaterial = materialStack;
-            updatedMaterial.Count -= cost;
+            updatedMaterial.Count -= itemsUsed;
 
             if (updatedMaterial.Count <= 0)
             {
@@ -395,6 +366,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             _currentBuilder.Inventory.SetSlot(
                 PartBuilderBlockEntity.MaterialSlot, updatedMaterial);
+
+            // Give leftover items (TiC: e.g. planks from log with excess value)
+            int leftoverCount = _resolvedInput.GetLeftoverCount(recipeCost);
+
+            if (leftoverCount > 0 && _resolvedInput.HasLeftover)
+            {
+                ItemStack leftoverStack = new ItemStack(
+                    _resolvedInput.LeftoverItemId, leftoverCount);
+                Context.PlayerInventory.AddItemStack(leftoverStack);
+            }
 
             // Consume pattern (unless tagged "pattern_reusable")
             ItemEntry patternDef = ItemRegistryRef.Get(patternStack.ItemId);
@@ -423,7 +404,15 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _availableRecipes.Clear();
             _selectedRecipe = null;
             _selectedPatternIndex = -1;
+            _resolvedInput = null;
             _resolvedMaterial = null;
+
+            // Clear preview output
+            if (_currentBuilder != null)
+            {
+                _currentBuilder.Inventory.SetSlot(
+                    PartBuilderBlockEntity.OutputSlot, ItemStack.Empty);
+            }
 
             if (_currentBuilder == null)
             {
@@ -454,18 +443,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
-            // 2. Resolve material from material slot
-            ItemStack materialStack = _currentBuilder.Inventory.GetSlot(
-                PartBuilderBlockEntity.MaterialSlot);
-
-            if (!materialStack.IsEmpty)
-            {
-                _resolvedMaterial = Context.ToolMaterialRegistry.FindCraftableMaterialForItem(
-                    materialStack.ItemId);
-            }
-
-            // 3. Filter recipes whose requiredPatternTag matches
+            // 2. Filter recipes whose requiredPatternTag matches (before material check,
+            //    so buttons appear even with empty material slot — TiC partialMatch)
             PartBuilderRecipeRegistry registry = Context.PartBuilderRecipeRegistry;
+
+            if (registry == null)
+            {
+                RebuildPatternButtonsUI();
+                UpdateInfoLabels();
+                return;
+            }
 
             for (int i = 0; i < registry.Recipes.Count; i++)
             {
@@ -478,11 +465,28 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
             }
 
-            // 4. Sort by cost then display name (TiC behavior)
-            _availableRecipes.Sort((a, b) =>
+            // 3. Resolve material from material slot (after recipes)
+            ItemStack materialStack = _currentBuilder.Inventory.GetSlot(
+                PartBuilderBlockEntity.MaterialSlot);
+
+            if (!materialStack.IsEmpty)
             {
-                int ca = GetEffectiveCost(a);
-                int cb = GetEffectiveCost(b);
+                _resolvedInput = Context.MaterialInputRegistry != null
+                    ? Context.MaterialInputRegistry.Get(materialStack.ItemId)
+                    : null;
+
+                if (_resolvedInput != null && Context.ToolMaterialRegistry != null)
+                {
+                    _resolvedMaterial = Context.ToolMaterialRegistry.Get(
+                        _resolvedInput.MaterialId);
+                }
+            }
+
+            // 4. Sort by recipe cost then display name (TiC behavior)
+            _availableRecipes.Sort((PartBuilderRecipe a, PartBuilderRecipe b) =>
+            {
+                int ca = GetRecipeCost(a);
+                int cb = GetRecipeCost(b);
                 int cmp = ca.CompareTo(cb);
                 return cmp != 0 ? cmp : string.Compare(a.DisplayName, b.DisplayName);
             });
@@ -509,14 +513,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 btn.style.marginBottom = 2;
 
                 // Disable if no material resolved or insufficient count
-                bool canCraft = _resolvedMaterial != null;
+                bool canCraft = _resolvedInput != null && _resolvedMaterial != null;
 
                 if (canCraft)
                 {
                     ItemStack materialStack = _currentBuilder.Inventory.GetSlot(
                         PartBuilderBlockEntity.MaterialSlot);
-                    int cost = GetEffectiveCost(recipe);
-                    canCraft = materialStack.Count >= cost;
+                    int itemsUsed = GetItemsUsed(recipe);
+                    canCraft = materialStack.Count >= itemsUsed;
                 }
 
                 if (!canCraft)
@@ -529,6 +533,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                     _selectedPatternIndex = capturedIndex;
                     _selectedRecipe = _availableRecipes[capturedIndex];
                     UpdatePatternButtonStyles();
+                    UpdatePreview();
                     UpdateInfoLabels();
                 };
 
@@ -559,14 +564,106 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        private void UpdatePreview()
+        {
+            if (_currentBuilder == null)
+            {
+                return;
+            }
+
+            if (_selectedRecipe == null || _resolvedInput == null || _resolvedMaterial == null)
+            {
+                _currentBuilder.Inventory.SetSlot(
+                    PartBuilderBlockEntity.OutputSlot, ItemStack.Empty);
+                return;
+            }
+
+            ItemStack materialStack = _currentBuilder.Inventory.GetSlot(
+                PartBuilderBlockEntity.MaterialSlot);
+            int itemsUsed = GetItemsUsed(_selectedRecipe);
+
+            if (materialStack.IsEmpty || materialStack.Count < itemsUsed)
+            {
+                _currentBuilder.Inventory.SetSlot(
+                    PartBuilderBlockEntity.OutputSlot, ItemStack.Empty);
+                return;
+            }
+
+            // Build preview result
+            ToolPartData partData = new ToolPartData
+            {
+                PartType = _selectedRecipe.ResultPartType,
+                MaterialId = _resolvedMaterial.MaterialId,
+            };
+            byte[] customData = ToolPartDataSerializer.Serialize(partData);
+
+            ResourceId resultId = _selectedRecipe.ResultItemId;
+            int recipeCost = GetRecipeCost(_selectedRecipe);
+            int resultCount = _selectedRecipe.ResultCount;
+
+            // TiC bonus: if no leftover and per-item material value > cost, give extra parts
+            // Per-item value = Value / Needed (e.g. stick: 1/2 = 0.5, log: 4/1 = 4)
+            float perItemValue = _resolvedInput.Value / (float)_resolvedInput.Needed;
+
+            if (!_resolvedInput.HasLeftover && perItemValue > recipeCost)
+            {
+                resultCount = (int)(_selectedRecipe.ResultCount * perItemValue / recipeCost);
+                if (resultCount < 1)
+                {
+                    resultCount = 1;
+                }
+            }
+
+            ItemStack previewResult = new ItemStack(resultId, resultCount);
+            previewResult.CustomData = customData;
+
+            // Ensure sprite is cached
+            string matSuffix = Context.ToolPartTextures != null
+                ? Context.ToolPartTextures.ResolveSuffix(_resolvedMaterial.MaterialId)
+                : _resolvedMaterial.MaterialId.Name;
+
+            ResourceId spriteCacheKey = new ResourceId(
+                resultId.Namespace,
+                resultId.Name + "__" + _resolvedMaterial.MaterialId.Name);
+
+            if (!SpriteAtlas.Contains(spriteCacheKey) && Context.ToolPartTextures != null)
+            {
+                Texture2D tex = Context.ToolPartTextures.FindPartTexture(
+                    _selectedRecipe.ResultPartType, matSuffix);
+
+                if (tex != null)
+                {
+                    Sprite sprite = Sprite.Create(
+                        tex,
+                        new Rect(0, 0, tex.width, tex.height),
+                        new Vector2(0.5f, 0.5f),
+                        tex.width);
+                    SpriteAtlas.Register(spriteCacheKey, sprite);
+                }
+            }
+
+            // Set preview into output slot for display
+            _currentBuilder.Inventory.SetSlot(
+                PartBuilderBlockEntity.OutputSlot, previewResult);
+        }
+
         private void UpdateInfoLabels()
         {
-            if (_selectedRecipe == null || _resolvedMaterial == null)
+            if (_selectedRecipe == null)
             {
                 _materialLabel.text = _availableRecipes.Count > 0
                     ? "Select a pattern"
                     : "";
                 _costLabel.text = "";
+                _haveLabel.text = "";
+                return;
+            }
+
+            if (_resolvedMaterial == null || _resolvedInput == null)
+            {
+                // No material in slot — show recipe name but no cost info
+                _materialLabel.text = _selectedRecipe.DisplayName;
+                _costLabel.text = "Place material to craft";
                 _haveLabel.text = "";
                 return;
             }
@@ -581,15 +678,21 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             _materialLabel.text = matName + " " + _selectedRecipe.DisplayName;
 
-            int cost = GetEffectiveCost(_selectedRecipe);
-            _costLabel.text = "Cost: " + cost;
+            int recipeCost = GetRecipeCost(_selectedRecipe);
+            int itemsUsed = _resolvedInput.GetItemsUsed(recipeCost);
 
             ItemStack materialStack = _currentBuilder.Inventory.GetSlot(
                 PartBuilderBlockEntity.MaterialSlot);
-            _haveLabel.text = "Have: " + materialStack.Count;
+
+            // Show material value as float (TiC shows "1.5 / 2.0")
+            float haveValue = _resolvedInput.GetMaterialValue(materialStack.Count);
+
+            _costLabel.text = "Cost: " + recipeCost + " (" + itemsUsed + " items)";
+            _haveLabel.text = "Have: " + haveValue.ToString("F1") + " units (" +
+                              materialStack.Count + " items)";
         }
 
-        private int GetEffectiveCost(PartBuilderRecipe recipe)
+        private int GetRecipeCost(PartBuilderRecipe recipe)
         {
             if (recipe.Cost > 0)
             {
@@ -604,15 +707,39 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return 1;
         }
 
+        private int GetItemsUsed(PartBuilderRecipe recipe)
+        {
+            if (_resolvedInput == null)
+            {
+                return 1;
+            }
+
+            int cost = GetRecipeCost(recipe);
+            return _resolvedInput.GetItemsUsed(cost);
+        }
+
         protected override void OnClose()
         {
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);
 
+            // Clear preview from output slot before returning items
+            if (_currentBuilder != null)
+            {
+                _currentBuilder.Inventory.SetSlot(
+                    PartBuilderBlockEntity.OutputSlot, ItemStack.Empty);
+            }
+
             // Return items from pattern and material slots to player inventory
+            // Skip output slot (index 2) — it contained a preview, not a real item
             if (_currentBuilder != null)
             {
                 for (int i = 0; i < PartBuilderBlockEntity.TotalSlotCount; i++)
                 {
+                    if (i == PartBuilderBlockEntity.OutputSlot)
+                    {
+                        continue;
+                    }
+
                     ItemStack stack = _currentBuilder.Inventory.GetSlot(i);
 
                     if (!stack.IsEmpty)

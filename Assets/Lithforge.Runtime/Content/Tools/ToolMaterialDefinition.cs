@@ -1,3 +1,4 @@
+using System;
 using Lithforge.Voxel.Item;
 using UnityEngine;
 
@@ -70,12 +71,14 @@ namespace Lithforge.Runtime.Content.Tools
         [Min(1)] public int partBuilderCost = 2;
 
         /// <summary>
-        /// Item IDs accepted as material input in the Part Builder.
-        /// E.g. "lithforge:oak_planks" for wood, "lithforge:cobblestone" for stone.
+        /// Items accepted as material input in the Part Builder. Each entry maps an item
+        /// to this material with a value/needed ratio (TiC-style).
         /// </summary>
-        [Tooltip("Item IDs accepted as material input in the Part Builder. " +
-                 "E.g. 'lithforge:oak_planks' for wood, 'lithforge:cobblestone' for stone.")]
-        public string[] craftingItemIds = System.Array.Empty<string>();
+        [Header("Part Builder Material Inputs")]
+        [Tooltip("Items accepted as material input. Each entry maps an item to this material " +
+                 "with a value/needed ratio. E.g. log: value=4, needed=1; plank: value=1, needed=1; " +
+                 "stick: value=1, needed=2.")]
+        public MaterialInputEntry[] materialInputs = Array.Empty<MaterialInputEntry>();
 
         /// <summary>
         /// Suffix used in texture filenames (e.g. "iron", "wood").

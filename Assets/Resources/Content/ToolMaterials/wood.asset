@@ -25,7 +25,18 @@ MonoBehaviour:
   toolLevel: 0
   isCraftable: 1
   partBuilderCost: 1
-  craftingItemIds:
-  - lithforge:oak_planks
+  materialInputs:
+  - itemId: lithforge:oak_planks
+    value: 1
+    needed: 1
+    leftoverItemId:
+  - itemId: lithforge:oak_log
+    value: 4
+    needed: 1
+    leftoverItemId: lithforge:oak_planks
+  - itemId: lithforge:stick
+    value: 1
+    needed: 2
+    leftoverItemId:
   textureSuffix: wood
   isFallbackMaterial: 0

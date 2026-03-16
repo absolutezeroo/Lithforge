@@ -1,19 +1,20 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Registry mapping material ResourceIds to resolved ToolMaterialData.
-    /// Built during content pipeline from ToolMaterialDefinition assets.
+    ///     Registry mapping material ResourceIds to resolved ToolMaterialData.
+    ///     Built during content pipeline from ToolMaterialDefinition assets.
     /// </summary>
     public sealed class ToolMaterialRegistry
     {
-        private readonly Dictionary<ResourceId, ToolMaterialData> _materials;
+        private readonly Dictionary<ResourceId, ToolMaterialData> _materials = new();
 
-        public ToolMaterialRegistry()
+        public int Count
         {
-            _materials = new Dictionary<ResourceId, ToolMaterialData>();
+            get { return _materials.Count; }
         }
 
         public void Register(ToolMaterialData material)
@@ -34,45 +35,6 @@ namespace Lithforge.Voxel.Item
         public bool Contains(ResourceId materialId)
         {
             return _materials.ContainsKey(materialId);
-        }
-
-        public int Count
-        {
-            get { return _materials.Count; }
-        }
-
-        /// <summary>
-        /// Finds the craftable material that accepts the given item as input in the Part Builder.
-        /// Returns null if no match or material is not craftable.
-        /// </summary>
-        public ToolMaterialData FindCraftableMaterialForItem(ResourceId itemId)
-        {
-            string itemIdStr = itemId.ToString();
-
-            foreach (KeyValuePair<ResourceId, ToolMaterialData> kvp in _materials)
-            {
-                ToolMaterialData mat = kvp.Value;
-
-                if (!mat.IsCraftable)
-                {
-                    continue;
-                }
-
-                if (mat.CraftingItemIds == null)
-                {
-                    continue;
-                }
-
-                for (int i = 0; i < mat.CraftingItemIds.Length; i++)
-                {
-                    if (mat.CraftingItemIds[i] == itemIdStr)
-                    {
-                        return mat;
-                    }
-                }
-            }
-
-            return null;
         }
     }
 }

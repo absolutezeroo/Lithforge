@@ -24,6 +24,7 @@ namespace Lithforge.Runtime.UI.Screens
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
         private readonly PartBuilderRecipeRegistry _partBuilderRecipeRegistry;
         private readonly ToolMaterialRegistry _toolMaterialRegistry;
+        private readonly MaterialInputRegistry _materialInputRegistry;
 
         public Inventory PlayerInventory
         {
@@ -102,6 +103,16 @@ namespace Lithforge.Runtime.UI.Screens
             get { return _toolMaterialRegistry; }
         }
 
+        /// <summary>
+        /// Material input registry mapping items to materials with value/needed ratios.
+        /// Used by the Part Builder for TiC-style fractional material costs.
+        /// May be null if no material inputs are configured.
+        /// </summary>
+        public MaterialInputRegistry MaterialInputRegistry
+        {
+            get { return _materialInputRegistry; }
+        }
+
         public ScreenContext(
             Inventory playerInventory,
             ItemRegistry itemRegistry,
@@ -113,7 +124,8 @@ namespace Lithforge.Runtime.UI.Screens
             ToolMaterialDefinition[] toolMaterials,
             ToolTemplateRegistry toolTemplateRegistry,
             PartBuilderRecipeRegistry partBuilderRecipeRegistry,
-            ToolMaterialRegistry toolMaterialRegistry)
+            ToolMaterialRegistry toolMaterialRegistry,
+            MaterialInputRegistry materialInputRegistry)
         {
             _playerInventory = playerInventory;
             _itemRegistry = itemRegistry;
@@ -126,6 +138,7 @@ namespace Lithforge.Runtime.UI.Screens
             _toolTemplateRegistry = toolTemplateRegistry;
             _partBuilderRecipeRegistry = partBuilderRecipeRegistry;
             _toolMaterialRegistry = toolMaterialRegistry;
+            _materialInputRegistry = materialInputRegistry;
         }
     }
 }

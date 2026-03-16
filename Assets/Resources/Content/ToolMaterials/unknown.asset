@@ -24,6 +24,6 @@ MonoBehaviour:
   toolLevel: 0
   isCraftable: 0
   partBuilderCost: 1
-  craftingItemIds: []
+  materialInputs: []
   textureSuffix: unknown
   isFallbackMaterial: 1
