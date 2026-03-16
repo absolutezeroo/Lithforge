@@ -31,9 +31,8 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// How many generation job completions to poll per frame. The GPU throttle in
-        /// MeshScheduler is the correct place to limit throughput — these static caps
-        /// should not bottleneck world loading.
+        /// How many generation job completions to poll per frame.
+        /// Let the ms budget be the real limiter (~10 completions at 0.22ms each).
         /// At RD12: min(32, 4+6) = 10.
         /// </summary>
         /// <param name="rd">Current render distance in chunks.</param>
@@ -62,9 +61,7 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// How many LOD mesh completions to process per frame. The GPU throttle in
-        /// MeshScheduler handles burst protection — these caps should not bottleneck
-        /// distant chunk loading.
+        /// How many LOD mesh completions to process per frame.
         /// At RD12: min(16, 2+3) = 5.
         /// </summary>
         /// <param name="rd">Current render distance in chunks.</param>
