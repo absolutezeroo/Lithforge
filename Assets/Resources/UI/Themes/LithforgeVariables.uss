@@ -5,16 +5,22 @@
     /* Slot */
     --lf-slot-size: 60px;
     --lf-slot-bg: rgba(32, 32, 32, 0.9);
-    --lf-slot-border: rgba(115, 115, 115, 0.9);
     --lf-slot-border-width: 2px;
     --lf-slot-radius: 2px;
     --lf-slot-hover-bg: rgba(89, 89, 89, 0.9);
     --lf-slot-selected-border: rgba(255, 255, 255, 1);
+    /* Inset bevel: darker top/left (shadow falls into the slot), lighter bottom/right */
+    --lf-slot-border-highlight: rgba(75, 75, 75, 0.9);
+    --lf-slot-border-shadow: rgba(15, 15, 15, 0.9);
 
     /* Panel */
-    --lf-panel-bg: rgba(30, 30, 30, 0.95);
-    --lf-panel-radius: 4px;
+    --lf-panel-bg: rgba(55, 55, 55, 0.95);
+    --lf-panel-border-width: 3px;
+    --lf-panel-radius: 2px;
     --lf-overlay-bg: rgba(0, 0, 0, 0.5);
+    /* Raised bevel: lighter top/left (light catches the edge), darker bottom/right */
+    --lf-panel-border-highlight: rgba(139, 139, 139, 0.95);
+    --lf-panel-border-shadow: rgba(30, 30, 30, 0.95);
 
     /* Text */
     --lf-text-primary: rgba(255, 255, 255, 1);
@@ -23,9 +29,12 @@
     --lf-text-count: rgba(255, 255, 255, 1);
 
     /* Tooltip */
-    --lf-tooltip-bg: rgba(20, 20, 20, 0.95);
-    --lf-tooltip-border: rgba(80, 80, 80, 0.9);
+    --lf-tooltip-bg: rgba(16, 0, 16, 0.94);
+    --lf-tooltip-border-width: 2px;
     --lf-tooltip-text: rgba(255, 255, 255, 1);
+    /* Purple-tinted bevel (Minecraft tooltip style) */
+    --lf-tooltip-border-highlight: rgba(80, 0, 120, 0.9);
+    --lf-tooltip-border-shadow: rgba(40, 0, 60, 0.9);
     --lf-tooltip-name-color: rgba(255, 255, 255, 1);
     --lf-tooltip-stat-color: rgba(170, 170, 170, 1);
     --lf-tooltip-tool-color: rgba(100, 200, 100, 1);

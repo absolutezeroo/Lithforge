@@ -10,8 +10,10 @@ namespace Lithforge.Runtime.UI.Widgets
     /// Visual element representing a single inventory slot.
     /// Displays an item icon sprite, stack count, and optional durability bar.
     /// Uses USS class "lf-slot" for styling.
+    /// Marked as [UxmlElement] for future UXML template usage in UI Builder.
     /// </summary>
-    public sealed class SlotWidget : VisualElement
+    [UxmlElement]
+    public sealed partial class SlotWidget : VisualElement
     {
         private readonly Image _icon;
         private readonly Label _count;
@@ -19,6 +21,34 @@ namespace Lithforge.Runtime.UI.Widgets
         private readonly VisualElement _durabilityFill;
 
         private ItemStack _lastStack;
+        private int _slotIndex = -1;
+        private bool _isSelected;
+
+        /// <summary>
+        /// The slot index this widget represents within its container.
+        /// Exposed as a UXML attribute for declarative layout in future phases.
+        /// </summary>
+        [UxmlAttribute]
+        public int SlotIndex
+        {
+            get { return _slotIndex; }
+            set { _slotIndex = value; }
+        }
+
+        /// <summary>
+        /// Whether this slot is currently selected (e.g. hotbar highlight).
+        /// Setting this property toggles the "lf-slot--selected" USS class.
+        /// </summary>
+        [UxmlAttribute]
+        public bool IsSelected
+        {
+            get { return _isSelected; }
+            set
+            {
+                _isSelected = value;
+                SetSelected(value);
+            }
+        }
 
         public SlotWidget()
         {
