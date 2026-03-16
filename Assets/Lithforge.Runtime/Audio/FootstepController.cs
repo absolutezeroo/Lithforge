@@ -136,12 +136,6 @@ namespace Lithforge.Runtime.Audio
                                 {
                                     Vector3 pos = new Vector3(
                                         feetBlock.x + 0.5f, feetBlock.y + 0.5f, feetBlock.z + 0.5f);
-                                    SoundGroupDefinition belowGroup =
-                                        _blockSoundPlayer != null ? null : null;
-
-                                    // Play base block step at reduced volume via group name
-                                    // BlockSoundPlayer handles volume from the SoundGroupDefinition
-                                    // We play at the same position — the pool will handle it
                                     _blockSoundPlayer.PlayGroupSound(
                                         belowEntry.SoundGroup, SoundEventType.Step, pos);
                                 }

@@ -12,7 +12,7 @@ namespace Lithforge.Runtime.Audio
         private readonly Dictionary<string, SoundGroupDefinition> _groups =
             new Dictionary<string, SoundGroupDefinition>();
 
-        private bool _warnedMissing;
+        private readonly HashSet<string> _warnedGroups = new HashSet<string>();
 
         /// <summary>
         /// Registers a sound group definition. Duplicate names overwrite silently.
@@ -38,12 +38,10 @@ namespace Lithforge.Runtime.Audio
                 return definition;
             }
 
-            if (!_warnedMissing)
+            if (_warnedGroups.Add(groupName))
             {
                 UnityEngine.Debug.LogWarning(
-                    $"[Audio] Sound group '{groupName}' not found. " +
-                    "Missing groups will be silent.");
-                _warnedMissing = true;
+                    $"[Audio] Sound group '{groupName}' not found. Sounds will be silent.");
             }
 
             return null;
