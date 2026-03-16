@@ -23,3 +23,5 @@ MonoBehaviour:
   traitIds:
   - lithforge:ecological
   toolLevel: 0
+  textureSuffix: wood
+  isFallbackMaterial: 0

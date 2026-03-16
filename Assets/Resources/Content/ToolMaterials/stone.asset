@@ -23,3 +23,5 @@ MonoBehaviour:
   traitIds:
   - lithforge:stonebound
   toolLevel: 1
+  textureSuffix:
+  isFallbackMaterial: 0

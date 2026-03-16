@@ -23,3 +23,5 @@ MonoBehaviour:
   traitIds:
   - lithforge:reinforced
   toolLevel: 2
+  textureSuffix: iron
+  isFallbackMaterial: 0
