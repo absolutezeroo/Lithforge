@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
 
@@ -8,44 +9,40 @@ namespace Lithforge.Voxel.Item
     public sealed class ToolInstance
     {
         public const int MaxModifierSlots = 5;
-
-        public ToolType ToolType;
-        public ToolPart[] Parts;
-        public ModifierSlot[] Slots;
-        public int CurrentDurability;
-        public int MaxDurability;
+        public float BaseDamage;
 
         public float BaseSpeed;
-        public float BaseDamage;
+        public int CurrentDurability;
         public int EffectiveToolLevel;
+        public int MaxDurability;
+        public ToolPart[] Parts;
+        public ModifierSlot[] Slots;
+
+        public ToolType ToolType;
 
         public ToolDurabilityState DurabilityState
         {
             get
             {
                 float pct = MaxDurability > 0 ? (float)CurrentDurability / MaxDurability : 0f;
-                if (pct > 0.50f)
-                {
-                    return ToolDurabilityState.New;
-                }
 
-                if (pct > 0.20f)
+                switch (pct)
                 {
-                    return ToolDurabilityState.Worn;
+                    case > 0.50f:
+                        return ToolDurabilityState.New;
+                    case > 0.20f:
+                        return ToolDurabilityState.Worn;
+                    case > 0.05f:
+                        return ToolDurabilityState.Damaged;
+                    default:
+                        return ToolDurabilityState.Critical;
                 }
-
-                if (pct > 0.05f)
-                {
-                    return ToolDurabilityState.Damaged;
-                }
-
-                return ToolDurabilityState.Critical;
             }
         }
 
         /// <summary>
-        /// Returns the effective mining speed. BaseSpeed is already computed
-        /// from head material + handle multiplier at assembly time.
+        ///     Returns the effective mining speed. BaseSpeed is already computed
+        ///     from head material + handle multiplier at assembly time.
         /// </summary>
         public float GetEffectiveSpeed(BlockMaterialType mat)
         {
@@ -58,9 +55,9 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Collects all IToolTrait from all parts by resolving TraitIds
-        /// through the trait registry. Deduplicates by TraitId, keeping
-        /// only the highest TraitLevel for each.
+        ///     Collects all IToolTrait from all parts by resolving TraitIds
+        ///     through the trait registry. Deduplicates by TraitId, keeping
+        ///     only the highest TraitLevel for each.
         /// </summary>
         public IToolTrait[] GetAllTraits(ToolTraitRegistry traitRegistry)
         {
@@ -69,7 +66,7 @@ namespace Lithforge.Voxel.Item
                 return Array.Empty<IToolTrait>();
             }
 
-            Dictionary<string, ToolTraitData> best = new Dictionary<string, ToolTraitData>();
+            Dictionary<string, ToolTraitData> best = new();
 
             for (int p = 0; p < Parts.Length; p++)
             {
@@ -114,8 +111,8 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Parameterless overload for backward compatibility.
-        /// Returns empty when no registry is available.
+        ///     Parameterless overload for backward compatibility.
+        ///     Returns empty when no registry is available.
         /// </summary>
         public IToolTrait[] GetAllTraits()
         {
@@ -125,6 +122,7 @@ namespace Lithforge.Voxel.Item
         public int GetUsedSlots()
         {
             int count = 0;
+
             for (int i = 0; i < Slots.Length; i++)
             {
                 if (Slots[i].IsOccupied)
