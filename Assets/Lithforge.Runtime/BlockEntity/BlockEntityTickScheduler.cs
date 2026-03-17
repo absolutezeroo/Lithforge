@@ -19,6 +19,8 @@ namespace Lithforge.Runtime.BlockEntity
         private readonly List<EntityKey>[] _buckets;
         private readonly Dictionary<EntityKey, BlockEntity> _entities =
             new Dictionary<EntityKey, BlockEntity>();
+        private readonly Dictionary<int3, List<EntityKey>> _chunkIndex =
+            new Dictionary<int3, List<EntityKey>>();
         private int _currentBucket;
 
         private readonly ChunkManager _chunkManager;
@@ -103,6 +105,13 @@ namespace Lithforge.Runtime.BlockEntity
                         _entities[key] = runtimeEntity;
                         int bucketIndex = GetBucketIndex(key);
                         _buckets[bucketIndex].Add(key);
+
+                        if (!_chunkIndex.TryGetValue(chunkCoord, out List<EntityKey> chunkList))
+                        {
+                            chunkList = RentList();
+                            _chunkIndex[chunkCoord] = chunkList;
+                        }
+                        chunkList.Add(key);
                     }
                 }
             }
@@ -115,25 +124,20 @@ namespace Lithforge.Runtime.BlockEntity
         /// </summary>
         public void OnChunkUnloaded(int3 chunkCoord)
         {
-            // Collect keys to remove (can't modify dict during enumeration)
-            _removeCache.Clear();
-
-            foreach (KeyValuePair<EntityKey, BlockEntity> kvp in _entities)
+            if (!_chunkIndex.TryGetValue(chunkCoord, out List<EntityKey> chunkList))
             {
-                if (kvp.Key.ChunkCoord.Equals(chunkCoord))
-                {
-                    _removeCache.Add(kvp.Key);
-                }
+                return;
             }
 
-            for (int i = 0; i < _removeCache.Count; i++)
+            for (int i = 0; i < chunkList.Count; i++)
             {
-                _entities.Remove(_removeCache[i]);
+                _entities.Remove(chunkList[i]);
                 // Bucket entries cleaned up lazily in Tick()
             }
-        }
 
-        private readonly List<EntityKey> _removeCache = new List<EntityKey>();
+            _chunkIndex.Remove(chunkCoord);
+            ReturnList(chunkList);
+        }
 
         private void OnBlockEntityPlaced(int3 chunkCoord, int flatIndex, StateId stateId)
         {
@@ -168,6 +172,13 @@ namespace Lithforge.Runtime.BlockEntity
                 _entities[key] = runtimeEntity;
                 int bucketIndex = GetBucketIndex(key);
                 _buckets[bucketIndex].Add(key);
+
+                if (!_chunkIndex.TryGetValue(chunkCoord, out List<EntityKey> chunkList))
+                {
+                    chunkList = RentList();
+                    _chunkIndex[chunkCoord] = chunkList;
+                }
+                chunkList.Add(key);
             }
         }
 
@@ -188,6 +199,16 @@ namespace Lithforge.Runtime.BlockEntity
                 EntityKey key = new EntityKey(chunkCoord, flatIndex);
                 _entities.Remove(key);
                 // Bucket entries cleaned up lazily in Tick()
+
+                if (_chunkIndex.TryGetValue(chunkCoord, out List<EntityKey> chunkList))
+                {
+                    chunkList.Remove(key);
+                    if (chunkList.Count == 0)
+                    {
+                        _chunkIndex.Remove(chunkCoord);
+                        ReturnList(chunkList);
+                    }
+                }
             }
         }
 
@@ -201,6 +222,25 @@ namespace Lithforge.Runtime.BlockEntity
             _entities.TryGetValue(key, out BlockEntity entity);
 
             return entity;
+        }
+
+        private static readonly Stack<List<EntityKey>> s_listPool = new Stack<List<EntityKey>>();
+
+        private static List<EntityKey> RentList()
+        {
+            if (s_listPool.Count > 0)
+            {
+                List<EntityKey> list = s_listPool.Pop();
+                list.Clear();
+                return list;
+            }
+            return new List<EntityKey>();
+        }
+
+        private static void ReturnList(List<EntityKey> list)
+        {
+            list.Clear();
+            s_listPool.Push(list);
         }
 
         private static int GetBucketIndex(EntityKey key)
