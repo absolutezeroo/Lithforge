@@ -1325,6 +1325,10 @@ namespace Lithforge.Voxel.Chunk
                 return 0;
             }
 
+            // Complete any in-flight liquid job before reading LiquidData.
+            // PlayerPhysicsBody ticks before LiquidScheduler.PollCompleted().
+            chunk.LiquidJobHandle.Complete();
+
             int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
             int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
             int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;

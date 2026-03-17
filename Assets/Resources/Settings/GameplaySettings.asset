@@ -34,3 +34,6 @@ MonoBehaviour:
   - itemNamespace: lithforge
     itemName: blank_pattern
     count: 64
+  - itemNamespace: lithforge
+    itemName: water
+    count: 64
