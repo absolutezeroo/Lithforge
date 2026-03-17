@@ -163,8 +163,14 @@ namespace Lithforge.Meshing
                         {
                             int flatIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
                                 blockPos.x, blockPos.y, blockPos.z);
-                            byte cell = LiquidData[flatIndex];
-                            fluidLevel = LiquidCell.GetVisualLevel(cell);
+
+                            // Bounds check guards against stale Burst cache where
+                            // the dummy sentinel (Length=1) could slip through.
+                            if (flatIndex < LiquidData.Length)
+                            {
+                                byte cell = LiquidData[flatIndex];
+                                fluidLevel = LiquidCell.GetVisualLevel(cell);
+                            }
                         }
 
                         faceFluidLevel[idx] = fluidLevel;

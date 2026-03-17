@@ -517,10 +517,12 @@ namespace Lithforge.Runtime.Scheduling
                 chunk.LiquidActiveSet.Add(pending.OutputActiveSet[i]);
             }
 
-            // Force-complete any in-flight mesh jobs whose border extraction reads
-            // chunk data we're about to write via SetBlock. Collect unique target
-            // chunk coords first to avoid redundant ForceCompleteNeighborDeps calls.
-            if (_meshScheduler != null && pending.OutputEdits.Length > 0)
+            // Force-complete any in-flight jobs that hold read locks on chunk data
+            // we're about to write via SetBlock:
+            // 1. Mesh border extraction jobs reading target chunks as neighbors
+            // 2. LightRemovalJobs reading target chunk's ChunkData
+            // Collect unique target chunk coords first to batch force-completion.
+            if (pending.OutputEdits.Length > 0)
             {
                 _forceCompleteCache.Clear();
                 _forceCompleteCache.Add(pending.ChunkCoord);
@@ -534,7 +536,19 @@ namespace Lithforge.Runtime.Scheduling
 
                 foreach (int3 coord in _forceCompleteCache)
                 {
-                    _meshScheduler.ForceCompleteNeighborDeps(coord);
+                    // Mesh border extraction: neighbor chunks' ExtractAllBordersJob
+                    if (_meshScheduler != null)
+                    {
+                        _meshScheduler.ForceCompleteNeighborDeps(coord);
+                    }
+
+                    // Relight: LightRemovalJob reads ChunkData as [ReadOnly]
+                    ManagedChunk target = _chunkManager.TryGetChunk(coord);
+
+                    if (target != null && target.LightJobInFlight)
+                    {
+                        target.ActiveJobHandle.Complete();
+                    }
                 }
             }
 
