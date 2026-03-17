@@ -5,7 +5,7 @@ namespace Lithforge.Voxel.Item
 {
     public static class ToolInstanceSerializer
     {
-        private const ushort Version = 1;
+        private const ushort Version = 2;
 
         public static byte[] Serialize(ToolInstance tool)
         {
@@ -48,6 +48,8 @@ namespace Lithforge.Voxel.Item
                         w.Write(slot.Level);
                     }
                 }
+
+                w.Write(tool.IsBroken);
 
                 return ms.ToArray();
             }
@@ -102,6 +104,15 @@ namespace Lithforge.Voxel.Item
                             Level = r.ReadInt32(),
                         };
                     }
+                }
+
+                if (ver >= 2)
+                {
+                    tool.IsBroken = r.ReadBoolean();
+                }
+                else
+                {
+                    tool.IsBroken = tool.CurrentDurability <= 0;
                 }
 
                 return tool;

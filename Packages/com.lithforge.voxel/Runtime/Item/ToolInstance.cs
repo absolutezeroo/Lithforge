@@ -14,6 +14,7 @@ namespace Lithforge.Voxel.Item
         public float BaseSpeed;
         public int CurrentDurability;
         public int EffectiveToolLevel;
+        public bool IsBroken;
         public int MaxDurability;
         public ToolPart[] Parts;
         public ModifierSlot[] Slots;
@@ -24,6 +25,11 @@ namespace Lithforge.Voxel.Item
         {
             get
             {
+                if (IsBroken)
+                {
+                    return ToolDurabilityState.Broken;
+                }
+
                 float pct = MaxDurability > 0 ? (float)CurrentDurability / MaxDurability : 0f;
 
                 switch (pct)
@@ -37,6 +43,24 @@ namespace Lithforge.Voxel.Item
                     default:
                         return ToolDurabilityState.Critical;
                 }
+            }
+        }
+
+        /// <summary>
+        ///     Sets current durability with TiC setDamage semantics:
+        ///     durability &lt;= 0 marks the tool as broken; durability &gt; 0 unbreaks it.
+        /// </summary>
+        public void SetCurrentDurability(int durability)
+        {
+            if (durability <= 0)
+            {
+                CurrentDurability = 0;
+                IsBroken = true;
+            }
+            else
+            {
+                CurrentDurability = System.Math.Min(durability, MaxDurability);
+                IsBroken = false;
             }
         }
 

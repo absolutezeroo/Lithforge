@@ -119,7 +119,8 @@ namespace Lithforge.Runtime.UI.Screens
             Context = context;
 
             HeldStack held = new();
-            Interaction = new SlotInteractionController(held, context.ItemRegistry, context.ToolTemplateRegistry);
+            Interaction = new SlotInteractionController(
+                held, context.ItemRegistry, context.ToolTemplateRegistry, context.ToolMaterialRegistry);
             SpriteAtlas = context.ItemSpriteAtlas;
             ItemRegistryRef = context.ItemRegistry;
 

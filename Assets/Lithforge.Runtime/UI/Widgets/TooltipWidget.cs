@@ -123,7 +123,9 @@ namespace Lithforge.Runtime.UI.Widgets
             else if (isToolPart)
             {
                 string matName = FormatFullName(partData.MaterialId.Name);
-                string partName = partData.PartType.ToString();
+                string partName = partData.PartType == ToolPartType.RepairKit
+                    ? "Repair Kit"
+                    : partData.PartType.ToString();
                 _nameLabel.text = matName + " " + partName;
             }
             else
@@ -208,7 +210,13 @@ namespace Lithforge.Runtime.UI.Widgets
         private void ShowDefaultMode(ToolInstance tool)
         {
             // Durability (colored by ratio)
-            if (tool.MaxDurability > 0)
+            if (tool.IsBroken)
+            {
+                _durabilityLabel.text = "BROKEN";
+                _durabilityLabel.style.color = ColorFromHex("#C80000");
+                _durabilityLabel.style.display = DisplayStyle.Flex;
+            }
+            else if (tool.MaxDurability > 0)
             {
                 float ratio = (float)tool.CurrentDurability / tool.MaxDurability;
                 string color = ratio > 0.5f ? "#00C800" : ratio > 0.25f ? "#C8C800" : "#C80000";
@@ -289,7 +297,15 @@ namespace Lithforge.Runtime.UI.Widgets
             _statsLabel.style.display = DisplayStyle.None;
             _materialBreakdownLabel.style.display = DisplayStyle.None;
 
-            _hintLabel.text = "Hold [Shift] for Stats\nHold [Ctrl] for Materials";
+            if (tool.IsBroken)
+            {
+                _hintLabel.text = "Repair at Tool Station or use Repair Kit";
+            }
+            else
+            {
+                _hintLabel.text = "Hold [Shift] for Stats\nHold [Ctrl] for Materials";
+            }
+
             _hintLabel.style.display = DisplayStyle.Flex;
         }
 
@@ -297,7 +313,11 @@ namespace Lithforge.Runtime.UI.Widgets
         {
             _sb.Clear();
 
-            if (tool.MaxDurability > 0)
+            if (tool.IsBroken)
+            {
+                _sb.Append("Durability: BROKEN\n");
+            }
+            else if (tool.MaxDurability > 0)
             {
                 _sb.Append("Durability: ").Append(tool.CurrentDurability)
                     .Append(" / ").Append(tool.MaxDurability).Append('\n');
@@ -425,12 +445,12 @@ namespace Lithforge.Runtime.UI.Widgets
         {
             _traitsLabel.style.display = DisplayStyle.None;
             _materialBreakdownLabel.style.display = DisplayStyle.None;
-            _hintLabel.style.display = DisplayStyle.None;
             _durabilityLabel.style.display = DisplayStyle.None;
 
             if (materialRegistry == null)
             {
                 _statsLabel.style.display = DisplayStyle.None;
+                _hintLabel.style.display = DisplayStyle.None;
                 return;
             }
 
@@ -439,10 +459,18 @@ namespace Lithforge.Runtime.UI.Widgets
             if (mat == null)
             {
                 _statsLabel.style.display = DisplayStyle.None;
+                _hintLabel.style.display = DisplayStyle.None;
                 return;
             }
 
             _sb.Clear();
+
+            if (partData.PartType == ToolPartType.RepairKit)
+            {
+                _sb.Append("Repairs: ").Append(FormatFullName(partData.MaterialId.Name))
+                    .Append(" tools\n");
+            }
+
             AppendPartMaterialStats(partData.PartType, mat);
             AppendTraitLines(mat.TraitIds, "");
 
@@ -460,6 +488,16 @@ namespace Lithforge.Runtime.UI.Widgets
             else
             {
                 _statsLabel.style.display = DisplayStyle.None;
+            }
+
+            if (partData.PartType == ToolPartType.RepairKit)
+            {
+                _hintLabel.text = "Right-click on tool to use";
+                _hintLabel.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                _hintLabel.style.display = DisplayStyle.None;
             }
         }
 
@@ -488,6 +526,14 @@ namespace Lithforge.Runtime.UI.Widgets
                 case ToolPartType.Guard:
                     _sb.Append("  Durability Bonus: +").Append(mat.BindingDurabilityBonus).Append('\n');
                     break;
+
+                case ToolPartType.RepairKit:
+                {
+                    int repair = (int)(mat.HeadDurability *
+                        RepairKitHelper.RepairKitValue / RepairKitHelper.UnitsPerRepair);
+                    _sb.Append("  Restores: ").Append(repair).Append(" durability\n");
+                    break;
+                }
 
                 default:
                     // Generic fallback for uncovered part types

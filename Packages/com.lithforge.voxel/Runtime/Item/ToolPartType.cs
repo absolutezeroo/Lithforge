@@ -54,5 +54,8 @@ namespace Lithforge.Voxel.Item
 
         /// <summary>Internal moving parts (e.g., crossbow trigger assembly).</summary>
         Mechanism = 15,
+
+        /// <summary>Portable repair kit that restores durability to matching-material tools.</summary>
+        RepairKit = 20,
     }
 }

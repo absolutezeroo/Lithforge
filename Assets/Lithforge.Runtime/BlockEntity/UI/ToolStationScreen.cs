@@ -4,6 +4,7 @@ using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
+using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -39,6 +40,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private Button _axeBtn;
         private Button _shovelBtn;
         private Button _swordBtn;
+        private Label _modeLabel;
+
+        // Repair mode state
+        private int[] _repairItemsConsumed;
+        private int _repairTotalRepair;
 
         public void Initialize(ScreenContext context)
         {
@@ -83,6 +89,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
         {
             _resultLabel = null;
             _statsLabel = null;
+            _modeLabel = null;
             _pickaxeBtn = null;
             _axeBtn = null;
             _shovelBtn = null;
@@ -102,6 +109,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             _resultLabel = Panel.Q<Label>("result-label");
             _statsLabel = Panel.Q<Label>("stats-label");
+            _modeLabel = Panel.Q<Label>("mode-label");
 
             _pickaxeBtn = Panel.Q<Button>("pickaxe-btn");
             _axeBtn = Panel.Q<Button>("axe-btn");
@@ -193,12 +201,19 @@ namespace Lithforge.Runtime.BlockEntity.UI
             // Any slot interaction may change part slots
             _previewDirty = true;
 
-            // Output slot: take assembled tool
+            // Output slot: take assembled tool or repaired tool
             if (container == _outputAdapter)
             {
                 if (evt.button == 0)
                 {
-                    HandleOutputTake();
+                    if (IsRepairMode())
+                    {
+                        HandleRepairOutputTake();
+                    }
+                    else
+                    {
+                        HandleOutputTake();
+                    }
                 }
 
                 evt.StopPropagation();
@@ -300,20 +315,230 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        private bool IsRepairMode()
+        {
+            ItemStack headSlot = _headAdapter.GetSlot(0);
+
+            if (headSlot.IsEmpty || !headSlot.HasCustomData)
+            {
+                return false;
+            }
+
+            return ToolInstanceSerializer.TryDeserialize(headSlot.CustomData, out _);
+        }
+
+        private void UpdateRepairPreview()
+        {
+            ItemStack toolStack = _headAdapter.GetSlot(0);
+
+            if (!toolStack.HasCustomData ||
+                !ToolInstanceSerializer.TryDeserialize(toolStack.CustomData, out ToolInstance tool))
+            {
+                _outputAdapter.SetSlot(0, ItemStack.Empty);
+                _repairItemsConsumed = null;
+                _repairTotalRepair = 0;
+                return;
+            }
+
+            int damageToRepair = tool.IsBroken
+                ? tool.MaxDurability
+                : tool.MaxDurability - tool.CurrentDurability;
+
+            if (damageToRepair <= 0)
+            {
+                _outputAdapter.SetSlot(0, ItemStack.Empty);
+                _repairItemsConsumed = null;
+                _repairTotalRepair = 0;
+
+                if (_resultLabel != null && _statsLabel != null)
+                {
+                    _resultLabel.text = "Tool is at full durability";
+                    _statsLabel.text = "";
+                }
+
+                return;
+            }
+
+            ResourceId headMaterial = RepairKitHelper.GetHeadMaterial(tool);
+
+            if (headMaterial.Namespace == null)
+            {
+                _outputAdapter.SetSlot(0, ItemStack.Empty);
+                _repairItemsConsumed = null;
+                _repairTotalRepair = 0;
+                return;
+            }
+
+            int totalRepair = 0;
+            int[] itemsConsumed = new int[2];
+
+            for (int i = 0; i < 2; i++)
+            {
+                ISlotContainer adapter = i == 0
+                    ? (ISlotContainer)_handleAdapter
+                    : _bindingAdapter;
+
+                ItemStack stack = adapter.GetSlot(0);
+
+                if (stack.IsEmpty)
+                {
+                    continue;
+                }
+
+                int repairPerItem = 0;
+
+                if (stack.HasCustomData &&
+                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData kitData) &&
+                    kitData.PartType == ToolPartType.RepairKit &&
+                    kitData.MaterialId.Equals(headMaterial))
+                {
+                    ToolMaterialData matData = Context.ToolMaterialRegistry != null
+                        ? Context.ToolMaterialRegistry.Get(headMaterial)
+                        : null;
+
+                    if (matData != null)
+                    {
+                        repairPerItem = (int)(matData.HeadDurability *
+                            RepairKitHelper.RepairKitValue / RepairKitHelper.UnitsPerRepair);
+                    }
+                }
+                else if (Context.MaterialInputRegistry != null)
+                {
+                    MaterialInputData inputData = Context.MaterialInputRegistry.Get(stack.ItemId);
+
+                    if (inputData != null && inputData.MaterialId.Equals(headMaterial))
+                    {
+                        repairPerItem = RepairKitHelper.CalculateRawMaterialRepair(
+                            tool, inputData, Context.ToolMaterialRegistry);
+                    }
+                }
+
+                if (repairPerItem <= 0)
+                {
+                    continue;
+                }
+
+                int remaining = damageToRepair - totalRepair;
+
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                int needed = (int)System.Math.Ceiling((float)remaining / repairPerItem);
+                int used = System.Math.Min(needed, stack.Count);
+                itemsConsumed[i] = used;
+                totalRepair += used * repairPerItem;
+            }
+
+            totalRepair = System.Math.Min(totalRepair, damageToRepair);
+
+            if (totalRepair <= 0)
+            {
+                _outputAdapter.SetSlot(0, ItemStack.Empty);
+                _repairItemsConsumed = null;
+                _repairTotalRepair = 0;
+
+                if (_resultLabel != null && _statsLabel != null)
+                {
+                    _resultLabel.text = "Add matching repair material";
+                    _statsLabel.text = "";
+                }
+
+                return;
+            }
+
+            ToolInstance repaired = ToolInstanceSerializer.Deserialize(toolStack.CustomData);
+            int baseCurrentDur = repaired.IsBroken ? 0 : repaired.CurrentDurability;
+            repaired.SetCurrentDurability(baseCurrentDur + totalRepair);
+
+            ItemStack previewStack = toolStack;
+            previewStack.Durability = repaired.CurrentDurability;
+            previewStack.CustomData = ToolInstanceSerializer.Serialize(repaired);
+
+            _outputAdapter.SetSlot(0, previewStack);
+
+            _repairItemsConsumed = itemsConsumed;
+            _repairTotalRepair = totalRepair;
+
+            if (_resultLabel != null)
+            {
+                _resultLabel.text = "Repair +" + totalRepair + " durability";
+                _statsLabel.text = repaired.CurrentDurability + " / " + repaired.MaxDurability;
+            }
+        }
+
+        private void HandleRepairOutputTake()
+        {
+            if (_repairItemsConsumed == null || _repairTotalRepair <= 0)
+            {
+                return;
+            }
+
+            ItemStack outputStack = _outputAdapter.GetSlot(0);
+
+            if (outputStack.IsEmpty)
+            {
+                return;
+            }
+
+            bool isShift = Keyboard.current != null &&
+                (Keyboard.current.leftShiftKey.isPressed ||
+                 Keyboard.current.rightShiftKey.isPressed);
+
+            if (isShift)
+            {
+                int leftOver = Context.PlayerInventory.AddItemStack(outputStack);
+
+                if (leftOver > 0)
+                {
+                    return;
+                }
+            }
+            else if (Interaction.Held.IsEmpty)
+            {
+                Interaction.Held.Set(outputStack);
+            }
+            else
+            {
+                return;
+            }
+
+            // Consume repair materials
+            for (int i = 0; i < 2; i++)
+            {
+                if (_repairItemsConsumed[i] <= 0)
+                {
+                    continue;
+                }
+
+                ISlotContainer adapter = i == 0
+                    ? (ISlotContainer)_handleAdapter
+                    : _bindingAdapter;
+
+                ItemStack slot = adapter.GetSlot(0);
+                slot.Count -= _repairItemsConsumed[i];
+                adapter.SetSlot(0, slot.Count <= 0 ? ItemStack.Empty : slot);
+            }
+
+            // Remove tool from input
+            _headAdapter.SetSlot(0, ItemStack.Empty);
+            _outputAdapter.SetSlot(0, ItemStack.Empty);
+
+            _repairItemsConsumed = null;
+            _repairTotalRepair = 0;
+            _previewDirty = true;
+        }
+
         private static ResourceId GetResultItemId(ToolInstance tool)
         {
             // Convention: result item is "lithforge:<material>_<tooltype>"
-            // For now, use a generic modular tool item
             string toolName = tool.ToolType.ToString().ToLowerInvariant();
+            ResourceId headMat = RepairKitHelper.GetHeadMaterial(tool);
 
-            if (tool.Parts != null && tool.Parts.Length > 0)
+            if (!string.IsNullOrEmpty(headMat.Name))
             {
-                ResourceId headMat = tool.Parts[0].MaterialId;
-
-                if (!string.IsNullOrEmpty(headMat.Name))
-                {
-                    return new ResourceId(headMat.Namespace, headMat.Name + "_" + toolName);
-                }
+                return new ResourceId(headMat.Namespace, headMat.Name + "_" + toolName);
             }
 
             return new ResourceId("lithforge", "modular_" + toolName);
@@ -351,24 +576,42 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
-            // Update assembly preview only when slots change
+            // Update preview only when slots change
             if (_currentStation != null && _previewDirty
                 && _resultLabel != null && _statsLabel != null)
             {
                 _previewDirty = false;
-                _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
 
-                if (_cachedPreview != null)
+                if (IsRepairMode())
                 {
-                    _resultLabel.text = _selectedToolType.ToString() + " (Lvl " + _cachedPreview.EffectiveToolLevel + ")";
-                    _statsLabel.text = "Speed: " + _cachedPreview.BaseSpeed.ToString("F1")
-                        + "  Durability: " + _cachedPreview.MaxDurability
-                        + "  Damage: " + _cachedPreview.BaseDamage.ToString("F1");
+                    UpdateRepairPreview();
+
+                    if (_modeLabel != null)
+                    {
+                        _modeLabel.text = "Repair";
+                    }
                 }
                 else
                 {
-                    _resultLabel.text = "Place parts to assemble";
-                    _statsLabel.text = "";
+                    _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
+
+                    if (_cachedPreview != null)
+                    {
+                        _resultLabel.text = _selectedToolType.ToString() + " (Lvl " + _cachedPreview.EffectiveToolLevel + ")";
+                        _statsLabel.text = "Speed: " + _cachedPreview.BaseSpeed.ToString("F1")
+                            + "  Durability: " + _cachedPreview.MaxDurability
+                            + "  Damage: " + _cachedPreview.BaseDamage.ToString("F1");
+                    }
+                    else
+                    {
+                        _resultLabel.text = "Place parts to assemble";
+                        _statsLabel.text = "";
+                    }
+
+                    if (_modeLabel != null)
+                    {
+                        _modeLabel.text = "Assembly";
+                    }
                 }
             }
 

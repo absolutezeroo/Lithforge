@@ -6,5 +6,6 @@ namespace Lithforge.Voxel.Item
         Worn     = 1,
         Damaged  = 2,
         Critical = 3,
+        Broken   = 4,
     }
 }

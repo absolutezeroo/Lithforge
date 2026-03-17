@@ -10,6 +10,7 @@ namespace Lithforge.Voxel.Item
                 ToolDurabilityState.Worn     => 0.9f,
                 ToolDurabilityState.Damaged  => 0.7f,
                 ToolDurabilityState.Critical => 0.4f,
+                ToolDurabilityState.Broken   => 0.0f,
                 _                            => 1.0f,
             };
         }
@@ -22,6 +23,7 @@ namespace Lithforge.Voxel.Item
                 ToolDurabilityState.Worn     => 1 + (int)((1f - normalizedDur / 0.5f) * 3),
                 ToolDurabilityState.Damaged  => 4 + (int)((1f - normalizedDur / 0.2f) * 3),
                 ToolDurabilityState.Critical => 7 + (int)((1f - normalizedDur / 0.05f) * 2),
+                ToolDurabilityState.Broken   => 10,
                 _                            => 0,
             };
         }

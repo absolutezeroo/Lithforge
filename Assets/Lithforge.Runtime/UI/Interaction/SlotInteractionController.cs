@@ -23,6 +23,7 @@ namespace Lithforge.Runtime.UI.Interaction
         private readonly HeldStack _held;
         private readonly ItemRegistry _itemRegistry;
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
+        private readonly ToolMaterialRegistry _toolMaterialRegistry;
 
         // Paint mode state
         private bool _isPainting;
@@ -38,11 +39,16 @@ namespace Lithforge.Runtime.UI.Interaction
         private ISlotContainer _hoveredContainer;
         private int _hoveredSlotIndex = -1;
 
-        public SlotInteractionController(HeldStack held, ItemRegistry itemRegistry, ToolTemplateRegistry toolTemplateRegistry)
+        public SlotInteractionController(
+            HeldStack held,
+            ItemRegistry itemRegistry,
+            ToolTemplateRegistry toolTemplateRegistry,
+            ToolMaterialRegistry toolMaterialRegistry)
         {
             _held = held;
             _itemRegistry = itemRegistry;
             _toolTemplateRegistry = toolTemplateRegistry;
+            _toolMaterialRegistry = toolMaterialRegistry;
         }
 
         public HeldStack Held
@@ -157,6 +163,40 @@ namespace Lithforge.Runtime.UI.Interaction
 
             ItemStack slotItem = container.GetSlot(slotIndex);
             int slotMaxStack = GetMaxStack(slotItem);
+
+            // Repair kit on tool: TiC-style inventory repair
+            if (!_held.IsEmpty && !slotItem.IsEmpty && _toolMaterialRegistry != null)
+            {
+                if (_held.Stack.HasCustomData &&
+                    ToolPartDataSerializer.TryDeserialize(_held.Stack.CustomData, out ToolPartData kitData) &&
+                    kitData.PartType == ToolPartType.RepairKit)
+                {
+                    if (slotItem.HasCustomData &&
+                        ToolInstanceSerializer.TryDeserialize(slotItem.CustomData, out ToolInstance tool))
+                    {
+                        int repairAmount = RepairKitHelper.CalculateRepairKitRepair(
+                            tool, kitData, _toolMaterialRegistry);
+
+                        if (repairAmount > 0)
+                        {
+                            tool.SetCurrentDurability(
+                                (tool.IsBroken ? 0 : tool.CurrentDurability) + repairAmount);
+
+                            ItemStack repairedStack = slotItem;
+                            repairedStack.Durability = tool.CurrentDurability;
+                            repairedStack.CustomData = ToolInstanceSerializer.Serialize(tool);
+                            container.SetSlot(slotIndex, repairedStack);
+
+                            ItemStack newHeld = _held.Stack;
+                            newHeld.Count -= 1;
+                            _held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
+
+                            container.OnSlotChanged(slotIndex);
+                            return;
+                        }
+                    }
+                }
+            }
 
             if (_held.IsEmpty && slotItem.IsEmpty)
             {

@@ -354,6 +354,12 @@ namespace Lithforge.Runtime.Input
                     tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
                 }
 
+                // Broken tools act as bare hand
+                if (tool != null && tool.IsBroken)
+                {
+                    tool = null;
+                }
+
                 // Apply modular tool traits
                 if (tool != null)
                 {
@@ -507,21 +513,14 @@ namespace Lithforge.Runtime.Input
                 {
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
 
-                    if (tool != null)
+                    if (tool != null && !tool.IsBroken)
                     {
-                        tool.CurrentDurability -= 1;
+                        tool.SetCurrentDurability(tool.CurrentDurability - 1);
 
-                        if (tool.CurrentDurability <= 0)
-                        {
-                            _inventory.SetSlot(_inventory.SelectedSlot, ItemStack.Empty);
-                        }
-                        else
-                        {
-                            ItemStack updated = heldItem;
-                            updated.Durability = tool.CurrentDurability;
-                            updated.CustomData = ToolInstanceSerializer.Serialize(tool);
-                            _inventory.SetSlot(_inventory.SelectedSlot, updated);
-                        }
+                        ItemStack updated = heldItem;
+                        updated.Durability = tool.CurrentDurability;
+                        updated.CustomData = ToolInstanceSerializer.Serialize(tool);
+                        _inventory.SetSlot(_inventory.SelectedSlot, updated);
                     }
                 }
             }
