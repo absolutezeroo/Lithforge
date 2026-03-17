@@ -14,8 +14,8 @@ namespace Lithforge.Network.Connection
     /// </summary>
     public sealed class ConnectionStateMachine
     {
-        private ConnectionState _state;
-        private float _stateEntryTime;
+        private ConnectionState _state = ConnectionState.Disconnected;
+        private float _stateEntryTime = 0f;
 
         public ConnectionState Current
         {
@@ -25,12 +25,6 @@ namespace Lithforge.Network.Connection
         public float StateEntryTime
         {
             get { return _stateEntryTime; }
-        }
-
-        public ConnectionStateMachine()
-        {
-            _state = ConnectionState.Disconnected;
-            _stateEntryTime = 0f;
         }
 
         /// <summary>
