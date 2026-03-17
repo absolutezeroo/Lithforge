@@ -246,8 +246,6 @@ namespace Lithforge.Runtime.Scheduling
                 64, Allocator.TempJob);
             NativeList<int> outputActiveSet = new NativeList<int>(
                 inputActiveSet.Length, Allocator.TempJob);
-            NativeArray<byte> bfsVisited = new NativeArray<byte>(
-                128, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             // Copy ghost slabs from neighbors
             int slabSize = ChunkConstants.SizeSquared;
@@ -265,7 +263,7 @@ namespace Lithforge.Runtime.Scheduling
             CopyGhostSlab(chunk, 4, ghostPosZ);
             CopyGhostSlab(chunk, 5, ghostNegZ);
 
-            // Block-solidity ghost slabs for cross-boundary BFS flow-direction search
+            // Block-solidity ghost slabs for cross-boundary solid checks
             NativeArray<byte> ghostBlockSolidPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> ghostBlockSolidNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> ghostBlockSolidPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
@@ -292,7 +290,6 @@ namespace Lithforge.Runtime.Scheduling
                 GhostBlockSolidNegX = ghostBlockSolidNegX,
                 GhostBlockSolidPosZ = ghostBlockSolidPosZ,
                 GhostBlockSolidNegZ = ghostBlockSolidNegZ,
-                BfsVisited = bfsVisited,
                 Config = _waterConfig,
                 OutputEdits = outputEdits,
                 OutputActiveSet = outputActiveSet,
@@ -307,7 +304,6 @@ namespace Lithforge.Runtime.Scheduling
                 OutputEdits = outputEdits,
                 OutputActiveSet = outputActiveSet,
                 InputActiveSet = inputActiveSet,
-                BfsVisited = bfsVisited,
                 GhostPosX = ghostPosX,
                 GhostNegX = ghostNegX,
                 GhostPosY = ghostPosY,

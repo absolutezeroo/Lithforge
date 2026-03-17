@@ -13,8 +13,7 @@ namespace Lithforge.Voxel.Liquid
     ///   1. OutputEdits.Dispose()
     ///   2. OutputActiveSet.Dispose()
     ///   3. InputActiveSet.Dispose()
-    ///   4. BfsVisited.Dispose()
-    ///   5. GhostSlabs (10 arrays: 6 liquid + 4 block-solid) — Dispose()
+    ///   4. GhostSlabs (10 arrays: 6 liquid + 4 block-solid) — Dispose()
     /// </summary>
     public struct PendingLiquidJob
     {
@@ -23,7 +22,6 @@ namespace Lithforge.Voxel.Liquid
         public NativeList<LiquidChunkEdit> OutputEdits;
         public NativeList<int> OutputActiveSet;
         public NativeArray<int> InputActiveSet;
-        public NativeArray<byte> BfsVisited;
 
         public NativeArray<byte> GhostPosX;
         public NativeArray<byte> GhostNegX;
@@ -55,11 +53,6 @@ namespace Lithforge.Voxel.Liquid
             if (InputActiveSet.IsCreated)
             {
                 InputActiveSet.Dispose();
-            }
-
-            if (BfsVisited.IsCreated)
-            {
-                BfsVisited.Dispose();
             }
 
             if (GhostPosX.IsCreated)
