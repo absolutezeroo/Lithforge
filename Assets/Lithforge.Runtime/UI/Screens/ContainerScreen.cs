@@ -1,11 +1,12 @@
 using System.Collections.Generic;
-using Lithforge.Runtime.Content.Tools;
+
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -14,94 +15,91 @@ using Cursor = UnityEngine.Cursor;
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
-    /// Abstract base for all container screens (inventory, chest, furnace, etc.).
-    /// Creates a UIDocument, loads USS themes, builds slot grids,
-    /// wires pointer events to SlotInteractionController, and runs the per-frame refresh loop.
-    /// Subclasses call <see cref="InitializeBase(ScreenContext, int)"/> and handle
-    /// screen-specific logic via <see cref="OnSlotPointerDown"/> and <see cref="OnClose"/>.
+    ///     Abstract base for all container screens (inventory, chest, furnace, etc.).
+    ///     Creates a UIDocument, loads USS themes, builds slot grids,
+    ///     wires pointer events to SlotInteractionController, and runs the per-frame refresh loop.
+    ///     Subclasses call <see cref="InitializeBase(ScreenContext, int, string)" /> and handle
+    ///     screen-specific logic via <see cref="OnSlotPointerDown" /> and <see cref="OnClose" />.
     /// </summary>
     public abstract class ContainerScreen : MonoBehaviour, IContainerScreen
     {
-        private UIDocument _document;
-        private VisualElement _root;
-        private VisualElement _panel;
-        private TooltipWidget _tooltip;
+        // Slot widgets organized by container name + index
+        private readonly List<SlotWidgetBinding> _allBindings = new();
         private DragGhostWidget _dragGhost;
 
-        private SlotInteractionController _interaction;
-        private ItemSpriteAtlas _spriteAtlas;
-        private ItemRegistry _itemRegistry;
-        private ScreenContext _context;
+        private VisualTreeAsset _screenTemplate;
+        private TooltipWidget _tooltip;
 
-        private bool _isOpen;
+        protected UIDocument Document { get; private set; }
 
-        // Slot widgets organized by container name + index
-        private readonly List<SlotWidgetBinding> _allBindings = new List<SlotWidgetBinding>();
+        protected VisualElement Root { get; private set; }
 
-        protected UIDocument Document
+        protected VisualElement Panel { get; private set; }
+
+        protected SlotInteractionController Interaction { get; private set; }
+
+        protected ItemSpriteAtlas SpriteAtlas { get; private set; }
+
+        protected ItemRegistry ItemRegistryRef { get; private set; }
+
+        /// <summary>
+        ///     The shared context carrying all screen dependencies.
+        ///     Available after <see cref="InitializeBase" /> has been called.
+        /// </summary>
+        protected ScreenContext Context { get; private set; }
+
+        public bool IsOpen { get; private set; }
+
+        public void Close()
         {
-            get { return _document; }
-        }
+            IsOpen = false;
+            Panel.style.display = DisplayStyle.None;
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
 
-        protected VisualElement Root
-        {
-            get { return _root; }
-        }
+            Interaction.ResetState();
+            _tooltip.Hide();
+            _dragGhost.Refresh(ItemStack.Empty, SpriteAtlas);
 
-        protected VisualElement Panel
-        {
-            get { return _panel; }
-        }
-
-        public bool IsOpen
-        {
-            get { return _isOpen; }
-        }
-
-        protected SlotInteractionController Interaction
-        {
-            get { return _interaction; }
-        }
-
-        protected ItemSpriteAtlas SpriteAtlas
-        {
-            get { return _spriteAtlas; }
-        }
-
-        protected ItemRegistry ItemRegistryRef
-        {
-            get { return _itemRegistry; }
+            OnClose();
         }
 
         /// <summary>
-        /// The shared context carrying all screen dependencies.
-        /// Available after <see cref="InitializeBase"/> has been called.
+        ///     Shows or hides the entire screen system (root document visibility).
+        ///     Used by HudVisibilityController for spawn loading.
         /// </summary>
-        protected ScreenContext Context
+        public void SetVisible(bool visible)
         {
-            get { return _context; }
+            if (Document != null && Document.rootVisualElement != null)
+            {
+                Document.rootVisualElement.style.display =
+                    visible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
         }
 
         /// <summary>
-        /// Initialize the screen from a shared context. Creates the UIDocument,
-        /// loads USS themes, builds the overlay panel, tooltip, and drag ghost.
-        /// Also creates the <see cref="SlotInteractionController"/> internally.
-        /// Call from subclass <c>Initialize(ScreenContext)</c>.
+        ///     Initialize the screen from a shared context. Creates the UIDocument,
+        ///     loads USS themes, builds the overlay panel, tooltip, and drag ghost.
+        ///     Also creates the <see cref="SlotInteractionController" /> internally.
+        ///     If <paramref name="templatePath" /> is non-null, loads the corresponding
+        ///     <see cref="VisualTreeAsset" /> via <c>Resources.Load</c> for use by
+        ///     <see cref="CloneTemplate" />. Pass null (default) for imperative mode.
+        ///     Call from subclass <c>Initialize(ScreenContext)</c>.
         /// </summary>
-        protected void InitializeBase(ScreenContext context, int sortingOrder)
+        protected void InitializeBase(ScreenContext context, int sortingOrder, string templatePath = null)
         {
-            _context = context;
+            Context = context;
 
-            HeldStack held = new HeldStack();
-            _interaction = new SlotInteractionController(held, context.ItemRegistry, context.ToolTemplateRegistry);
-            _spriteAtlas = context.ItemSpriteAtlas;
-            _itemRegistry = context.ItemRegistry;
+            HeldStack held = new();
+            Interaction = new SlotInteractionController(held, context.ItemRegistry, context.ToolTemplateRegistry);
+            SpriteAtlas = context.ItemSpriteAtlas;
+            ItemRegistryRef = context.ItemRegistry;
 
-            _document = gameObject.AddComponent<UIDocument>();
-            _document.panelSettings = context.PanelSettings;
-            _document.sortingOrder = sortingOrder;
+            Document = gameObject.AddComponent<UIDocument>();
+            Document.panelSettings = context.PanelSettings;
+            Document.sortingOrder = sortingOrder;
 
-            _root = _document.rootVisualElement;
+            Root = Document.rootVisualElement;
 
             // Load USS themes
             StyleSheet variables = Resources.Load<StyleSheet>("UI/Themes/LithforgeVariables");
@@ -109,42 +107,53 @@ namespace Lithforge.Runtime.UI.Screens
 
             if (variables != null)
             {
-                _root.styleSheets.Add(variables);
+                Root.styleSheets.Add(variables);
             }
 
             if (theme != null)
             {
-                _root.styleSheets.Add(theme);
+                Root.styleSheets.Add(theme);
             }
 
             // Build overlay and panel
-            _panel = new VisualElement();
-            _panel.AddToClassList("lf-overlay");
-            _root.Add(_panel);
+            Panel = new VisualElement();
+            Panel.AddToClassList("lf-overlay");
+            Root.Add(Panel);
 
             // Pointer up to end paint mode
-            _panel.RegisterCallback<PointerUpEvent>(OnPanelPointerUp);
+            Panel.RegisterCallback<PointerUpEvent>(OnPanelPointerUp);
 
             // Mouse move for drag ghost and tooltip
-            _panel.RegisterCallback<PointerMoveEvent>(OnPanelPointerMove);
+            Panel.RegisterCallback<PointerMoveEvent>(OnPanelPointerMove);
 
             // Tooltip
             _tooltip = new TooltipWidget();
-            _root.Add(_tooltip);
+            Root.Add(_tooltip);
 
             // Drag ghost (on top of everything)
             _dragGhost = new DragGhostWidget();
-            _root.Add(_dragGhost);
+            Root.Add(_dragGhost);
 
             // Start hidden
-            _panel.style.display = DisplayStyle.None;
-            _isOpen = false;
+            Panel.style.display = DisplayStyle.None;
+            IsOpen = false;
+
+            // Optional UXML template — null means imperative mode
+            if (templatePath != null)
+            {
+                _screenTemplate = Resources.Load<VisualTreeAsset>(templatePath);
+
+                if (_screenTemplate == null)
+                {
+                    UnityEngine.Debug.LogError("[ContainerScreen] VisualTreeAsset not found at: " + templatePath);
+                }
+            }
         }
 
         /// <summary>
-        /// Clears all tracked slot widget bindings. Must be called at the top of
-        /// <c>RebuildUI()</c> before building new slot groups, so stale bindings
-        /// from a previous open do not accumulate.
+        ///     Clears all tracked slot widget bindings. Must be called at the top of
+        ///     <c>RebuildUI()</c> before building new slot groups, so stale bindings
+        ///     from a previous open do not accumulate.
         /// </summary>
         protected void ClearSlotBindings()
         {
@@ -152,19 +161,71 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Builds a slot group from a SlotGroupDefinition and wires pointer events.
-        /// Returns the container VisualElement holding the slot rows.
+        ///     Clears slot bindings and panel content, then clones the stored
+        ///     <see cref="VisualTreeAsset" /> directly into <see cref="Panel" />.
+        ///     Returns false if no template was loaded or if <see cref="Panel" />
+        ///     is null — the caller must early-return on false.
+        ///     Call at the top of <c>RebuildUI()</c> in UXML-backed subclasses.
+        /// </summary>
+        protected bool CloneTemplate()
+        {
+            if (Panel == null)
+            {
+                UnityEngine.Debug.LogError("[ContainerScreen] CloneTemplate called before InitializeBase.");
+                return false;
+            }
+
+            if (_screenTemplate == null)
+            {
+                UnityEngine.Debug.LogError("[" + GetType().Name + "] CloneTemplate: no VisualTreeAsset loaded. "
+                                           + "Pass a non-null templatePath to InitializeBase.");
+                return false;
+            }
+
+            ClearSlotBindings();
+            Panel.Clear();
+            _screenTemplate.CloneTree(Panel);
+            return true;
+        }
+
+        /// <summary>
+        ///     Queries <see cref="Panel" /> for a <see cref="VisualElement" /> by name.
+        ///     Logs an error and returns null if not found. Use after <see cref="CloneTemplate" />
+        ///     to locate named slot containers defined in the UXML template.
+        /// </summary>
+        protected VisualElement QueryContainer(string name)
+        {
+            if (Panel == null)
+            {
+                UnityEngine.Debug.LogError("[ContainerScreen] QueryContainer called before InitializeBase.");
+                return null;
+            }
+
+            VisualElement result = Panel.Q<VisualElement>(name);
+
+            if (result == null)
+            {
+                UnityEngine.Debug.LogError("[" + GetType().Name + "] QueryContainer: element '"
+                                           + name + "' not found in UXML template.");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        ///     Builds a slot group from a SlotGroupDefinition and wires pointer events.
+        ///     Returns the container VisualElement holding the slot rows.
         /// </summary>
         protected VisualElement BuildSlotGroup(
             SlotGroupDefinition groupDef,
             ISlotContainer container,
             VisualElement parent)
         {
-            VisualElement groupContainer = new VisualElement();
+            VisualElement groupContainer = new();
 
             for (int row = 0; row < groupDef.Rows; row++)
             {
-                VisualElement rowElement = new VisualElement();
+                VisualElement rowElement = new();
                 rowElement.AddToClassList("lf-slot-row");
 
                 for (int col = 0; col < groupDef.Columns; col++)
@@ -176,7 +237,7 @@ namespace Lithforge.Runtime.UI.Screens
                         break;
                     }
 
-                    SlotWidget widget = new SlotWidget();
+                    SlotWidget widget = new();
                     int capturedIndex = slotIndex;
                     ISlotContainer capturedContainer = container;
 
@@ -189,12 +250,12 @@ namespace Lithforge.Runtime.UI.Screens
                     // Hover
                     widget.RegisterCallback<PointerEnterEvent>(evt =>
                     {
-                        _interaction.OnSlotEnter(capturedContainer, capturedIndex);
+                        Interaction.OnSlotEnter(capturedContainer, capturedIndex);
                     });
 
                     widget.RegisterCallback<PointerLeaveEvent>(evt =>
                     {
-                        _interaction.OnSlotLeave(capturedContainer, capturedIndex);
+                        Interaction.OnSlotLeave(capturedContainer, capturedIndex);
                         _tooltip.Hide();
                     });
 
@@ -210,11 +271,11 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Builds a single slot (e.g. output slot) and wires pointer events.
+        ///     Builds a single slot (e.g. output slot) and wires pointer events.
         /// </summary>
         protected SlotWidget BuildSingleSlot(ISlotContainer container, int slotIndex, VisualElement parent)
         {
-            SlotWidget widget = new SlotWidget();
+            SlotWidget widget = new();
             int capturedIndex = slotIndex;
             ISlotContainer capturedContainer = container;
 
@@ -225,12 +286,12 @@ namespace Lithforge.Runtime.UI.Screens
 
             widget.RegisterCallback<PointerEnterEvent>(evt =>
             {
-                _interaction.OnSlotEnter(capturedContainer, capturedIndex);
+                Interaction.OnSlotEnter(capturedContainer, capturedIndex);
             });
 
             widget.RegisterCallback<PointerLeaveEvent>(evt =>
             {
-                _interaction.OnSlotLeave(capturedContainer, capturedIndex);
+                Interaction.OnSlotLeave(capturedContainer, capturedIndex);
                 _tooltip.Hide();
             });
 
@@ -240,34 +301,34 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Override to handle slot pointer down with screen-specific logic
-        /// (e.g. output slot take, shift-click transfer).
+        ///     Override to handle slot pointer down with screen-specific logic
+        ///     (e.g. output slot take, shift-click transfer).
         /// </summary>
         protected abstract void OnSlotPointerDown(ISlotContainer container, int slotIndex, PointerDownEvent evt);
 
         /// <summary>
-        /// Refreshes all slot widgets. Call from subclass Update().
+        ///     Refreshes all slot widgets. Call from subclass Update().
         /// </summary>
         protected void RefreshAllSlots()
         {
-            ToolPartTextureDatabase toolTexDb = _context != null
-                ? _context.ToolPartTextures : null;
+            ToolPartTextureDatabase toolTexDb = Context != null
+                ? Context.ToolPartTextures : null;
 
             for (int i = 0; i < _allBindings.Count; i++)
             {
                 SlotWidgetBinding binding = _allBindings[i];
                 ItemStack stack = binding.Container.GetSlot(binding.SlotIndex);
-                binding.Widget.Refresh(stack, _spriteAtlas, _itemRegistry, toolTexDb);
+                binding.Widget.Refresh(stack, SpriteAtlas, ItemRegistryRef, toolTexDb);
             }
 
             // Update drag ghost
-            _dragGhost.Refresh(_interaction.Held.Stack, _spriteAtlas);
+            _dragGhost.Refresh(Interaction.Held.Stack, SpriteAtlas);
         }
 
         public void Open()
         {
-            _isOpen = true;
-            _panel.style.display = DisplayStyle.Flex;
+            IsOpen = true;
+            Panel.style.display = DisplayStyle.Flex;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
@@ -278,41 +339,14 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
-        public void Close()
-        {
-            _isOpen = false;
-            _panel.style.display = DisplayStyle.None;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-
-            _interaction.ResetState();
-            _tooltip.Hide();
-            _dragGhost.Refresh(ItemStack.Empty, _spriteAtlas);
-
-            OnClose();
-        }
-
         /// <summary>
-        /// Override to handle screen-specific close logic (return items, clear crafting grid).
+        ///     Override to handle screen-specific close logic (return items, clear crafting grid).
         /// </summary>
         protected abstract void OnClose();
 
-        /// <summary>
-        /// Shows or hides the entire screen system (root document visibility).
-        /// Used by HudVisibilityController for spawn loading.
-        /// </summary>
-        public void SetVisible(bool visible)
-        {
-            if (_document != null && _document.rootVisualElement != null)
-            {
-                _document.rootVisualElement.style.display =
-                    visible ? DisplayStyle.Flex : DisplayStyle.None;
-            }
-        }
-
         private void OnPanelPointerUp(PointerUpEvent evt)
         {
-            _interaction.OnPointerUp(evt.button);
+            Interaction.OnPointerUp(evt.button);
         }
 
         private void OnPanelPointerMove(PointerMoveEvent evt)
@@ -321,16 +355,16 @@ namespace Lithforge.Runtime.UI.Screens
             _dragGhost.UpdatePosition(evt.position.x, evt.position.y);
 
             // Update tooltip position and content
-            ISlotContainer hoveredContainer = _interaction.HoveredContainer;
-            int hoveredIndex = _interaction.HoveredSlotIndex;
+            ISlotContainer hoveredContainer = Interaction.HoveredContainer;
+            int hoveredIndex = Interaction.HoveredSlotIndex;
 
-            if (hoveredContainer != null && hoveredIndex >= 0 && _interaction.Held.IsEmpty)
+            if (hoveredContainer != null && hoveredIndex >= 0 && Interaction.Held.IsEmpty)
             {
                 ItemStack stack = hoveredContainer.GetSlot(hoveredIndex);
 
-                if (!stack.IsEmpty && _itemRegistry != null)
+                if (!stack.IsEmpty && ItemRegistryRef != null)
                 {
-                    ItemEntry entry = _itemRegistry.Get(stack.ItemId);
+                    ItemEntry entry = ItemRegistryRef.Get(stack.ItemId);
                     _tooltip.Show(stack, entry, evt.position.x, evt.position.y);
                 }
                 else
@@ -345,7 +379,7 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Binding between a slot container index and its visual widget.
+        ///     Binding between a slot container index and its visual widget.
         /// </summary>
         private struct SlotWidgetBinding
         {

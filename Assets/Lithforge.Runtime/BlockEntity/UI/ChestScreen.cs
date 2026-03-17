@@ -3,7 +3,6 @@ using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Item;
 
-using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -19,7 +18,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private ChestBlockEntity _currentChest;
         private InventoryContainerAdapter _hotbarAdapter;
         private InventoryContainerAdapter _mainAdapter;
-        private VisualTreeAsset _screenTemplate;
 
         private void Update()
         {
@@ -52,11 +50,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
-            _screenTemplate = Resources.Load<VisualTreeAsset>("UI/Screens/ChestScreen");
-
-            InitializeBase(context, 250);
-
-            Panel.style.display = DisplayStyle.None;
+            InitializeBase(context, 250, "UI/Screens/ChestScreen");
         }
 
         /// <summary>
@@ -82,35 +76,20 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
-            if (_screenTemplate == null)
+            if (!CloneTemplate())
             {
-                UnityEngine.Debug.LogError("[ChestScreen] UXML template not found at UI/Screens/ChestScreen.");
-
                 return;
             }
 
-            ClearSlotBindings();
-            Panel.Clear();
-
-            // Re-add overlay class after clear
-            Panel.AddToClassList("lf-overlay");
-
-            // Clone UXML template directly into overlay panel (no TemplateContainer wrapper)
-            _screenTemplate.CloneTree(Panel);
-
-            // Query named slot containers from the template
-            VisualElement chestSlots = Panel.Q<VisualElement>("chest-slots");
-            VisualElement mainSlots = Panel.Q<VisualElement>("main-slots");
-            VisualElement hotbarSlots = Panel.Q<VisualElement>("hotbar-slots");
+            VisualElement chestSlots = QueryContainer("chest-slots");
+            VisualElement mainSlots = QueryContainer("main-slots");
+            VisualElement hotbarSlots = QueryContainer("hotbar-slots");
 
             if (chestSlots == null || mainSlots == null || hotbarSlots == null)
             {
-                UnityEngine.Debug.LogError("[ChestScreen] Named slot containers missing from UXML template.");
-
                 return;
             }
 
-            // Populate slot groups into the UXML-defined containers
             SlotGroupDefinition chestGroupDef = SlotGroupDefinition.Create("chest", 9, 3);
             BuildSlotGroup(chestGroupDef, _chestAdapter, chestSlots);
 
