@@ -47,6 +47,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
         private int _selectedPatternIndex = -1;
         private PartBuilderRecipe _selectedRecipe;
 
+        private static readonly Key[] s_numberKeys =
+        {
+            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
+            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
+        };
+
         private void Update()
         {
             if (Context == null)
@@ -73,6 +79,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
+            if (Keyboard.current != null)
+            {
+                HandleNumberKeys(Keyboard.current);
+            }
+
             if (_needsRefresh)
             {
                 _needsRefresh = false;
@@ -81,6 +92,28 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             RefreshAllSlots();
             UpdateTooltipKeyRefresh();
+        }
+
+        private void HandleNumberKeys(Keyboard keyboard)
+        {
+            ISlotContainer hoveredContainer = Interaction.HoveredContainer;
+            int hoveredIndex = Interaction.HoveredSlotIndex;
+
+            if (hoveredContainer == null || hoveredIndex < 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < s_numberKeys.Length; i++)
+            {
+                if (!keyboard[s_numberKeys[i]].wasPressedThisFrame)
+                {
+                    continue;
+                }
+
+                Interaction.NumberKeySwap(hoveredContainer, hoveredIndex, _hotbarAdapter, i);
+                return;
+            }
         }
 
         public void Initialize(ScreenContext context)
