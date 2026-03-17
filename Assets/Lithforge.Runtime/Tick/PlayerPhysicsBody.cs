@@ -3,8 +3,8 @@ using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Command;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Lithforge.Runtime.Tick
 {
@@ -31,9 +31,6 @@ namespace Lithforge.Runtime.Tick
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
 
-        // Player transform — read for yaw direction
-        private readonly Transform _playerTransform;
-
         // Fly mode constants
         private const float MinFlySpeed = 1f;
         private const float MaxFlySpeed = 150f;
@@ -45,6 +42,7 @@ namespace Lithforge.Runtime.Tick
 
         // Physics state
         private float _verticalSpeed;
+        private float _yaw;
         private bool _onGround;
         private bool _isSprinting;
 
@@ -106,14 +104,12 @@ namespace Lithforge.Runtime.Tick
 
         public PlayerPhysicsBody(
             float3 startPosition,
-            Transform playerTransform,
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
             PhysicsSettings physics)
         {
             _currentPosition = startPosition;
             _previousPosition = startPosition;
-            _playerTransform = playerTransform;
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _walkSpeed = physics.WalkSpeed;
@@ -170,6 +166,9 @@ namespace Lithforge.Runtime.Tick
                 return;
             }
 
+            // Cache yaw for GetState() / IPlayerManager.GetYaw()
+            _yaw = snapshot.Yaw;
+
             // Toggle fly mode (edge input from snapshot)
             if (snapshot.FlyTogglePressed)
             {
@@ -218,11 +217,6 @@ namespace Lithforge.Runtime.Tick
             {
                 TickWalkFromSnapshot(in snapshot, tickDt);
             }
-
-            // Write position back to transform so CameraController (child) tracks correctly.
-            // LateUpdate will overwrite with the interpolated position for rendering.
-            _playerTransform.position = new Vector3(
-                _currentPosition.x, _currentPosition.y, _currentPosition.z);
         }
 
         private void TickWalkFromSnapshot(in InputSnapshot snapshot, float dt)
@@ -348,5 +342,37 @@ namespace Lithforge.Runtime.Tick
             return new float3(moveDir.x * speed * dt, 0f, moveDir.z * speed * dt);
         }
 
+        /// <summary>
+        /// Returns a blittable snapshot of the current physics state.
+        /// Used for multiplayer state synchronization and client-side prediction.
+        /// </summary>
+        public PlayerPhysicsState GetState()
+        {
+            byte flags = 0;
+
+            if (_onGround)
+            {
+                flags |= 1;
+            }
+
+            if (_flyMode)
+            {
+                flags |= 2;
+            }
+
+            if (_noclip)
+            {
+                flags |= 4;
+            }
+
+            return new PlayerPhysicsState
+            {
+                Position = _currentPosition,
+                Velocity = new float3(0f, _verticalSpeed, 0f),
+                Yaw = _yaw,
+                Pitch = 0f,
+                Flags = flags,
+            };
+        }
     }
 }

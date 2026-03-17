@@ -1378,12 +1378,11 @@ namespace Lithforge.Runtime.Bootstrap
                     playerObject.transform.position.y,
                     playerObject.transform.position.z);
 
-                PlayerPhysicsBody physicsBody = new(
-                    startPos,
-                    playerObject.transform,
-                    _chunkManager,
-                    _contentResult.NativeStateRegistry,
-                    _settings.Physics);
+                PlayerPhysicsManager playerPhysicsManager = new PlayerPhysicsManager(
+                    _chunkManager, _contentResult.NativeStateRegistry);
+
+                PlayerPhysicsBody physicsBody = playerPhysicsManager.AddPlayer(
+                    0, startPos, _settings.Physics);
 
                 playerController.SetPhysicsBody(physicsBody);
 
@@ -1395,7 +1394,7 @@ namespace Lithforge.Runtime.Bootstrap
                 tickRegistryRef.Register(new BlockEntityTickAdapter(blockEntityTickScheduler));
 
                 WorldSimulation worldSimulation = new WorldSimulation(
-                    tickRegistryRef, physicsBody, inputSnapshotBuilder);
+                    tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
 
                 _gameLoop.SetTickSystems(
                     worldSimulation, inputSnapshotBuilder, physicsBody, playerObject.transform);
