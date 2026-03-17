@@ -1,19 +1,12 @@
 {
-  "name": "Lithforge.Runtime",
-  "rootNamespace": "Lithforge.Runtime",
+  "name": "Lithforge.Network",
+  "rootNamespace": "Lithforge.Network",
   "references": [
     "Lithforge.Core",
     "Lithforge.Voxel",
-    "Lithforge.WorldGen",
-    "Lithforge.Meshing",
-    "Lithforge.Physics",
-    "Lithforge.Network",
-    "Unity.Burst",
+    "Unity.Networking.Transport",
     "Unity.Collections",
-    "Unity.Mathematics",
-    "Unity.Jobs",
-    "Unity.InputSystem",
-    "Unity.RenderPipelines.Universal"
+    "Unity.Mathematics"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -4,7 +4,8 @@
     "com.lithforge.voxel",
     "com.lithforge.worldgen",
     "com.lithforge.meshing",
-    "com.lithforge.physics"
+    "com.lithforge.physics",
+    "com.lithforge.network"
   ],
   "dependencies": {
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",

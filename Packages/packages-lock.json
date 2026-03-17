@@ -37,6 +37,18 @@
         "com.unity.mathematics": "1.3.2"
       }
     },
+    "com.lithforge.network": {
+      "version": "file:com.lithforge.network",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.lithforge.core": "0.1.0",
+        "com.lithforge.voxel": "0.1.0",
+        "com.unity.transport": "2.7.1",
+        "com.unity.collections": "2.5.1",
+        "com.unity.mathematics": "1.3.2"
+      }
+    },
     "com.lithforge.physics": {
       "version": "file:com.lithforge.physics",
       "depth": 0,
