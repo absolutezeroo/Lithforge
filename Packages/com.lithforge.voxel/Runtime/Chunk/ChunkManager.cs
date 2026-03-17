@@ -1056,6 +1056,96 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
+        /// Loads a chunk from network-received voxel and light data.
+        /// Skips generation/decoration and transitions directly to Generated state
+        /// so the MeshScheduler can pick it up for meshing. Used by the client when
+        /// receiving <c>ChunkDataMessage</c> from the server.
+        /// </summary>
+        public void LoadFromNetwork(
+            int3 coord,
+            NativeArray<StateId> voxelData,
+            NativeArray<byte> lightData)
+        {
+            if (_chunks.ContainsKey(coord))
+            {
+                // Already loaded — overwrite data and re-mesh
+                ManagedChunk existing = _chunks[coord];
+                existing.ActiveJobHandle.Complete();
+
+                NativeArray<StateId>.Copy(voxelData, existing.Data);
+
+                if (!existing.LightData.IsCreated)
+                {
+                    existing.LightData = new NativeArray<byte>(
+                        ChunkConstants.Volume, Allocator.Persistent);
+                }
+
+                NativeArray<byte>.Copy(lightData, existing.LightData);
+
+                // Transition to Generated so MeshScheduler picks it up
+                SetChunkState(existing, ChunkState.Generated);
+                return;
+            }
+
+            NativeArray<StateId> data = _pool.Checkout();
+            NativeArray<StateId>.Copy(voxelData, data);
+
+            ManagedChunk chunk = new ManagedChunk(coord, data);
+            // Owner: ManagedChunk. Disposed by ChunkManager.UnloadChunk or UnloadDistantChunks.
+            chunk.LightData = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.Persistent);
+            NativeArray<byte>.Copy(lightData, chunk.LightData);
+
+            _chunks[coord] = chunk;
+            RegisterChunk(chunk);
+            SetChunkState(chunk, ChunkState.Generated);
+        }
+
+        /// <summary>
+        /// Unloads a single chunk by coordinate. Used by the client when
+        /// the server sends a <c>ChunkUnloadMessage</c>. Does not save
+        /// the chunk (clients do not own world state).
+        /// Returns the coordinate list of unloaded chunks for mesh cleanup.
+        /// </summary>
+        public void UnloadChunk(int3 coord)
+        {
+            if (!_chunks.TryGetValue(coord, out ManagedChunk chunk))
+            {
+                return;
+            }
+
+            chunk.ActiveJobHandle.Complete();
+
+            UnregisterChunk(chunk);
+            _generatedChunks.Remove(chunk);
+            _readyChunks.Remove(chunk);
+            _relightPendingChunks.Remove(chunk);
+            _chunksNeedingLightUpdate.Remove(coord);
+
+            if (chunk.Data.IsCreated)
+            {
+                _pool.Return(chunk.Data);
+            }
+
+            if (chunk.LightData.IsCreated)
+            {
+                chunk.LightData.Dispose();
+            }
+
+            if (chunk.HeightMap.IsCreated)
+            {
+                chunk.HeightMap.Dispose();
+            }
+
+            if (chunk.RiverFlags.IsCreated)
+            {
+                chunk.RiverFlags.Dispose();
+            }
+
+            _chunks.Remove(coord);
+        }
+
+        /// <summary>
         /// Face-indexed neighbor offsets: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z.
         /// </summary>
         public static readonly int3[] FaceOffsets = new int3[]

@@ -16,18 +16,20 @@ namespace Lithforge.Network.Message
         Ping = 10,
         Pong = 11,
 
-        // Client→Server gameplay commands (reserved for P3/P4/P5)
+        // Client→Server gameplay commands
         MoveInput = 20,
         PlaceBlockCmd = 21,
         BreakBlockCmd = 22,
         InteractCmd = 23,
         SlotClickCmd = 24,
 
-        // Server→Client state updates (reserved for P3/P4/P5)
+        // Server→Client state updates
         PlayerState = 40,
         BlockChange = 41,
         MultiBlockChange = 42,
         ChunkData = 43,
         ChunkUnload = 44,
+        GameReady = 45,
+        AcknowledgeBlockChange = 46,
     }
 }

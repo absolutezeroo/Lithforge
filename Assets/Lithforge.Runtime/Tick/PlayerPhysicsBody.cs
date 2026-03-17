@@ -179,6 +179,37 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
+        /// Sets velocity state for server reconciliation. The velocity in PlayerPhysicsState
+        /// stores vertical speed in the Y component; horizontal speeds are derived from input
+        /// each tick so they do not need explicit restoration.
+        /// </summary>
+        public void SetVelocity(float3 velocity)
+        {
+            _verticalSpeed = velocity.y;
+        }
+
+        /// <summary>
+        /// Restores physics mode flags from a server-authoritative PlayerPhysicsState.
+        /// Used during prediction reconciliation to snap to the server's mode state.
+        /// Bit 0 = OnGround, Bit 1 = IsFlying, Bit 2 = IsNoclip.
+        /// </summary>
+        public void SetFlags(byte flags)
+        {
+            _onGround = (flags & 1) != 0;
+            _flyMode = (flags & 2) != 0;
+            _noclip = (flags & 4) != 0;
+        }
+
+        /// <summary>
+        /// Sets position without resetting previous position (unlike Teleport).
+        /// Used during reconciliation replay where interpolation continuity is managed externally.
+        /// </summary>
+        public void SetPosition(float3 position)
+        {
+            _currentPosition = position;
+        }
+
+        /// <summary>
         /// Called once per fixed tick by GameLoop with the current input snapshot.
         /// All input reads come from the snapshot — no direct Keyboard/Mouse access.
         /// Forward/right vectors are computed from <see cref="InputSnapshot.Yaw"/>

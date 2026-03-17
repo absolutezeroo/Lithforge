@@ -1,3 +1,5 @@
+using Lithforge.Network.Server;
+
 namespace Lithforge.Network.Connection
 {
     /// <summary>
@@ -12,6 +14,12 @@ namespace Lithforge.Network.Connection
         public float LastPingTime { get; internal set; }
         public float RoundTripTime { get; internal set; }
 
+        /// <summary>
+        /// Per-player interest state for chunk streaming and network filtering.
+        /// Allocated when the peer transitions to Loading state, null before that.
+        /// </summary>
+        public PlayerInterestState InterestState { get; internal set; }
+
         public PeerInfo(ConnectionId connectionId)
         {
             ConnectionId = connectionId;
@@ -20,6 +28,7 @@ namespace Lithforge.Network.Connection
             PlayerName = "";
             LastPingTime = 0f;
             RoundTripTime = 0f;
+            InterestState = null;
         }
     }
 }

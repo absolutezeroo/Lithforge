@@ -190,6 +190,32 @@ namespace Lithforge.Network.Server
             return peer != null ? peer.AssignedPlayerId : (ushort)0;
         }
 
+        /// <summary>
+        /// Returns the PeerInfo for the given connection, or null if not found.
+        /// Used by ServerGameLoop to access per-player InterestState.
+        /// </summary>
+        public PeerInfo GetPeer(ConnectionId connectionId)
+        {
+            return _peerRegistry.GetByConnection(connectionId);
+        }
+
+        /// <summary>
+        /// Returns the PeerInfo for the given player ID, or null if not found.
+        /// </summary>
+        public PeerInfo GetPeerByPlayerId(ushort playerId)
+        {
+            return _peerRegistry.GetByPlayerId(playerId);
+        }
+
+        /// <summary>
+        /// Returns a read-only list of all connected peers. Used by ServerGameLoop
+        /// for broadcast iteration.
+        /// </summary>
+        public IReadOnlyList<PeerInfo> AllPeers
+        {
+            get { return _peerRegistry.AllPeers; }
+        }
+
         public void Shutdown()
         {
             if (_peerRegistry != null)

@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using Lithforge.Meshing.Atlas;
+using Lithforge.Network.Client;
+using Lithforge.Network.Server;
 using Lithforge.Runtime.Audio;
+using Lithforge.Runtime.Network;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
@@ -60,11 +63,18 @@ namespace Lithforge.Runtime
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
-        private WorldSimulation _worldSimulation;
+        private IWorldSimulation _worldSimulation;
         private InputSnapshotBuilder _inputSnapshotBuilder;
         private PlayerPhysicsBody _playerPhysicsBody;
         private Transform _playerTransform;
         private int _ticksThisFrame;
+
+        // Network mode
+        private bool _isClientMode;
+        private ServerGameLoop _serverGameLoop;
+        private INetworkClient _networkClient;
+        private ClientChunkHandler _clientChunkHandler;
+        private readonly List<int3> _networkUnloadCache = new List<int3>();
 
         public int PendingGenerationCount
         {
@@ -301,7 +311,7 @@ namespace Lithforge.Runtime
         /// Wires the fixed tick rate systems. Must be called after Initialize.
         /// </summary>
         public void SetTickSystems(
-            WorldSimulation worldSimulation,
+            IWorldSimulation worldSimulation,
             InputSnapshotBuilder inputSnapshotBuilder,
             PlayerPhysicsBody playerPhysicsBody,
             Transform playerTransform)
@@ -310,6 +320,38 @@ namespace Lithforge.Runtime
             _inputSnapshotBuilder = inputSnapshotBuilder;
             _playerPhysicsBody = playerPhysicsBody;
             _playerTransform = playerTransform;
+        }
+
+        /// <summary>
+        /// Enables client mode: skips generation/load queue scheduling (server streams chunks).
+        /// </summary>
+        public void SetClientMode(bool isClientMode)
+        {
+            _isClientMode = isClientMode;
+        }
+
+        /// <summary>
+        /// Sets the server game loop for host mode. Update will call its Update method.
+        /// </summary>
+        public void SetServerGameLoop(ServerGameLoop serverGameLoop)
+        {
+            _serverGameLoop = serverGameLoop;
+        }
+
+        /// <summary>
+        /// Sets the network client for client mode. Update will pump the transport each frame.
+        /// </summary>
+        public void SetNetworkClient(INetworkClient networkClient)
+        {
+            _networkClient = networkClient;
+        }
+
+        /// <summary>
+        /// Sets the client chunk handler for network-driven chunk unloads.
+        /// </summary>
+        public void SetClientChunkHandler(ClientChunkHandler clientChunkHandler)
+        {
+            _clientChunkHandler = clientChunkHandler;
         }
 
         private void Update()
@@ -357,12 +399,27 @@ namespace Lithforge.Runtime
                 _frameProfiler.End(FrameProfilerSections.TickLoop);
             }
 
+            // ── Pump network transport (client mode) ──
+            if (_networkClient != null)
+            {
+                _networkClient.Update(Time.realtimeSinceStartup);
+            }
+
+            // ── Tick server game loop (host mode only) ──
+            if (_serverGameLoop != null)
+            {
+                _serverGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
+            }
+
             // ── Async pipeline poll ──
-            Profiler.BeginSample("GL.PollGen");
-            _frameProfiler.Begin(FrameProfilerSections.PollGen);
-            _generationScheduler.PollCompleted();
-            _frameProfiler.End(FrameProfilerSections.PollGen);
-            Profiler.EndSample();
+            if (!_isClientMode)
+            {
+                Profiler.BeginSample("GL.PollGen");
+                _frameProfiler.Begin(FrameProfilerSections.PollGen);
+                _generationScheduler.PollCompleted();
+                _frameProfiler.End(FrameProfilerSections.PollGen);
+                Profiler.EndSample();
+            }
 
             Profiler.BeginSample("GL.PollRelight");
             _relightScheduler.PollCompleted();
@@ -395,16 +452,36 @@ namespace Lithforge.Runtime
             {
                 _culling.UpdateFrustum(_mainCamera);
 
-                Profiler.BeginSample("GL.LoadQueue");
-                _frameProfiler.Begin(FrameProfilerSections.LoadQueue);
-                _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
-                _frameProfiler.End(FrameProfilerSections.LoadQueue);
-                Profiler.EndSample();
+                // Client mode: server manages chunk streaming, skip local load/unload
+                if (!_isClientMode)
+                {
+                    Profiler.BeginSample("GL.LoadQueue");
+                    _frameProfiler.Begin(FrameProfilerSections.LoadQueue);
+                    _chunkManager.UpdateLoadingQueue(cameraChunkCoord, (float3)_mainCamera.transform.forward);
+                    _frameProfiler.End(FrameProfilerSections.LoadQueue);
+                    Profiler.EndSample();
+                }
 
                 Profiler.BeginSample("GL.Unload");
                 _frameProfiler.Begin(FrameProfilerSections.Unload);
-                _chunkManager.UnloadDistantChunks(
-                    cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
+                if (!_isClientMode)
+                {
+                    _chunkManager.UnloadDistantChunks(
+                        cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
+                }
+
+                // Drain network-driven chunk unloads (client mode)
+                if (_clientChunkHandler != null)
+                {
+                    _clientChunkHandler.DrainPendingUnloads(_networkUnloadCache);
+
+                    for (int i = 0; i < _networkUnloadCache.Count; i++)
+                    {
+                        int3 coord = _networkUnloadCache[i];
+                        _chunkManager.UnloadChunk(coord);
+                        _unloadedCoords.Add(coord);
+                    }
+                }
 
                 // Advance spawn state machine until complete
                 if (_spawnManager != null && !_spawnManager.IsComplete)
@@ -440,17 +517,21 @@ namespace Lithforge.Runtime
             // ── Schedule jobs (skipped when fully paused) ──
             if (_gameState != GameState.PausedFull)
             {
-                Profiler.BeginSample("GL.SchedGen");
-                _frameProfiler.Begin(FrameProfilerSections.SchedGen);
-                _generationScheduler.ScheduleJobs();
-                _frameProfiler.End(FrameProfilerSections.SchedGen);
-                Profiler.EndSample();
+                // Client mode: server generates chunks, skip local generation scheduling
+                if (!_isClientMode)
+                {
+                    Profiler.BeginSample("GL.SchedGen");
+                    _frameProfiler.Begin(FrameProfilerSections.SchedGen);
+                    _generationScheduler.ScheduleJobs();
+                    _frameProfiler.End(FrameProfilerSections.SchedGen);
+                    Profiler.EndSample();
 
-                Profiler.BeginSample("GL.CrossLight");
-                _frameProfiler.Begin(FrameProfilerSections.CrossLight);
-                _generationScheduler.ProcessCrossChunkLightUpdates();
-                _frameProfiler.End(FrameProfilerSections.CrossLight);
-                Profiler.EndSample();
+                    Profiler.BeginSample("GL.CrossLight");
+                    _frameProfiler.Begin(FrameProfilerSections.CrossLight);
+                    _generationScheduler.ProcessCrossChunkLightUpdates();
+                    _frameProfiler.End(FrameProfilerSections.CrossLight);
+                    Profiler.EndSample();
+                }
 
                 Profiler.BeginSample("GL.Relight");
                 _frameProfiler.Begin(FrameProfilerSections.Relight);
@@ -520,6 +601,13 @@ namespace Lithforge.Runtime
                     _playerPhysicsBody.PreviousPosition,
                     _playerPhysicsBody.CurrentPosition,
                     alpha);
+
+                // Apply reconciliation position error offset (client mode)
+                if (_worldSimulation is ClientWorldSimulation clientSim)
+                {
+                    interpPos += clientSim.PositionError;
+                }
+
                 _playerTransform.position = new Vector3(interpPos.x, interpPos.y, interpPos.z);
             }
 

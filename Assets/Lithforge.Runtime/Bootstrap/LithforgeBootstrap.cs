@@ -4,6 +4,9 @@ using System.Collections.Generic;
 
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
+using Lithforge.Network;
+using Lithforge.Network.Message;
+using Lithforge.Network.Server;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
@@ -109,6 +112,12 @@ namespace Lithforge.Runtime.Bootstrap
         private IFrameProfiler _frameProfiler;
         private IPipelineStats _pipelineStats;
         private WorldSession _pendingSession;
+
+        // Network resources (host/client mode)
+        private Lithforge.Network.Server.NetworkServer _networkServer;
+        private Lithforge.Network.Client.NetworkClient _networkClient;
+        private Lithforge.Runtime.Network.ClientChunkHandler _clientChunkHandler;
+        private Lithforge.Runtime.Network.ClientBlockPredictor _clientBlockPredictor;
 
         private void Awake()
         {
@@ -430,6 +439,35 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             _sessionShutdownComplete = true;
+
+            // Dispose network resources (before audio/native)
+            try
+            {
+                if (_clientChunkHandler != null)
+                {
+                    _clientChunkHandler.Dispose();
+                    _clientChunkHandler = null;
+                }
+
+                _clientBlockPredictor = null;
+
+                if (_networkClient != null)
+                {
+                    _networkClient.Disconnect();
+                    _networkClient.Dispose();
+                    _networkClient = null;
+                }
+
+                if (_networkServer != null)
+                {
+                    _networkServer.Dispose();
+                    _networkServer = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError($"[Lithforge] Error disposing network: {ex}");
+            }
 
             // Dispose audio resources (before native resources)
             try
@@ -1417,11 +1455,103 @@ namespace Lithforge.Runtime.Bootstrap
                 _gameLoop.SetLiquidScheduler(liquidScheduler);
                 tickRegistryRef.Register(new LiquidTickAdapter(liquidScheduler));
 
-                WorldSimulation worldSimulation = new WorldSimulation(
-                    tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
+                World.NetworkRole role = _pendingSession.NetworkRole;
 
-                _gameLoop.SetTickSystems(
-                    worldSimulation, inputSnapshotBuilder, physicsBody, playerObject.transform);
+                if (role == World.NetworkRole.Client)
+                {
+                    // Client mode: connect to remote server
+                    ContentHash contentHash = ContentHashComputer.Compute(
+                        _contentResult.StateRegistry);
+                    Lithforge.Network.Client.NetworkClient networkClient =
+                        new Lithforge.Network.Client.NetworkClient(
+                            _logger, contentHash, "Player");
+                    _networkClient = networkClient;
+
+                    networkClient.Connect(
+                        _pendingSession.ServerAddress ?? "127.0.0.1",
+                        _pendingSession.ServerPort);
+
+                    // Create client chunk handler for network-streamed chunks
+                    _clientChunkHandler = new Lithforge.Runtime.Network.ClientChunkHandler(
+                        _chunkManager, networkClient,
+                        (msg) =>
+                        {
+                            // GameReady: server says we can start playing
+                            UnityEngine.Debug.Log(
+                                $"[Lithforge] GameReady: spawn=({msg.SpawnX},{msg.SpawnY},{msg.SpawnZ})");
+                        });
+
+                    // Create client-side prediction with reconciliation
+                    ClientWorldSimulation clientSim = new ClientWorldSimulation(
+                        tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder,
+                        networkClient, networkClient.LocalPlayerId,
+                        networkClient.ServerTickAtHandshake);
+
+                    // Register player state handler for reconciliation
+                    networkClient.Dispatcher.RegisterHandler(
+                        MessageType.PlayerState, clientSim.OnPlayerStateReceived);
+
+                    // Create block predictor for optimistic block placement
+                    _clientBlockPredictor = new Lithforge.Runtime.Network.ClientBlockPredictor(
+                        _chunkManager, networkClient);
+
+                    _gameLoop.SetClientMode(true);
+                    _gameLoop.SetNetworkClient(networkClient);
+                    _gameLoop.SetClientChunkHandler(_clientChunkHandler);
+                    _gameLoop.SetTickSystems(
+                        clientSim, inputSnapshotBuilder, physicsBody,
+                        playerObject.transform);
+                }
+                else if (role == World.NetworkRole.Host)
+                {
+                    // Host mode: run server + local client together
+                    ContentHash contentHash = ContentHashComputer.Compute(
+                        _contentResult.StateRegistry);
+                    Lithforge.Network.Server.NetworkServer networkServer =
+                        new Lithforge.Network.Server.NetworkServer(
+                            _logger, contentHash, NetworkConstants.MaxConnections);
+                    _networkServer = networkServer;
+                    networkServer.WorldSeed = (ulong)_worldMetadata.Seed;
+                    networkServer.Start(_pendingSession.ServerPort);
+
+                    // Wire ChunkDirtyTracker to ChunkManager block changes
+                    Lithforge.Voxel.Network.ChunkDirtyTracker dirtyTracker =
+                        new Lithforge.Voxel.Network.ChunkDirtyTracker();
+                    _chunkManager.OnBlockChanged += dirtyTracker.OnBlockChanged;
+
+                    // Create Tier 3 bridge implementations
+                    ServerSimulation serverSim = new ServerSimulation(
+                        playerPhysicsManager, tickRegistryRef, _settings.Physics,
+                        () => { return _timeOfDayController != null ? _timeOfDayController.TimeOfDay : 0f; });
+                    ServerChunkProvider chunkProvider = new ServerChunkProvider(_chunkManager);
+
+                    ChunkStreamingManager streamingManager = new ChunkStreamingManager(
+                        _settings.Chunk.YLoadMin,
+                        _settings.Chunk.YLoadMax,
+                        3, _logger);
+
+                    ServerGameLoop serverGameLoop = new ServerGameLoop(
+                        networkServer, serverSim, chunkProvider,
+                        dirtyTracker, streamingManager, _logger);
+
+                    _gameLoop.SetServerGameLoop(serverGameLoop);
+
+                    // Singleplayer-style local simulation (host is also a player)
+                    WorldSimulation worldSimulation = new WorldSimulation(
+                        tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
+                    _gameLoop.SetTickSystems(
+                        worldSimulation, inputSnapshotBuilder, physicsBody,
+                        playerObject.transform);
+                }
+                else
+                {
+                    // Singleplayer mode (default)
+                    WorldSimulation worldSimulation = new WorldSimulation(
+                        tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
+                    _gameLoop.SetTickSystems(
+                        worldSimulation, inputSnapshotBuilder, physicsBody,
+                        playerObject.transform);
+                }
             }
 
             // Initialize day/night cycle
