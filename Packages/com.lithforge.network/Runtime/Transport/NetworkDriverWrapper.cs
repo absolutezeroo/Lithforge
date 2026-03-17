@@ -26,9 +26,6 @@ namespace Lithforge.Network.Transport
         private bool _isServer;
         private readonly NetworkPipeline[] _pipelines;
 
-        // Reusable read buffer
-        private byte[] _readBuffer = new byte[65536];
-
         public NetworkDriverWrapper(ILogger logger)
         {
             _logger = logger;
