@@ -12,14 +12,8 @@ namespace Lithforge.Voxel.Tag
     {
         private static readonly ResourceId[] s_emptySet = System.Array.Empty<ResourceId>();
 
-        private readonly Dictionary<ResourceId, HashSet<ResourceId>> _tagToMembers;
-        private readonly Dictionary<ResourceId, HashSet<ResourceId>> _memberToTags;
-
-        public TagRegistry()
-        {
-            _tagToMembers = new Dictionary<ResourceId, HashSet<ResourceId>>();
-            _memberToTags = new Dictionary<ResourceId, HashSet<ResourceId>>();
-        }
+        private readonly Dictionary<ResourceId, HashSet<ResourceId>> _tagToMembers = new();
+        private readonly Dictionary<ResourceId, HashSet<ResourceId>> _memberToTags = new();
 
         /// <summary>
         /// Registers a tag definition, adding all its values to the lookup tables.

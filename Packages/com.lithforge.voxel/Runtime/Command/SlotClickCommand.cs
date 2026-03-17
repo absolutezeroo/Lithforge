@@ -12,6 +12,13 @@ namespace Lithforge.Voxel.Command
         /// <summary>Server tick this command targets.</summary>
         public uint Tick;
 
+        /// <summary>
+        /// Client's last-known inventory state ID. Server rejects the command
+        /// with StateIdMismatch if this does not match the authoritative value,
+        /// triggering a full resync.
+        /// </summary>
+        public uint StateId;
+
         /// <summary>Per-player monotonic sequence number for prediction reconciliation.</summary>
         public ushort SequenceId;
 

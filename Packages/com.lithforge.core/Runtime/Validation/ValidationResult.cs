@@ -8,8 +8,8 @@ namespace Lithforge.Core.Validation
     /// </summary>
     public sealed class ValidationResult
     {
-        private readonly List<string> _errors;
-        private readonly List<string> _warnings;
+        private readonly List<string> _errors = new();
+        private readonly List<string> _warnings = new();
 
         public IReadOnlyList<string> Errors
         {
@@ -24,12 +24,6 @@ namespace Lithforge.Core.Validation
         public bool IsValid
         {
             get { return _errors.Count == 0; }
-        }
-
-        public ValidationResult()
-        {
-            _errors = new List<string>();
-            _warnings = new List<string>();
         }
 
         public void AddError(string message)

@@ -22,15 +22,15 @@ namespace Lithforge.Runtime.Content.Settings
         private const string LegacyPrefMouseSensitivity = "LF_MouseSensitivity";
         private const string LegacyPrefAOStrength = "LF_AOStrength";
 
-        public int Version { get; set; }
-        public int RenderDistance { get; set; }
-        public float FieldOfView { get; set; }
-        public float MouseSensitivity { get; set; }
-        public float AOStrength { get; set; }
-        public float MasterVolume { get; set; }
-        public float SfxVolume { get; set; }
-        public float MusicVolume { get; set; }
-        public float AmbientVolume { get; set; }
+        public int Version { get; set; } = CurrentVersion;
+        public int RenderDistance { get; set; } = -1;
+        public float FieldOfView { get; set; } = -1f;
+        public float MouseSensitivity { get; set; } = -1f;
+        public float AOStrength { get; set; } = -1f;
+        public float MasterVolume { get; set; } = -1f;
+        public float SfxVolume { get; set; } = -1f;
+        public float MusicVolume { get; set; } = -1f;
+        public float AmbientVolume { get; set; } = -1f;
 
         public bool HasRenderDistance
         {
@@ -70,19 +70,6 @@ namespace Lithforge.Runtime.Content.Settings
         public bool HasAmbientVolume
         {
             get { return AmbientVolume >= 0f; }
-        }
-
-        public UserPreferences()
-        {
-            Version = CurrentVersion;
-            RenderDistance = -1;
-            FieldOfView = -1f;
-            MouseSensitivity = -1f;
-            AOStrength = -1f;
-            MasterVolume = -1f;
-            SfxVolume = -1f;
-            MusicVolume = -1f;
-            AmbientVolume = -1f;
         }
 
         /// <summary>

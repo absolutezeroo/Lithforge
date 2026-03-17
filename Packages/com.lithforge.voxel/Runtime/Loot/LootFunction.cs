@@ -9,26 +9,17 @@ namespace Lithforge.Voxel.Loot
     /// </summary>
     public sealed class LootFunction
     {
-        public string Type { get; set; }
-        public Dictionary<string, string> Parameters { get; set; }
+        public string Type { get; set; } = "";
+        public Dictionary<string, string> Parameters { get; set; } = new();
 
         /// <summary>Pre-parsed "min" parameter. int.MinValue if not present or invalid.</summary>
-        public int MinValue { get; private set; }
+        public int MinValue { get; private set; } = int.MinValue;
 
         /// <summary>Pre-parsed "max" parameter. int.MinValue if not present or invalid.</summary>
-        public int MaxValue { get; private set; }
+        public int MaxValue { get; private set; } = int.MinValue;
 
         /// <summary>Pre-parsed "count" parameter. int.MinValue if not present or invalid.</summary>
-        public int CountValue { get; private set; }
-
-        public LootFunction()
-        {
-            Type = "";
-            Parameters = new Dictionary<string, string>();
-            MinValue = int.MinValue;
-            MaxValue = int.MinValue;
-            CountValue = int.MinValue;
-        }
+        public int CountValue { get; private set; } = int.MinValue;
 
         /// <summary>
         /// Pre-parses int values from Parameters. Call once after Parameters are set

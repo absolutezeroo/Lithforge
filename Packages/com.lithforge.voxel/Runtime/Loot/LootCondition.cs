@@ -8,13 +8,7 @@ namespace Lithforge.Voxel.Loot
     /// </summary>
     public sealed class LootCondition
     {
-        public string Type { get; set; }
-        public Dictionary<string, string> Parameters { get; set; }
-
-        public LootCondition()
-        {
-            Type = "";
-            Parameters = new Dictionary<string, string>();
-        }
+        public string Type { get; set; } = "";
+        public Dictionary<string, string> Parameters { get; set; } = new();
     }
 }

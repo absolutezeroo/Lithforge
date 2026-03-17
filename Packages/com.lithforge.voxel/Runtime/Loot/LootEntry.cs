@@ -8,19 +8,10 @@ namespace Lithforge.Voxel.Loot
     /// </summary>
     public sealed class LootEntry
     {
-        public string Type { get; set; }
-        public string Name { get; set; }
-        public int Weight { get; set; }
-        public List<LootCondition> Conditions { get; set; }
-        public List<LootFunction> Functions { get; set; }
-
-        public LootEntry()
-        {
-            Type = "item";
-            Name = "";
-            Weight = 1;
-            Conditions = new List<LootCondition>();
-            Functions = new List<LootFunction>();
-        }
+        public string Type { get; set; } = "item";
+        public string Name { get; set; } = "";
+        public int Weight { get; set; } = 1;
+        public List<LootCondition> Conditions { get; set; } = new();
+        public List<LootFunction> Functions { get; set; } = new();
     }
 }

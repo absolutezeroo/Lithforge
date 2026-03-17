@@ -23,48 +23,34 @@ namespace Lithforge.Runtime.Content.Mods
         private readonly List<AssetBundle> _loadedBundles = new List<AssetBundle>();
 
         /// <summary>Block definitions extracted from all loaded mods, ready for StateRegistry.</summary>
-        public List<BlockDefinition> LoadedBlocks { get; private set; }
+        public List<BlockDefinition> LoadedBlocks { get; private set; } = new();
 
         /// <summary>Block-state property mappings from mods, merged into the cartesian product expansion.</summary>
-        public List<BlockStateMapping> LoadedMappings { get; private set; }
+        public List<BlockStateMapping> LoadedMappings { get; private set; } = new();
 
         /// <summary>Block models from mods, fed into ContentModelResolver for parent chain resolution.</summary>
-        public List<BlockModel> LoadedModels { get; private set; }
+        public List<BlockModel> LoadedModels { get; private set; } = new();
 
         /// <summary>Item definitions from mods, registered into ItemRegistry alongside core items.</summary>
-        public List<ItemDefinition> LoadedItems { get; private set; }
+        public List<ItemDefinition> LoadedItems { get; private set; } = new();
 
         /// <summary>Crafting recipes from mods, added to CraftingEngine during content build.</summary>
-        public List<RecipeDefinition> LoadedRecipes { get; private set; }
+        public List<RecipeDefinition> LoadedRecipes { get; private set; } = new();
 
         /// <summary>Tags from mods (e.g. mineable groups), merged into TagRegistry.</summary>
-        public List<Tag> LoadedTags { get; private set; }
+        public List<Tag> LoadedTags { get; private set; } = new();
 
         /// <summary>Loot tables from mods, used by LootResolver for block/entity drops.</summary>
-        public List<LootTable> LoadedLootTables { get; private set; }
+        public List<LootTable> LoadedLootTables { get; private set; } = new();
 
         /// <summary>Biome definitions from mods, registered for world generation.</summary>
-        public List<BiomeDefinition> LoadedBiomes { get; private set; }
+        public List<BiomeDefinition> LoadedBiomes { get; private set; } = new();
 
         /// <summary>Ore definitions from mods, registered for ore generation jobs.</summary>
-        public List<OreDefinition> LoadedOres { get; private set; }
+        public List<OreDefinition> LoadedOres { get; private set; } = new();
 
         /// <summary>Parsed manifests carrying mod metadata (name, version, dependencies).</summary>
-        public List<ModManifest> LoadedManifests { get; private set; }
-
-        public ModLoader()
-        {
-            LoadedBlocks = new List<BlockDefinition>();
-            LoadedMappings = new List<BlockStateMapping>();
-            LoadedModels = new List<BlockModel>();
-            LoadedItems = new List<ItemDefinition>();
-            LoadedRecipes = new List<RecipeDefinition>();
-            LoadedTags = new List<Tag>();
-            LoadedLootTables = new List<LootTable>();
-            LoadedBiomes = new List<BiomeDefinition>();
-            LoadedOres = new List<OreDefinition>();
-            LoadedManifests = new List<ModManifest>();
-        }
+        public List<ModManifest> LoadedManifests { get; private set; } = new();
 
         /// <summary>
         /// Scans the mods directory for .lithmod files, loads each as an AssetBundle,

@@ -8,12 +8,7 @@ namespace Lithforge.Voxel.Item
     /// </summary>
     public sealed class ToolTraitRegistry
     {
-        private readonly Dictionary<string, ToolTraitData> _traits;
-
-        public ToolTraitRegistry()
-        {
-            _traits = new Dictionary<string, ToolTraitData>();
-        }
+        private readonly Dictionary<string, ToolTraitData> _traits = new();
 
         public void Register(ToolTraitData trait)
         {

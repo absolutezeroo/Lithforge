@@ -9,11 +9,6 @@ namespace Lithforge.Voxel.Storage
         public float RotY { get; set; }
         public double TimeOfDay { get; set; }
         public int SelectedSlot { get; set; }
-        public SavedItemStack[] Slots { get; set; }
-
-        public WorldPlayerState()
-        {
-            Slots = new SavedItemStack[0];
-        }
+        public SavedItemStack[] Slots { get; set; } = new SavedItemStack[0];
     }
 }
