@@ -422,6 +422,14 @@ namespace Lithforge.Runtime.Scheduling
             {
                 ManagedChunk chunk = _meshCandidateCache[i];
 
+                // Guard: skip chunks whose data was disposed between candidate
+                // collection and scheduling (e.g. liquid cross-boundary edits
+                // triggering DirtyNeighborBorders → unload race).
+                if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
+                {
+                    continue;
+                }
+
                 _chunkManager.SetChunkState(chunk, ChunkState.Meshing);
 
                 long ta0 = System.Diagnostics.Stopwatch.GetTimestamp();
