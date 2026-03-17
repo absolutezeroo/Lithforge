@@ -17,7 +17,8 @@ uint _ZeroByteCount;   // CSZeroBytes: byte count to zero (multiple of 16)
 [numthreads(64, 1, 1)]
 void CSCopyBytes(uint3 id : SV_DispatchThreadID)
 {
-    uint byteAddr = id.x * 16u;
+    uint globalIdx = id.x + id.y * 65535u * 64u;
+    uint byteAddr = globalIdx * 16u;
     if (byteAddr >= _ByteCount)
         return;
     _Dst.Store4(byteAddr, _Src.Load4(byteAddr));
@@ -26,7 +27,8 @@ void CSCopyBytes(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void CSZeroBytes(uint3 id : SV_DispatchThreadID)
 {
-    uint byteAddr = _ZeroStart + id.x * 16u;
+    uint globalIdx = id.x + id.y * 65535u * 64u;
+    uint byteAddr = _ZeroStart + globalIdx * 16u;
     if (byteAddr >= _ZeroStart + _ZeroByteCount)
         return;
     _Dst.Store4(byteAddr, uint4(0u, 0u, 0u, 0u));

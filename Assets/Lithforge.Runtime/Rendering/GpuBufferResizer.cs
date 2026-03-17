@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -91,8 +92,10 @@ namespace Lithforge.Runtime.Rendering
                 _shader.SetBuffer(_copyKernel, s_dstId, newBuffer);
                 _shader.SetInt(s_byteCountId, copyBytes);
 
-                int threadGroups = (copyBytes / 16 + 63) / 64;
-                _shader.Dispatch(_copyKernel, threadGroups, 1, 1);
+                int totalGroups = (copyBytes / 16 + 63) / 64;
+                int groupsX = math.min(totalGroups, 65535);
+                int groupsY = (totalGroups + 65534) / 65535;
+                _shader.Dispatch(_copyKernel, groupsX, groupsY, 1);
             }
 
             if (zeroBytes > 0)
@@ -101,8 +104,10 @@ namespace Lithforge.Runtime.Rendering
                 _shader.SetInt(s_zeroStartId, usedBytes);
                 _shader.SetInt(s_zeroByteCountId, zeroBytes);
 
-                int threadGroups = (zeroBytes / 16 + 63) / 64;
-                _shader.Dispatch(_zeroKernel, threadGroups, 1, 1);
+                int totalGroups = (zeroBytes / 16 + 63) / 64;
+                int groupsX = math.min(totalGroups, 65535);
+                int groupsY = (totalGroups + 65534) / 65535;
+                _shader.Dispatch(_zeroKernel, groupsX, groupsY, 1);
             }
 
             if (old != null)
