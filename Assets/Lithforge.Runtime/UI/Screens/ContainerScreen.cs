@@ -280,11 +280,13 @@ namespace Lithforge.Runtime.UI.Screens
                     widget.RegisterCallback<PointerEnterEvent>(evt =>
                     {
                         Interaction.OnSlotEnter(capturedContainer, capturedIndex);
+                        widget.AddToClassList("lf-slot--hovered");
                     });
 
                     widget.RegisterCallback<PointerLeaveEvent>(evt =>
                     {
                         Interaction.OnSlotLeave(capturedContainer, capturedIndex);
+                        widget.RemoveFromClassList("lf-slot--hovered");
                         _tooltip.Hide();
                     });
 
@@ -317,11 +319,13 @@ namespace Lithforge.Runtime.UI.Screens
             widget.RegisterCallback<PointerEnterEvent>(evt =>
             {
                 Interaction.OnSlotEnter(capturedContainer, capturedIndex);
+                widget.AddToClassList("lf-slot--hovered");
             });
 
             widget.RegisterCallback<PointerLeaveEvent>(evt =>
             {
                 Interaction.OnSlotLeave(capturedContainer, capturedIndex);
+                widget.RemoveFromClassList("lf-slot--hovered");
                 _tooltip.Hide();
             });
 
@@ -406,10 +410,11 @@ namespace Lithforge.Runtime.UI.Screens
             _openGraceFrames = 2;
             Interaction.ResetState();
 
-            // Invalidate all slots so they redraw
+            // Invalidate all slots so they redraw and clear residual hover classes
             for (int i = 0; i < _allBindings.Count; i++)
             {
                 _allBindings[i].Widget.Invalidate();
+                _allBindings[i].Widget.RemoveFromClassList("lf-slot--hovered");
             }
         }
 
