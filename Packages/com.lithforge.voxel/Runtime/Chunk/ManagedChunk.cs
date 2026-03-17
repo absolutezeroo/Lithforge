@@ -49,6 +49,14 @@ namespace Lithforge.Voxel.Chunk
         public JobHandle ActiveJobHandle { get; set; }
 
         /// <summary>
+        /// Handle to the in-flight LiquidSimJob for this chunk, if any.
+        /// Set by LiquidScheduler when scheduling, cleared on completion.
+        /// MeshScheduler uses this as a dependency so GreedyMeshJob waits for
+        /// the liquid job to finish writing LiquidData before reading it.
+        /// </summary>
+        public JobHandle LiquidJobHandle { get; set; }
+
+        /// <summary>
         /// Set when a neighbor changes while this chunk is already meshing,
         /// so MeshScheduler re-queues it after the current mesh job completes.
         /// </summary>

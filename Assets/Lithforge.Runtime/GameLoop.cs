@@ -237,6 +237,7 @@ namespace Lithforge.Runtime
         {
             _liquidScheduler = liquidScheduler;
             _generationScheduler.SetLiquidScheduler(liquidScheduler);
+            liquidScheduler.SetMeshScheduler(_meshScheduler);
         }
 
         /// <summary>
@@ -364,14 +365,18 @@ namespace Lithforge.Runtime
             _relightScheduler.PollCompleted();
             Profiler.EndSample();
 
-            Profiler.BeginSample("GL.PollLiquid");
-            _liquidScheduler?.PollCompleted();
-            Profiler.EndSample();
-
+            // PollMesh MUST run before PollLiquid: liquid result application calls
+            // SetBlock which writes to chunk.Data. In-flight mesh jobs may be reading
+            // that same Data via ExtractAllBordersJob (neighbor border slices).
+            // Completing mesh jobs first releases those safety locks.
             Profiler.BeginSample("GL.PollMesh");
             _frameProfiler.Begin(FrameProfilerSections.PollMesh);
             _meshScheduler.PollCompleted();
             _frameProfiler.End(FrameProfilerSections.PollMesh);
+            Profiler.EndSample();
+
+            Profiler.BeginSample("GL.PollLiquid");
+            _liquidScheduler?.PollCompleted();
             Profiler.EndSample();
 
             Profiler.BeginSample("GL.PollLOD");

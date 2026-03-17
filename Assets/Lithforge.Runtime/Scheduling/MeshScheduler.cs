@@ -53,6 +53,13 @@ namespace Lithforge.Runtime.Scheduling
         private NativeArray<StateId> _dummyBorder;
 
         /// <summary>
+        /// Dummy NativeArray passed to GreedyMeshJob.LiquidData for chunks without liquid.
+        /// HasLiquidData=false prevents the job from reading it; this satisfies the safety system.
+        /// Owner: MeshScheduler. Lifetime: application. Allocator: Persistent.
+        /// </summary>
+        private NativeArray<byte> _dummyLiquid;
+
+        /// <summary>
         /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
         /// Owner: MeshScheduler. Lifetime: application.
         /// </summary>
@@ -85,6 +92,7 @@ namespace Lithforge.Runtime.Scheduling
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
             _dummyBorder = new NativeArray<StateId>(1, Allocator.Persistent);
+            _dummyLiquid = new NativeArray<byte>(1, Allocator.Persistent);
         }
 
         /// <summary>
@@ -434,7 +442,8 @@ namespace Lithforge.Runtime.Scheduling
                     StateTable = _nativeStateRegistry.States,
                     AtlasEntries = _nativeAtlasLookup.Entries,
                     LightData = chunk.LightData,
-                    LiquidData = chunk.LiquidData,
+                    LiquidData = chunk.LiquidData.IsCreated ? chunk.LiquidData : _dummyLiquid,
+                    HasLiquidData = chunk.LiquidData.IsCreated,
                     ChunkCoord = chunk.Coord,
                     OpaqueVertices = meshData.OpaqueVertices,
                     OpaqueIndices = meshData.OpaqueIndices,
@@ -444,7 +453,12 @@ namespace Lithforge.Runtime.Scheduling
                     TranslucentIndices = meshData.TranslucentIndices,
                 };
 
-                JobHandle meshHandle = meshJob.Schedule(borderDependency);
+                // Depend on both border extraction and any in-flight liquid job
+                // writing to this chunk's LiquidData. CombineDependencies with a
+                // default handle (no liquid job) is a no-op.
+                JobHandle meshDep = JobHandle.CombineDependencies(
+                    borderDependency, chunk.LiquidJobHandle);
+                JobHandle meshHandle = meshJob.Schedule(meshDep);
                 long ts1 = System.Diagnostics.Stopwatch.GetTimestamp();
                 schedAccum += (float)((ts1 - ts0) * 1000.0 / freq);
 
@@ -554,6 +568,11 @@ namespace Lithforge.Runtime.Scheduling
             if (_dummyBorder.IsCreated)
             {
                 _dummyBorder.Dispose();
+            }
+
+            if (_dummyLiquid.IsCreated)
+            {
+                _dummyLiquid.Dispose();
             }
         }
 

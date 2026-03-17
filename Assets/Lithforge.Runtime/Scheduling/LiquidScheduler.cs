@@ -33,7 +33,9 @@ namespace Lithforge.Runtime.Scheduling
         private readonly List<int3> _dirtiedChunksCache;
         private readonly List<int> _fullScanCache;
         private readonly Dictionary<int3, JobHandle> _evenHandles;
+        private readonly HashSet<int3> _forceCompleteCache;
 
+        private MeshScheduler _meshScheduler;
         private bool _disposed;
 
         public LiquidScheduler(
@@ -53,6 +55,17 @@ namespace Lithforge.Runtime.Scheduling
             _dirtiedChunksCache = new List<int3>(16);
             _fullScanCache = new List<int>(256);
             _evenHandles = new Dictionary<int3, JobHandle>(64);
+            _forceCompleteCache = new HashSet<int3>();
+        }
+
+        /// <summary>
+        /// Wires the MeshScheduler so liquid result application can force-complete
+        /// in-flight mesh jobs that read target chunk data as neighbor borders.
+        /// Called by GameLoop.SetLiquidScheduler.
+        /// </summary>
+        public void SetMeshScheduler(MeshScheduler meshScheduler)
+        {
+            _meshScheduler = meshScheduler;
         }
 
         /// <summary>
@@ -149,12 +162,13 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                if (chunk.State < ChunkState.Generated)
+                if (chunk.State < ChunkState.Generated || chunk.State == ChunkState.Meshing)
                 {
                     continue;
                 }
 
                 PendingLiquidJob pending = ScheduleJob(chunk, default(JobHandle), 0);
+                chunk.LiquidJobHandle = pending.Handle;
                 _inFlightJobs.Add(pending);
                 _inFlightCoords.Add(coord);
                 _evenHandles[coord] = pending.Handle;
@@ -181,7 +195,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                if (chunk.State < ChunkState.Generated)
+                if (chunk.State < ChunkState.Generated || chunk.State == ChunkState.Meshing)
                 {
                     continue;
                 }
@@ -210,6 +224,7 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 PendingLiquidJob pending = ScheduleJob(chunk, dependency, 1);
+                chunk.LiquidJobHandle = pending.Handle;
                 _inFlightJobs.Add(pending);
                 _inFlightCoords.Add(coord);
                 scheduled++;
@@ -338,6 +353,13 @@ namespace Lithforge.Runtime.Scheduling
                 return; // output stays zeroed (empty liquid)
             }
 
+            // Skip if neighbor has an in-flight liquid job writing to its LiquidData.
+            // The ghost slab will be zeroed (slightly stale), self-correcting next tick.
+            if (_inFlightCoords.Contains(neighbor.Coord))
+            {
+                return;
+            }
+
             NativeArray<byte> neighborLiquid = neighbor.LiquidData;
             int size = ChunkConstants.Size;
             int lastIdx = size - 1;
@@ -449,6 +471,16 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 pending.Handle.Complete();
+
+                // Clear LiquidJobHandle before applying results so MeshScheduler
+                // doesn't try to depend on a completed handle for this chunk.
+                ManagedChunk completedChunk = _chunkManager.TryGetChunk(pending.ChunkCoord);
+
+                if (completedChunk != null)
+                {
+                    completedChunk.LiquidJobHandle = default;
+                }
+
                 ApplyJobResults(pending);
                 pending.DisposeContainers();
 
@@ -483,6 +515,27 @@ namespace Lithforge.Runtime.Scheduling
             for (int i = 0; i < pending.OutputActiveSet.Length; i++)
             {
                 chunk.LiquidActiveSet.Add(pending.OutputActiveSet[i]);
+            }
+
+            // Force-complete any in-flight mesh jobs whose border extraction reads
+            // chunk data we're about to write via SetBlock. Collect unique target
+            // chunk coords first to avoid redundant ForceCompleteNeighborDeps calls.
+            if (_meshScheduler != null && pending.OutputEdits.Length > 0)
+            {
+                _forceCompleteCache.Clear();
+                _forceCompleteCache.Add(pending.ChunkCoord);
+
+                for (int i = 0; i < pending.OutputEdits.Length; i++)
+                {
+                    LiquidChunkEdit edit = pending.OutputEdits[i];
+                    int3 targetCoord = pending.ChunkCoord + edit.ChunkOffset;
+                    _forceCompleteCache.Add(targetCoord);
+                }
+
+                foreach (int3 coord in _forceCompleteCache)
+                {
+                    _meshScheduler.ForceCompleteNeighborDeps(coord);
+                }
             }
 
             // Apply edits to ChunkManager (triggers relight + remesh)

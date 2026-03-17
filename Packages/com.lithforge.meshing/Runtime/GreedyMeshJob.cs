@@ -33,6 +33,12 @@ namespace Lithforge.Meshing
         [ReadOnly] public NativeArray<byte> LightData;
         [ReadOnly] public NativeArray<byte> LiquidData;
 
+        /// <summary>
+        /// True when LiquidData contains real per-voxel liquid state (32768 bytes).
+        /// False when LiquidData is a dummy sentinel — skip all liquid-level reads.
+        /// </summary>
+        public bool HasLiquidData;
+
         /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
         public int3 ChunkCoord;
 
@@ -153,7 +159,7 @@ namespace Lithforge.Meshing
                         // Read liquid visual level for fluid top faces
                         byte fluidLevel = 0;
 
-                        if (face == 2 && blockState.IsFluid && LiquidData.IsCreated)
+                        if (face == 2 && blockState.IsFluid && HasLiquidData)
                         {
                             int flatIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
                                 blockPos.x, blockPos.y, blockPos.z);
