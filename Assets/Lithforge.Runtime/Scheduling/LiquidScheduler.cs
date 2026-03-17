@@ -36,6 +36,7 @@ namespace Lithforge.Runtime.Scheduling
         private readonly HashSet<int3> _forceCompleteCache;
 
         private MeshScheduler _meshScheduler;
+        private bool _applyingLiquidResults;
         private bool _disposed;
 
         public LiquidScheduler(
@@ -674,6 +675,7 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             // Apply edits to ChunkManager (triggers relight + remesh)
+            _applyingLiquidResults = true;
             _dirtiedChunksCache.Clear();
 
             for (int i = 0; i < pending.OutputEdits.Length; i++)
@@ -721,6 +723,8 @@ namespace Lithforge.Runtime.Scheduling
                     }
                 }
             }
+
+            _applyingLiquidResults = false;
         }
 
         /// <summary>
@@ -731,6 +735,11 @@ namespace Lithforge.Runtime.Scheduling
         public void OnBlockChanged(int3 worldCoord, StateId newStateId)
         {
             if (_disposed)
+            {
+                return;
+            }
+
+            if (_applyingLiquidResults)
             {
                 return;
             }

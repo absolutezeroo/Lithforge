@@ -59,6 +59,7 @@ namespace Lithforge.Runtime.Tick
         // Swim state
         private bool _inWater;
         private bool _submerged;
+        private bool _wasInWater;
 
         // Fly mode state
         private bool _flyMode;
@@ -241,6 +242,21 @@ namespace Lithforge.Runtime.Tick
 
             // Detect water at feet and eye level
             UpdateWaterState();
+
+            // Seed swim velocity when entering water so the player doesn't hit a wall
+            if (_inWater && !_wasInWater && !_flyMode)
+            {
+                float yawRad = math.radians(snapshot.Yaw);
+                float forwardX = math.sin(yawRad);
+                float forwardZ = math.cos(yawRad);
+
+                float entrySpeed = _isSprinting ? _sprintSpeed : _walkSpeed;
+
+                _horizontalSpeedX = forwardX * entrySpeed * 0.65f;
+                _horizontalSpeedZ = forwardZ * entrySpeed * 0.65f;
+            }
+
+            _wasInWater = _inWater;
 
             if (_flyMode)
             {
@@ -468,9 +484,10 @@ namespace Lithforge.Runtime.Tick
                 moveDir = math.normalize(moveDir);
             }
 
-            // Apply swim acceleration (much lower than land)
-            _horizontalSpeedX += moveDir.x * _swimAcceleration * dt;
-            _horizontalSpeedZ += moveDir.z * _swimAcceleration * dt;
+            // Apply swim acceleration (sprint-swim uses higher accel for ~5 b/s terminal)
+            float swimAccel = snapshot.Sprint ? _swimAcceleration * 2.6f : _swimAcceleration;
+            _horizontalSpeedX += moveDir.x * swimAccel * dt;
+            _horizontalSpeedZ += moveDir.z * swimAccel * dt;
 
             // Swim gravity (very low, floaty feel)
             _verticalSpeed += _swimGravity * dt;
@@ -514,7 +531,7 @@ namespace Lithforge.Runtime.Tick
                 _verticalSpeed = 0f;
             }
 
-            _isSprinting = false;
+            _isSprinting = snapshot.Sprint;
         }
 
         /// <summary>
