@@ -293,8 +293,10 @@ namespace Lithforge.Runtime.Rendering
 
             _maxChunkSlots = newMax;
 
+#if LITHFORGE_DEBUG
             UnityEngine.Debug.Log(
                 $"[ChunkMeshStore] Grew slot capacity: {oldMax} → {newMax}");
+#endif
         }
 
         /// <summary>
