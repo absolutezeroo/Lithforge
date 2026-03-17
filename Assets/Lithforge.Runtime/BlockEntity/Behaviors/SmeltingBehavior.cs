@@ -117,14 +117,33 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        private const int VersionSentinel = int.MinValue + 11;
+
         public override void Serialize(BinaryWriter writer)
         {
+            writer.Write(VersionSentinel);
             writer.Write(_smeltProgress);
         }
 
         public override void Deserialize(BinaryReader reader)
         {
-            _smeltProgress = reader.ReadSingle();
+            int firstInt = reader.ReadInt32();
+
+            if (firstInt == VersionSentinel)
+            {
+                _smeltProgress = reader.ReadSingle();
+            }
+            else
+            {
+                // Legacy format: firstInt is the IEEE-754 bytes of _smeltProgress
+                _smeltProgress = ReinterpretIntAsFloat(firstInt);
+            }
+        }
+
+        private static float ReinterpretIntAsFloat(int value)
+        {
+            byte[] bytes = System.BitConverter.GetBytes(value);
+            return System.BitConverter.ToSingle(bytes, 0);
         }
     }
 }

@@ -107,16 +107,36 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             return true;
         }
 
+        private const int VersionSentinel = int.MinValue + 10;
+
         public override void Serialize(BinaryWriter writer)
         {
+            writer.Write(VersionSentinel);
             writer.Write(_burnTimeRemaining);
             writer.Write(_maxBurnTime);
         }
 
         public override void Deserialize(BinaryReader reader)
         {
-            _burnTimeRemaining = reader.ReadSingle();
-            _maxBurnTime = reader.ReadSingle();
+            int firstInt = reader.ReadInt32();
+
+            if (firstInt == VersionSentinel)
+            {
+                _burnTimeRemaining = reader.ReadSingle();
+                _maxBurnTime = reader.ReadSingle();
+            }
+            else
+            {
+                // Legacy format: firstInt is the IEEE-754 bytes of _burnTimeRemaining
+                _burnTimeRemaining = ReinterpretIntAsFloat(firstInt);
+                _maxBurnTime = reader.ReadSingle();
+            }
+        }
+
+        private static float ReinterpretIntAsFloat(int value)
+        {
+            byte[] bytes = System.BitConverter.GetBytes(value);
+            return System.BitConverter.ToSingle(bytes, 0);
         }
     }
 }
