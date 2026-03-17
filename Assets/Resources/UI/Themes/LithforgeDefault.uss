@@ -177,6 +177,13 @@
     margin-top: 2px;
 }
 
+.lf-tooltip__hint {
+    font-size: 10px;
+    color: var(--lf-text-muted);
+    -unity-font-style: italic;
+    margin-top: 4px;
+}
+
 /* ─── Drag Ghost ─── */
 
 .lf-drag-ghost {

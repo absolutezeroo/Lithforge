@@ -8,6 +8,7 @@ using Lithforge.Runtime.UI.Widgets;
 using Lithforge.Voxel.Item;
 
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 using Cursor = UnityEngine.Cursor;
@@ -29,6 +30,12 @@ namespace Lithforge.Runtime.UI.Screens
 
         private VisualTreeAsset _screenTemplate;
         private TooltipWidget _tooltip;
+
+        // Tooltip key-change refresh state
+        private bool _lastTooltipShift;
+        private bool _lastTooltipCtrl;
+        private float _lastTooltipX;
+        private float _lastTooltipY;
 
         protected UIDocument Document { get; private set; }
 
@@ -325,6 +332,47 @@ namespace Lithforge.Runtime.UI.Screens
             _dragGhost.Refresh(Interaction.Held.Stack, SpriteAtlas);
         }
 
+        /// <summary>
+        ///     Polls modifier key state and refreshes the tooltip if Shift or Ctrl
+        ///     changed since the last pointer move. Call from subclass Update()
+        ///     after <see cref="RefreshAllSlots" />.
+        /// </summary>
+        protected void UpdateTooltipKeyRefresh()
+        {
+            if (!IsOpen || _tooltip == null || _tooltip.style.display != DisplayStyle.Flex)
+            {
+                return;
+            }
+
+            bool shift = IsShiftHeld();
+            bool ctrl = IsCtrlHeld();
+
+            if (shift == _lastTooltipShift && ctrl == _lastTooltipCtrl)
+            {
+                return;
+            }
+
+            _lastTooltipShift = shift;
+            _lastTooltipCtrl = ctrl;
+
+            ISlotContainer hoveredContainer = Interaction.HoveredContainer;
+            int hoveredIndex = Interaction.HoveredSlotIndex;
+
+            if (hoveredContainer != null && hoveredIndex >= 0)
+            {
+                ItemStack stack = hoveredContainer.GetSlot(hoveredIndex);
+
+                if (!stack.IsEmpty && ItemRegistryRef != null)
+                {
+                    ItemEntry entry = ItemRegistryRef.Get(stack.ItemId);
+                    ToolMaterialRegistry matReg = Context != null
+                        ? Context.ToolMaterialRegistry : null;
+                    _tooltip.Show(stack, entry, _lastTooltipX, _lastTooltipY,
+                        shift, ctrl, matReg);
+                }
+            }
+        }
+
         public void Open()
         {
             IsOpen = true;
@@ -364,8 +412,19 @@ namespace Lithforge.Runtime.UI.Screens
 
                 if (!stack.IsEmpty && ItemRegistryRef != null)
                 {
+                    bool isShift = IsShiftHeld();
+                    bool isCtrl = IsCtrlHeld();
+
+                    _lastTooltipX = evt.position.x;
+                    _lastTooltipY = evt.position.y;
+                    _lastTooltipShift = isShift;
+                    _lastTooltipCtrl = isCtrl;
+
                     ItemEntry entry = ItemRegistryRef.Get(stack.ItemId);
-                    _tooltip.Show(stack, entry, evt.position.x, evt.position.y);
+                    ToolMaterialRegistry matReg = Context != null
+                        ? Context.ToolMaterialRegistry : null;
+                    _tooltip.Show(stack, entry, evt.position.x, evt.position.y,
+                        isShift, isCtrl, matReg);
                 }
                 else
                 {
@@ -376,6 +435,20 @@ namespace Lithforge.Runtime.UI.Screens
             {
                 _tooltip.Hide();
             }
+        }
+
+        private static bool IsShiftHeld()
+        {
+            return Keyboard.current != null &&
+                (Keyboard.current.leftShiftKey.isPressed ||
+                 Keyboard.current.rightShiftKey.isPressed);
+        }
+
+        private static bool IsCtrlHeld()
+        {
+            return Keyboard.current != null &&
+                (Keyboard.current.leftCtrlKey.isPressed ||
+                 Keyboard.current.rightCtrlKey.isPressed);
         }
 
         /// <summary>

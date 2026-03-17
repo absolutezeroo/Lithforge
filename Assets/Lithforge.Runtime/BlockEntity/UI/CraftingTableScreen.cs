@@ -237,6 +237,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
         }
     }
 }

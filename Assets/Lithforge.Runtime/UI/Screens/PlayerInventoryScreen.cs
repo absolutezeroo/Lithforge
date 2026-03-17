@@ -242,6 +242,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
 
             RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
         }
 
         private void HandleNumberKeys(Keyboard keyboard)

@@ -40,6 +40,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
         }
 
         public void Initialize(ScreenContext context)
