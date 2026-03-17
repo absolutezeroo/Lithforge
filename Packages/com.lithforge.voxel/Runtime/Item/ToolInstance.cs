@@ -162,5 +162,45 @@ namespace Lithforge.Voxel.Item
         {
             return Slots.Length - GetUsedSlots();
         }
+
+        /// <summary>
+        ///     Creates a deep copy of this ToolInstance.
+        ///     All arrays (Parts, Slots, TraitIds) are cloned.
+        /// </summary>
+        public ToolInstance Clone()
+        {
+            ToolInstance copy = new ToolInstance();
+            copy.ToolType = ToolType;
+            copy.BaseDamage = BaseDamage;
+            copy.BaseSpeed = BaseSpeed;
+            copy.CurrentDurability = CurrentDurability;
+            copy.MaxDurability = MaxDurability;
+            copy.IsBroken = IsBroken;
+            copy.EffectiveToolLevel = EffectiveToolLevel;
+
+            if (Parts != null)
+            {
+                copy.Parts = new ToolPart[Parts.Length];
+
+                for (int i = 0; i < Parts.Length; i++)
+                {
+                    copy.Parts[i] = Parts[i];
+
+                    if (Parts[i].TraitIds != null)
+                    {
+                        copy.Parts[i].TraitIds = new ResourceId[Parts[i].TraitIds.Length];
+                        Array.Copy(Parts[i].TraitIds, copy.Parts[i].TraitIds, Parts[i].TraitIds.Length);
+                    }
+                }
+            }
+
+            if (Slots != null)
+            {
+                copy.Slots = new ModifierSlot[Slots.Length];
+                Array.Copy(Slots, copy.Slots, Slots.Length);
+            }
+
+            return copy;
+        }
     }
 }

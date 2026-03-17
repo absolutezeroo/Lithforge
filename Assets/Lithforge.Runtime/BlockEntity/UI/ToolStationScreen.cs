@@ -458,7 +458,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
-            ToolInstance repaired = headToolComp.Tool;
+            ToolInstance repaired = headToolComp.Tool.Clone();
             int baseCurrentDur = repaired.IsBroken ? 0 : repaired.CurrentDurability;
             repaired.SetCurrentDurability(baseCurrentDur + totalRepair);
 
