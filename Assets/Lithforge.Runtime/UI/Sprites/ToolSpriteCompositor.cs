@@ -129,8 +129,13 @@ namespace Lithforge.Runtime.UI.Sprites
                 }
 
                 // Blit through RenderTexture (source textures may be non-readable)
+                // Force Point filtering to prevent bilinear blur on pixel art
+                FilterMode originalFilter = layers[l].filterMode;
+                layers[l].filterMode = FilterMode.Point;
+
                 RenderTexture rt = RenderTexture.GetTemporary(
                     size, size, 0, RenderTextureFormat.ARGB32);
+                rt.filterMode = FilterMode.Point;
                 RenderTexture prev = RenderTexture.active;
                 Graphics.Blit(layers[l], rt);
                 RenderTexture.active = rt;
@@ -140,6 +145,7 @@ namespace Lithforge.Runtime.UI.Sprites
 
                 RenderTexture.active = prev;
                 RenderTexture.ReleaseTemporary(rt);
+                layers[l].filterMode = originalFilter;
 
                 Color32[] layerPixels = scratch.GetPixels32();
 

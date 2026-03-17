@@ -117,10 +117,22 @@ namespace Lithforge.Runtime.UI.Sprites
                 if (resolvedFaces.TryGetValue(baseState, out ResolvedFaceTextures2D faces))
                 {
                     Texture2D topFace = faces.Up;
+                    Texture2D leftFace = faces.South;
+                    Texture2D rightFace = faces.East;
 
                     if (topFace != null)
                     {
-                        Sprite sprite = CreateSpriteFromTexture(topFace);
+                        if (leftFace == null)
+                        {
+                            leftFace = topFace;
+                        }
+
+                        if (rightFace == null)
+                        {
+                            rightFace = topFace;
+                        }
+
+                        Sprite sprite = CreateIsometricBlockSprite(topFace, leftFace, rightFace);
 
                         if (sprite != null)
                         {
@@ -224,6 +236,172 @@ namespace Lithforge.Runtime.UI.Sprites
                 new Rect(0, 0, SpriteSize, SpriteSize),
                 new Vector2(0.5f, 0.5f),
                 SpriteSize);
+        }
+
+        /// <summary>
+        ///     Renders a Minecraft-style isometric block sprite from 3 face textures.
+        ///     Top face rendered as a diamond, left (south) and right (east) faces
+        ///     as parallelograms with darkening for depth illusion.
+        ///     Output is 32x32 with FilterMode.Point for pixel art.
+        /// </summary>
+        private static Sprite CreateIsometricBlockSprite(
+            Texture2D topTex, Texture2D leftTex, Texture2D rightTex)
+        {
+            const int isoSize = 32;
+            const int facePixels = 16;
+
+            Texture2D result = new Texture2D(isoSize, isoSize, TextureFormat.RGBA32, false);
+            result.filterMode = FilterMode.Point;
+            Color32[] pixels = new Color32[isoSize * isoSize];
+
+            Color32 clear = new Color32(0, 0, 0, 0);
+
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = clear;
+            }
+
+            Color32[] topPixels = ReadPixelsAtSize(topTex, facePixels);
+            Color32[] leftPixels = ReadPixelsAtSize(leftTex, facePixels);
+            Color32[] rightPixels = ReadPixelsAtSize(rightTex, facePixels);
+
+            int centerX = isoSize / 2;
+            int topY = isoSize - 1;
+
+            // --- TOP FACE (diamond) ---
+            for (int ty = 0; ty < facePixels; ty++)
+            {
+                for (int tx = 0; tx < facePixels; tx++)
+                {
+                    int sx = centerX + (tx - ty) - 1;
+                    int sy = topY - (tx + ty) / 2;
+
+                    Color32 c = topPixels[ty * facePixels + tx];
+
+                    if (c.a == 0)
+                    {
+                        continue;
+                    }
+
+                    SetPixelSafe(pixels, isoSize, sx, sy, c);
+                    SetPixelSafe(pixels, isoSize, sx + 1, sy, c);
+                }
+            }
+
+            // --- LEFT FACE (south texture, darker) ---
+            const float leftDarken = 0.75f;
+            int leftBaseY = topY - facePixels / 2;
+
+            for (int ty = 0; ty < facePixels; ty++)
+            {
+                for (int tx = 0; tx < facePixels; tx++)
+                {
+                    int sx = centerX - facePixels + tx;
+                    int sy = leftBaseY - ty / 2 - tx;
+
+                    Color32 c = leftPixels[ty * facePixels + tx];
+
+                    if (c.a == 0)
+                    {
+                        continue;
+                    }
+
+                    c = DarkenColor(c, leftDarken);
+                    SetPixelSafe(pixels, isoSize, sx, sy, c);
+
+                    if (ty % 2 == 1)
+                    {
+                        SetPixelSafe(pixels, isoSize, sx, sy - 1, c);
+                    }
+                }
+            }
+
+            // --- RIGHT FACE (east texture, darkest) ---
+            const float rightDarken = 0.55f;
+            int rightBaseY = topY - facePixels / 2;
+
+            for (int ty = 0; ty < facePixels; ty++)
+            {
+                for (int tx = 0; tx < facePixels; tx++)
+                {
+                    int sx = centerX + tx;
+                    int sy = rightBaseY - ty / 2 - (facePixels - 1 - tx);
+
+                    Color32 c = rightPixels[ty * facePixels + tx];
+
+                    if (c.a == 0)
+                    {
+                        continue;
+                    }
+
+                    c = DarkenColor(c, rightDarken);
+                    SetPixelSafe(pixels, isoSize, sx, sy, c);
+
+                    if (ty % 2 == 1)
+                    {
+                        SetPixelSafe(pixels, isoSize, sx, sy - 1, c);
+                    }
+                }
+            }
+
+            result.SetPixels32(pixels);
+            result.Apply();
+
+            return Sprite.Create(
+                result,
+                new Rect(0, 0, isoSize, isoSize),
+                new Vector2(0.5f, 0.5f),
+                isoSize);
+        }
+
+        /// <summary>
+        ///     Reads pixels from a texture at the given size via RenderTexture blit.
+        ///     Handles non-readable textures. Returns Color32 array in bottom-to-top order.
+        /// </summary>
+        private static Color32[] ReadPixelsAtSize(Texture2D source, int size)
+        {
+            if (source == null)
+            {
+                return new Color32[size * size];
+            }
+
+            FilterMode originalFilter = source.filterMode;
+            source.filterMode = FilterMode.Point;
+
+            RenderTexture rt = RenderTexture.GetTemporary(size, size, 0, RenderTextureFormat.ARGB32);
+            rt.filterMode = FilterMode.Point;
+            RenderTexture prev = RenderTexture.active;
+            Graphics.Blit(source, rt);
+            RenderTexture.active = rt;
+
+            Texture2D readable = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            readable.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+            readable.Apply();
+
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+            source.filterMode = originalFilter;
+
+            Color32[] result = readable.GetPixels32();
+            Object.DestroyImmediate(readable);
+            return result;
+        }
+
+        private static void SetPixelSafe(Color32[] pixels, int size, int x, int y, Color32 c)
+        {
+            if (x >= 0 && x < size && y >= 0 && y < size)
+            {
+                pixels[y * size + x] = c;
+            }
+        }
+
+        private static Color32 DarkenColor(Color32 c, float factor)
+        {
+            return new Color32(
+                (byte)(c.r * factor),
+                (byte)(c.g * factor),
+                (byte)(c.b * factor),
+                c.a);
         }
     }
 }
