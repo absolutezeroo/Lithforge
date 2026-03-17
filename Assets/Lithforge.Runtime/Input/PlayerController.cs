@@ -37,6 +37,22 @@ namespace Lithforge.Runtime.Input
         }
 
         /// <summary>
+        /// True if the player's feet are in water.
+        /// </summary>
+        public bool IsInWater
+        {
+            get { return _physicsBody != null ? _physicsBody.IsInWater : false; }
+        }
+
+        /// <summary>
+        /// True if the player's eyes are submerged in water.
+        /// </summary>
+        public bool IsSubmerged
+        {
+            get { return _physicsBody != null ? _physicsBody.IsSubmerged : false; }
+        }
+
+        /// <summary>
         /// Current fly speed in blocks per second.
         /// </summary>
         public float FlySpeed

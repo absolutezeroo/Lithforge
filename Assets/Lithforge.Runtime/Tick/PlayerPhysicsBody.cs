@@ -9,7 +9,7 @@ using Unity.Mathematics;
 namespace Lithforge.Runtime.Tick
 {
     /// <summary>
-    /// Pure simulation body for the player: movement, gravity, collision, fly mode.
+    /// Pure simulation body for the player: movement, gravity, collision, fly mode, swimming.
     /// Operates entirely at fixed tick rate — no reference to Time.deltaTime.
     ///
     /// Position convention: PreviousPosition and CurrentPosition represent the
@@ -26,6 +26,13 @@ namespace Lithforge.Runtime.Tick
         private readonly float _jumpSpeed;
         private readonly float _playerHalfWidth;
         private readonly float _playerHeight;
+        private readonly float _playerEyeHeight;
+
+        // Swim settings
+        private readonly float _swimAcceleration;
+        private readonly float _swimDrag;
+        private readonly float _swimGravity;
+        private readonly float _swimUpSpeed;
 
         // World access
         private readonly ChunkManager _chunkManager;
@@ -42,10 +49,16 @@ namespace Lithforge.Runtime.Tick
 
         // Physics state
         private float _verticalSpeed;
+        private float _horizontalSpeedX;
+        private float _horizontalSpeedZ;
         private float _yaw;
         private float _pitch;
         private bool _onGround;
         private bool _isSprinting;
+
+        // Swim state
+        private bool _inWater;
+        private bool _submerged;
 
         // Fly mode state
         private bool _flyMode;
@@ -85,6 +98,16 @@ namespace Lithforge.Runtime.Tick
             get { return _isSprinting; }
         }
 
+        public bool IsInWater
+        {
+            get { return _inWater; }
+        }
+
+        public bool IsSubmerged
+        {
+            get { return _submerged; }
+        }
+
         public float FlySpeed
         {
             get { return _flySpeed; }
@@ -120,6 +143,11 @@ namespace Lithforge.Runtime.Tick
             _jumpSpeed = physics.JumpVelocity;
             _playerHalfWidth = physics.PlayerHalfWidth;
             _playerHeight = physics.PlayerHeight;
+            _playerEyeHeight = physics.PlayerEyeHeight;
+            _swimAcceleration = physics.SwimAcceleration;
+            _swimDrag = physics.SwimDrag;
+            _swimGravity = physics.SwimGravity;
+            _swimUpSpeed = physics.SwimUpSpeed;
         }
 
         /// <summary>
@@ -211,9 +239,16 @@ namespace Lithforge.Runtime.Tick
             // Snapshot previous position for interpolation
             _previousPosition = _currentPosition;
 
+            // Detect water at feet and eye level
+            UpdateWaterState();
+
             if (_flyMode)
             {
                 TickFlyFromSnapshot(in snapshot, tickDt);
+            }
+            else if (_inWater)
+            {
+                TickSwimFromSnapshot(in snapshot, tickDt);
             }
             else
             {
@@ -223,6 +258,10 @@ namespace Lithforge.Runtime.Tick
 
         private void TickWalkFromSnapshot(in InputSnapshot snapshot, float dt)
         {
+            // Clear swim velocity when walking on land
+            _horizontalSpeedX = 0f;
+            _horizontalSpeedZ = 0f;
+
             float3 displacement = ComputeHorizontalFromSnapshot(
                 in snapshot, dt, _walkSpeed, _sprintSpeed);
 
@@ -342,6 +381,140 @@ namespace Lithforge.Runtime.Tick
             }
 
             return new float3(moveDir.x * speed * dt, 0f, moveDir.z * speed * dt);
+        }
+
+        /// <summary>
+        /// Checks the block at feet position and eye position for fluid.
+        /// Uses LiquidData first, falls back to BlockStateCompact.IsFluid
+        /// for chunks where LiquidData hasn't been initialized yet.
+        /// Sets _inWater (feet in water) and _submerged (eyes in water).
+        /// </summary>
+        private void UpdateWaterState()
+        {
+            int3 feetBlock = new int3(
+                (int)math.floor(_currentPosition.x),
+                (int)math.floor(_currentPosition.y),
+                (int)math.floor(_currentPosition.z));
+
+            int3 eyeBlock = new int3(
+                (int)math.floor(_currentPosition.x),
+                (int)math.floor(_currentPosition.y + _playerEyeHeight),
+                (int)math.floor(_currentPosition.z));
+
+            _inWater = IsBlockFluid(feetBlock);
+            _submerged = IsBlockFluid(eyeBlock);
+        }
+
+        private bool IsBlockFluid(int3 worldCoord)
+        {
+            byte liquidCell = _chunkManager.GetFluidLevel(worldCoord);
+
+            if (liquidCell > 0)
+            {
+                return true;
+            }
+
+            // Fallback: check block state for fluid flag (covers chunks without LiquidData yet)
+            StateId stateId = _chunkManager.GetBlock(worldCoord);
+
+            if (stateId.Value == 0)
+            {
+                return false;
+            }
+
+            if (_nativeStateRegistry.States.IsCreated &&
+                stateId.Value < _nativeStateRegistry.States.Length)
+            {
+                return _nativeStateRegistry.States[stateId.Value].IsFluid;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Swim physics: reduced acceleration, higher drag, lower gravity, buoyancy via jump.
+        /// Minecraft-style parameters: accel 0.02, drag 0.8, gravity 0.02 down per tick.
+        /// </summary>
+        private void TickSwimFromSnapshot(in InputSnapshot snapshot, float dt)
+        {
+            float yawRad = math.radians(snapshot.Yaw);
+            float3 forward = new float3(math.sin(yawRad), 0f, math.cos(yawRad));
+            float3 right = new float3(math.cos(yawRad), 0f, -math.sin(yawRad));
+
+            float3 moveDir = float3.zero;
+
+            if (snapshot.MoveForward)
+            {
+                moveDir += forward;
+            }
+
+            if (snapshot.MoveBack)
+            {
+                moveDir -= forward;
+            }
+
+            if (snapshot.MoveRight)
+            {
+                moveDir += right;
+            }
+
+            if (snapshot.MoveLeft)
+            {
+                moveDir -= right;
+            }
+
+            if (math.lengthsq(moveDir) > 0.001f)
+            {
+                moveDir = math.normalize(moveDir);
+            }
+
+            // Apply swim acceleration (much lower than land)
+            _horizontalSpeedX += moveDir.x * _swimAcceleration * dt;
+            _horizontalSpeedZ += moveDir.z * _swimAcceleration * dt;
+
+            // Swim gravity (very low, floaty feel)
+            _verticalSpeed += _swimGravity * dt;
+
+            // Swim up when holding jump
+            if (snapshot.JumpHeld)
+            {
+                _verticalSpeed += _swimUpSpeed * dt;
+            }
+
+            // Apply drag (per-tick multiplier, independent of dt for fixed tick rate)
+            _horizontalSpeedX *= _swimDrag;
+            _horizontalSpeedZ *= _swimDrag;
+            _verticalSpeed *= _swimDrag;
+
+            // Build displacement from velocity (per-second units, scaled by dt)
+            float3 displacement = new float3(
+                _horizontalSpeedX * dt,
+                _verticalSpeed * dt,
+                _horizontalSpeedZ * dt);
+
+            SolidBlockQuery query = SolidBlockHelper.Build(
+                _currentPosition, displacement, _playerHalfWidth, _playerHeight,
+                _chunkManager, _nativeStateRegistry);
+
+            CollisionResult result = VoxelCollider.Resolve(
+                ref _currentPosition, ref displacement,
+                _playerHalfWidth, _playerHeight, query);
+
+            query.SolidMap.Dispose();
+
+            _onGround = result.OnGround;
+
+            if (result.OnGround && _verticalSpeed < 0f)
+            {
+                _verticalSpeed = 0f;
+            }
+
+            if (result.HitCeiling && _verticalSpeed > 0f)
+            {
+                _verticalSpeed = 0f;
+            }
+
+            _isSprinting = false;
         }
 
         /// <summary>

@@ -1036,7 +1036,10 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
-        private static readonly int3[] s_neighborOffsets = new int3[]
+        /// <summary>
+        /// Face-indexed neighbor offsets: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z.
+        /// </summary>
+        public static readonly int3[] FaceOffsets = new int3[]
         {
             new int3(1, 0, 0),   // 0: +X
             new int3(-1, 0, 0),  // 1: -X
@@ -1045,6 +1048,8 @@ namespace Lithforge.Voxel.Chunk
             new int3(0, 0, 1),   // 4: +Z
             new int3(0, 0, -1),  // 5: -Z
         };
+
+        private static readonly int3[] s_neighborOffsets = FaceOffsets;
 
         /// <summary>
         /// Maps face index to its opposite: +X(0)↔-X(1), +Y(2)↔-Y(3), +Z(4)↔-Z(5).
@@ -1252,6 +1257,80 @@ namespace Lithforge.Voxel.Chunk
             _generatedChunks.Clear();
             _readyChunks.Clear();
             _relightPendingChunks.Clear();
+        }
+
+        /// <summary>
+        /// Returns the chunk at the given coordinate, or null if not loaded.
+        /// Alias for <see cref="GetChunk"/> for clarity in nullable-context usage.
+        /// </summary>
+        public ManagedChunk TryGetChunk(int3 coord)
+        {
+            _chunks.TryGetValue(coord, out ManagedChunk chunk);
+
+            return chunk;
+        }
+
+        /// <summary>
+        /// Returns the last camera chunk coordinate used by <see cref="UpdateLoadingQueue"/>.
+        /// </summary>
+        public int3 GetCameraChunkCoord()
+        {
+            return _lastCameraChunkCoord;
+        }
+
+        /// <summary>
+        /// Fills the result list with chunks that have allocated LiquidData and are
+        /// within the given radius from the camera chunk. Only includes chunks in
+        /// Generated or Ready state.
+        /// </summary>
+        public void FillChunksWithLiquid(List<ManagedChunk> result, int3 cameraChunkCoord, int radius)
+        {
+            result.Clear();
+
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                ManagedChunk chunk = kvp.Value;
+
+                if (!chunk.LiquidData.IsCreated)
+                {
+                    continue;
+                }
+
+                if (chunk.State < ChunkState.Generated)
+                {
+                    continue;
+                }
+
+                int3 diff = chunk.Coord - cameraChunkCoord;
+                int chebyshev = math.max(math.abs(diff.x), math.max(math.abs(diff.y), math.abs(diff.z)));
+
+                if (chebyshev <= radius)
+                {
+                    result.Add(chunk);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the liquid cell byte at a world-space block coordinate.
+        /// Returns 0 (empty) if the chunk is not loaded or has no liquid data.
+        /// </summary>
+        public byte GetFluidLevel(int3 worldCoord)
+        {
+            int3 chunkCoord = WorldToChunk(worldCoord);
+            ManagedChunk chunk = GetChunk(chunkCoord);
+
+            if (chunk == null || !chunk.LiquidData.IsCreated)
+            {
+                return 0;
+            }
+
+            int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
+            int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
+            int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
+            int index = ChunkData.GetIndex(localX, localY, localZ);
+
+            return chunk.LiquidData[index];
         }
     }
 }

@@ -9,7 +9,7 @@
 //   uint Word3  bytes 12-15
 //
 // word0: posX(6) | posY(6) | posZ(6) | normal(3) | ao(2) | blockLight(4) | sunLight(4) | fluidTop(1)
-// word1: texIndex(10) | baseTintType(2) | hasOverlay(1) | overlayTexIndex(10) | overlayTintType(2) | lodScale(2) | pad(5)
+// word1: texIndex(10) | baseTintType(2) | hasOverlay(1) | overlayTexIndex(10) | overlayTintType(2) | lodScale(2) | fluidLevel(3) | pad(2)
 // word2: uvX(8) | uvY(8) | chunkWorldX(16)
 // word3: chunkWorldY(16) | chunkWorldZ(16)
 
@@ -144,9 +144,12 @@ DecodedVertex FetchVertex(uint svVertexID)
         posY * lodScale + (float)cwy,
         posZ * lodScale + (float)cwz);
 
-    // Fluid top face: bit 31 of word0. Apply -0.125 Y offset for water surface.
+    // Fluid top face: bit 31 of word0. fluidLevel: bits 27-29 of word1 (0-7 visual level).
+    // Height formula: (8 - fluidLevel) / 9.0. Source (level 0) = 0.889, weakest (level 7) = 0.111.
     uint fluidTop = (w0 >> 31u) & 0x1u;
-    worldPos.y -= (float)fluidTop * 0.125;
+    uint fluidLevel = (w1 >> 27u) & 0x7u;
+    float fluidHeight = (8.0 - (float)fluidLevel) / 9.0;
+    worldPos.y -= (1.0 - fluidHeight) * (float)fluidTop;
 
     DecodedVertex dv;
     dv.positionOS = worldPos;

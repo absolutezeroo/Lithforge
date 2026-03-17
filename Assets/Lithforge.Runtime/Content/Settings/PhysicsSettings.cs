@@ -85,6 +85,26 @@ namespace Lithforge.Runtime.Content.Settings
         [Min(0.001f)]
         [SerializeField] private float minBreakTime = 0.05f;
 
+        /// <summary>Horizontal swim acceleration in blocks/s^2 (Minecraft-equivalent: 0.6 at 30 TPS).</summary>
+        [Header("Swimming")]
+        [Tooltip("Horizontal movement acceleration in water (blocks/s^2)")]
+        [Min(0f)]
+        [SerializeField] private float swimAcceleration = 0.6f;
+
+        /// <summary>Per-tick drag multiplier applied to velocity while swimming (0.8 = Minecraft).</summary>
+        [Tooltip("Velocity drag per tick in water (0.8 = Minecraft default)")]
+        [Range(0f, 1f)]
+        [SerializeField] private float swimDrag = 0.8f;
+
+        /// <summary>Downward acceleration in water, in blocks/s^2 (reduced from land gravity).</summary>
+        [Tooltip("Gravity in water (blocks/s^2, negative = down)")]
+        [SerializeField] private float swimGravity = -0.6f;
+
+        /// <summary>Upward acceleration when holding jump while swimming, in blocks/s^2.</summary>
+        [Tooltip("Swim-up acceleration when holding jump (blocks/s^2)")]
+        [Min(0f)]
+        [SerializeField] private float swimUpSpeed = 1.2f;
+
         /// <summary>Stack limit used for items whose <c>ItemDefinition</c> does not specify a custom cap.</summary>
         [Header("Items")]
         [Tooltip("Default max stack size when no ItemEntry override exists")]
@@ -173,6 +193,30 @@ namespace Lithforge.Runtime.Content.Settings
         public float MinBreakTime
         {
             get { return minBreakTime; }
+        }
+
+        /// <inheritdoc cref="swimAcceleration"/>
+        public float SwimAcceleration
+        {
+            get { return swimAcceleration; }
+        }
+
+        /// <inheritdoc cref="swimDrag"/>
+        public float SwimDrag
+        {
+            get { return swimDrag; }
+        }
+
+        /// <inheritdoc cref="swimGravity"/>
+        public float SwimGravity
+        {
+            get { return swimGravity; }
+        }
+
+        /// <inheritdoc cref="swimUpSpeed"/>
+        public float SwimUpSpeed
+        {
+            get { return swimUpSpeed; }
         }
 
         /// <inheritdoc cref="defaultMaxStackSize"/>

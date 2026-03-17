@@ -17,14 +17,15 @@ namespace Lithforge.Meshing
     ///   bits 27-30: sunLight    (0-15)
     ///   bit  31:    fluidTop    (1=fluid top face, shader applies -0.125 Y offset)
     ///
-    /// word1: texIndex(10) | baseTintType(2) | hasOverlay(1) | overlayTexIndex(10) | overlayTintType(2) | lodScale(2) | pad(5)
+    /// word1: texIndex(10) | baseTintType(2) | hasOverlay(1) | overlayTexIndex(10) | overlayTintType(2) | lodScale(2) | fluidLevel(3) | pad(2)
     ///   bits  0-9 : texIndex        (0-1023, base texture atlas index)
     ///   bits 10-11: baseTintType    (0=none, 1=grass, 2=foliage, 3=water)
     ///   bit  12:    hasOverlay      (0=no, 1=yes)
     ///   bits 13-22: overlayTexIndex (0-1023, overlay atlas index)
     ///   bits 23-24: overlayTintType (0=none, 1=grass, 2=foliage, 3=water)
     ///   bits 25-26: lodScale        (0=x1, 1=x2, 2=x4, 3=x8)
-    ///   bits 27-31: padding
+    ///   bits 27-29: fluidLevel      (0-7, visual level for water height; 0=source, 1-7=flowing)
+    ///   bits 30-31: padding
     ///
     /// word2: uvX(8) | uvY(8) | chunkWorldX(16)
     ///   bits  0-7 : uvX             (0-255, greedy quad width in voxels)
@@ -57,6 +58,7 @@ namespace Lithforge.Meshing
             int overlayTexIndex,
             int overlayTintType,
             int lodScale,
+            int fluidLevel,
             int uvX, int uvY,
             int chunkWorldX,
             int chunkWorldY,
@@ -78,7 +80,8 @@ namespace Lithforge.Meshing
                     | ((uint)(hasOverlay ? 1u : 0u) << 12)
                     | ((uint)(overlayTexIndex & 0x3FF) << 13)
                     | ((uint)(overlayTintType & 0x3) << 23)
-                    | ((uint)(lodScale & 0x3) << 25);
+                    | ((uint)(lodScale & 0x3) << 25)
+                    | ((uint)(fluidLevel & 0x7) << 27);
 
             v.Word2 = ((uint)(uvX & 0xFF))
                     | ((uint)(uvY & 0xFF) << 8)

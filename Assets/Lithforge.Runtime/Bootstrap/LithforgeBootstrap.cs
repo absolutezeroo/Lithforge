@@ -26,6 +26,7 @@ using Lithforge.Runtime.World;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
+using Lithforge.Voxel.Liquid;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
@@ -84,6 +85,7 @@ namespace Lithforge.Runtime.Bootstrap
         private ChunkMeshStore _chunkMeshStore;
         private GpuBufferResizer _gpuBufferResizer;
         private ChunkPool _chunkPool;
+        private LiquidPool _liquidPool;
         private ContentPipelineResult _contentResult;
         private DecorationStage _decorationStage;
         private GameLoop _gameLoop;
@@ -474,6 +476,12 @@ namespace Lithforge.Runtime.Bootstrap
                 {
                     _chunkManager.Dispose();
                     _chunkManager = null;
+                }
+
+                if (_liquidPool != null)
+                {
+                    _liquidPool.Dispose();
+                    _liquidPool = null;
                 }
 
                 if (_chunkPool != null)
@@ -1395,6 +1403,18 @@ namespace Lithforge.Runtime.Bootstrap
                 tickRegistryRef = new TickRegistry();
                 tickRegistryRef.Register(new MiningTickAdapter(blockInteraction));
                 tickRegistryRef.Register(new BlockEntityTickAdapter(blockEntityTickScheduler));
+
+                // Initialize liquid simulation system
+                _liquidPool = new LiquidPool(64);
+                StateId waterSourceId = FindStateId("lithforge:water");
+                LiquidJobConfig waterConfig = LiquidJobConfig.Water(waterSourceId.Value);
+                LiquidScheduler liquidScheduler = new LiquidScheduler(
+                    _chunkManager,
+                    _liquidPool,
+                    _contentResult.NativeStateRegistry,
+                    waterConfig);
+                _gameLoop.SetLiquidScheduler(liquidScheduler);
+                tickRegistryRef.Register(new LiquidTickAdapter(liquidScheduler));
 
                 WorldSimulation worldSimulation = new WorldSimulation(
                     tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);

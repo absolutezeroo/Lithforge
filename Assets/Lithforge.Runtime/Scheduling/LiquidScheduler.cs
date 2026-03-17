@@ -1,0 +1,599 @@
+using System;
+using System.Collections.Generic;
+using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Liquid;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+
+namespace Lithforge.Runtime.Scheduling
+{
+    /// <summary>
+    /// Main-thread orchestrator for the liquid simulation system.
+    /// Collects candidate chunks, partitions into even/odd parity for checkerboard scheduling,
+    /// copies ghost slabs from neighbor LiquidData, schedules <see cref="LiquidSimJob"/> Burst jobs,
+    /// polls completion, and applies results via ChunkManager.SetBlock().
+    ///
+    /// Integration:
+    /// - <see cref="LiquidTickAdapter"/> calls <see cref="OnSimTick"/> every 8 game ticks.
+    /// - <see cref="PollCompleted"/> is called every frame from GameLoop.Update().
+    /// - Chunk unload handled via <see cref="OnChunkUnloaded"/>.
+    /// </summary>
+    public sealed class LiquidScheduler : IDisposable
+    {
+        private readonly ChunkManager _chunkManager;
+        private readonly LiquidPool _liquidPool;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+        private readonly LiquidJobConfig _waterConfig;
+
+        private readonly List<PendingLiquidJob> _inFlightJobs;
+        private readonly HashSet<int3> _inFlightCoords;
+        private readonly List<ManagedChunk> _candidateCache;
+        private readonly List<int3> _dirtiedChunksCache;
+        private readonly List<int> _fullScanCache;
+        private readonly Dictionary<int3, JobHandle> _evenHandles;
+
+        private bool _disposed;
+
+        public LiquidScheduler(
+            ChunkManager chunkManager,
+            LiquidPool liquidPool,
+            NativeStateRegistry nativeStateRegistry,
+            LiquidJobConfig waterConfig)
+        {
+            _chunkManager = chunkManager;
+            _liquidPool = liquidPool;
+            _nativeStateRegistry = nativeStateRegistry;
+            _waterConfig = waterConfig;
+
+            _inFlightJobs = new List<PendingLiquidJob>(64);
+            _inFlightCoords = new HashSet<int3>();
+            _candidateCache = new List<ManagedChunk>(128);
+            _dirtiedChunksCache = new List<int3>(16);
+            _fullScanCache = new List<int>(256);
+            _evenHandles = new Dictionary<int3, JobHandle>(64);
+        }
+
+        /// <summary>
+        /// Initializes liquid data for a newly generated chunk that contains water.
+        /// Scans BlockData for fluid StateIds and sets corresponding source cells.
+        /// Called by GenerationScheduler after decoration completes.
+        /// </summary>
+        public void InitChunkLiquid(ManagedChunk chunk)
+        {
+            if (chunk.LiquidData.IsCreated)
+            {
+                return;
+            }
+
+            // Scan for fluid blocks
+            bool hasFluid = false;
+            NativeArray<StateId> blockData = chunk.Data;
+
+            for (int i = 0; i < blockData.Length; i++)
+            {
+                StateId stateId = blockData[i];
+                BlockStateCompact compact = _nativeStateRegistry.States[stateId.Value];
+
+                if (compact.IsFluid)
+                {
+                    hasFluid = true;
+                    break;
+                }
+            }
+
+            if (!hasFluid)
+            {
+                return;
+            }
+
+            NativeArray<byte> liquidData = _liquidPool.Checkout();
+
+            for (int i = 0; i < blockData.Length; i++)
+            {
+                StateId stateId = blockData[i];
+                BlockStateCompact compact = _nativeStateRegistry.States[stateId.Value];
+
+                if (compact.IsFluid)
+                {
+                    liquidData[i] = LiquidCell.MakeSource();
+                }
+            }
+
+            chunk.LiquidData = liquidData;
+            chunk.LiquidActiveSet = null; // null = needs full active scan first tick
+        }
+
+        /// <summary>
+        /// Called every 8 game ticks by <see cref="LiquidTickAdapter"/>.
+        /// Schedules liquid sim jobs for eligible chunks using checkerboard partitioning.
+        /// </summary>
+        public void OnSimTick()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            int3 cameraChunkCoord = _chunkManager.GetCameraChunkCoord();
+
+            // Collect candidate chunks
+            _candidateCache.Clear();
+            _chunkManager.FillChunksWithLiquid(_candidateCache, cameraChunkCoord, LiquidConstants.SimRadius);
+
+            if (_candidateCache.Count == 0)
+            {
+                return;
+            }
+
+            _evenHandles.Clear();
+
+            int scheduled = 0;
+
+            // Phase 1: Schedule even parity chunks
+            for (int i = 0; i < _candidateCache.Count && scheduled < LiquidConstants.MaxJobsPerTick; i++)
+            {
+                ManagedChunk chunk = _candidateCache[i];
+                int3 coord = chunk.Coord;
+
+                if (_inFlightCoords.Contains(coord))
+                {
+                    continue;
+                }
+
+                int parity = (coord.x + coord.y + coord.z) & 1;
+
+                if (parity != 0)
+                {
+                    continue;
+                }
+
+                if (chunk.State < ChunkState.Generated)
+                {
+                    continue;
+                }
+
+                PendingLiquidJob pending = ScheduleJob(chunk, default(JobHandle), 0);
+                _inFlightJobs.Add(pending);
+                _inFlightCoords.Add(coord);
+                _evenHandles[coord] = pending.Handle;
+                scheduled++;
+            }
+
+            JobHandle.ScheduleBatchedJobs();
+
+            // Phase 2: Schedule odd parity chunks with dependency on even neighbors
+            for (int i = 0; i < _candidateCache.Count && scheduled < LiquidConstants.MaxJobsPerTick; i++)
+            {
+                ManagedChunk chunk = _candidateCache[i];
+                int3 coord = chunk.Coord;
+
+                if (_inFlightCoords.Contains(coord))
+                {
+                    continue;
+                }
+
+                int parity = (coord.x + coord.y + coord.z) & 1;
+
+                if (parity != 1)
+                {
+                    continue;
+                }
+
+                if (chunk.State < ChunkState.Generated)
+                {
+                    continue;
+                }
+
+                // Build dependency on even-parity neighbors
+                JobHandle dependency = default(JobHandle);
+                int depCount = 0;
+
+                for (int face = 0; face < 6; face++)
+                {
+                    int3 neighborCoord = coord + ChunkManager.FaceOffsets[face];
+
+                    if (_evenHandles.TryGetValue(neighborCoord, out JobHandle evenHandle))
+                    {
+                        if (depCount == 0)
+                        {
+                            dependency = evenHandle;
+                        }
+                        else
+                        {
+                            dependency = JobHandle.CombineDependencies(dependency, evenHandle);
+                        }
+
+                        depCount++;
+                    }
+                }
+
+                PendingLiquidJob pending = ScheduleJob(chunk, dependency, 1);
+                _inFlightJobs.Add(pending);
+                _inFlightCoords.Add(coord);
+                scheduled++;
+            }
+
+            if (scheduled > 0)
+            {
+                JobHandle.ScheduleBatchedJobs();
+            }
+        }
+
+        private PendingLiquidJob ScheduleJob(ManagedChunk chunk, JobHandle dependency, byte parity)
+        {
+            NativeArray<int> inputActiveSet = BuildInputActiveSet(chunk);
+
+            // Allocate output containers
+            NativeList<LiquidChunkEdit> outputEdits = new NativeList<LiquidChunkEdit>(
+                64, Allocator.TempJob);
+            NativeList<int> outputActiveSet = new NativeList<int>(
+                inputActiveSet.Length, Allocator.TempJob);
+            NativeArray<byte> bfsVisited = new NativeArray<byte>(
+                128, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            // Copy ghost slabs from neighbors
+            int slabSize = ChunkConstants.SizeSquared;
+            NativeArray<byte> ghostPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostPosY = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostNegY = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostNegZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            CopyGhostSlab(chunk, 0, ghostPosX);
+            CopyGhostSlab(chunk, 1, ghostNegX);
+            CopyGhostSlab(chunk, 2, ghostPosY);
+            CopyGhostSlab(chunk, 3, ghostNegY);
+            CopyGhostSlab(chunk, 4, ghostPosZ);
+            CopyGhostSlab(chunk, 5, ghostNegZ);
+
+            LiquidSimJob job = new LiquidSimJob
+            {
+                LiquidData = chunk.LiquidData,
+                BlockData = chunk.Data,
+                StateTable = _nativeStateRegistry.States,
+                InputActiveSet = inputActiveSet,
+                GhostPosX = ghostPosX,
+                GhostNegX = ghostNegX,
+                GhostPosY = ghostPosY,
+                GhostNegY = ghostNegY,
+                GhostPosZ = ghostPosZ,
+                GhostNegZ = ghostNegZ,
+                BfsVisited = bfsVisited,
+                Config = _waterConfig,
+                OutputEdits = outputEdits,
+                OutputActiveSet = outputActiveSet,
+            };
+
+            JobHandle handle = job.Schedule(dependency);
+
+            return new PendingLiquidJob
+            {
+                ChunkCoord = chunk.Coord,
+                Handle = handle,
+                OutputEdits = outputEdits,
+                OutputActiveSet = outputActiveSet,
+                InputActiveSet = inputActiveSet,
+                BfsVisited = bfsVisited,
+                GhostPosX = ghostPosX,
+                GhostNegX = ghostNegX,
+                GhostPosY = ghostPosY,
+                GhostNegY = ghostNegY,
+                GhostPosZ = ghostPosZ,
+                GhostNegZ = ghostNegZ,
+                FrameAge = 0,
+                Parity = parity,
+            };
+        }
+
+        private NativeArray<int> BuildInputActiveSet(ManagedChunk chunk)
+        {
+            if (chunk.LiquidActiveSet == null)
+            {
+                // null = full scan: add all non-empty liquid voxels
+                _fullScanCache.Clear();
+
+                for (int i = 0; i < chunk.LiquidData.Length; i++)
+                {
+                    byte cell = chunk.LiquidData[i];
+
+                    if (LiquidCell.HasLiquid(cell) && !LiquidCell.IsSettled(cell))
+                    {
+                        _fullScanCache.Add(i);
+                    }
+                }
+
+                NativeArray<int> result = new NativeArray<int>(
+                    _fullScanCache.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+                for (int i = 0; i < _fullScanCache.Count; i++)
+                {
+                    result[i] = _fullScanCache[i];
+                }
+
+                return result;
+            }
+            else
+            {
+                NativeArray<int> result = new NativeArray<int>(
+                    chunk.LiquidActiveSet.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+                for (int i = 0; i < chunk.LiquidActiveSet.Count; i++)
+                {
+                    result[i] = chunk.LiquidActiveSet[i];
+                }
+
+                return result;
+            }
+        }
+
+        private void CopyGhostSlab(ManagedChunk chunk, int face, NativeArray<byte> output)
+        {
+            ManagedChunk neighbor = chunk.Neighbors[face];
+
+            if (neighbor == null || !neighbor.LiquidData.IsCreated)
+            {
+                return; // output stays zeroed (empty liquid)
+            }
+
+            NativeArray<byte> neighborLiquid = neighbor.LiquidData;
+            int size = ChunkConstants.Size;
+            int lastIdx = size - 1;
+
+            switch (face)
+            {
+                case 0: // +X: extract neighbor's x=0 face, layout [y * size + z]
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(0, v, u);
+                            output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+
+                case 1: // -X: extract neighbor's x=31 face
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(lastIdx, v, u);
+                            output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+
+                case 2: // +Y: extract neighbor's y=0 face, layout [z * size + x]
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(u, 0, v);
+                            output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+
+                case 3: // -Y: extract neighbor's y=31 face
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(u, lastIdx, v);
+                            output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+
+                case 4: // +Z: extract neighbor's z=0 face, layout [y * size + x]
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(u, v, 0);
+                            output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+
+                case 5: // -Z: extract neighbor's z=31 face
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(u, v, lastIdx);
+                            output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Polls and completes in-flight liquid jobs. Called every frame from GameLoop.
+        /// </summary>
+        public void PollCompleted()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            int completions = 0;
+
+            for (int i = _inFlightJobs.Count - 1; i >= 0; i--)
+            {
+                PendingLiquidJob pending = _inFlightJobs[i];
+                pending.FrameAge++;
+                _inFlightJobs[i] = pending;
+
+                bool forceComplete = pending.FrameAge >= LiquidConstants.MaxJobFrameAge;
+
+                if (!pending.Handle.IsCompleted && !forceComplete)
+                {
+                    continue;
+                }
+
+                if (completions >= LiquidConstants.MaxCompletionsPerFrame && !forceComplete)
+                {
+                    continue;
+                }
+
+                pending.Handle.Complete();
+                ApplyJobResults(pending);
+                pending.DisposeContainers();
+
+                _inFlightCoords.Remove(pending.ChunkCoord);
+                _inFlightJobs[i] = _inFlightJobs[_inFlightJobs.Count - 1];
+                _inFlightJobs.RemoveAt(_inFlightJobs.Count - 1);
+
+                completions++;
+            }
+        }
+
+        private void ApplyJobResults(PendingLiquidJob pending)
+        {
+            // Update active set on the chunk
+            ManagedChunk chunk = _chunkManager.TryGetChunk(pending.ChunkCoord);
+
+            if (chunk == null)
+            {
+                return; // chunk was unloaded
+            }
+
+            // Rebuild active set from output
+            if (chunk.LiquidActiveSet == null)
+            {
+                chunk.LiquidActiveSet = new List<int>(pending.OutputActiveSet.Length);
+            }
+            else
+            {
+                chunk.LiquidActiveSet.Clear();
+            }
+
+            for (int i = 0; i < pending.OutputActiveSet.Length; i++)
+            {
+                chunk.LiquidActiveSet.Add(pending.OutputActiveSet[i]);
+            }
+
+            // Apply edits to ChunkManager (triggers relight + remesh)
+            _dirtiedChunksCache.Clear();
+
+            for (int i = 0; i < pending.OutputEdits.Length; i++)
+            {
+                LiquidChunkEdit edit = pending.OutputEdits[i];
+
+                int3 targetChunkCoord = pending.ChunkCoord + edit.ChunkOffset;
+
+                if (edit.ChunkOffset.x == 0 && edit.ChunkOffset.y == 0 && edit.ChunkOffset.z == 0)
+                {
+                    // Same chunk: already written to LiquidData by the job.
+                    // Just update the block StateId.
+                    int y = edit.FlatIndex / ChunkConstants.SizeSquared;
+                    int remainder = edit.FlatIndex - (y * ChunkConstants.SizeSquared);
+                    int z = remainder / ChunkConstants.Size;
+                    int x = remainder - (z * ChunkConstants.Size);
+
+                    int3 worldCoord = chunk.Coord * ChunkConstants.Size + new int3(x, y, z);
+                    _chunkManager.SetBlock(worldCoord, edit.NewStateId, _dirtiedChunksCache);
+                }
+                else
+                {
+                    // Cross-boundary edit: update both LiquidData and BlockData on neighbor
+                    ManagedChunk targetChunk = _chunkManager.TryGetChunk(targetChunkCoord);
+
+                    if (targetChunk != null)
+                    {
+                        if (!targetChunk.LiquidData.IsCreated)
+                        {
+                            targetChunk.LiquidData = _liquidPool.Checkout();
+                            targetChunk.LiquidActiveSet = null;
+                        }
+
+                        NativeArray<byte> targetLiquid = targetChunk.LiquidData;
+                        targetLiquid[edit.FlatIndex] = edit.NewLiquidCell;
+                        targetChunk.LiquidActiveSet = null; // force full scan next tick
+
+                        int y = edit.FlatIndex / ChunkConstants.SizeSquared;
+                        int remainder = edit.FlatIndex - (y * ChunkConstants.SizeSquared);
+                        int z = remainder / ChunkConstants.Size;
+                        int x = remainder - (z * ChunkConstants.Size);
+
+                        int3 worldCoord = targetChunkCoord * ChunkConstants.Size + new int3(x, y, z);
+                        _chunkManager.SetBlock(worldCoord, edit.NewStateId, _dirtiedChunksCache);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called when a chunk is unloaded. Force-completes any in-flight job for that
+        /// coord and returns liquid data to the pool.
+        /// </summary>
+        public void OnChunkUnloaded(int3 coord)
+        {
+            // Force-complete in-flight job for this coord
+            for (int i = _inFlightJobs.Count - 1; i >= 0; i--)
+            {
+                PendingLiquidJob pending = _inFlightJobs[i];
+
+                if (pending.ChunkCoord.Equals(coord))
+                {
+                    pending.Handle.Complete();
+                    pending.DisposeContainers();
+                    _inFlightCoords.Remove(coord);
+                    _inFlightJobs[i] = _inFlightJobs[_inFlightJobs.Count - 1];
+                    _inFlightJobs.RemoveAt(_inFlightJobs.Count - 1);
+                    break;
+                }
+            }
+
+            // Return liquid data to pool
+            ManagedChunk chunk = _chunkManager.TryGetChunk(coord);
+
+            if (chunk != null && chunk.LiquidData.IsCreated)
+            {
+                _liquidPool.Return(chunk.LiquidData);
+                chunk.LiquidData = default;
+                chunk.LiquidActiveSet = null;
+            }
+        }
+
+        /// <summary>
+        /// Shuts down the scheduler: force-completes all in-flight jobs.
+        /// </summary>
+        public void Shutdown()
+        {
+            for (int i = 0; i < _inFlightJobs.Count; i++)
+            {
+                PendingLiquidJob pending = _inFlightJobs[i];
+                pending.Handle.Complete();
+                pending.DisposeContainers();
+            }
+
+            _inFlightJobs.Clear();
+            _inFlightCoords.Clear();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            Shutdown();
+            _liquidPool.Dispose();
+        }
+    }
+}

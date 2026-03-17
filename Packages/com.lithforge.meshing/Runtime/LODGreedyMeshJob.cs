@@ -275,25 +275,25 @@ namespace Lithforge.Meshing
                 px00, py00, pz00, face, ao, blockLight, sunLight, false,
                 texIndex, baseTintType, hasOverlay,
                 hasOverlay ? overlayTexIdx : 0, overlayTintType,
-                LODScaleIndex, 0, 0, cwx, cwy, cwz));
+                LODScaleIndex, 0, 0, 0, cwx, cwy, cwz));
 
             Vertices.Add(PackedMeshVertex.Pack(
                 px10, py10, pz10, face, ao, blockLight, sunLight, false,
                 texIndex, baseTintType, hasOverlay,
                 hasOverlay ? overlayTexIdx : 0, overlayTintType,
-                LODScaleIndex, width, 0, cwx, cwy, cwz));
+                LODScaleIndex, 0, width, 0, cwx, cwy, cwz));
 
             Vertices.Add(PackedMeshVertex.Pack(
                 px11, py11, pz11, face, ao, blockLight, sunLight, false,
                 texIndex, baseTintType, hasOverlay,
                 hasOverlay ? overlayTexIdx : 0, overlayTintType,
-                LODScaleIndex, width, height, cwx, cwy, cwz));
+                LODScaleIndex, 0, width, height, cwx, cwy, cwz));
 
             Vertices.Add(PackedMeshVertex.Pack(
                 px01, py01, pz01, face, ao, blockLight, sunLight, false,
                 texIndex, baseTintType, hasOverlay,
                 hasOverlay ? overlayTexIdx : 0, overlayTintType,
-                LODScaleIndex, 0, height, cwx, cwy, cwz));
+                LODScaleIndex, 0, 0, height, cwx, cwy, cwz));
 
             // Standard winding (no AO diagonal flip for LOD — AO is uniform)
             Indices.Add(vertexStart);

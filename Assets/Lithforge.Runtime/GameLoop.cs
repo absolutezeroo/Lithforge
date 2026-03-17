@@ -55,6 +55,9 @@ namespace Lithforge.Runtime
         private IPipelineStats _pipelineStats = new NullPipelineStats();
         private GpuBufferResizer _gpuBufferResizer;
 
+        // Liquid simulation
+        private LiquidScheduler _liquidScheduler;
+
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
         private WorldSimulation _worldSimulation;
@@ -226,6 +229,17 @@ namespace Lithforge.Runtime
         }
 
         /// <summary>
+        /// Sets the liquid scheduler for liquid simulation polling and chunk unload cleanup.
+        /// Also wires it to the generation scheduler for InitChunkLiquid on newly generated chunks.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetLiquidScheduler(LiquidScheduler liquidScheduler)
+        {
+            _liquidScheduler = liquidScheduler;
+            _generationScheduler.SetLiquidScheduler(liquidScheduler);
+        }
+
+        /// <summary>
         /// Sets the player model renderer and player references for body rendering.
         /// Must be called after Initialize.
         /// </summary>
@@ -350,6 +364,10 @@ namespace Lithforge.Runtime
             _relightScheduler.PollCompleted();
             Profiler.EndSample();
 
+            Profiler.BeginSample("GL.PollLiquid");
+            _liquidScheduler?.PollCompleted();
+            Profiler.EndSample();
+
             Profiler.BeginSample("GL.PollMesh");
             _frameProfiler.Begin(FrameProfilerSections.PollMesh);
             _meshScheduler.PollCompleted();
@@ -396,6 +414,9 @@ namespace Lithforge.Runtime
 
                     // Clean up block entity scheduler tracking for the unloaded chunk
                     _blockEntityTickScheduler?.OnChunkUnloaded(coord);
+
+                    // Return liquid data to pool for the unloaded chunk
+                    _liquidScheduler?.OnChunkUnloaded(coord);
 
                     _chunkMeshStore.DestroyRenderer(coord);
                     _biomeTintManager?.OnChunkUnloaded(coord);
@@ -546,6 +567,7 @@ namespace Lithforge.Runtime
 
         public void Shutdown()
         {
+            _liquidScheduler?.Shutdown();
             _generationScheduler?.Shutdown();
             _relightScheduler?.Shutdown();
             _meshScheduler?.Shutdown();

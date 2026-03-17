@@ -142,6 +142,22 @@ namespace Lithforge.Voxel.Chunk
         public Dictionary<int, IBlockEntity> BlockEntities { get; private set; }
 
         /// <summary>
+        /// Per-voxel liquid state (32768 bytes, 1 byte per voxel).
+        /// Default NativeArray (IsCreated=false) until the chunk first receives liquid.
+        /// Byte encoding: see <see cref="Lithforge.Voxel.Liquid.LiquidCell"/>.
+        /// Owner: ManagedChunk (checked out from LiquidPool). Returned on unload.
+        /// </summary>
+        public NativeArray<byte> LiquidData { get; set; }
+
+        /// <summary>
+        /// Flat voxel indices of liquid voxels that had state changes last liquid tick.
+        /// null = all liquid voxels are active (initial state or after block edit).
+        /// empty list = fully settled, skip scheduling.
+        /// Owner: ManagedChunk. Populated by LiquidScheduler after each job completion.
+        /// </summary>
+        public List<int> LiquidActiveSet { get; set; }
+
+        /// <summary>
         /// 6-bit bitmask: bit f is set when the face-f neighbor exists at state
         /// >= RelightPending. Face order: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z.
         /// Bits for Y-boundary faces (no chunk above/below world range) are pre-set

@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Liquid;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -30,6 +31,7 @@ namespace Lithforge.Meshing
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
         [ReadOnly] public NativeArray<AtlasEntry> AtlasEntries;
         [ReadOnly] public NativeArray<byte> LightData;
+        [ReadOnly] public NativeArray<byte> LiquidData;
 
         /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
         public int3 ChunkCoord;
@@ -60,6 +62,7 @@ namespace Lithforge.Meshing
             NativeArray<byte> faceAO01 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
             NativeArray<byte> faceAO11 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
             NativeArray<byte> faceLight = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceFluidLevel = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
 
             for (int slice = 0; slice < ChunkConstants.Size; slice++)
             {
@@ -70,10 +73,10 @@ namespace Lithforge.Meshing
                 }
 
                 // Build face visibility mask and compute AO
-                BuildFaceMask(face, slice, rowMask, faceStateId, faceRenderLayer, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
+                BuildFaceMask(face, slice, rowMask, faceStateId, faceRenderLayer, faceAO00, faceAO10, faceAO01, faceAO11, faceLight, faceFluidLevel);
 
                 // Greedy merge and emit quads
-                GreedyMerge(face, slice, rowMask, faceStateId, faceRenderLayer, faceAO00, faceAO10, faceAO01, faceAO11, faceLight);
+                GreedyMerge(face, slice, rowMask, faceStateId, faceRenderLayer, faceAO00, faceAO10, faceAO01, faceAO11, faceLight, faceFluidLevel);
             }
 
             rowMask.Dispose();
@@ -84,6 +87,7 @@ namespace Lithforge.Meshing
             faceAO01.Dispose();
             faceAO11.Dispose();
             faceLight.Dispose();
+            faceFluidLevel.Dispose();
         }
 
         private void BuildFaceMask(
@@ -93,7 +97,8 @@ namespace Lithforge.Meshing
             NativeArray<byte> faceRenderLayer,
             NativeArray<byte> faceAO00, NativeArray<byte> faceAO10,
             NativeArray<byte> faceAO01, NativeArray<byte> faceAO11,
-            NativeArray<byte> faceLight)
+            NativeArray<byte> faceLight,
+            NativeArray<byte> faceFluidLevel)
         {
             for (int v = 0; v < ChunkConstants.Size; v++)
             {
@@ -144,6 +149,19 @@ namespace Lithforge.Meshing
 
                         // Sample light at the exposed side (air/transparent neighbor)
                         faceLight[idx] = SampleLight(neighborPos);
+
+                        // Read liquid visual level for fluid top faces
+                        byte fluidLevel = 0;
+
+                        if (face == 2 && blockState.IsFluid && LiquidData.IsCreated)
+                        {
+                            int flatIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
+                                blockPos.x, blockPos.y, blockPos.z);
+                            byte cell = LiquidData[flatIndex];
+                            fluidLevel = LiquidCell.GetVisualLevel(cell);
+                        }
+
+                        faceFluidLevel[idx] = fluidLevel;
                     }
                 }
             }
@@ -156,7 +174,8 @@ namespace Lithforge.Meshing
             NativeArray<byte> faceRenderLayer,
             NativeArray<byte> faceAO00, NativeArray<byte> faceAO10,
             NativeArray<byte> faceAO01, NativeArray<byte> faceAO11,
-            NativeArray<byte> faceLight)
+            NativeArray<byte> faceLight,
+            NativeArray<byte> faceFluidLevel)
         {
             for (int v = 0; v < ChunkConstants.Size; v++)
             {
@@ -173,6 +192,7 @@ namespace Lithforge.Meshing
                     byte ao01 = faceAO01[idx0];
                     byte ao11 = faceAO11[idx0];
                     byte light = faceLight[idx0];
+                    byte fluidLevel = faceFluidLevel[idx0];
 
                     // Extend width
                     int width = 1;
@@ -190,7 +210,8 @@ namespace Lithforge.Meshing
                             faceRenderLayer[idxW] != renderLayer ||
                             faceAO00[idxW] != ao00 || faceAO10[idxW] != ao10 ||
                             faceAO01[idxW] != ao01 || faceAO11[idxW] != ao11 ||
-                            (faceLight[idxW] >> 2) != (light >> 2))
+                            (faceLight[idxW] >> 2) != (light >> 2) ||
+                            faceFluidLevel[idxW] != fluidLevel)
                         {
                             break;
                         }
@@ -222,7 +243,8 @@ namespace Lithforge.Meshing
                                 faceRenderLayer[idxH] != renderLayer ||
                                 faceAO00[idxH] != ao00 || faceAO10[idxH] != ao10 ||
                                 faceAO01[idxH] != ao01 || faceAO11[idxH] != ao11 ||
-                                (faceLight[idxH] >> 2) != (light >> 2))
+                                (faceLight[idxH] >> 2) != (light >> 2) ||
+                                faceFluidLevel[idxH] != fluidLevel)
                             {
                                 canExtend = false;
 
@@ -240,7 +262,7 @@ namespace Lithforge.Meshing
 
                     // Emit the greedy quad
                     EmitGreedyQuad(face, slice, u0, v, width, height, stateVal,
-                        ao00, ao10, ao01, ao11, light, renderLayer);
+                        ao00, ao10, ao01, ao11, light, renderLayer, fluidLevel);
 
                     // Clear consumed bits
                     uint clearMask = 0u;
@@ -264,7 +286,7 @@ namespace Lithforge.Meshing
         private void EmitGreedyQuad(
             int face, int slice, int u0, int v0, int width, int height,
             ushort stateVal, byte ao00, byte ao10, byte ao01, byte ao11, byte light,
-            byte renderLayer)
+            byte renderLayer, byte fluidLevel)
         {
             // Route to correct buffer: renderLayer 0=opaque, 1=cutout, 2=translucent
             NativeList<PackedMeshVertex> targetVertices;
@@ -358,22 +380,22 @@ namespace Lithforge.Meshing
             targetVertices.Add(PackedMeshVertex.Pack(
                 px00, py00, pz00, face, ao00, blockLight, sunLight, fluidTop,
                 texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
-                0, 0, 0, cwx, cwy, cwz));
+                0, fluidLevel, 0, 0, cwx, cwy, cwz));
 
             targetVertices.Add(PackedMeshVertex.Pack(
                 px10, py10, pz10, face, ao10, blockLight, sunLight, fluidTop,
                 texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
-                0, width, 0, cwx, cwy, cwz));
+                0, fluidLevel, width, 0, cwx, cwy, cwz));
 
             targetVertices.Add(PackedMeshVertex.Pack(
                 px11, py11, pz11, face, ao11, blockLight, sunLight, fluidTop,
                 texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
-                0, width, height, cwx, cwy, cwz));
+                0, fluidLevel, width, height, cwx, cwy, cwz));
 
             targetVertices.Add(PackedMeshVertex.Pack(
                 px01, py01, pz01, face, ao01, blockLight, sunLight, fluidTop,
                 texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
-                0, 0, height, cwx, cwy, cwz));
+                0, fluidLevel, 0, height, cwx, cwy, cwz));
 
             // AO diagonal flip: use the diagonal that minimizes anisotropy.
             // When ao00+ao11 > ao10+ao01, the 00-11 diagonal has more contrast,

@@ -111,6 +111,12 @@ namespace Lithforge.Runtime.Scheduling
         private BlockEntityRegistry _blockEntityRegistry;
 
         /// <summary>
+        /// Optional liquid scheduler for initializing liquid data on newly generated chunks.
+        /// Set via SetLiquidScheduler after construction.
+        /// </summary>
+        private LiquidScheduler _liquidScheduler;
+
+        /// <summary>
         /// Called after a chunk with block entities is loaded from storage.
         /// Parameters: chunkCoord, ManagedChunk.
         /// Used by BlockEntityTickScheduler to register entities for ticking.
@@ -133,6 +139,12 @@ namespace Lithforge.Runtime.Scheduling
         public void SetBlockEntityRegistry(BlockEntityRegistry registry)
         {
             _blockEntityRegistry = registry;
+        }
+
+        /// <summary>Injects the liquid scheduler so completed chunks can initialize liquid data.</summary>
+        public void SetLiquidScheduler(LiquidScheduler liquidScheduler)
+        {
+            _liquidScheduler = liquidScheduler;
         }
 
         public GenerationScheduler(
@@ -236,6 +248,9 @@ namespace Lithforge.Runtime.Scheduling
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
                         _pipelineStats.IncrGenCompleted();
+
+                        // Initialize liquid data for chunks containing water
+                        _liquidScheduler?.InitChunkLiquid(chunk);
 
                         // Collect border light leaks for cross-chunk propagation
                         CollectBorderLightEntries(chunk, pending.Handle.BorderLightOutput);

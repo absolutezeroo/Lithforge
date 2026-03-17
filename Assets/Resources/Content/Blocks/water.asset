@@ -20,7 +20,7 @@ MonoBehaviour:
   materialType: 0
   requiredToolLevel: 0
   soundGroup: water
-  collisionShape: 1
+  collisionShape: 0
   renderLayer: 2
   isFluid: 1
   defaultTintType: 3
