@@ -133,7 +133,15 @@ namespace Lithforge.Meshing
                         }
                         else
                         {
-                            shouldRender = !neighborState.IsOpaque && neighborId.Value != blockId.Value;
+                            if (blockState.IsFluid && neighborState.IsFluid)
+                            {
+                                // Same fluid type at any level: cull internal face
+                                shouldRender = false;
+                            }
+                            else
+                            {
+                                shouldRender = !neighborState.IsOpaque && neighborId.Value != blockId.Value;
+                            }
                         }
                     }
 

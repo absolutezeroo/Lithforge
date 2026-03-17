@@ -89,21 +89,21 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Swimming")]
         [Tooltip("Horizontal movement acceleration in water (blocks/s^2)")]
         [Min(0f)]
-        [SerializeField] private float swimAcceleration = 0.6f;
+        [SerializeField] private float swimAcceleration = 9.6f;
 
-        /// <summary>Per-tick drag multiplier applied to velocity while swimming (0.8 = Minecraft).</summary>
-        [Tooltip("Velocity drag per tick in water (0.8 = Minecraft default)")]
+        /// <summary>Per-tick drag multiplier applied to velocity while swimming.</summary>
+        [Tooltip("Velocity drag per tick in water (0.86 = Minecraft-equivalent at 30 TPS)")]
         [Range(0f, 1f)]
-        [SerializeField] private float swimDrag = 0.8f;
+        [SerializeField] private float swimDrag = 0.86f;
 
         /// <summary>Downward acceleration in water, in blocks/s^2 (reduced from land gravity).</summary>
         [Tooltip("Gravity in water (blocks/s^2, negative = down)")]
-        [SerializeField] private float swimGravity = -0.6f;
+        [SerializeField] private float swimGravity = -1.9f;
 
         /// <summary>Upward acceleration when holding jump while swimming, in blocks/s^2.</summary>
         [Tooltip("Swim-up acceleration when holding jump (blocks/s^2)")]
         [Min(0f)]
-        [SerializeField] private float swimUpSpeed = 1.2f;
+        [SerializeField] private float swimUpSpeed = 3.4f;
 
         /// <summary>Stack limit used for items whose <c>ItemDefinition</c> does not specify a custom cap.</summary>
         [Header("Items")]

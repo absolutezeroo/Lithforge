@@ -1074,6 +1074,7 @@ namespace Lithforge.Runtime.Bootstrap
                     new LocalInventoryCommandProcessor(playerInventory);
                 LocalCommandProcessor commandProcessor = new LocalCommandProcessor(
                     _chunkManager,
+                    _contentResult.NativeStateRegistry,
                     playerObject.transform,
                     _settings.Physics.PlayerHalfWidth,
                     _settings.Physics.PlayerHeight,

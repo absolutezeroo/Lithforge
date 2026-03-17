@@ -724,6 +724,144 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
+        /// Called when a block is placed or broken by the player.
+        /// Updates LiquidData if the target voxel contained liquid, and wakes
+        /// settled liquid neighbors so flow can re-evaluate.
+        /// </summary>
+        public void OnBlockChanged(int3 worldCoord, StateId newStateId)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            int3 chunkCoord = ChunkManager.WorldToChunk(worldCoord);
+            ManagedChunk chunk = _chunkManager.TryGetChunk(chunkCoord);
+
+            if (chunk == null)
+            {
+                return;
+            }
+
+            int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
+            int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
+            int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
+            int flatIndex = ChunkData.GetIndex(localX, localY, localZ);
+
+            // If a liquid job is in-flight for this chunk, skip LiquidData write.
+            // The null active set will force a full rescan after the job completes.
+            if (!_inFlightCoords.Contains(chunkCoord))
+            {
+                bool newIsFluid = _nativeStateRegistry.States.IsCreated &&
+                    newStateId.Value < _nativeStateRegistry.States.Length &&
+                    _nativeStateRegistry.States[newStateId.Value].IsFluid;
+
+                if (chunk.LiquidData.IsCreated)
+                {
+                    if (!newIsFluid)
+                    {
+                        // Block placed over water, or water broken: clear the liquid cell
+                        NativeArray<byte> liquidData = chunk.LiquidData;
+                        liquidData[flatIndex] = LiquidCell.Empty;
+                    }
+                }
+
+                if (newIsFluid)
+                {
+                    // Fluid block placed (e.g., water bucket): set liquid cell to source
+                    if (!chunk.LiquidData.IsCreated)
+                    {
+                        chunk.LiquidData = _liquidPool.Checkout();
+                        chunk.LiquidActiveSet = null;
+                    }
+
+                    NativeArray<byte> liquidData = chunk.LiquidData;
+                    liquidData[flatIndex] = LiquidCell.MakeSource();
+                }
+            }
+
+            WakeChunkAndNeighbors(chunkCoord, localX, localY, localZ, chunk);
+        }
+
+        private void WakeChunkAndNeighbors(int3 chunkCoord, int lx, int ly, int lz, ManagedChunk chunk)
+        {
+            chunk.LiquidActiveSet = null;
+
+            ClearSettledAt(chunk, lx + 1, ly, lz);
+            ClearSettledAt(chunk, lx - 1, ly, lz);
+            ClearSettledAt(chunk, lx, ly + 1, lz);
+            ClearSettledAt(chunk, lx, ly - 1, lz);
+            ClearSettledAt(chunk, lx, ly, lz + 1);
+            ClearSettledAt(chunk, lx, ly, lz - 1);
+
+            int size = ChunkConstants.Size;
+
+            if (lx == 0)
+            {
+                WakeNeighborChunk(chunkCoord + new int3(-1, 0, 0));
+            }
+
+            if (lx == size - 1)
+            {
+                WakeNeighborChunk(chunkCoord + new int3(1, 0, 0));
+            }
+
+            if (ly == 0)
+            {
+                WakeNeighborChunk(chunkCoord + new int3(0, -1, 0));
+            }
+
+            if (ly == size - 1)
+            {
+                WakeNeighborChunk(chunkCoord + new int3(0, 1, 0));
+            }
+
+            if (lz == 0)
+            {
+                WakeNeighborChunk(chunkCoord + new int3(0, 0, -1));
+            }
+
+            if (lz == size - 1)
+            {
+                WakeNeighborChunk(chunkCoord + new int3(0, 0, 1));
+            }
+        }
+
+        private void ClearSettledAt(ManagedChunk chunk, int lx, int ly, int lz)
+        {
+            int size = ChunkConstants.Size;
+
+            if (lx < 0 || lx >= size || ly < 0 || ly >= size || lz < 0 || lz >= size)
+            {
+                return;
+            }
+
+            if (!chunk.LiquidData.IsCreated)
+            {
+                return;
+            }
+
+            NativeArray<byte> liquidData = chunk.LiquidData;
+            int idx = ChunkData.GetIndex(lx, ly, lz);
+            byte cell = liquidData[idx];
+
+            if (LiquidCell.IsSettled(cell))
+            {
+                liquidData[idx] = LiquidCell.ClearSettled(cell);
+            }
+        }
+
+        private void WakeNeighborChunk(int3 neighborCoord)
+        {
+            ManagedChunk neighbor = _chunkManager.TryGetChunk(neighborCoord);
+
+            if (neighbor != null && neighbor.LiquidData.IsCreated)
+            {
+                neighbor.LiquidActiveSet = null;
+            }
+        }
+
+        /// <summary>
         /// Called when a chunk is unloaded. Force-completes any in-flight job for that
         /// coord and returns liquid data to the pool.
         /// </summary>

@@ -21,6 +21,7 @@ namespace Lithforge.Runtime.Input
     public sealed class LocalCommandProcessor : ICommandProcessor
     {
         private readonly ChunkManager _chunkManager;
+        private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly Transform _playerTransform;
         private readonly float _playerHalfWidth;
         private readonly float _playerHeight;
@@ -28,12 +29,14 @@ namespace Lithforge.Runtime.Input
 
         public LocalCommandProcessor(
             ChunkManager chunkManager,
+            NativeStateRegistry nativeStateRegistry,
             Transform playerTransform,
             float playerHalfWidth,
             float playerHeight,
             IInventoryCommandProcessor inventoryProcessor)
         {
             _chunkManager = chunkManager;
+            _nativeStateRegistry = nativeStateRegistry;
             _playerTransform = playerTransform;
             _playerHalfWidth = playerHalfWidth;
             _playerHeight = playerHeight;
@@ -45,12 +48,19 @@ namespace Lithforge.Runtime.Input
             // PlaceBlockCommand.Position is already the target air block coordinate
             int3 placeCoord = command.Position;
 
-            // Check the target position is air
+            // Check the target position is air or a replaceable fluid
             StateId existing = _chunkManager.GetBlock(placeCoord);
 
             if (existing != StateId.Air)
             {
-                return CommandResult.TargetOccupied;
+                bool isFluid = _nativeStateRegistry.States.IsCreated &&
+                    existing.Value < _nativeStateRegistry.States.Length &&
+                    _nativeStateRegistry.States[existing.Value].IsFluid;
+
+                if (!isFluid)
+                {
+                    return CommandResult.TargetOccupied;
+                }
             }
 
             // Check that the placed block does not overlap the player AABB

@@ -238,6 +238,9 @@ namespace Lithforge.Runtime
             _liquidScheduler = liquidScheduler;
             _generationScheduler.SetLiquidScheduler(liquidScheduler);
             liquidScheduler.SetMeshScheduler(_meshScheduler);
+
+            // Wire block changes to liquid scheduler so breaking/placing wakes flow
+            _chunkManager.OnBlockChanged += liquidScheduler.OnBlockChanged;
         }
 
         /// <summary>

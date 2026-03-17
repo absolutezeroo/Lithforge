@@ -642,7 +642,14 @@ namespace Lithforge.Runtime.Input
 
                 if (existing != StateId.Air)
                 {
-                    return;
+                    bool isFluid = _nativeStateRegistry.States.IsCreated &&
+                        existing.Value < _nativeStateRegistry.States.Length &&
+                        _nativeStateRegistry.States[existing.Value].IsFluid;
+
+                    if (!isFluid)
+                    {
+                        return;
+                    }
                 }
 
                 if (_playerTransform != null)
