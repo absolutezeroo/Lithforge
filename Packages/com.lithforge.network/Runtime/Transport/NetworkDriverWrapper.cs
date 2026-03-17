@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Generic;
 
 using Lithforge.Core.Logging;
@@ -19,12 +20,18 @@ namespace Lithforge.Network.Transport
         // Internal event buffer drained during Update, consumed by PollEvent
         private readonly List<BufferedEvent> _eventBuffer = new();
         private readonly ILogger _logger;
+        private readonly NetworkPipeline[] _pipelines;
+
+        // Sequential connection ID allocation (Fix 2 — avoids GetHashCode collision risk)
+        private int _nextConnectionId;
+        private readonly Dictionary<int, NetworkConnection> _connectionMap = new();
+        private readonly Dictionary<NetworkConnection, int> _reverseMap = new();
+
         private NativeList<NetworkConnection> _connections;
         private bool _disposed;
         private NetworkDriver _driver;
         private int _eventIndex;
         private bool _isServer;
-        private readonly NetworkPipeline[] _pipelines;
 
         public NetworkDriverWrapper(ILogger logger)
         {
@@ -61,6 +68,8 @@ namespace Lithforge.Network.Transport
         {
             _driver.ScheduleUpdate().Complete();
 
+            // Return pooled buffers from previous frame before clearing (Fix 3)
+            ReturnEventBuffers();
             _eventBuffer.Clear();
             _eventIndex = 0;
 
@@ -72,13 +81,15 @@ namespace Lithforge.Network.Transport
                 while ((newConn = _driver.Accept()) != default)
                 {
                     _connections.Add(newConn);
+                    ConnectionId connId = AllocateId(newConn);
                     _eventBuffer.Add(new BufferedEvent
                     {
                         EventType = NetworkEventType.Connect,
-                        ConnectionId = new ConnectionId(newConn.GetHashCode()),
+                        ConnectionId = connId,
                         Data = null,
                         Offset = 0,
                         Length = 0,
+                        Pooled = false,
                     });
                 }
             }
@@ -99,7 +110,7 @@ namespace Lithforge.Network.Transport
                            conn, out DataStreamReader stream)) !=
                        NetworkEvent.Type.Empty)
                 {
-                    ConnectionId connId = new(conn.GetHashCode());
+                    ConnectionId connId = ResolveId(conn);
 
                     switch (eventType)
                     {
@@ -111,6 +122,7 @@ namespace Lithforge.Network.Transport
                                 Data = null,
                                 Offset = 0,
                                 Length = 0,
+                                Pooled = false,
                             });
                             break;
 
@@ -120,7 +132,8 @@ namespace Lithforge.Network.Transport
                                 dataLength, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
                             stream.ReadBytes(nativeRead);
 
-                            byte[] eventData = new byte[dataLength];
+                            // Rent from pool instead of allocating (Fix 3)
+                            byte[] eventData = ArrayPool<byte>.Shared.Rent(dataLength);
                             nativeRead.CopyTo(eventData);
                             nativeRead.Dispose();
 
@@ -131,6 +144,7 @@ namespace Lithforge.Network.Transport
                                 Data = eventData,
                                 Offset = 0,
                                 Length = dataLength,
+                                Pooled = true,
                             });
                             break;
 
@@ -142,7 +156,9 @@ namespace Lithforge.Network.Transport
                                 Data = null,
                                 Offset = 0,
                                 Length = 0,
+                                Pooled = false,
                             });
+                            RemoveId(conn);
                             _connections.RemoveAtSwapBack(i);
                             i--;
                             break;
@@ -180,16 +196,23 @@ namespace Lithforge.Network.Transport
             NetworkEndpoint endpoint = NetworkEndpoint.Parse(address, port);
             NetworkConnection conn = _driver.Connect(endpoint);
             _connections.Add(conn);
-            return new ConnectionId(conn.GetHashCode());
+            return AllocateId(conn);
         }
 
         public void Disconnect(ConnectionId connectionId)
         {
+            if (!TryGetConnection(connectionId, out NetworkConnection conn))
+            {
+                return;
+            }
+
+            _driver.Disconnect(conn);
+            RemoveId(conn);
+
             for (int i = 0; i < _connections.Length; i++)
             {
-                if (_connections[i].GetHashCode() == connectionId.Value)
+                if (_connections[i].Equals(conn))
                 {
-                    _driver.Disconnect(_connections[i]);
                     _connections.RemoveAtSwapBack(i);
                     return;
                 }
@@ -223,37 +246,42 @@ namespace Lithforge.Network.Transport
 
         public bool Send(ConnectionId connectionId, int pipelineId, byte[] data, int offset, int length)
         {
-            for (int i = 0; i < _connections.Length; i++)
+            if (!TryGetConnection(connectionId, out NetworkConnection conn))
             {
-                if (_connections[i].GetHashCode() == connectionId.Value)
-                {
-                    NetworkPipeline pipeline = _pipelines[pipelineId];
-                    int result = _driver.BeginSend(pipeline, _connections[i], out DataStreamWriter writer);
-
-                    if (result != (int)StatusCode.Success)
-                    {
-                        if (result == NetworkConstants.SendQueueFullError)
-                        {
-                            return false;
-                        }
-
-                        _logger.LogError($"BeginSend failed: error {result}");
-                        return false;
-                    }
-
-                    NativeArray<byte> nativeWrite = new(
-                        length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                    NativeArray<byte>.Copy(data, offset, nativeWrite, 0, length);
-                    writer.WriteBytes(nativeWrite);
-                    nativeWrite.Dispose();
-
-                    _driver.EndSend(writer);
-                    return true;
-                }
+                _logger.LogWarning($"Send failed: connection {connectionId} not found");
+                return false;
             }
 
-            _logger.LogWarning($"Send failed: connection {connectionId} not found");
-            return false;
+            NetworkPipeline pipeline = _pipelines[pipelineId];
+            int result = _driver.BeginSend(pipeline, conn, out DataStreamWriter writer);
+
+            if (result != (int)StatusCode.Success)
+            {
+                if (result == NetworkConstants.SendQueueFullError)
+                {
+                    return false;
+                }
+
+                _logger.LogError($"BeginSend failed: error {result}");
+                return false;
+            }
+
+            NativeArray<byte> nativeWrite = new(
+                length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            NativeArray<byte>.Copy(data, offset, nativeWrite, 0, length);
+            writer.WriteBytes(nativeWrite);
+            nativeWrite.Dispose();
+
+            // Fix 1 — check EndSend return value; negative means send queue full
+            int endResult = _driver.EndSend(writer);
+
+            if (endResult < 0)
+            {
+                _logger.LogWarning($"EndSend failed: error {endResult} for connection {connectionId}");
+                return false;
+            }
+
+            return true;
         }
 
         public void Dispose()
@@ -264,6 +292,7 @@ namespace Lithforge.Network.Transport
             }
 
             _disposed = true;
+            ReturnEventBuffers();
 
             if (_connections.IsCreated)
             {
@@ -282,6 +311,59 @@ namespace Lithforge.Network.Transport
             {
                 _driver.Dispose();
             }
+
+            _connectionMap.Clear();
+            _reverseMap.Clear();
+        }
+
+        // --- Connection ID management (Fix 2) ---
+
+        private ConnectionId AllocateId(NetworkConnection conn)
+        {
+            int id = _nextConnectionId++;
+            _connectionMap[id] = conn;
+            _reverseMap[conn] = id;
+            return new ConnectionId(id);
+        }
+
+        private ConnectionId ResolveId(NetworkConnection conn)
+        {
+            if (_reverseMap.TryGetValue(conn, out int id))
+            {
+                return new ConnectionId(id);
+            }
+
+            // Shouldn't happen — allocate on the fly as a safety fallback
+            return AllocateId(conn);
+        }
+
+        private bool TryGetConnection(ConnectionId connId, out NetworkConnection conn)
+        {
+            return _connectionMap.TryGetValue(connId.Value, out conn);
+        }
+
+        private void RemoveId(NetworkConnection conn)
+        {
+            if (_reverseMap.TryGetValue(conn, out int id))
+            {
+                _reverseMap.Remove(conn);
+                _connectionMap.Remove(id);
+            }
+        }
+
+        // --- ArrayPool buffer management (Fix 3) ---
+
+        private void ReturnEventBuffers()
+        {
+            for (int i = 0; i < _eventBuffer.Count; i++)
+            {
+                BufferedEvent evt = _eventBuffer[i];
+
+                if (evt.Pooled && evt.Data != null)
+                {
+                    ArrayPool<byte>.Shared.Return(evt.Data);
+                }
+            }
         }
 
         private struct BufferedEvent
@@ -291,6 +373,7 @@ namespace Lithforge.Network.Transport
             public byte[] Data;
             public int Offset;
             public int Length;
+            public bool Pooled;
         }
     }
 }
