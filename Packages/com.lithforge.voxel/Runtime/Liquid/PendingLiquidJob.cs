@@ -14,7 +14,7 @@ namespace Lithforge.Voxel.Liquid
     ///   2. OutputActiveSet.Dispose()
     ///   3. InputActiveSet.Dispose()
     ///   4. BfsVisited.Dispose()
-    ///   5. GhostSlabs (6 arrays) — Dispose()
+    ///   5. GhostSlabs (10 arrays: 6 liquid + 4 block-solid) — Dispose()
     /// </summary>
     public struct PendingLiquidJob
     {
@@ -31,6 +31,11 @@ namespace Lithforge.Voxel.Liquid
         public NativeArray<byte> GhostNegY;
         public NativeArray<byte> GhostPosZ;
         public NativeArray<byte> GhostNegZ;
+
+        public NativeArray<byte> GhostBlockSolidPosX;
+        public NativeArray<byte> GhostBlockSolidNegX;
+        public NativeArray<byte> GhostBlockSolidPosZ;
+        public NativeArray<byte> GhostBlockSolidNegZ;
 
         public int FrameAge;
         public byte Parity;
@@ -85,6 +90,26 @@ namespace Lithforge.Voxel.Liquid
             if (GhostNegZ.IsCreated)
             {
                 GhostNegZ.Dispose();
+            }
+
+            if (GhostBlockSolidPosX.IsCreated)
+            {
+                GhostBlockSolidPosX.Dispose();
+            }
+
+            if (GhostBlockSolidNegX.IsCreated)
+            {
+                GhostBlockSolidNegX.Dispose();
+            }
+
+            if (GhostBlockSolidPosZ.IsCreated)
+            {
+                GhostBlockSolidPosZ.Dispose();
+            }
+
+            if (GhostBlockSolidNegZ.IsCreated)
+            {
+                GhostBlockSolidNegZ.Dispose();
             }
         }
     }

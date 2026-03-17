@@ -264,6 +264,17 @@ namespace Lithforge.Runtime.Scheduling
             CopyGhostSlab(chunk, 4, ghostPosZ);
             CopyGhostSlab(chunk, 5, ghostNegZ);
 
+            // Block-solidity ghost slabs for cross-boundary BFS flow-direction search
+            NativeArray<byte> ghostBlockSolidPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidNegZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+
+            CopyBlockSolidGhostSlab(chunk, 0, ghostBlockSolidPosX);
+            CopyBlockSolidGhostSlab(chunk, 1, ghostBlockSolidNegX);
+            CopyBlockSolidGhostSlab(chunk, 4, ghostBlockSolidPosZ);
+            CopyBlockSolidGhostSlab(chunk, 5, ghostBlockSolidNegZ);
+
             LiquidSimJob job = new LiquidSimJob
             {
                 LiquidData = chunk.LiquidData,
@@ -276,6 +287,10 @@ namespace Lithforge.Runtime.Scheduling
                 GhostNegY = ghostNegY,
                 GhostPosZ = ghostPosZ,
                 GhostNegZ = ghostNegZ,
+                GhostBlockSolidPosX = ghostBlockSolidPosX,
+                GhostBlockSolidNegX = ghostBlockSolidNegX,
+                GhostBlockSolidPosZ = ghostBlockSolidPosZ,
+                GhostBlockSolidNegZ = ghostBlockSolidNegZ,
                 BfsVisited = bfsVisited,
                 Config = _waterConfig,
                 OutputEdits = outputEdits,
@@ -298,6 +313,10 @@ namespace Lithforge.Runtime.Scheduling
                 GhostNegY = ghostNegY,
                 GhostPosZ = ghostPosZ,
                 GhostNegZ = ghostNegZ,
+                GhostBlockSolidPosX = ghostBlockSolidPosX,
+                GhostBlockSolidNegX = ghostBlockSolidNegX,
+                GhostBlockSolidPosZ = ghostBlockSolidPosZ,
+                GhostBlockSolidNegZ = ghostBlockSolidNegZ,
                 FrameAge = 0,
                 Parity = parity,
             };
@@ -433,6 +452,85 @@ namespace Lithforge.Runtime.Scheduling
                         {
                             int srcIndex = ChunkData.GetIndex(u, v, lastIdx);
                             output[v * size + u] = neighborLiquid[srcIndex];
+                        }
+                    }
+
+                    break;
+            }
+        }
+
+        private void CopyBlockSolidGhostSlab(ManagedChunk chunk, int face, NativeArray<byte> output)
+        {
+            ManagedChunk neighbor = chunk.Neighbors[face];
+
+            if (neighbor == null || !neighbor.Data.IsCreated)
+            {
+                return; // output stays zeroed (non-solid)
+            }
+
+            if (_inFlightCoords.Contains(neighbor.Coord))
+            {
+                return;
+            }
+
+            NativeArray<StateId> neighborBlocks = neighbor.Data;
+            NativeArray<BlockStateCompact> stateTable = _nativeStateRegistry.States;
+            int size = ChunkConstants.Size;
+            int lastIdx = size - 1;
+
+            switch (face)
+            {
+                case 0: // +X: neighbor's x=0 face, layout [y * size + z]
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(0, v, u);
+                            StateId sid = neighborBlocks[srcIndex];
+                            BlockStateCompact c = stateTable[sid.Value];
+                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                        }
+                    }
+
+                    break;
+
+                case 1: // -X: neighbor's x=31 face
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(lastIdx, v, u);
+                            StateId sid = neighborBlocks[srcIndex];
+                            BlockStateCompact c = stateTable[sid.Value];
+                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                        }
+                    }
+
+                    break;
+
+                case 4: // +Z: neighbor's z=0 face, layout [y * size + x]
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(u, v, 0);
+                            StateId sid = neighborBlocks[srcIndex];
+                            BlockStateCompact c = stateTable[sid.Value];
+                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                        }
+                    }
+
+                    break;
+
+                case 5: // -Z: neighbor's z=31 face, layout [y * size + x]
+                    for (int v = 0; v < size; v++)
+                    {
+                        for (int u = 0; u < size; u++)
+                        {
+                            int srcIndex = ChunkData.GetIndex(u, v, lastIdx);
+                            StateId sid = neighborBlocks[srcIndex];
+                            BlockStateCompact c = stateTable[sid.Value];
+                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
                         }
                     }
 

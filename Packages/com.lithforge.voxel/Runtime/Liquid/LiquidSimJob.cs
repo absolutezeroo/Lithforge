@@ -40,6 +40,11 @@ namespace Lithforge.Voxel.Liquid
         [ReadOnly] public NativeArray<byte> GhostPosZ;
         [ReadOnly] public NativeArray<byte> GhostNegZ;
 
+        [ReadOnly] public NativeArray<byte> GhostBlockSolidPosX; // [y * Size + z], 1 = solid
+        [ReadOnly] public NativeArray<byte> GhostBlockSolidNegX;
+        [ReadOnly] public NativeArray<byte> GhostBlockSolidPosZ; // [y * Size + x]
+        [ReadOnly] public NativeArray<byte> GhostBlockSolidNegZ;
+
         public NativeArray<byte> BfsVisited;
 
         public LiquidJobConfig Config;
@@ -371,8 +376,9 @@ namespace Lithforge.Voxel.Liquid
                 int entry = stack[head & (StackCap - 1)];
                 head++;
 
-                int nx = (entry & 0xFF);
-                int nz = ((entry >> 8) & 0xFF);
+                // Sign-extend packed coordinates (may be negative for cross-boundary)
+                int nx = (entry << 24) >> 24;
+                int nz = (entry << 16) >> 24;
                 int depth = (entry >> 16) & 0xFF;
                 byte dirMask = (byte)((entry >> 24) & 0xFF);
 
@@ -390,6 +396,16 @@ namespace Lithforge.Voxel.Liquid
                     {
                         int belowIndex = (y - 1) * SizeSq + nz * Size + nx;
                         hasDropOff = !IsSolidBlock(belowIndex) && LiquidCell.IsEmpty(LiquidData[belowIndex]);
+                    }
+                }
+                else
+                {
+                    // Cross-boundary drop-off check via ghost slabs
+                    if (y > 0)
+                    {
+                        bool belowSolid = IsSolidBlockGhost(nx, nz, y - 1);
+                        bool belowEmpty = IsLiquidEmptyGhost(nx, nz, y - 1);
+                        hasDropOff = !belowSolid && belowEmpty;
                     }
                 }
 
@@ -427,6 +443,22 @@ namespace Lithforge.Voxel.Liquid
         {
             if (nx < 0 || nx >= Size || nz < 0 || nz >= Size)
             {
+                // Cross-boundary: check solidity via ghost slab
+                if (IsSolidBlockGhost(nx, nz, y))
+                {
+                    return;
+                }
+
+                // Skip visited tracking for ghost positions (BFS radius 4,
+                // at most ~12 ghost positions per BFS, rare duplicates acceptable)
+
+                if (tail - head >= cap)
+                {
+                    return;
+                }
+
+                stack[tail & (cap - 1)] = (nx & 0xFF) | ((nz & 0xFF) << 8) | (depth << 16) | (dirMask << 24);
+                tail++;
                 return;
             }
 
@@ -470,10 +502,79 @@ namespace Lithforge.Voxel.Liquid
 
         private bool IsSolidBlock_Ghost(NativeArray<byte> ghostSlab, int slabIndex)
         {
-            // Ghost slabs only contain liquid data, not block data.
-            // For cross-boundary solidity, we conservatively treat unloaded/ghost
-            // as non-solid to allow flow. The main-thread scheduler validates
-            // cross-boundary edits before applying.
+            // TODO: add -Y block solidity ghost for chunk-bottom source rule.
+            // Currently treats below as non-solid (conservative: source rule won't fire,
+            // water stays flowing instead of becoming source — slightly wrong but rare).
+            return false;
+        }
+
+        private bool IsSolidBlockGhost(int nx, int nz, int y)
+        {
+            if (nx < 0)
+            {
+                if (nz < 0 || nz >= Size)
+                {
+                    return true; // corner = treat as solid
+                }
+
+                return GhostBlockSolidNegX[y * Size + nz] != 0;
+            }
+
+            if (nx >= Size)
+            {
+                if (nz < 0 || nz >= Size)
+                {
+                    return true;
+                }
+
+                return GhostBlockSolidPosX[y * Size + nz] != 0;
+            }
+
+            if (nz < 0)
+            {
+                return GhostBlockSolidNegZ[y * Size + nx] != 0;
+            }
+
+            if (nz >= Size)
+            {
+                return GhostBlockSolidPosZ[y * Size + nx] != 0;
+            }
+
+            return false;
+        }
+
+        private bool IsLiquidEmptyGhost(int nx, int nz, int y)
+        {
+            if (nx < 0)
+            {
+                if (nz < 0 || nz >= Size)
+                {
+                    return false; // corner = assume not empty (conservative)
+                }
+
+                return LiquidCell.IsEmpty(GhostNegX[y * Size + nz]);
+            }
+
+            if (nx >= Size)
+            {
+                if (nz < 0 || nz >= Size)
+                {
+                    return false;
+                }
+
+                return LiquidCell.IsEmpty(GhostPosX[y * Size + nz]);
+            }
+
+            if (nz < 0)
+            {
+                return LiquidCell.IsEmpty(GhostNegZ[y * Size + nx]);
+            }
+
+            if (nz >= Size)
+            {
+                return LiquidCell.IsEmpty(GhostPosZ[y * Size + nx]);
+            }
+
             return false;
         }
 
