@@ -1,19 +1,19 @@
-using Lithforge.Core.Data;
 using Lithforge.Voxel.Item;
+
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI.Widgets
 {
     /// <summary>
-    /// Absolute-positioned tooltip that shows item name, type, stats, and durability.
-    /// Uses USS class "lf-tooltip".
+    ///     Absolute-positioned tooltip that shows item name, type, stats, and durability.
+    ///     Uses USS class "lf-tooltip".
     /// </summary>
     public sealed class TooltipWidget : VisualElement
     {
-        private readonly Label _nameLabel;
-        private readonly Label _typeLabel;
-        private readonly Label _statsLabel;
         private readonly Label _durabilityLabel;
+        private readonly Label _nameLabel;
+        private readonly Label _statsLabel;
+        private readonly Label _typeLabel;
 
         public TooltipWidget()
         {
@@ -43,13 +43,14 @@ namespace Lithforge.Runtime.UI.Widgets
         }
 
         /// <summary>
-        /// Shows the tooltip with data from the given item stack.
+        ///     Shows the tooltip with data from the given item stack.
         /// </summary>
         public void Show(ItemStack stack, ItemEntry entry, float posX, float posY)
         {
-            if (stack.IsEmpty || entry == null)
+            if (stack.IsEmpty)
             {
                 Hide();
+
                 return;
             }
 
