@@ -312,6 +312,9 @@ namespace Lithforge.Runtime.Scheduling
                 }
                 else if (chunk.DeferredEdits.Count > 0)
                 {
+                    // Force-complete any in-flight mesh jobs whose border extraction
+                    // reads this chunk's Data as a neighbor, before we write to it.
+                    ForceCompleteNeighborDeps(chunk.Coord);
                     Profiler.BeginSample("MS.DeferredEdits");
                     _chunkManager.ApplyDeferredEdits(chunk);
                     Profiler.EndSample();
