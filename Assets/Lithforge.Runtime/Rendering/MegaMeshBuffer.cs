@@ -638,9 +638,9 @@ namespace Lithforge.Runtime.Rendering
         /// Grows the buffer capacity by doubling (or more if the required extra exceeds a double).
         /// GPU buffers are resized via compute-shader copy (no CPU re-upload stall). Old GPU
         /// buffers are retired for deferred disposal to avoid use-after-free on the GPU.
-        /// Dirty ranges are cleared because the compute copy transfers all pre-existing data.
-        /// New data written by the AllocateOrUpdate call that triggered the grow will add
-        /// fresh dirty ranges after Grow returns.
+        /// Dirty ranges are NOT cleared — they may contain data written to the CPU mirror
+        /// this frame that has not yet been flushed to the old GPU buffer, so the compute
+        /// copy did not transfer it. FlushDirtyToGpu must still upload those ranges.
         /// </summary>
         private void Grow(int extraVertices, int extraIndices)
         {
@@ -705,13 +705,6 @@ namespace Lithforge.Runtime.Rendering
             _vertexCapacity = newVertCap;
             _indexCapacity = newIdxCap;
             _argsDirty = true;
-
-            // The compute copy transferred all pre-existing data to the new GPU buffers.
-            // Clear dirty ranges to avoid redundant re-upload of data already on the GPU.
-            // The AllocateOrUpdate call that triggered this grow will add its own fresh
-            // dirty range via WriteDataToMirror after Grow returns.
-            _dirtyVertexRanges.Clear();
-            _dirtyIndexRanges.Clear();
 
             _pipelineStats.IncrGrow();
 
