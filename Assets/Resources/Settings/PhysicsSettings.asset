@@ -26,4 +26,8 @@ MonoBehaviour:
   handMiningMultiplier: 5
   toolMiningMultiplier: 1.5
   minBreakTime: 0.05
+  swimAcceleration: 9.6
+  swimDrag: 0.86
+  swimGravity: -1.9
+  swimUpSpeed: 3.4
   defaultMaxStackSize: 64
