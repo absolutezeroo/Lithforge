@@ -170,8 +170,13 @@ namespace Lithforge.Voxel.Liquid
 
             if (oldStripped == newCell)
             {
-                // No change — settle
+                // No change — settle, but wake empty neighbors so they can pull flow
                 LiquidData[flatIndex] = LiquidCell.SetSettled(cell, true);
+
+                if (LiquidCell.HasLiquid(newCell))
+                {
+                    WakeEmptyNeighbors(x, y, z);
+                }
             }
             else
             {
@@ -181,7 +186,7 @@ namespace Lithforge.Voxel.Liquid
                 OutputActiveSet.Add(flatIndex);
             }
 
-            // --- Gravity push: if we have liquid, wake the cell below ---
+            // --- Gravity push: wake below only if it would actually change ---
             if (LiquidCell.HasLiquid(newCell))
             {
                 if (y > 0)
@@ -192,22 +197,26 @@ namespace Lithforge.Voxel.Liquid
                     {
                         byte belowCell = LiquidData[belowIndex];
 
-                        if (LiquidCell.IsSettled(belowCell) || LiquidCell.IsEmpty(belowCell))
+                        if (LiquidCell.IsEmpty(belowCell) ||
+                            (!LiquidCell.IsSource(belowCell) &&
+                             LiquidCell.GetEffectiveLevel(belowCell) < LiquidCell.MaxFlowingLevel))
                         {
                             TryClearSettled(x, y - 1, z);
-
-                            if (LiquidCell.IsEmpty(belowCell))
-                            {
-                                OutputActiveSet.Add(belowIndex);
-                            }
                         }
                     }
                 }
                 else
                 {
-                    // y == 0: emit cross-boundary seed to wake below neighbor
-                    int belowFlatIndex = (Size - 1) * SizeSq + z * Size + x;
-                    EmitCrossBoundaryEdit(belowFlatIndex, 0, -1, 0, LiquidCell.MakeFlowing(LiquidCell.MaxFlowingLevel));
+                    // y == 0: check ghost slab before emitting cross-boundary edit
+                    byte belowGhost = GhostNegY[z * Size + x];
+
+                    if (LiquidCell.IsEmpty(belowGhost) ||
+                        (!LiquidCell.IsSource(belowGhost) &&
+                         LiquidCell.GetEffectiveLevel(belowGhost) < LiquidCell.MaxFlowingLevel))
+                    {
+                        int belowFlatIndex = (Size - 1) * SizeSq + z * Size + x;
+                        EmitCrossBoundaryEdit(belowFlatIndex, 0, -1, 0, LiquidCell.MakeFlowing(LiquidCell.MaxFlowingLevel));
+                    }
                 }
             }
         }
@@ -546,6 +555,36 @@ namespace Lithforge.Voxel.Liquid
             if (LiquidCell.IsSettled(cell))
             {
                 LiquidData[idx] = LiquidCell.ClearSettled(cell);
+                OutputActiveSet.Add(idx);
+            }
+            else if (LiquidCell.IsEmpty(cell) && !IsSolidBlock(idx))
+            {
+                OutputActiveSet.Add(idx);
+            }
+        }
+
+        private void WakeEmptyNeighbors(int x, int y, int z)
+        {
+            TryWakeEmpty(x + 1, y, z);
+            TryWakeEmpty(x - 1, y, z);
+            TryWakeEmpty(x, y + 1, z);
+            TryWakeEmpty(x, y - 1, z);
+            TryWakeEmpty(x, y, z + 1);
+            TryWakeEmpty(x, y, z - 1);
+        }
+
+        private void TryWakeEmpty(int x, int y, int z)
+        {
+            if (x < 0 || x >= Size || y < 0 || y >= Size || z < 0 || z >= Size)
+            {
+                return;
+            }
+
+            int idx = y * SizeSq + z * Size + x;
+            byte cell = LiquidData[idx];
+
+            if (LiquidCell.IsEmpty(cell) && !IsSolidBlock(idx))
+            {
                 OutputActiveSet.Add(idx);
             }
         }
