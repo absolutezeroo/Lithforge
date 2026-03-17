@@ -239,133 +239,142 @@ namespace Lithforge.Runtime.UI.Sprites
         }
 
         /// <summary>
-        ///     Renders a Minecraft-style isometric block sprite from 3 face textures.
-        ///     Top face rendered as a diamond, left (south) and right (east) faces
-        ///     as parallelograms with darkening for depth illusion.
-        ///     Output is 32x32 with FilterMode.Point for pixel art.
+        ///     Renders a Luanti-style isometric cube from 3 face textures.
+        ///     Algorithm ported from Luanti (minetest/src/client/imagesource.cpp).
+        ///     Each face is drawn via an affine transform with a per-texel pixel pattern.
+        ///     Output size = 9 * tileSize (144x144 for 16px tiles).
         /// </summary>
         private static Sprite CreateIsometricBlockSprite(
             Texture2D topTex, Texture2D leftTex, Texture2D rightTex)
         {
-            const int isoSize = 32;
-            const int facePixels = 16;
+            const int tileSize = 16;
+            int cubeSize = 9 * tileSize;
+            int xOffset = tileSize / 2;
 
-            Texture2D result = new Texture2D(isoSize, isoSize, TextureFormat.RGBA32, false);
-            result.filterMode = FilterMode.Point;
-            Color32[] pixels = new Color32[isoSize * isoSize];
+            Color32[] pixels = new Color32[cubeSize * cubeSize];
 
-            Color32 clear = new Color32(0, 0, 0, 0);
+            Color32[] topPx = ReadPixelsPoint(topTex, tileSize);
+            Color32[] leftPx = ReadPixelsPoint(leftTex, tileSize);
+            Color32[] rightPx = ReadPixelsPoint(rightTex, tileSize);
 
-            for (int i = 0; i < pixels.Length; i++)
+            // Top face (brightness 1.0)
+            int[][] topPattern =
             {
-                pixels[i] = clear;
-            }
+                new[] { 2, 0 }, new[] { 3, 0 }, new[] { 4, 0 }, new[] { 5, 0 },
+                new[] { 0, 1 }, new[] { 1, 1 }, new[] { 2, 1 }, new[] { 3, 1 },
+                new[] { 4, 1 }, new[] { 5, 1 }, new[] { 6, 1 }, new[] { 7, 1 },
+                new[] { 2, 2 }, new[] { 3, 2 }, new[] { 4, 2 }, new[] { 5, 2 },
+            };
 
-            Color32[] topPixels = ReadPixelsAtSize(topTex, facePixels);
-            Color32[] leftPixels = ReadPixelsAtSize(leftTex, facePixels);
-            Color32[] rightPixels = ReadPixelsAtSize(rightTex, facePixels);
+            DrawCubeFace(pixels, cubeSize, topPx, tileSize, 1.0f,
+                4, -4, 4 * (tileSize - 1),
+                2, 2, 0,
+                xOffset, topPattern);
 
-            int centerX = isoSize / 2;
-            int topY = isoSize - 1;
-
-            // --- TOP FACE (diamond) ---
-            for (int ty = 0; ty < facePixels; ty++)
+            // Left face (brightness 0.836660)
+            int[][] leftPattern =
             {
-                for (int tx = 0; tx < facePixels; tx++)
-                {
-                    int sx = centerX + (tx - ty) - 1;
-                    int sy = topY - (tx + ty) / 2;
+                new[] { 0, 0 }, new[] { 1, 0 },
+                new[] { 0, 1 }, new[] { 1, 1 }, new[] { 2, 1 }, new[] { 3, 1 },
+                new[] { 0, 2 }, new[] { 1, 2 }, new[] { 2, 2 }, new[] { 3, 2 },
+                new[] { 0, 3 }, new[] { 1, 3 }, new[] { 2, 3 }, new[] { 3, 3 },
+                new[] { 0, 4 }, new[] { 1, 4 }, new[] { 2, 4 }, new[] { 3, 4 },
+                new[] { 2, 5 }, new[] { 3, 5 },
+            };
 
-                    Color32 c = topPixels[ty * facePixels + tx];
+            DrawCubeFace(pixels, cubeSize, leftPx, tileSize, 0.836660f,
+                4, 0, 0,
+                2, 5, 2 * tileSize,
+                xOffset, leftPattern);
 
-                    if (c.a == 0)
-                    {
-                        continue;
-                    }
-
-                    SetPixelSafe(pixels, isoSize, sx, sy, c);
-                    SetPixelSafe(pixels, isoSize, sx + 1, sy, c);
-                }
-            }
-
-            // --- LEFT FACE (south texture, darker) ---
-            const float leftDarken = 0.75f;
-            int leftBaseY = topY - facePixels / 2;
-
-            for (int ty = 0; ty < facePixels; ty++)
+            // Right face (brightness 0.670820)
+            int[][] rightPattern =
             {
-                for (int tx = 0; tx < facePixels; tx++)
-                {
-                    int sx = centerX - facePixels + tx;
-                    int sy = leftBaseY - ty / 2 - tx;
+                new[] { 2, 0 }, new[] { 3, 0 },
+                new[] { 0, 1 }, new[] { 1, 1 }, new[] { 2, 1 }, new[] { 3, 1 },
+                new[] { 0, 2 }, new[] { 1, 2 }, new[] { 2, 2 }, new[] { 3, 2 },
+                new[] { 0, 3 }, new[] { 1, 3 }, new[] { 2, 3 }, new[] { 3, 3 },
+                new[] { 0, 4 }, new[] { 1, 4 }, new[] { 2, 4 }, new[] { 3, 4 },
+                new[] { 0, 5 }, new[] { 1, 5 },
+            };
 
-                    Color32 c = leftPixels[ty * facePixels + tx];
+            DrawCubeFace(pixels, cubeSize, rightPx, tileSize, 0.670820f,
+                4, 0, 4 * tileSize,
+                -2, 5, 4 * tileSize - 2,
+                xOffset, rightPattern);
 
-                    if (c.a == 0)
-                    {
-                        continue;
-                    }
-
-                    c = DarkenColor(c, leftDarken);
-                    SetPixelSafe(pixels, isoSize, sx, sy, c);
-
-                    if (ty % 2 == 1)
-                    {
-                        SetPixelSafe(pixels, isoSize, sx, sy - 1, c);
-                    }
-                }
-            }
-
-            // --- RIGHT FACE (east texture, darkest) ---
-            const float rightDarken = 0.55f;
-            int rightBaseY = topY - facePixels / 2;
-
-            for (int ty = 0; ty < facePixels; ty++)
-            {
-                for (int tx = 0; tx < facePixels; tx++)
-                {
-                    int sx = centerX + tx;
-                    int sy = rightBaseY - ty / 2 - (facePixels - 1 - tx);
-
-                    Color32 c = rightPixels[ty * facePixels + tx];
-
-                    if (c.a == 0)
-                    {
-                        continue;
-                    }
-
-                    c = DarkenColor(c, rightDarken);
-                    SetPixelSafe(pixels, isoSize, sx, sy, c);
-
-                    if (ty % 2 == 1)
-                    {
-                        SetPixelSafe(pixels, isoSize, sx, sy - 1, c);
-                    }
-                }
-            }
-
-            result.SetPixels32(pixels);
-            result.Apply();
+            Texture2D tex = new Texture2D(cubeSize, cubeSize, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Point;
+            tex.SetPixels32(pixels);
+            tex.Apply();
 
             return Sprite.Create(
-                result,
-                new Rect(0, 0, isoSize, isoSize),
+                tex,
+                new Rect(0, 0, cubeSize, cubeSize),
                 new Vector2(0.5f, 0.5f),
-                isoSize);
+                cubeSize);
         }
 
         /// <summary>
-        ///     Reads pixels from a texture at the given size via RenderTexture blit.
-        ///     Handles non-readable textures. Returns Color32 array in bottom-to-top order.
+        ///     Draws one face of the isometric cube into the target pixel buffer.
+        ///     Uses an affine transform (xu,xv,x1,yu,yv,y1) to map texel (u,v) to
+        ///     screen position, then stamps a pattern of pixel offsets per texel.
+        ///     Y is flipped from Luanti top-down to Unity bottom-up.
         /// </summary>
-        private static Color32[] ReadPixelsAtSize(Texture2D source, int size)
+        private static void DrawCubeFace(
+            Color32[] target, int cubeSize,
+            Color32[] facePixels, int size, float brightness,
+            int xu, int xv, int x1,
+            int yu, int yv, int y1,
+            int xOffset, int[][] pattern)
+        {
+            byte br = (byte)(brightness * 255);
+
+            for (int v = 0; v < size; v++)
+            {
+                for (int u = 0; u < size; u++)
+                {
+                    Color32 src = facePixels[v * size + u];
+
+                    if (src.a == 0)
+                    {
+                        continue;
+                    }
+
+                    src.r = (byte)(src.r * br / 255);
+                    src.g = (byte)(src.g * br / 255);
+                    src.b = (byte)(src.b * br / 255);
+
+                    int sx = xu * u + xv * v + x1;
+                    int sy = yu * u + yv * v + y1;
+
+                    for (int p = 0; p < pattern.Length; p++)
+                    {
+                        int px = sx + pattern[p][0] + xOffset;
+                        int py = (cubeSize - 1) - (sy + pattern[p][1]);
+
+                        if (px >= 0 && px < cubeSize && py >= 0 && py < cubeSize)
+                        {
+                            target[py * cubeSize + px] = src;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Reads a texture into a Color32 array at the given size with Point filtering.
+        ///     Handles non-readable textures via RenderTexture blit.
+        ///     Destroys the temporary Texture2D to avoid leaks.
+        /// </summary>
+        private static Color32[] ReadPixelsPoint(Texture2D source, int size)
         {
             if (source == null)
             {
                 return new Color32[size * size];
             }
 
-            FilterMode originalFilter = source.filterMode;
+            FilterMode original = source.filterMode;
             source.filterMode = FilterMode.Point;
 
             RenderTexture rt = RenderTexture.GetTemporary(size, size, 0, RenderTextureFormat.ARGB32);
@@ -380,28 +389,11 @@ namespace Lithforge.Runtime.UI.Sprites
 
             RenderTexture.active = prev;
             RenderTexture.ReleaseTemporary(rt);
-            source.filterMode = originalFilter;
+            source.filterMode = original;
 
-            Color32[] result = readable.GetPixels32();
+            Color32[] pixels = readable.GetPixels32();
             Object.DestroyImmediate(readable);
-            return result;
-        }
-
-        private static void SetPixelSafe(Color32[] pixels, int size, int x, int y, Color32 c)
-        {
-            if (x >= 0 && x < size && y >= 0 && y < size)
-            {
-                pixels[y * size + x] = c;
-            }
-        }
-
-        private static Color32 DarkenColor(Color32 c, float factor)
-        {
-            return new Color32(
-                (byte)(c.r * factor),
-                (byte)(c.g * factor),
-                (byte)(c.b * factor),
-                c.a);
+            return pixels;
         }
     }
 }
