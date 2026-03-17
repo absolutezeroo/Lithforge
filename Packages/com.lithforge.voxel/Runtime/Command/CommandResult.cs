@@ -35,5 +35,17 @@ namespace Lithforge.Voxel.Command
 
         /// <summary>Block cannot be broken (hardness is infinite or unbreakable).</summary>
         NotBreakable = 9,
+
+        /// <summary>Inventory state ID mismatch — full resync needed.</summary>
+        StateIdMismatch = 10,
+
+        /// <summary>Slot index is outside container bounds.</summary>
+        InvalidSlot = 11,
+
+        /// <summary>Click type or action is not recognized.</summary>
+        InvalidAction = 12,
+
+        /// <summary>Anti-dupe: total item count changed across the operation.</summary>
+        ItemCountMismatch = 13,
     }
 }

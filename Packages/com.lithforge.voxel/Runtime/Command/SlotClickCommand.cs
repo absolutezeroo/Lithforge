@@ -4,7 +4,7 @@ namespace Lithforge.Voxel.Command
 {
     /// <summary>
     /// Blittable command for inventory slot interactions.
-    /// 12 bytes, Burst-compatible.
+    /// 16 bytes, Burst-compatible.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct SlotClickCommand

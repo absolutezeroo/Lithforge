@@ -1,26 +1,30 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
 
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Unified registry for all items: standalone items (tools, stick) and
-    /// auto-generated block items (one per registered block).
-    /// Built after content loading to provide a single lookup point.
+    ///     Unified registry for all items: standalone items (tools, stick) and
+    ///     auto-generated block items (one per registered block).
+    ///     Built after content loading to provide a single lookup point.
     /// </summary>
     public sealed class ItemRegistry
     {
-        private readonly Dictionary<ResourceId, ItemEntry> _items;
+        private readonly Dictionary<ResourceId, ItemEntry> _items = new();
 
-        public ItemRegistry()
+        /// <summary>
+        ///     Total number of registered items.
+        /// </summary>
+        public int Count
         {
-            _items = new Dictionary<ResourceId, ItemEntry>();
+            get { return _items.Count; }
         }
 
         /// <summary>
-        /// Registers all block definitions as block items (max_stack_size=64, IsBlockItem=true).
-        /// Should be called before registering standalone items so explicit definitions can override.
+        ///     Registers all block definitions as block items (max_stack_size=64, IsBlockItem=true).
+        ///     Should be called before registering standalone items so explicit definitions can override.
         /// </summary>
         public void RegisterBlockItems(IReadOnlyList<StateRegistryEntry> entries)
         {
@@ -35,7 +39,7 @@ namespace Lithforge.Voxel.Item
                     continue;
                 }
 
-                ItemEntry itemDef = new ItemEntry(blockId);
+                ItemEntry itemDef = new(blockId);
                 itemDef.MaxStackSize = 64;
                 itemDef.IsBlockItem = true;
                 itemDef.BlockId = blockId;
@@ -45,8 +49,8 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Registers standalone item definitions (tools, materials).
-        /// Overrides any block item with the same id.
+        ///     Registers standalone item definitions (tools, materials).
+        ///     Overrides any block item with the same id.
         /// </summary>
         public void RegisterItems(List<ItemEntry> items)
         {
@@ -57,8 +61,8 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Looks up an item definition by resource id.
-        /// Returns null if not found.
+        ///     Looks up an item definition by resource id.
+        ///     Returns null if not found.
         /// </summary>
         public ItemEntry Get(ResourceId id)
         {
@@ -71,19 +75,11 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Returns true if an item with the given id exists.
+        ///     Returns true if an item with the given id exists.
         /// </summary>
         public bool Contains(ResourceId id)
         {
             return _items.ContainsKey(id);
-        }
-
-        /// <summary>
-        /// Total number of registered items.
-        /// </summary>
-        public int Count
-        {
-            get { return _items.Count; }
         }
     }
 }

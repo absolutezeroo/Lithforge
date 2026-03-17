@@ -1059,11 +1059,14 @@ namespace Lithforge.Runtime.Bootstrap
                     playerController);
 
                 // Wire command processor for block placement/break validation
+                LocalInventoryCommandProcessor inventoryProcessor =
+                    new LocalInventoryCommandProcessor(playerInventory);
                 LocalCommandProcessor commandProcessor = new LocalCommandProcessor(
                     _chunkManager,
                     playerObject.transform,
                     _settings.Physics.PlayerHalfWidth,
-                    _settings.Physics.PlayerHeight);
+                    _settings.Physics.PlayerHeight,
+                    inventoryProcessor);
                 blockInteraction.SetCommandProcessor(commandProcessor);
 
                 // Initialize first-person arm renderer

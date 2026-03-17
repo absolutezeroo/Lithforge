@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Lithforge.Physics;
+using Lithforge.Runtime.Simulation;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
@@ -23,17 +24,20 @@ namespace Lithforge.Runtime.Input
         private readonly Transform _playerTransform;
         private readonly float _playerHalfWidth;
         private readonly float _playerHeight;
+        private readonly IInventoryCommandProcessor _inventoryProcessor;
 
         public LocalCommandProcessor(
             ChunkManager chunkManager,
             Transform playerTransform,
             float playerHalfWidth,
-            float playerHeight)
+            float playerHeight,
+            IInventoryCommandProcessor inventoryProcessor)
         {
             _chunkManager = chunkManager;
             _playerTransform = playerTransform;
             _playerHalfWidth = playerHalfWidth;
             _playerHeight = playerHeight;
+            _inventoryProcessor = inventoryProcessor;
         }
 
         public CommandResult ProcessPlace(in PlaceBlockCommand command, List<int3> dirtiedChunks)
@@ -111,9 +115,7 @@ namespace Lithforge.Runtime.Input
 
         public CommandResult ProcessSlotClick(in SlotClickCommand command)
         {
-            // Inventory slot click handling will be wired when inventory
-            // command processing is extracted from SlotInteractionController.
-            return CommandResult.Success;
+            return _inventoryProcessor.ProcessSlotClick(in command);
         }
     }
 }
