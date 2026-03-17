@@ -9,7 +9,7 @@ namespace Lithforge.Runtime.UI.Layout
     /// Contains one or more SlotGroupDefinitions that describe how slots are arranged.
     /// </summary>
     [CreateAssetMenu(menuName = "Lithforge/UI/Container Layout")]
-    public sealed class ContainerLayoutSo : ScriptableObject
+    public sealed class ContainerLayout : ScriptableObject
     {
         [FormerlySerializedAs("_slotGroups"),SerializeField] private List<SlotGroupDefinition> slotGroups = new List<SlotGroupDefinition>();
         [FormerlySerializedAs("_screenTitle"),SerializeField] private string screenTitle = "Container";

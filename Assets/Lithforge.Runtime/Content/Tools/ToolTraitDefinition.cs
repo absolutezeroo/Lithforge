@@ -11,7 +11,7 @@ namespace Lithforge.Runtime.Content.Tools
     /// </summary>
     [CreateAssetMenu(fileName = "NewToolTrait",
         menuName = "Lithforge/Content/Tool Trait Definition")]
-    public sealed class ToolTraitDefinitionSO : ScriptableObject
+    public sealed class ToolTraitDefinition : ScriptableObject
     {
         [FormerlySerializedAs("TraitId"), Header("Identity")]
         [Tooltip("Unique trait identifier (e.g. lithforge:haste)")]

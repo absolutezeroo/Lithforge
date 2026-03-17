@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace Lithforge.Runtime.BlockEntity.ScriptableObjects
+namespace Lithforge.Runtime.BlockEntity
 {
     /// <summary>
     /// ScriptableObject that links a block (by namespace:name) to a block entity type ID.

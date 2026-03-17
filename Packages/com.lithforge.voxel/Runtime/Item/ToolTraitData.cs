@@ -2,7 +2,7 @@ namespace Lithforge.Voxel.Item
 {
     /// <summary>
     /// Resolved tool trait data implementing IToolTrait.
-    /// Built from ToolTraitDefinitionSO during content pipeline.
+    /// Built from ToolTraitDefinition during content pipeline.
     /// </summary>
     public sealed class ToolTraitData : IToolTrait
     {

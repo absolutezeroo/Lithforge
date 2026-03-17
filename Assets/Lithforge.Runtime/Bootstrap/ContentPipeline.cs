@@ -8,7 +8,6 @@ using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.Factories;
-using Lithforge.Runtime.BlockEntity.ScriptableObjects;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items;
 using Lithforge.Runtime.Content.Loot;
@@ -357,20 +356,20 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 8.6: Load tool trait definitions
             yield return "Loading tool traits...";
-            ToolTraitDefinitionSO[] toolTraits =
-                Resources.LoadAll<ToolTraitDefinitionSO>("Content/ToolTraits");
+            ToolTraitDefinition[] toolTraits =
+                Resources.LoadAll<ToolTraitDefinition>("Content/ToolTraits");
             ToolTraitRegistry toolTraitRegistry = new();
 
             for (int i = 0; i < toolTraits.Length; i++)
             {
-                ToolTraitDefinitionSO traitSO = toolTraits[i];
+                ToolTraitDefinition traitDef = toolTraits[i];
 
-                if (string.IsNullOrEmpty(traitSO.traitId))
+                if (string.IsNullOrEmpty(traitDef.traitId))
                 {
                     continue;
                 }
 
-                ToolTraitData traitData = traitSO.ToTier2();
+                ToolTraitData traitData = traitDef.ToTier2();
                 toolTraitRegistry.Register(traitData);
             }
 

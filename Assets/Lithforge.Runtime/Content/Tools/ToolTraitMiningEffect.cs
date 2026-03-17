@@ -5,7 +5,7 @@ using UnityEngine.Serialization;
 namespace Lithforge.Runtime.Content.Tools
 {
     /// <summary>
-    /// A single mining effect configured on a ToolTraitDefinitionSO.
+    /// A single mining effect configured on a ToolTraitDefinition.
     /// Serializable struct for Unity Inspector editing.
     /// Converted to ToolTraitEffect (Tier 2) during content pipeline.
     /// </summary>

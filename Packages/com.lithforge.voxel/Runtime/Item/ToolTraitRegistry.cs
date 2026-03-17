@@ -4,7 +4,7 @@ namespace Lithforge.Voxel.Item
 {
     /// <summary>
     /// Registry mapping trait IDs to resolved ToolTraitData instances.
-    /// Built during content pipeline from ToolTraitDefinitionSO assets.
+    /// Built during content pipeline from ToolTraitDefinition assets.
     /// </summary>
     public sealed class ToolTraitRegistry
     {
