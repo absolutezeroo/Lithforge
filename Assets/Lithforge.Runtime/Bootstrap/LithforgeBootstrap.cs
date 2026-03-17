@@ -1161,6 +1161,11 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ItemSpriteAtlas,
                     _contentResult.ToolPartTextures);
 
+                // Create ContainerScreenManager (manages all block entity screens lazily)
+                GameObject screenManagerObject = new("ContainerScreenManager");
+                ContainerScreenManager screenManager =
+                    screenManagerObject.AddComponent<ContainerScreenManager>();
+
                 // Build ScreenContext — single shared context for all container screens
                 ScreenContext screenContext = new(
                     playerInventory,
@@ -1174,17 +1179,13 @@ namespace Lithforge.Runtime.Bootstrap
                     _contentResult.ToolTemplateRegistry,
                     _contentResult.PartBuilderRecipeRegistry,
                     _contentResult.ToolMaterialRegistry,
-                    _contentResult.MaterialInputRegistry);
+                    _contentResult.MaterialInputRegistry,
+                    screenManager);
 
                 // Add PlayerInventoryScreen (not a block entity screen, managed separately)
                 GameObject inventoryObject = new("PlayerInventoryScreen");
                 PlayerInventoryScreen inventoryScreen = inventoryObject.AddComponent<PlayerInventoryScreen>();
                 inventoryScreen.Initialize(screenContext);
-
-                // Create ContainerScreenManager (manages all block entity screens lazily)
-                GameObject screenManagerObject = new("ContainerScreenManager");
-                ContainerScreenManager screenManager =
-                    screenManagerObject.AddComponent<ContainerScreenManager>();
 
                 screenManager.Register(
                     ChestBlockEntity.TypeIdValue,

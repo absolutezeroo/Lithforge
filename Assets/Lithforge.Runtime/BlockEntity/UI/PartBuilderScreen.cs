@@ -55,7 +55,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             if (IsOpen && Keyboard.current != null &&
-                Keyboard.current.escapeKey.wasPressedThisFrame)
+                (Keyboard.current.escapeKey.wasPressedThisFrame ||
+                 Keyboard.current.eKey.wasPressedThisFrame))
             {
                 Close();
                 return;
@@ -63,6 +64,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (!IsOpen)
             {
+                return;
+            }
+
+            if (IsInGracePeriod())
+            {
+                RefreshAllSlots();
                 return;
             }
 

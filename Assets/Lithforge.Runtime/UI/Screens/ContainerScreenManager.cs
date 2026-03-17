@@ -23,6 +23,35 @@ namespace Lithforge.Runtime.UI.Screens
             new List<BlockEntityScreenBinding>();
 
         private ContainerScreen _activeScreen;
+        private int _lastCloseFrame = -1;
+
+        /// <summary>
+        /// Returns true if a block entity screen is currently open.
+        /// </summary>
+        public bool HasActiveScreen
+        {
+            get { return _activeScreen != null && _activeScreen.IsOpen; }
+        }
+
+        /// <summary>
+        /// Returns true if a block entity screen was closed during the current frame.
+        /// Used to prevent the E key from both closing a block entity screen
+        /// and opening the player inventory in the same frame.
+        /// </summary>
+        public bool WasClosedThisFrame
+        {
+            get { return _lastCloseFrame == Time.frameCount; }
+        }
+
+        /// <summary>
+        /// Records that a screen was closed this frame. Called from
+        /// <see cref="ContainerScreen.Close"/> to handle script execution
+        /// order races between block entity screens and PlayerInventoryScreen.
+        /// </summary>
+        public void NotifyScreenClosed()
+        {
+            _lastCloseFrame = Time.frameCount;
+        }
 
         /// <summary>
         /// Registers a screen factory and open action for the given entity type ID.

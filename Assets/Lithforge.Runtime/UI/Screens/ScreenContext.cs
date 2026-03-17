@@ -25,6 +25,7 @@ namespace Lithforge.Runtime.UI.Screens
         private readonly PartBuilderRecipeRegistry _partBuilderRecipeRegistry;
         private readonly ToolMaterialRegistry _toolMaterialRegistry;
         private readonly MaterialInputRegistry _materialInputRegistry;
+        private readonly ContainerScreenManager _screenManager;
 
         public Inventory PlayerInventory
         {
@@ -113,6 +114,14 @@ namespace Lithforge.Runtime.UI.Screens
             get { return _materialInputRegistry; }
         }
 
+        /// <summary>
+        /// May be null for screens that do not need cross-screen coordination.
+        /// </summary>
+        public ContainerScreenManager ScreenManager
+        {
+            get { return _screenManager; }
+        }
+
         public ScreenContext(
             Inventory playerInventory,
             ItemRegistry itemRegistry,
@@ -125,7 +134,8 @@ namespace Lithforge.Runtime.UI.Screens
             ToolTemplateRegistry toolTemplateRegistry,
             PartBuilderRecipeRegistry partBuilderRecipeRegistry,
             ToolMaterialRegistry toolMaterialRegistry,
-            MaterialInputRegistry materialInputRegistry)
+            MaterialInputRegistry materialInputRegistry,
+            ContainerScreenManager screenManager = null)
         {
             _playerInventory = playerInventory;
             _itemRegistry = itemRegistry;
@@ -139,6 +149,7 @@ namespace Lithforge.Runtime.UI.Screens
             _partBuilderRecipeRegistry = partBuilderRecipeRegistry;
             _toolMaterialRegistry = toolMaterialRegistry;
             _materialInputRegistry = materialInputRegistry;
+            _screenManager = screenManager;
         }
     }
 }

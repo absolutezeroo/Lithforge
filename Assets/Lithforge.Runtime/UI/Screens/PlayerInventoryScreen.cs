@@ -187,10 +187,32 @@ namespace Lithforge.Runtime.UI.Screens
                 return;
             }
 
+            // Escape closes inventory (before E key check)
+            if (IsOpen && Keyboard.current != null &&
+                Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                Close();
+                return;
+            }
+
             // Toggle with E key
             if (Keyboard.current != null &&
                 Keyboard.current.eKey.wasPressedThisFrame)
             {
+                // If a block entity screen is open (or was just closed this frame
+                // by its own Update running first), consume E without opening inventory
+                if (Context.ScreenManager != null &&
+                    (Context.ScreenManager.HasActiveScreen ||
+                     Context.ScreenManager.WasClosedThisFrame))
+                {
+                    if (Context.ScreenManager.HasActiveScreen)
+                    {
+                        Context.ScreenManager.CloseActive();
+                    }
+
+                    return;
+                }
+
                 if (IsOpen)
                 {
                     Close();
@@ -203,6 +225,12 @@ namespace Lithforge.Runtime.UI.Screens
 
             if (!IsOpen)
             {
+                return;
+            }
+
+            if (IsInGracePeriod())
+            {
+                RefreshAllSlots();
                 return;
             }
 

@@ -30,6 +30,7 @@ namespace Lithforge.Runtime.UI.Screens
 
         private VisualTreeAsset _screenTemplate;
         private TooltipWidget _tooltip;
+        private int _openGraceFrames;
 
         // Tooltip key-change refresh state
         private bool _lastTooltipShift;
@@ -57,6 +58,21 @@ namespace Lithforge.Runtime.UI.Screens
 
         public bool IsOpen { get; private set; }
 
+        /// <summary>
+        ///     Decrements grace frame counter. Call at the start of subclass Update().
+        ///     Returns true if inputs should be ignored this frame.
+        /// </summary>
+        protected bool IsInGracePeriod()
+        {
+            if (_openGraceFrames > 0)
+            {
+                _openGraceFrames--;
+                return true;
+            }
+
+            return false;
+        }
+
         public void Close()
         {
             IsOpen = false;
@@ -67,6 +83,11 @@ namespace Lithforge.Runtime.UI.Screens
             Interaction.ResetState();
             _tooltip.Hide();
             _dragGhost.Refresh(ItemStack.Empty, SpriteAtlas);
+
+            if (Context != null && Context.ScreenManager != null)
+            {
+                Context.ScreenManager.NotifyScreenClosed();
+            }
 
             OnClose();
         }
@@ -248,9 +269,10 @@ namespace Lithforge.Runtime.UI.Screens
                     int capturedIndex = slotIndex;
                     ISlotContainer capturedContainer = container;
 
-                    // Pointer down
+                    // Pointer down (guarded by grace period)
                     widget.RegisterCallback<PointerDownEvent>(evt =>
                     {
+                        if (_openGraceFrames > 0) return;
                         OnSlotPointerDown(capturedContainer, capturedIndex, evt);
                     });
 
@@ -288,6 +310,7 @@ namespace Lithforge.Runtime.UI.Screens
 
             widget.RegisterCallback<PointerDownEvent>(evt =>
             {
+                if (_openGraceFrames > 0) return;
                 OnSlotPointerDown(capturedContainer, capturedIndex, evt);
             });
 
@@ -379,6 +402,9 @@ namespace Lithforge.Runtime.UI.Screens
             Panel.style.display = DisplayStyle.Flex;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+
+            _openGraceFrames = 2;
+            Interaction.ResetState();
 
             // Invalidate all slots so they redraw
             for (int i = 0; i < _allBindings.Count; i++)
