@@ -1,25 +1,27 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Runtime.Content.Models;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.UI.Sprites
 {
     /// <summary>
-    /// Builds an ItemSpriteAtlas from item textures and block top-face textures.
-    /// Standalone items use textures from Content/Textures/Items/.
-    /// Block items use the top face texture from resolvedFaces.
-    /// Tool parts use tag-based resolution via ToolPartTextureDatabase.
-    /// Uses the same RenderTexture blit pattern as AtlasBuilder for non-readable textures.
+    ///     Builds an ItemSpriteAtlas from item textures and block top-face textures.
+    ///     Standalone items use textures from Content/Textures/Items/.
+    ///     Block items use the top face texture from resolvedFaces.
+    ///     Tool parts use tag-based resolution via ToolPartTextureDatabase.
+    ///     Uses the same RenderTexture blit pattern as AtlasBuilder for non-readable textures.
     /// </summary>
     public static class ItemSpriteAtlasBuilder
     {
         private const int SpriteSize = 32;
 
         /// <summary>
-        /// Builds the sprite atlas from item entries and resolved block face textures.
+        ///     Builds the sprite atlas from item entries and resolved block face textures.
         /// </summary>
         public static ItemSpriteAtlas Build(
             List<ItemEntry> itemEntries,
@@ -27,11 +29,11 @@ namespace Lithforge.Runtime.UI.Sprites
             Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces,
             ToolPartTextureDatabase toolTexDb)
         {
-            Dictionary<ResourceId, Sprite> sprites = new Dictionary<ResourceId, Sprite>();
+            Dictionary<ResourceId, Sprite> sprites = new();
 
             // Load all item textures from Resources
             Texture2D[] itemTextures = Resources.LoadAll<Texture2D>("Content/Textures/Items");
-            Dictionary<string, Texture2D> itemTexturesByName = new Dictionary<string, Texture2D>();
+            Dictionary<string, Texture2D> itemTexturesByName = new();
 
             for (int i = 0; i < itemTextures.Length; i++)
             {
@@ -90,7 +92,6 @@ namespace Lithforge.Runtime.UI.Sprites
                             if (partTex != null)
                             {
                                 sprites[itemId] = CreateSpriteFromTexture(partTex);
-                                continue;
                             }
                         }
                     }
@@ -111,7 +112,7 @@ namespace Lithforge.Runtime.UI.Sprites
                     continue; // Already has a standalone texture
                 }
 
-                StateId baseState = new StateId(stateEntry.BaseStateId);
+                StateId baseState = new(stateEntry.BaseStateId);
 
                 if (resolvedFaces.TryGetValue(baseState, out ResolvedFaceTextures2D faces))
                 {
@@ -141,13 +142,20 @@ namespace Lithforge.Runtime.UI.Sprites
             {
                 switch (tags[t])
                 {
-                    case "tool_part_head": return ToolPartType.Head;
-                    case "tool_part_blade": return ToolPartType.Blade;
-                    case "tool_part_handle": return ToolPartType.Handle;
-                    case "tool_part_binding": return ToolPartType.Binding;
-                    case "tool_part_guard": return ToolPartType.Guard;
-                    case "tool_part_point": return ToolPartType.Point;
-                    case "tool_part_shaft": return ToolPartType.Shaft;
+                    case "tool_part_head":
+                        return ToolPartType.Head;
+                    case "tool_part_blade":
+                        return ToolPartType.Blade;
+                    case "tool_part_handle":
+                        return ToolPartType.Handle;
+                    case "tool_part_binding":
+                        return ToolPartType.Binding;
+                    case "tool_part_guard":
+                        return ToolPartType.Guard;
+                    case "tool_part_point":
+                        return ToolPartType.Point;
+                    case "tool_part_shaft":
+                        return ToolPartType.Shaft;
                 }
             }
 
@@ -161,12 +169,17 @@ namespace Lithforge.Runtime.UI.Sprites
                 return null;
             }
 
-            // Blit through RenderTexture to handle non-readable textures
-            Texture2D readable = new Texture2D(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
+            // Blit through RenderTexture to handle non-readable textures.
+            // Force Point filtering on source to prevent bilinear blur on pixel art.
+            FilterMode originalFilter = source.filterMode;
+            source.filterMode = FilterMode.Point;
+
+            Texture2D readable = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
             readable.filterMode = FilterMode.Point;
 
             RenderTexture rt = RenderTexture.GetTemporary(
                 SpriteSize, SpriteSize, 0, RenderTextureFormat.ARGB32);
+            rt.filterMode = FilterMode.Point;
             RenderTexture prev = RenderTexture.active;
             Graphics.Blit(source, rt);
             RenderTexture.active = rt;
@@ -174,6 +187,9 @@ namespace Lithforge.Runtime.UI.Sprites
             readable.Apply();
             RenderTexture.active = prev;
             RenderTexture.ReleaseTemporary(rt);
+
+            // Restore original filter mode to avoid side effects on shared textures
+            source.filterMode = originalFilter;
 
             Sprite sprite = Sprite.Create(
                 readable,
@@ -186,7 +202,7 @@ namespace Lithforge.Runtime.UI.Sprites
 
         private static Sprite CreateFallbackSprite()
         {
-            Texture2D fallbackTex = new Texture2D(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
+            Texture2D fallbackTex = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
             fallbackTex.filterMode = FilterMode.Point;
             Color32[] pixels = new Color32[SpriteSize * SpriteSize];
 
@@ -194,7 +210,7 @@ namespace Lithforge.Runtime.UI.Sprites
             {
                 int px = p % SpriteSize;
                 int py = p / SpriteSize;
-                bool checker = ((px / 4) + (py / 4)) % 2 == 0;
+                bool checker = (px / 4 + py / 4) % 2 == 0;
                 pixels[p] = checker
                     ? new Color32(255, 0, 255, 255)
                     : new Color32(0, 0, 0, 255);

@@ -200,6 +200,10 @@ namespace Lithforge.Runtime.UI.Widgets
         public void Invalidate()
         {
             _lastStack = default;
+            _icon.sprite = null;
+            _icon.style.display = DisplayStyle.None;
+            _count.text = "";
+            _durabilityTrack.style.display = DisplayStyle.None;
         }
 
         /// <summary>
