@@ -24,7 +24,7 @@
                 <ui:VisualElement name="binding-slot" />
             </ui:VisualElement>
             <ui:VisualElement name="arrow-col" class="lf-craft-arrow-col">
-                <ui:Label text="=>" class="lf-craft-arrow" />
+                <ui:VisualElement class="lf-craft-arrow" />
             </ui:VisualElement>
             <ui:VisualElement name="output-col">
                 <ui:Label text="Result" class="lf-section-label" />

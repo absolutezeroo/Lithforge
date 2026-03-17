@@ -2,52 +2,72 @@
  * Override these in a custom theme USS to reskin the entire UI. */
 
 :root {
-    /* Slot */
-    --lf-slot-size: 60px;
-    --lf-slot-bg: rgba(32, 32, 32, 0.9);
-    --lf-slot-border-width: 2px;
-    --lf-slot-radius: 2px;
-    --lf-slot-hover-bg: rgba(89, 89, 89, 0.9);
-    --lf-slot-selected-border: rgba(255, 255, 255, 1);
-    /* Inset bevel: darker top/left (shadow falls into the slot), lighter bottom/right */
-    --lf-slot-border-highlight: rgba(75, 75, 75, 0.9);
-    --lf-slot-border-shadow: rgba(15, 15, 15, 0.9);
+  /* Slot */
+  --lf-slot-size: 60px;
+  --lf-slot-bg: rgba(32, 32, 32, 0.9);
+  --lf-slot-border-width: 2px;
+  --lf-slot-radius: 2px;
+  --lf-slot-hover-bg: rgba(89, 89, 89, 0.9);
+  --lf-slot-selected-border: rgba(255, 255, 255, 1);
+  /* Inset bevel: darker top/left (shadow falls into the slot), lighter bottom/right */
+  --lf-slot-border-highlight: rgba(75, 75, 75, 0.9);
+  --lf-slot-border-shadow: rgba(15, 15, 15, 0.9);
 
-    /* Panel */
-    --lf-panel-bg: rgba(55, 55, 55, 0.95);
-    --lf-panel-border-width: 3px;
-    --lf-panel-radius: 2px;
-    --lf-overlay-bg: rgba(0, 0, 0, 0.5);
-    /* Raised bevel: lighter top/left (light catches the edge), darker bottom/right */
-    --lf-panel-border-highlight: rgba(139, 139, 139, 0.95);
-    --lf-panel-border-shadow: rgba(30, 30, 30, 0.95);
+  /* Panel */
+  --lf-panel-bg: rgba(55, 55, 55, 0.95);
+  --lf-panel-border-width: 3px;
+  --lf-panel-radius: 2px;
+  --lf-overlay-bg: rgba(0, 0, 0, 0.5);
+  /* Raised bevel: lighter top/left (light catches the edge), darker bottom/right */
+  --lf-panel-border-highlight: rgba(139, 139, 139, 0.95);
+  --lf-panel-border-shadow: rgba(30, 30, 30, 0.95);
 
-    /* Text */
-    --lf-text-primary: rgba(255, 255, 255, 1);
-    --lf-text-secondary: rgba(230, 230, 230, 1);
-    --lf-text-muted: rgba(179, 179, 179, 1);
-    --lf-text-count: rgba(255, 255, 255, 1);
+  /* Text */
+  --lf-text-primary: rgba(255, 255, 255, 1);
+  --lf-text-secondary: rgba(230, 230, 230, 1);
+  --lf-text-muted: rgba(179, 179, 179, 1);
+  --lf-text-count: rgba(255, 255, 255, 1);
 
-    /* Tooltip */
-    --lf-tooltip-bg: rgba(16, 0, 16, 0.94);
-    --lf-tooltip-border-width: 2px;
-    --lf-tooltip-text: rgba(255, 255, 255, 1);
-    /* Purple-tinted bevel (Minecraft tooltip style) */
-    --lf-tooltip-border-highlight: rgba(80, 0, 120, 0.9);
-    --lf-tooltip-border-shadow: rgba(40, 0, 60, 0.9);
-    --lf-tooltip-name-color: rgba(255, 255, 255, 1);
-    --lf-tooltip-stat-color: rgba(170, 170, 170, 1);
-    --lf-tooltip-tool-color: rgba(100, 200, 100, 1);
+  /* Tooltip */
+  --lf-tooltip-bg: rgba(16, 0, 16, 0.94);
+  --lf-tooltip-border-width: 2px;
+  --lf-tooltip-text: rgba(255, 255, 255, 1);
+  /* Purple-tinted bevel (Minecraft tooltip style) */
+  --lf-tooltip-border-highlight: rgba(80, 0, 120, 0.9);
+  --lf-tooltip-border-shadow: rgba(40, 0, 60, 0.9);
+  --lf-tooltip-name-color: rgba(255, 255, 255, 1);
+  --lf-tooltip-stat-color: rgba(170, 170, 170, 1);
+  --lf-tooltip-tool-color: rgba(100, 200, 100, 1);
 
-    /* Durability bar */
-    --lf-durability-bg: rgba(40, 40, 40, 0.8);
-    --lf-durability-full: rgba(0, 200, 0, 1);
-    --lf-durability-mid: rgba(200, 200, 0, 1);
-    --lf-durability-low: rgba(200, 0, 0, 1);
+  /* Durability bar */
+  --lf-durability-bg: rgba(40, 40, 40, 0.8);
+  --lf-durability-full: rgba(0, 200, 0, 1);
+  --lf-durability-mid: rgba(200, 200, 0, 1);
+  --lf-durability-low: rgba(200, 0, 0, 1);
 
-    /* Drag ghost */
-    --lf-ghost-opacity: 0.85;
+  /* Drag ghost */
+  --lf-ghost-opacity: 0.85;
 
-    /* Separator */
-    --lf-separator-color: rgba(102, 102, 102, 0.5);
+  /* Separator */
+  --lf-separator-color: rgba(102, 102, 102, 0.5);
+
+  /* 9-slice backgrounds (assign sprites in theme override) */
+  --lf-panel-bg-image: resource('UI/Sprites/panel-bg');
+  --lf-slot-bg-image: resource('UI/Sprites/slot-bg');
+  --lf-craft-slot-bg-image: resource('UI/Sprites/crafting-slot-bg');
+  --lf-tooltip-bg-image: none;
+  --lf-btn-bg-image: none;
+  --lf-craft-arrow-image: none;
+  --lf-slice-scale: 3px;
+  --lf-panel-slice: 3;
+  --lf-slot-slice: 2;
+  --lf-tooltip-slice: 3;
+
+  /* Per-context slot image overrides — define in your theme override USS.
+   * When undefined, slots inherit the global --lf-slot-bg-image.
+   * --lf-craft-slot-bg-image      → #craft-grid
+   * --lf-output-slot-bg-image     → #output-slot
+   * --lf-furnace-slot-bg-image    → #input-slot, #fuel-slot
+   * --lf-chest-slot-bg-image      → #chest-slots
+   * --lf-station-slot-bg-image    → tool / part builder input slots */
 }

@@ -8,6 +8,12 @@
     height: var(--lf-slot-size);
     margin: 3px;
     background-color: var(--lf-slot-bg);
+    background-image: var(--lf-slot-bg-image);
+    -unity-slice-left: var(--lf-slot-slice);
+    -unity-slice-right: var(--lf-slot-slice);
+    -unity-slice-top: var(--lf-slot-slice);
+    -unity-slice-bottom: var(--lf-slot-slice);
+    -unity-slice-scale: var(--lf-slice-scale);
     border-width: var(--lf-slot-border-width);
     border-radius: var(--lf-slot-radius);
     /* Inset bevel: darker top/left, lighter bottom/right */
@@ -49,6 +55,36 @@
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
 }
 
+/* ─── Contextual slot image overrides ─── */
+/* Activate by defining the variable in a theme override USS, e.g.:
+ *   :root { --lf-craft-slot-bg-image: resource('UI/Sprites/craft-slot'); }
+ * When undefined, slots inherit the global --lf-slot-bg-image. */
+
+#craft-grid {
+    --lf-slot-bg-image: var(--lf-craft-slot-bg-image);
+}
+
+#output-slot {
+    --lf-slot-bg-image: var(--lf-output-slot-bg-image);
+}
+
+#chest-slots {
+    --lf-slot-bg-image: var(--lf-chest-slot-bg-image);
+}
+
+#input-slot,
+#fuel-slot {
+    --lf-slot-bg-image: var(--lf-furnace-slot-bg-image);
+}
+
+#head-slot,
+#handle-slot,
+#binding-slot,
+#pattern-slot,
+#material-slot {
+    --lf-slot-bg-image: var(--lf-station-slot-bg-image);
+}
+
 .lf-slot__durability-track {
     position: absolute;
     bottom: 3px;
@@ -80,6 +116,12 @@
 
 .lf-panel {
     background-color: var(--lf-panel-bg);
+    background-image: var(--lf-panel-bg-image);
+    -unity-slice-left: var(--lf-panel-slice);
+    -unity-slice-right: var(--lf-panel-slice);
+    -unity-slice-top: var(--lf-panel-slice);
+    -unity-slice-bottom: var(--lf-panel-slice);
+    -unity-slice-scale: var(--lf-slice-scale);
     padding: 12px 16px;
     border-width: var(--lf-panel-border-width);
     border-radius: var(--lf-panel-radius);
@@ -128,9 +170,10 @@
 }
 
 .lf-craft-arrow {
-    font-size: 24px;
-    color: var(--lf-text-primary);
-    -unity-text-align: middle-center;
+    background-image: var(--lf-craft-arrow-image);
+    -unity-background-scale-mode: scale-to-fit;
+    width: 32px;
+    height: 32px;
     margin-left: 8px;
     margin-right: 8px;
 }
@@ -147,6 +190,12 @@
     height: 24px;
     margin-right: 4px;
     background-color: rgba(51, 51, 51, 1);
+    background-image: var(--lf-btn-bg-image);
+    -unity-slice-left: var(--lf-slot-slice);
+    -unity-slice-right: var(--lf-slot-slice);
+    -unity-slice-top: var(--lf-slot-slice);
+    -unity-slice-bottom: var(--lf-slot-slice);
+    -unity-slice-scale: var(--lf-slice-scale);
     color: var(--lf-text-muted);
 }
 
@@ -166,6 +215,12 @@
 .lf-tooltip {
     position: absolute;
     background-color: var(--lf-tooltip-bg);
+    background-image: var(--lf-tooltip-bg-image);
+    -unity-slice-left: var(--lf-tooltip-slice);
+    -unity-slice-right: var(--lf-tooltip-slice);
+    -unity-slice-top: var(--lf-tooltip-slice);
+    -unity-slice-bottom: var(--lf-tooltip-slice);
+    -unity-slice-scale: var(--lf-slice-scale);
     border-width: var(--lf-tooltip-border-width);
     border-radius: 3px;
     padding: 6px 10px;
