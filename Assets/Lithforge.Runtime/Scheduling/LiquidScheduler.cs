@@ -517,10 +517,11 @@ namespace Lithforge.Runtime.Scheduling
                 chunk.LiquidActiveSet.Add(pending.OutputActiveSet[i]);
             }
 
-            // Force-complete any in-flight jobs that hold read locks on chunk data
-            // we're about to write via SetBlock:
+            // Force-complete any in-flight jobs that hold safety locks on data
+            // we're about to write via SetBlock or direct LiquidData write:
             // 1. Mesh border extraction jobs reading target chunks as neighbors
             // 2. LightRemovalJobs reading target chunk's ChunkData
+            // 3. LiquidSimJobs writing to target (neighbor) chunk's LiquidData
             // Collect unique target chunk coords first to batch force-completion.
             if (pending.OutputEdits.Length > 0)
             {
@@ -542,12 +543,26 @@ namespace Lithforge.Runtime.Scheduling
                         _meshScheduler.ForceCompleteNeighborDeps(coord);
                     }
 
-                    // Relight: LightRemovalJob reads ChunkData as [ReadOnly]
                     ManagedChunk target = _chunkManager.TryGetChunk(coord);
 
-                    if (target != null && target.LightJobInFlight)
+                    if (target == null)
+                    {
+                        continue;
+                    }
+
+                    // Relight: LightRemovalJob reads ChunkData as [ReadOnly]
+                    if (target.LightJobInFlight)
                     {
                         target.ActiveJobHandle.Complete();
+                    }
+
+                    // Liquid: neighbor's in-flight LiquidSimJob writes to LiquidData.
+                    // Complete it so we can safely write cross-boundary edits.
+                    // Skip the current chunk (already completed above in PollCompleted).
+                    if (_inFlightCoords.Contains(coord) &&
+                        !coord.Equals(pending.ChunkCoord))
+                    {
+                        target.LiquidJobHandle.Complete();
                     }
                 }
             }
