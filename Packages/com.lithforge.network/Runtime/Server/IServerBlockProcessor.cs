@@ -18,26 +18,26 @@ namespace Lithforge.Network.Server
         /// Initializes per-player rate limiting and digging state.
         /// Called when a player joins the server.
         /// </summary>
-        void AddPlayer(ushort playerId);
+        public void AddPlayer(ushort playerId);
 
         /// <summary>
         /// Cleans up per-player state (rate limit tokens, digging state).
         /// Called when a player disconnects.
         /// </summary>
-        void RemovePlayer(ushort playerId);
+        public void RemovePlayer(ushort playerId);
 
         /// <summary>
         /// Refills the per-player rate-limit token bucket for the current tick.
         /// Must be called once per tick before any TryBreakBlock/TryPlaceBlock calls.
         /// </summary>
-        void RefillRateLimitTokens(ushort playerId, float currentTime);
+        public void RefillRateLimitTokens(ushort playerId, float currentTime);
 
         /// <summary>
         /// Records that the player began mining at <paramref name="position"/>.
         /// Performs chunk-ready and reach checks; computes expected break time from hardness.
         /// Returns false if the position is invalid or unreachable.
         /// </summary>
-        bool StartDigging(
+        public bool StartDigging(
             ushort playerId,
             int3 position,
             float3 playerPosition,
@@ -47,13 +47,13 @@ namespace Lithforge.Network.Server
         /// Cancels any in-progress dig for the player.
         /// Call on disconnect, target change, or player death.
         /// </summary>
-        void CancelDigging(ushort playerId);
+        public void CancelDigging(ushort playerId);
 
         /// <summary>
         /// Validates all server-side checks and breaks the block if accepted.
         /// Returns <see cref="BlockProcessResult"/> with the outcome and authoritative state.
         /// </summary>
-        BlockProcessResult TryBreakBlock(
+        public BlockProcessResult TryBreakBlock(
             ushort playerId,
             int3 position,
             float3 playerPosition,
@@ -63,7 +63,7 @@ namespace Lithforge.Network.Server
         /// Validates all server-side checks and places the block if accepted.
         /// Returns <see cref="BlockProcessResult"/> with the outcome and authoritative state.
         /// </summary>
-        BlockProcessResult TryPlaceBlock(
+        public BlockProcessResult TryPlaceBlock(
             ushort playerId,
             int3 position,
             StateId blockState,
@@ -74,6 +74,6 @@ namespace Lithforge.Network.Server
         /// Returns the current block state at the given world position.
         /// Returns <see cref="StateId.Air"/> if the chunk is not loaded.
         /// </summary>
-        StateId GetBlock(int3 position);
+        public StateId GetBlock(int3 position);
     }
 }
