@@ -43,6 +43,7 @@ namespace Lithforge.Runtime.Tick
         // Physics state
         private float _verticalSpeed;
         private float _yaw;
+        private float _pitch;
         private bool _onGround;
         private bool _isSprinting;
 
@@ -166,8 +167,9 @@ namespace Lithforge.Runtime.Tick
                 return;
             }
 
-            // Cache yaw for GetState() / IPlayerManager.GetYaw()
+            // Cache look direction for GetState() / IPlayerManager queries
             _yaw = snapshot.Yaw;
+            _pitch = snapshot.Pitch;
 
             // Toggle fly mode (edge input from snapshot)
             if (snapshot.FlyTogglePressed)
@@ -370,7 +372,7 @@ namespace Lithforge.Runtime.Tick
                 Position = _currentPosition,
                 Velocity = new float3(0f, _verticalSpeed, 0f),
                 Yaw = _yaw,
-                Pitch = 0f,
+                Pitch = _pitch,
                 Flags = flags,
             };
         }
