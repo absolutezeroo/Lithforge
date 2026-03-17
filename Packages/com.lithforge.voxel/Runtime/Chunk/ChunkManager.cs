@@ -710,6 +710,25 @@ namespace Lithforge.Voxel.Chunk
             }
             else
             {
+                // Complete any jobs that hold this chunk's Data before writing.
+                // Light jobs read ChunkData as [ReadOnly].
+                if (chunk.LightJobInFlight)
+                {
+                    chunk.ActiveJobHandle.Complete();
+                }
+
+                // Neighbor mesh jobs read this chunk's Data as border slices via
+                // ExtractAllBordersJob. Complete them to release safety locks.
+                for (int face = 0; face < 6; face++)
+                {
+                    ManagedChunk neighbor = chunk.Neighbors[face];
+
+                    if (neighbor != null && neighbor.State == ChunkState.Meshing)
+                    {
+                        neighbor.ActiveJobHandle.Complete();
+                    }
+                }
+
                 // Normal path: write immediately and trigger relight
                 NativeArray<StateId> data = chunk.Data;
                 data[index] = state;
