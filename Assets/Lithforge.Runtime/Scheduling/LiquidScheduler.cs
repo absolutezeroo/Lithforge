@@ -473,6 +473,14 @@ namespace Lithforge.Runtime.Scheduling
                 return;
             }
 
+            // Skip neighbors with in-flight jobs that hold BlockData safety handles.
+            // Generation/decoration jobs write BlockData; mesh/light jobs hold it [ReadOnly].
+            // Either case blocks main-thread reads via Unity's safety system.
+            if (neighbor.State < ChunkState.Generated || neighbor.State == ChunkState.Meshing)
+            {
+                return;
+            }
+
             NativeArray<StateId> neighborBlocks = neighbor.Data;
             NativeArray<BlockStateCompact> stateTable = _nativeStateRegistry.States;
             int size = ChunkConstants.Size;

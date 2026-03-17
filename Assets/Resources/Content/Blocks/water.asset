@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71c622655d272264aa92cf2be9b30f2d, type: 3}
   m_Name: water
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Blocks.BlockDefinition
-  _namespace: lithforge
+  namespace: lithforge
   blockName: water
   hardness: 100
   blastResistance: 100
@@ -20,7 +20,7 @@ MonoBehaviour:
   materialType: 0
   requiredToolLevel: 0
   soundGroup: water
-  collisionShape: 0
+  collisionShape: 1
   renderLayer: 2
   isFluid: 1
   defaultTintType: 3
