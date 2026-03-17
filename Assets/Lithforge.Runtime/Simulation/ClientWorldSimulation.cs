@@ -1,3 +1,4 @@
+using System;
 using Lithforge.Network;
 using Lithforge.Network.Client;
 using Lithforge.Network.Messages;
@@ -41,7 +42,11 @@ namespace Lithforge.Runtime.Simulation
 
         private ushort _moveSequenceId;
 
-        // Reconciliation state
+        /// <summary>
+        /// Optional callback invoked for remote player state messages (PlayerId != localPlayerId).
+        /// Set via <see cref="SetRemotePlayerStateHandler"/> after construction.
+        /// </summary>
+        private Action<PlayerStateMessage> _onRemotePlayerState;
 
         public ClientWorldSimulation(
             TickRegistry tickRegistry,
@@ -77,6 +82,17 @@ namespace Lithforge.Runtime.Simulation
         }
 
         public uint CurrentTick { get; private set; }
+
+        /// <summary>
+        /// Registers a handler that will be called for remote player state messages
+        /// (where PlayerId != localPlayerId). Used to route remote player snapshots
+        /// to the <see cref="Player.RemotePlayerManager"/> without requiring a second
+        /// handler registration on the single-handler MessageDispatcher.
+        /// </summary>
+        public void SetRemotePlayerStateHandler(Action<PlayerStateMessage> handler)
+        {
+            _onRemotePlayerState = handler;
+        }
 
         /// <summary>
         ///     Advances one tick: captures input, runs local physics prediction,
@@ -135,7 +151,8 @@ namespace Lithforge.Runtime.Simulation
 
             if (msg.PlayerId != _localPlayerId)
             {
-                // Remote player state — handled by interpolation buffers, not here
+                // Remote player state — route to remote player manager
+                _onRemotePlayerState?.Invoke(msg);
                 return;
             }
 

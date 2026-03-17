@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Lithforge.Voxel.Command;
 using Unity.Mathematics;
 
+
 namespace Lithforge.Network.Server
 {
     /// <summary>
@@ -72,6 +73,19 @@ namespace Lithforge.Network.Server
         public readonly List<BreakBlockCommand> PendingBreakCommands;
 
         /// <summary>
+        /// Queue of pending StartDigging commands for this tick.
+        /// Drained in Phase 2 before break commands.
+        /// </summary>
+        public readonly List<StartDiggingCommand> PendingStartDiggingCommands;
+
+        /// <summary>
+        /// Set of player IDs for which a SpawnPlayerMessage has been sent to this observer.
+        /// Used by <see cref="ServerGameLoop.BroadcastPlayerPresenceChanges"/> to detect
+        /// first-entry and exit events for remote player spawn/despawn lifecycle.
+        /// </summary>
+        public readonly HashSet<ushort> SpawnedRemotePlayers;
+
+        /// <summary>
         /// The Flags from the most recently processed MoveInput.
         /// Used as the default input when no MoveInput arrives for a tick (packet loss).
         /// </summary>
@@ -103,6 +117,8 @@ namespace Lithforge.Network.Server
             MoveBuffer = new CommandRingBuffer<MoveCommand>();
             PendingPlaceCommands = new List<PlaceBlockCommand>();
             PendingBreakCommands = new List<BreakBlockCommand>();
+            PendingStartDiggingCommands = new List<StartDiggingCommand>();
+            SpawnedRemotePlayers = new HashSet<ushort>();
             LastKnownInputFlags = 0;
             LastKnownLookDir = float2.zero;
             SpawnPosition = float3.zero;

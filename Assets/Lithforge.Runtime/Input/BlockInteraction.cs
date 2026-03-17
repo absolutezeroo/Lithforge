@@ -98,6 +98,9 @@ namespace Lithforge.Runtime.Input
         // Command processor (delegates validation + state mutation to LocalCommandProcessor)
         private ICommandProcessor _commandProcessor;
 
+        // Network callback: notifies server when mining begins (for break speed validation)
+        private Action<int3> _onStartDigging;
+
         // Reusable list for dirty chunks
         private readonly List<int3> _dirtiedChunks = new List<int3>();
 
@@ -108,6 +111,15 @@ namespace Lithforge.Runtime.Input
         public void SetCommandProcessor(ICommandProcessor processor)
         {
             _commandProcessor = processor;
+        }
+
+        /// <summary>
+        /// Sets a callback invoked when the player begins mining a new block.
+        /// In network mode, this sends a StartDiggingCmd message to the server.
+        /// </summary>
+        public void SetStartDiggingCallback(Action<int3> callback)
+        {
+            _onStartDigging = callback;
         }
 
         public void Initialize(
@@ -437,6 +449,9 @@ namespace Lithforge.Runtime.Input
             {
                 _miningRequiredTime = _minBreakTime;
             }
+
+            // Notify server (network mode) that mining has started
+            _onStartDigging?.Invoke(blockCoord);
         }
 
         private void BreakBlock(int3 blockCoord)

@@ -19,16 +19,19 @@ namespace Lithforge.Runtime.Simulation
         private readonly TickRegistry _tickRegistry;
         private readonly PhysicsSettings _physicsSettings;
         private readonly Func<float> _timeOfDayProvider;
+        private readonly ServerBlockProcessor _blockProcessor;
 
         public ServerSimulation(
             PlayerPhysicsManager playerPhysicsManager,
             TickRegistry tickRegistry,
             PhysicsSettings physicsSettings,
+            ServerBlockProcessor blockProcessor,
             Func<float> timeOfDayProvider = null)
         {
             _playerPhysicsManager = playerPhysicsManager;
             _tickRegistry = tickRegistry;
             _physicsSettings = physicsSettings;
+            _blockProcessor = blockProcessor;
             _timeOfDayProvider = timeOfDayProvider ?? (() => 0f);
         }
 
@@ -37,11 +40,13 @@ namespace Lithforge.Runtime.Simulation
             PlayerPhysicsBody body = _playerPhysicsManager.AddPlayer(
                 playerId, spawnPosition, _physicsSettings);
             body.SpawnReady = true;
+            _blockProcessor?.AddPlayer(playerId);
             return body.GetState();
         }
 
         public void RemovePlayer(ushort playerId)
         {
+            _blockProcessor?.RemovePlayer(playerId);
             _playerPhysicsManager.RemovePlayer(playerId);
         }
 

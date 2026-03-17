@@ -22,6 +22,7 @@ namespace Lithforge.Network.Message
         BreakBlockCmd = 22,
         InteractCmd = 23,
         SlotClickCmd = 24,
+        StartDiggingCmd = 25,
 
         // Server→Client state updates
         PlayerState = 40,
@@ -31,5 +32,7 @@ namespace Lithforge.Network.Message
         ChunkUnload = 44,
         GameReady = 45,
         AcknowledgeBlockChange = 46,
+        SpawnPlayer = 47,
+        DespawnPlayer = 48,
     }
 }

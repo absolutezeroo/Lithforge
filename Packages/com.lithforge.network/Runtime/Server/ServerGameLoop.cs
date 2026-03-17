@@ -34,6 +34,7 @@ namespace Lithforge.Network.Server
         private readonly INetworkServer _server;
         private readonly NetworkServer _serverImpl;
         private readonly IServerSimulation _simulation;
+        private readonly IServerBlockProcessor _blockProcessor;
         private readonly IServerChunkProvider _chunkProvider;
         private readonly ChunkDirtyTracker _dirtyTracker;
         private readonly ChunkStreamingManager _streamingManager;
@@ -56,6 +57,7 @@ namespace Lithforge.Network.Server
         public ServerGameLoop(
             NetworkServer server,
             IServerSimulation simulation,
+            IServerBlockProcessor blockProcessor,
             IServerChunkProvider chunkProvider,
             ChunkDirtyTracker dirtyTracker,
             ChunkStreamingManager streamingManager,
@@ -64,6 +66,7 @@ namespace Lithforge.Network.Server
             _server = server;
             _serverImpl = server;
             _simulation = simulation;
+            _blockProcessor = blockProcessor;
             _chunkProvider = chunkProvider;
             _dirtyTracker = dirtyTracker;
             _streamingManager = streamingManager;
@@ -74,6 +77,7 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.MoveInput, OnMoveInput);
             dispatcher.RegisterHandler(MessageType.PlaceBlockCmd, OnPlaceBlockCmd);
             dispatcher.RegisterHandler(MessageType.BreakBlockCmd, OnBreakBlockCmd);
+            dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
         }
 
         /// <summary>
@@ -116,6 +120,7 @@ namespace Lithforge.Network.Server
 
             // Phase 5: Broadcast updates
             BroadcastPlayerStates();
+            BroadcastPlayerPresenceChanges();
             BroadcastBlockChanges(dirtyChanges);
             ProcessChunkStreaming(currentTime);
 
@@ -180,79 +185,67 @@ namespace Lithforge.Network.Server
 
         private void ProcessBlockCommands(PeerInfo peer, PlayerInterestState interest, PlayerPhysicsState playerState)
         {
-            // Process place commands
-            for (int i = 0; i < interest.PendingPlaceCommands.Count; i++)
+            ushort playerId = peer.AssignedPlayerId;
+            _blockProcessor.RefillRateLimitTokens(playerId, _currentTick * TickDt);
+
+            // Process StartDigging commands first (must precede break commands in same tick)
+            for (int i = 0; i < interest.PendingStartDiggingCommands.Count; i++)
             {
-                PlaceBlockCommand cmd = interest.PendingPlaceCommands[i];
-                float3 blockCenter = new float3(cmd.Position.x + 0.5f, cmd.Position.y + 0.5f, cmd.Position.z + 0.5f);
-                float distance = math.distance(playerState.Position, blockCenter);
-
-                byte accepted;
-                ushort correctedState;
-
-                if (distance > MaxReachDistance)
-                {
-                    accepted = 0;
-                    correctedState = 0; // Air — original state unknown, client will get block change
-                }
-                else
-                {
-                    // Delegate validation to ChunkDirtyTracker path — write to world
-                    // For now, accept all in-range placements
-                    accepted = 1;
-                    correctedState = cmd.BlockState.Value;
-                }
-
-                AcknowledgeBlockChangeMessage ack = new AcknowledgeBlockChangeMessage
-                {
-                    SequenceId = cmd.SequenceId,
-                    Accepted = accepted,
-                    PositionX = cmd.Position.x,
-                    PositionY = cmd.Position.y,
-                    PositionZ = cmd.Position.z,
-                    CorrectedState = correctedState,
-                };
-
-                _server.SendTo(peer.ConnectionId, ack, PipelineId.ReliableSequenced);
+                StartDiggingCommand cmd = interest.PendingStartDiggingCommands[i];
+                _blockProcessor.StartDigging(playerId, cmd.Position, playerState.Position, _currentTick);
             }
 
-            interest.PendingPlaceCommands.Clear();
+            interest.PendingStartDiggingCommands.Clear();
 
             // Process break commands
             for (int i = 0; i < interest.PendingBreakCommands.Count; i++)
             {
                 BreakBlockCommand cmd = interest.PendingBreakCommands[i];
-                float3 blockCenter = new float3(cmd.Position.x + 0.5f, cmd.Position.y + 0.5f, cmd.Position.z + 0.5f);
-                float distance = math.distance(playerState.Position, blockCenter);
 
-                byte accepted;
-                ushort correctedState;
-
-                if (distance > MaxReachDistance)
-                {
-                    accepted = 0;
-                    correctedState = 0; // Unknown — client will get corrected via block change
-                }
-                else
-                {
-                    accepted = 1;
-                    correctedState = 0; // Air
-                }
+                BlockProcessResult result = _blockProcessor.TryBreakBlock(
+                    playerId, cmd.Position, playerState.Position, _currentTick);
 
                 AcknowledgeBlockChangeMessage ack = new AcknowledgeBlockChangeMessage
                 {
                     SequenceId = cmd.SequenceId,
-                    Accepted = accepted,
+                    Accepted = (byte)(result.Accepted ? 1 : 0),
                     PositionX = cmd.Position.x,
                     PositionY = cmd.Position.y,
                     PositionZ = cmd.Position.z,
-                    CorrectedState = correctedState,
+                    CorrectedState = result.Accepted
+                        ? result.AcceptedState.Value
+                        : _blockProcessor.GetBlock(cmd.Position).Value,
                 };
 
                 _server.SendTo(peer.ConnectionId, ack, PipelineId.ReliableSequenced);
             }
 
             interest.PendingBreakCommands.Clear();
+
+            // Process place commands
+            for (int i = 0; i < interest.PendingPlaceCommands.Count; i++)
+            {
+                PlaceBlockCommand cmd = interest.PendingPlaceCommands[i];
+
+                BlockProcessResult result = _blockProcessor.TryPlaceBlock(
+                    playerId, cmd.Position, cmd.BlockState, cmd.Face, playerState.Position);
+
+                AcknowledgeBlockChangeMessage ack = new AcknowledgeBlockChangeMessage
+                {
+                    SequenceId = cmd.SequenceId,
+                    Accepted = (byte)(result.Accepted ? 1 : 0),
+                    PositionX = cmd.Position.x,
+                    PositionY = cmd.Position.y,
+                    PositionZ = cmd.Position.z,
+                    CorrectedState = result.Accepted
+                        ? result.AcceptedState.Value
+                        : _blockProcessor.GetBlock(cmd.Position).Value,
+                };
+
+                _server.SendTo(peer.ConnectionId, ack, PipelineId.ReliableSequenced);
+            }
+
+            interest.PendingPlaceCommands.Clear();
         }
 
         // ── Phase 5: Broadcast updates ──
@@ -310,6 +303,76 @@ namespace Lithforge.Network.Server
                     if (observerInterest.LoadedChunks.Contains(interest.CurrentChunk))
                     {
                         _server.SendTo(observer.ConnectionId, msg, PipelineId.UnreliableSequenced);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Detects spawn/despawn edges for remote player entities by comparing each
+        /// observer's <see cref="PlayerInterestState.SpawnedRemotePlayers"/> against
+        /// the current interest region. Sends <see cref="SpawnPlayerMessage"/> when a
+        /// player enters and <see cref="DespawnPlayerMessage"/> when they leave.
+        /// </summary>
+        private void BroadcastPlayerPresenceChanges()
+        {
+            for (int i = 0; i < _playingPeersCache.Count; i++)
+            {
+                PeerInfo observer = _playingPeersCache[i];
+                PlayerInterestState observerInterest = observer.InterestState;
+
+                if (observerInterest == null)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < _playingPeersCache.Count; j++)
+                {
+                    if (j == i)
+                    {
+                        continue;
+                    }
+
+                    PeerInfo subject = _playingPeersCache[j];
+                    PlayerInterestState subjectInterest = subject.InterestState;
+
+                    if (subjectInterest == null)
+                    {
+                        continue;
+                    }
+
+                    ushort subjectId = subject.AssignedPlayerId;
+                    bool visible = observerInterest.LoadedChunks.Contains(subjectInterest.CurrentChunk);
+                    bool alreadySpawned = observerInterest.SpawnedRemotePlayers.Contains(subjectId);
+
+                    if (visible && !alreadySpawned)
+                    {
+                        PlayerPhysicsState state = _simulation.GetPlayerState(subjectId);
+
+                        SpawnPlayerMessage msg = new SpawnPlayerMessage
+                        {
+                            PlayerId = subjectId,
+                            PlayerName = subject.PlayerName,
+                            PositionX = state.Position.x,
+                            PositionY = state.Position.y,
+                            PositionZ = state.Position.z,
+                            Yaw = state.Yaw,
+                            Pitch = state.Pitch,
+                            Flags = state.Flags,
+                        };
+
+                        _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
+                        observerInterest.SpawnedRemotePlayers.Add(subjectId);
+                    }
+                    else if (!visible && alreadySpawned)
+                    {
+                        DespawnPlayerMessage msg = new DespawnPlayerMessage
+                        {
+                            PlayerId = subjectId,
+                        };
+
+                        _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
+                        observerInterest.SpawnedRemotePlayers.Remove(subjectId);
                     }
                 }
             }
@@ -505,6 +568,29 @@ namespace Lithforge.Network.Server
             peer.InterestState.PendingBreakCommands.Add(cmd);
         }
 
+        private void OnStartDiggingCmd(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState == null ||
+                peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            StartDiggingCmdMessage msg = StartDiggingCmdMessage.Deserialize(data, offset, length);
+
+            StartDiggingCommand cmd = new StartDiggingCommand
+            {
+                Tick = _currentTick,
+                SequenceId = msg.SequenceId,
+                PlayerId = peer.AssignedPlayerId,
+                Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
+            };
+
+            peer.InterestState.PendingStartDiggingCommands.Add(cmd);
+        }
+
         // ── Player lifecycle ──
 
         /// <summary>
@@ -529,11 +615,37 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Called when a player disconnects. Removes the physics body and cleans up interest state.
+        /// Called when a player disconnects. Removes the physics body, cancels any
+        /// in-progress digging, and notifies all observers to despawn the remote entity.
         /// </summary>
         public void OnPlayerDisconnected(ushort playerId)
         {
+            _blockProcessor.CancelDigging(playerId);
             _simulation.RemovePlayer(playerId);
+
+            // Notify all observers to despawn this player
+            IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
+
+            for (int i = 0; i < allPeers.Count; i++)
+            {
+                PeerInfo observer = allPeers[i];
+                PlayerInterestState observerInterest = observer.InterestState;
+
+                if (observerInterest == null)
+                {
+                    continue;
+                }
+
+                if (observerInterest.SpawnedRemotePlayers.Remove(playerId))
+                {
+                    DespawnPlayerMessage msg = new DespawnPlayerMessage
+                    {
+                        PlayerId = playerId,
+                    };
+
+                    _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
+                }
+            }
         }
 
         // ── Helpers ──

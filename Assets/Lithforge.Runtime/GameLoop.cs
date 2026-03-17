@@ -76,6 +76,9 @@ namespace Lithforge.Runtime
         private ClientChunkHandler _clientChunkHandler;
         private readonly List<int3> _networkUnloadCache = new List<int3>();
 
+        // Remote players
+        private RemotePlayerManager _remotePlayerManager;
+
         public int PendingGenerationCount
         {
             get { return _generationScheduler?.PendingCount ?? 0; }
@@ -354,6 +357,15 @@ namespace Lithforge.Runtime
             _clientChunkHandler = clientChunkHandler;
         }
 
+        /// <summary>
+        /// Sets the remote player manager for rendering remote entities.
+        /// Must be called after Initialize.
+        /// </summary>
+        public void SetRemotePlayerManager(RemotePlayerManager remotePlayerManager)
+        {
+            _remotePlayerManager = remotePlayerManager;
+        }
+
         private void Update()
         {
             if (!_initialized)
@@ -409,6 +421,12 @@ namespace Lithforge.Runtime
             if (_serverGameLoop != null)
             {
                 _serverGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
+            }
+
+            // ── Tick remote player timeouts (client/host mode) ──
+            if (_remotePlayerManager != null)
+            {
+                _remotePlayerManager.Tick(Time.deltaTime);
             }
 
             // ── Async pipeline poll ──
@@ -639,6 +657,11 @@ namespace Lithforge.Runtime
                     _blockInteraction != null && _blockInteraction.IsMining);
             }
 
+            if (_remotePlayerManager != null)
+            {
+                _remotePlayerManager.RenderAll(_mainCamera);
+            }
+
             _frameProfiler.End(FrameProfilerSections.Render);
         }
 
@@ -670,6 +693,8 @@ namespace Lithforge.Runtime
             _lodScheduler?.Shutdown();
             _playerRenderer?.Dispose();
             _playerRenderer = null;
+            _remotePlayerManager?.Dispose();
+            _remotePlayerManager = null;
         }
     }
 }

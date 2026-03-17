@@ -118,6 +118,8 @@ namespace Lithforge.Runtime.Bootstrap
         private Lithforge.Network.Client.NetworkClient _networkClient;
         private Lithforge.Runtime.Network.ClientChunkHandler _clientChunkHandler;
         private Lithforge.Runtime.Network.ClientBlockPredictor _clientBlockPredictor;
+        private RemotePlayerManager _remotePlayerManager;
+        private Lithforge.Runtime.Network.ClientRemotePlayerHandler _clientRemotePlayerHandler;
 
         private void Awake()
         {
@@ -450,6 +452,13 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 _clientBlockPredictor = null;
+                _clientRemotePlayerHandler = null;
+
+                if (_remotePlayerManager != null)
+                {
+                    _remotePlayerManager.Dispose();
+                    _remotePlayerManager = null;
+                }
 
                 if (_networkClient != null)
                 {
@@ -1495,6 +1504,30 @@ namespace Lithforge.Runtime.Bootstrap
                     _clientBlockPredictor = new Lithforge.Runtime.Network.ClientBlockPredictor(
                         _chunkManager, networkClient);
 
+                    // Wire StartDigging notification to server
+                    blockInteraction.SetStartDiggingCallback(
+                        _clientBlockPredictor.SendStartDigging);
+
+                    // Create remote player rendering
+                    if (armBaseMaterialRef != null)
+                    {
+                        Material remoteNameTagMat = new Material(Shader.Find("UI/Default"));
+                        _remotePlayerManager = new RemotePlayerManager(
+                            armBaseMaterialRef, armOverlayMaterialRef, remoteNameTagMat);
+                        _gameLoop.SetRemotePlayerManager(_remotePlayerManager);
+
+                        _clientRemotePlayerHandler =
+                            new Lithforge.Runtime.Network.ClientRemotePlayerHandler(
+                                _remotePlayerManager, networkClient,
+                                networkClient.LocalPlayerId);
+
+                        // Route remote player state messages through ClientWorldSimulation
+                        // (MessageDispatcher supports one handler per type, so PlayerState
+                        // goes to clientSim which forwards remote players here)
+                        clientSim.SetRemotePlayerStateHandler(
+                            _clientRemotePlayerHandler.OnRemotePlayerState);
+                    }
+
                     _gameLoop.SetClientMode(true);
                     _gameLoop.SetNetworkClient(networkClient);
                     _gameLoop.SetClientChunkHandler(_clientChunkHandler);
@@ -1520,8 +1553,16 @@ namespace Lithforge.Runtime.Bootstrap
                     _chunkManager.OnBlockChanged += dirtyTracker.OnBlockChanged;
 
                     // Create Tier 3 bridge implementations
+                    ServerBlockProcessor blockProcessor = new ServerBlockProcessor(
+                        _chunkManager,
+                        _contentResult.StateRegistry,
+                        _contentResult.NativeStateRegistry,
+                        _settings.Physics.HandMiningMultiplier,
+                        _logger);
+
                     ServerSimulation serverSim = new ServerSimulation(
                         playerPhysicsManager, tickRegistryRef, _settings.Physics,
+                        blockProcessor,
                         () => { return _timeOfDayController != null ? _timeOfDayController.TimeOfDay : 0f; });
                     ServerChunkProvider chunkProvider = new ServerChunkProvider(_chunkManager);
 
@@ -1531,7 +1572,7 @@ namespace Lithforge.Runtime.Bootstrap
                         3, _logger);
 
                     ServerGameLoop serverGameLoop = new ServerGameLoop(
-                        networkServer, serverSim, chunkProvider,
+                        networkServer, serverSim, blockProcessor, chunkProvider,
                         dirtyTracker, streamingManager, _logger);
 
                     _gameLoop.SetServerGameLoop(serverGameLoop);
