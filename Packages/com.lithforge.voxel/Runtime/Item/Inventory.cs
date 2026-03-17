@@ -93,7 +93,7 @@ namespace Lithforge.Voxel.Item
                     continue;
                 }
 
-                if (_slots[i].ItemId != itemId)
+                if (_slots[i].ItemId != itemId || _slots[i].HasComponents)
                 {
                     continue;
                 }
@@ -155,7 +155,7 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        ///     Adds a complete ItemStack preserving all fields (Durability, CustomData).
+        ///     Adds a complete ItemStack preserving all fields (Durability, Components).
         ///     Used for tools and other items with custom runtime data.
         ///     Tools always occupy their own slot with count=1.
         ///     Returns 0 on success, 1 if no empty slot available.
@@ -233,7 +233,7 @@ namespace Lithforge.Voxel.Item
                 {
                     remaining -= maxStackSize;
                 }
-                else if (_slots[i].ItemId == itemId)
+                else if (_slots[i].ItemId == itemId && !_slots[i].HasComponents)
                 {
                     int space = maxStackSize - _slots[i].Count;
                     remaining -= space;

@@ -276,9 +276,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
-            // Serialize tool to CustomData
-            byte[] toolData = ToolInstanceSerializer.Serialize(tool);
-
             // Determine the result item ID based on tool type and head material
             ResourceId resultItemId = GetResultItemId(tool);
 
@@ -298,7 +295,9 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             ItemStack resultStack = new ItemStack(resultItemId, 1);
             resultStack.Durability = tool.MaxDurability;
-            resultStack.CustomData = toolData;
+            DataComponentMap toolMap = new DataComponentMap();
+            toolMap.Set(DataComponentTypes.ToolInstanceId, new ToolInstanceComponent(tool));
+            resultStack.Components = toolMap;
 
             bool isShift = Keyboard.current != null &&
                 (Keyboard.current.leftShiftKey.isPressed ||
@@ -306,7 +305,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (isShift)
             {
-                // Transfer to player inventory (preserves CustomData)
+                // Transfer to player inventory (preserves Components)
                 int leftOver = Context.PlayerInventory.AddItemStack(resultStack);
 
                 if (leftOver == 0)
@@ -325,20 +324,22 @@ namespace Lithforge.Runtime.BlockEntity.UI
         {
             ItemStack headSlot = _headAdapter.GetSlot(0);
 
-            if (headSlot.IsEmpty || !headSlot.HasCustomData)
+            if (headSlot.IsEmpty || !headSlot.HasComponents)
             {
                 return false;
             }
 
-            return ToolInstanceSerializer.TryDeserialize(headSlot.CustomData, out _);
+            return headSlot.Components.Has(DataComponentTypes.ToolInstanceId);
         }
 
         private void UpdateRepairPreview()
         {
             ItemStack toolStack = _headAdapter.GetSlot(0);
 
-            if (!toolStack.HasCustomData ||
-                !ToolInstanceSerializer.TryDeserialize(toolStack.CustomData, out ToolInstance tool))
+            ToolInstanceComponent headToolComp = toolStack.Components?.Get<ToolInstanceComponent>(
+                DataComponentTypes.ToolInstanceId);
+
+            if (headToolComp == null)
             {
                 _outputAdapter.SetSlot(0, ItemStack.Empty);
                 _repairItemsConsumed = null;
@@ -346,6 +347,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
+            ToolInstance tool = headToolComp.Tool;
             int damageToRepair = tool.IsBroken
                 ? tool.MaxDurability
                 : tool.MaxDurability - tool.CurrentDurability;
@@ -393,10 +395,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
                 int repairPerItem = 0;
 
-                if (stack.HasCustomData &&
-                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData kitData) &&
-                    kitData.PartType == ToolPartType.RepairKit &&
-                    kitData.MaterialId.Equals(headMaterial))
+                ToolPartDataComponent kitComp = stack.Components?.Get<ToolPartDataComponent>(
+                    DataComponentTypes.ToolPartDataId);
+
+                if (kitComp != null &&
+                    kitComp.PartData.PartType == ToolPartType.RepairKit &&
+                    kitComp.PartData.MaterialId.Equals(headMaterial))
                 {
                     ToolMaterialData matData = Context.ToolMaterialRegistry != null
                         ? Context.ToolMaterialRegistry.Get(headMaterial)
@@ -454,13 +458,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 return;
             }
 
-            ToolInstance repaired = ToolInstanceSerializer.Deserialize(toolStack.CustomData);
+            ToolInstance repaired = headToolComp.Tool;
             int baseCurrentDur = repaired.IsBroken ? 0 : repaired.CurrentDurability;
             repaired.SetCurrentDurability(baseCurrentDur + totalRepair);
 
             ItemStack previewStack = toolStack;
             previewStack.Durability = repaired.CurrentDurability;
-            previewStack.CustomData = ToolInstanceSerializer.Serialize(repaired);
+            DataComponentMap repairedMap = new DataComponentMap();
+            repairedMap.Set(DataComponentTypes.ToolInstanceId,
+                new ToolInstanceComponent(repaired));
+            previewStack.Components = repairedMap;
 
             _outputAdapter.SetSlot(0, previewStack);
 

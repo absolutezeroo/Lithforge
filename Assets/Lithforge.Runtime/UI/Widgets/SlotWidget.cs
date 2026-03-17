@@ -87,10 +87,7 @@ namespace Lithforge.Runtime.UI.Widgets
             ItemRegistry itemRegistry,
             ToolPartTextureDatabase toolPartTexDb = null)
         {
-            if (stack.ItemId == _lastStack.ItemId &&
-                stack.Count == _lastStack.Count &&
-                stack.Durability == _lastStack.Durability &&
-                stack.CustomData == _lastStack.CustomData)
+            if (stack.Equals(_lastStack))
             {
                 return;
             }
@@ -111,10 +108,13 @@ namespace Lithforge.Runtime.UI.Widgets
             {
                 Sprite sprite = atlas.Get(stack.ItemId);
 
-                // Generic tool parts: resolve sprite from CustomData material
-                if (stack.HasCustomData &&
-                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData partData))
+                // Generic tool parts: resolve sprite from component material
+                ToolPartDataComponent partComp = stack.Components?.Get<ToolPartDataComponent>(
+                    DataComponentTypes.ToolPartDataId);
+
+                if (partComp != null)
                 {
+                    ToolPartData partData = partComp.PartData;
                     ResourceId cacheKey = new ResourceId(
                         stack.ItemId.Namespace,
                         stack.ItemId.Name + "__" + partData.MaterialId.Name);
@@ -127,19 +127,20 @@ namespace Lithforge.Runtime.UI.Widgets
 
                 // Re-composite assembled tools if sprite is missing (e.g. after save/load)
                 if (!atlas.Contains(stack.ItemId) &&
-                    stack.HasCustomData && toolPartTexDb != null)
+                    stack.HasComponents && toolPartTexDb != null)
                 {
-                    if (!ToolPartDataSerializer.TryDeserialize(stack.CustomData, out ToolPartData _))
-                    {
-                        if (ToolInstanceSerializer.TryDeserialize(stack.CustomData, out ToolInstance savedTool))
-                        {
-                            Sprite composite = ToolSpriteCompositor.Composite(savedTool, toolPartTexDb);
+                    ToolInstanceComponent toolComp = stack.Components.Get<ToolInstanceComponent>(
+                        DataComponentTypes.ToolInstanceId);
 
-                            if (composite != null)
-                            {
-                                atlas.Register(stack.ItemId, composite);
-                                sprite = composite;
-                            }
+                    if (toolComp != null)
+                    {
+                        Sprite composite = ToolSpriteCompositor.Composite(
+                            toolComp.Tool, toolPartTexDb);
+
+                        if (composite != null)
+                        {
+                            atlas.Register(stack.ItemId, composite);
+                            sprite = composite;
                         }
                     }
                 }
@@ -156,9 +157,13 @@ namespace Lithforge.Runtime.UI.Widgets
             _count.text = stack.Count > 1 ? stack.Count.ToString() : "";
 
             // Durability bar (from modular ToolInstance)
-            if (stack.HasCustomData &&
-                ToolInstanceSerializer.TryDeserialize(stack.CustomData, out ToolInstance tool))
+            ToolInstanceComponent durToolComp = stack.Components?.Get<ToolInstanceComponent>(
+                DataComponentTypes.ToolInstanceId);
+
+            if (durToolComp != null)
             {
+                ToolInstance tool = durToolComp.Tool;
+
                 if (tool.MaxDurability > 0)
                 {
                     float ratio = (float)tool.CurrentDurability / tool.MaxDurability;

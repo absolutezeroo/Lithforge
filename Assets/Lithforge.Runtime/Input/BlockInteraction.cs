@@ -349,9 +349,15 @@ namespace Lithforge.Runtime.Input
                 ItemStack heldItem = _inventory.GetSelectedItem();
                 ToolInstance tool = null;
 
-                if (!heldItem.IsEmpty && heldItem.HasCustomData)
+                if (!heldItem.IsEmpty && heldItem.HasComponents)
                 {
-                    tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
+                    ToolInstanceComponent toolComp = heldItem.Components.Get<ToolInstanceComponent>(
+                        DataComponentTypes.ToolInstanceId);
+
+                    if (toolComp != null)
+                    {
+                        tool = toolComp.Tool;
+                    }
                 }
 
                 // Broken tools act as bare hand
@@ -506,22 +512,24 @@ namespace Lithforge.Runtime.Input
             // Consume durability of held tool
             ItemStack heldItem = _inventory.GetSelectedItem();
 
-            if (!heldItem.IsEmpty)
+            if (!heldItem.IsEmpty && heldItem.HasComponents)
             {
-                // Modular tool: consume durability from ToolInstance and re-serialize
-                if (heldItem.HasCustomData)
+                // Modular tool: consume durability from ToolInstance
+                ToolInstanceComponent toolComp = heldItem.Components.Get<ToolInstanceComponent>(
+                    DataComponentTypes.ToolInstanceId);
+
+                if (toolComp != null && !toolComp.Tool.IsBroken)
                 {
-                    ToolInstance tool = ToolInstanceSerializer.Deserialize(heldItem.CustomData);
+                    ToolInstance tool = toolComp.Tool;
+                    tool.SetCurrentDurability(tool.CurrentDurability - 1);
 
-                    if (tool != null && !tool.IsBroken)
-                    {
-                        tool.SetCurrentDurability(tool.CurrentDurability - 1);
-
-                        ItemStack updated = heldItem;
-                        updated.Durability = tool.CurrentDurability;
-                        updated.CustomData = ToolInstanceSerializer.Serialize(tool);
-                        _inventory.SetSlot(_inventory.SelectedSlot, updated);
-                    }
+                    ItemStack updated = heldItem;
+                    updated.Durability = tool.CurrentDurability;
+                    DataComponentMap updatedMap = new DataComponentMap();
+                    updatedMap.Set(DataComponentTypes.ToolInstanceId,
+                        new ToolInstanceComponent(tool));
+                    updated.Components = updatedMap;
+                    _inventory.SetSlot(_inventory.SelectedSlot, updated);
                 }
             }
 

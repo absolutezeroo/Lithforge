@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Storage;
@@ -17,11 +19,6 @@ namespace Lithforge.Runtime.World
         /// a serializable <see cref="WorldPlayerState"/> for persistence.
         /// Only non-empty inventory slots are stored to keep save files compact.
         /// </summary>
-        /// <param name="playerTransform">Player root transform for position and yaw. May be null.</param>
-        /// <param name="camera">Main camera for pitch angle. May be null.</param>
-        /// <param name="timeOfDay">Current day-cycle time (0..1) to restore on reload.</param>
-        /// <param name="inventory">Player inventory. May be null if no items need saving.</param>
-        /// <returns>A fully populated state object ready for JSON serialization.</returns>
         public static WorldPlayerState Capture(
             Transform playerTransform,
             Camera camera,
@@ -81,9 +78,26 @@ namespace Lithforge.Runtime.World
 
                     if (stack.Count > 0)
                     {
-                        string customBase64 = stack.HasCustomData
-                            ? Convert.ToBase64String(stack.CustomData)
-                            : null;
+                        List<SavedComponentEntry> components = null;
+
+                        if (stack.HasComponents)
+                        {
+                            components = new List<SavedComponentEntry>();
+
+                            foreach (KeyValuePair<int, IDataComponent> kvp in stack.Components)
+                            {
+                                using (MemoryStream ms = new MemoryStream())
+                                {
+                                    using (BinaryWriter w = new BinaryWriter(ms))
+                                    {
+                                        DataComponentRegistry.SerializeComponent(kvp.Value, w);
+                                    }
+
+                                    string base64 = Convert.ToBase64String(ms.ToArray());
+                                    components.Add(new SavedComponentEntry(kvp.Key, base64));
+                                }
+                            }
+                        }
 
                         slots[idx] = new SavedItemStack(
                             i,
@@ -91,7 +105,7 @@ namespace Lithforge.Runtime.World
                             stack.ItemId.Name,
                             stack.Count,
                             stack.Durability,
-                            customBase64);
+                            components);
                         idx++;
                     }
                 }
@@ -107,12 +121,6 @@ namespace Lithforge.Runtime.World
         /// Items whose <see cref="ResourceId"/> no longer exists in the registry are silently
         /// dropped with a warning, so saves remain forward-compatible across content changes.
         /// </summary>
-        /// <param name="state">Saved state to restore. If null, the method is a no-op.</param>
-        /// <param name="playerTransform">Player root transform to reposition. May be null.</param>
-        /// <param name="camera">Main camera whose pitch will be restored. May be null.</param>
-        /// <param name="inventory">Inventory to clear and repopulate. May be null.</param>
-        /// <param name="itemRegistry">Used to validate that saved item IDs still exist.</param>
-        /// <param name="restoredTimeOfDay">Receives the saved time-of-day value, or 0 if state is null.</param>
         public static void Restore(
             WorldPlayerState state,
             Transform playerTransform,
@@ -168,9 +176,9 @@ namespace Lithforge.Runtime.World
 
                     ResourceId itemId = new ResourceId(saved.Ns, saved.Name);
 
-                    // Allow items with CustomData (e.g. modular tools) even if not in registry,
-                    // since they carry all their data in the serialized ToolInstance
-                    if (!itemRegistry.Contains(itemId) && string.IsNullOrEmpty(saved.CustomDataBase64))
+                    // Allow items with component data even if not in registry,
+                    // since they carry all their data in the serialized components
+                    if (!itemRegistry.Contains(itemId) && !saved.HasData)
                     {
                         UnityEngine.Debug.LogWarning(
                             $"[PlayerStateSerializer] Item '{saved.Ns}:{saved.Name}' not found in registry, slot {saved.Slot} cleared.");
@@ -181,9 +189,42 @@ namespace Lithforge.Runtime.World
                         ? new ItemStack(itemId, saved.Count, saved.Durability)
                         : new ItemStack(itemId, saved.Count);
 
-                    if (!string.IsNullOrEmpty(saved.CustomDataBase64))
+                    // New format: typed components
+                    if (saved.Components != null && saved.Components.Count > 0)
                     {
-                        stack.CustomData = Convert.FromBase64String(saved.CustomDataBase64);
+                        DataComponentMap map = new DataComponentMap();
+
+                        for (int c = 0; c < saved.Components.Count; c++)
+                        {
+                            SavedComponentEntry entry = saved.Components[c];
+
+                            if (entry == null || string.IsNullOrEmpty(entry.DataBase64))
+                            {
+                                continue;
+                            }
+
+                            byte[] data = Convert.FromBase64String(entry.DataBase64);
+
+                            using (MemoryStream ms = new MemoryStream(data))
+                            using (BinaryReader reader = new BinaryReader(ms))
+                            {
+                                IDataComponent component =
+                                    DataComponentRegistry.DeserializeComponent(entry.TypeId, reader);
+
+                                if (component != null)
+                                {
+                                    map.Set(entry.TypeId, component);
+                                }
+                            }
+                        }
+
+                        stack.Components = map.IsEmpty ? null : map;
+                    }
+                    // Legacy format: raw CustomData base64
+                    else if (!string.IsNullOrEmpty(saved.CustomDataBase64))
+                    {
+                        byte[] customData = Convert.FromBase64String(saved.CustomDataBase64);
+                        stack.Components = LegacyCustomDataMigrator.Migrate(customData);
                     }
 
                     inventory.SetSlot(saved.Slot, stack);

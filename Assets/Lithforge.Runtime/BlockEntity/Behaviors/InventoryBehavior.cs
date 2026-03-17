@@ -7,11 +7,19 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     /// <summary>
     /// Behavior that provides item storage slots to a block entity.
     /// Slot count is fixed at construction (27 for chest, 3 for furnace).
-    /// Serializes items as resourceId string + count + durability.
+    /// Serializes items as resourceId string + count + durability + components.
     /// </summary>
     public sealed class InventoryBehavior : BlockEntityBehavior
     {
         private readonly ItemStack[] _slots;
+
+        /// <summary>
+        /// v1: small positive slotCount as first int (no sentinel).
+        /// v2: sentinel int.MinValue + 2, supports byte[] CustomData.
+        /// v3: sentinel int.MinValue + 3, supports typed DataComponentMap.
+        /// </summary>
+        private const int V2Sentinel = int.MinValue + 2;
+        private const int V3Sentinel = int.MinValue + 3;
 
         public int SlotCount
         {
@@ -41,10 +49,11 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         {
             int remaining = count;
 
-            // First pass: merge into existing stacks
+            // First pass: merge into existing stacks (only plain items)
             for (int i = 0; i < _slots.Length && remaining > 0; i++)
             {
-                if (!_slots[i].IsEmpty && _slots[i].ItemId == itemId && _slots[i].Count < maxStack)
+                if (!_slots[i].IsEmpty && _slots[i].ItemId == itemId
+                    && !_slots[i].HasComponents && _slots[i].Count < maxStack)
                 {
                     int space = maxStack - _slots[i].Count;
                     int toAdd = remaining < space ? remaining : space;
@@ -85,15 +94,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             return false;
         }
 
-        /// <summary>
-        /// Version sentinel: a large negative first int distinguishes versioned format
-        /// from v1 (which writes a small positive slotCount as the first int).
-        /// </summary>
-        private const int VersionSentinel = int.MinValue + 2;
-
         public override void Serialize(BinaryWriter writer)
         {
-            writer.Write(VersionSentinel);
+            writer.Write(V3Sentinel);
             writer.Write(_slots.Length);
 
             for (int i = 0; i < _slots.Length; i++)
@@ -110,13 +113,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     writer.Write(slot.ItemId.ToString());
                     writer.Write(slot.Count);
                     writer.Write(slot.Durability);
-                    writer.Write(slot.HasCustomData);
-
-                    if (slot.HasCustomData)
-                    {
-                        writer.Write(slot.CustomData.Length);
-                        writer.Write(slot.CustomData);
-                    }
+                    DataComponentRegistry.Serialize(slot.Components, writer);
                 }
             }
         }
@@ -124,17 +121,22 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         public override void Deserialize(BinaryReader reader)
         {
             int firstInt = reader.ReadInt32();
-            bool hasCustomDataSupport;
+            int formatVersion;
             int count;
 
-            if (firstInt == VersionSentinel)
+            if (firstInt == V3Sentinel)
             {
-                hasCustomDataSupport = true;
+                formatVersion = 3;
+                count = reader.ReadInt32();
+            }
+            else if (firstInt == V2Sentinel)
+            {
+                formatVersion = 2;
                 count = reader.ReadInt32();
             }
             else
             {
-                hasCustomDataSupport = false;
+                formatVersion = 1;
                 count = firstInt;
             }
 
@@ -152,14 +154,19 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     ResourceId id = ResourceId.Parse(idStr);
                     ItemStack stack = new ItemStack(id, itemCount, durability);
 
-                    if (hasCustomDataSupport)
+                    if (formatVersion == 3)
+                    {
+                        stack.Components = DataComponentRegistry.Deserialize(reader);
+                    }
+                    else if (formatVersion == 2)
                     {
                         bool hasCustomData = reader.ReadBoolean();
 
                         if (hasCustomData)
                         {
                             int dataLen = reader.ReadInt32();
-                            stack.CustomData = reader.ReadBytes(dataLen);
+                            byte[] customData = reader.ReadBytes(dataLen);
+                            stack.Components = LegacyCustomDataMigrator.Migrate(customData);
                         }
                     }
 
@@ -182,7 +189,11 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     reader.ReadInt32();
                     reader.ReadInt32();
 
-                    if (hasCustomDataSupport)
+                    if (formatVersion == 3)
+                    {
+                        DataComponentRegistry.Deserialize(reader);
+                    }
+                    else if (formatVersion == 2)
                     {
                         bool hasCustomData = reader.ReadBoolean();
 

@@ -163,7 +163,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                                 _currentFurnace.Inventory.SetSlot(
                                     FurnaceBlockEntity.OutputSlot, ItemStack.Empty);
                             }
-                            else if (Interaction.Held.Stack.ItemId == outputStack.ItemId)
+                            else if (ItemStack.CanStack(Interaction.Held.Stack, outputStack))
                             {
                                 // Merge into held stack
                                 ItemEntry def = ItemRegistryRef.Get(outputStack.ItemId);

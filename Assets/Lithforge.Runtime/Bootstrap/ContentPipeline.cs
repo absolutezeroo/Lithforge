@@ -224,6 +224,9 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
 
+            // Initialize data component type registry (before item loading, so deserialization works)
+            DataComponentTypes.Initialize();
+
             // Phase 7: Load biome and ore definitions
             yield return "Loading biomes and ores...";
             BiomeDefinition[] biomes = Resources.LoadAll<BiomeDefinition>("Content/Biomes");

@@ -56,15 +56,15 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     continue;
                 }
 
-                // Deserialize CustomData once per slot (avoid double deserialization)
-                ToolPartData customPartData = default;
-                bool hasPartData = stack.HasCustomData &&
-                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out customPartData);
+                // Check for ToolPartData component (generic parts)
+                ToolPartDataComponent partComp = stack.Components?.Get<ToolPartDataComponent>(
+                    DataComponentTypes.ToolPartDataId);
+                bool hasPartData = partComp != null;
 
-                // Resolve part type and material from CustomData (generic parts)
+                // Resolve part type and material from component (generic parts)
                 // or fall back to tag-based resolution (legacy items)
                 ToolPartType partType = hasPartData
-                    ? customPartData.PartType
+                    ? partComp.PartData.PartType
                     : ResolvePartType(itemDef, i);
 
                 if (partType == ToolPartType.None)
@@ -75,7 +75,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                 ToolPart part = ToolPart.Empty;
                 part.PartType = partType;
                 part.MaterialId = hasPartData
-                    ? customPartData.MaterialId
+                    ? partComp.PartData.MaterialId
                     : ResolveMaterialId(itemDef);
                 parts[partCount] = part;
                 partCount++;

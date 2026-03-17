@@ -56,7 +56,7 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>
         /// Attempts to fill <paramref name="target"/> container slots with the given item.
         /// Merges into existing stacks first, then fills empty slots.
-        /// Preserves Durability and CustomData from the source stack.
+        /// Preserves Durability and Components from the source stack.
         /// Returns the count that could not be placed.
         /// </summary>
         public static int TryFillContainer(
@@ -73,7 +73,7 @@ namespace Lithforge.Runtime.UI.Screens
             {
                 ItemStack slot = target.GetSlot(i);
 
-                if (!slot.IsEmpty && slot.ItemId == itemId && slot.Count < maxStack)
+                if (!slot.IsEmpty && ItemStack.CanStack(slot, source) && slot.Count < maxStack)
                 {
                     int space = maxStack - slot.Count;
                     int toAdd = remaining < space ? remaining : space;
@@ -91,7 +91,7 @@ namespace Lithforge.Runtime.UI.Screens
                 {
                     int toAdd = remaining < maxStack ? remaining : maxStack;
                     ItemStack newSlot = new ItemStack(itemId, toAdd, source.Durability);
-                    newSlot.CustomData = source.CustomData;
+                    newSlot.Components = source.Components;
                     target.SetSlot(i, newSlot);
                     remaining -= toAdd;
                 }

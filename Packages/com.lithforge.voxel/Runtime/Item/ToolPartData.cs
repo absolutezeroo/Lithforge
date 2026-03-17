@@ -3,7 +3,7 @@ using Lithforge.Core.Data;
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    ///     Data stored in ItemStack.CustomData for generic tool part items.
+    ///     Data for generic tool part items. Stored as ToolPartDataComponent.
     ///     Encodes the part type and material.
     /// </summary>
     public struct ToolPartData

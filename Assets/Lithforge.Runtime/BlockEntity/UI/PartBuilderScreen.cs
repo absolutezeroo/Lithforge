@@ -551,7 +551,9 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartType = _selectedRecipe.ResultPartType,
                 MaterialId = _resolvedMaterial.MaterialId,
             };
-            byte[] customData = ToolPartDataSerializer.Serialize(partData);
+            DataComponentMap partMap = new DataComponentMap();
+            partMap.Set(DataComponentTypes.ToolPartDataId,
+                new ToolPartDataComponent(partData));
 
             ResourceId resultId = _selectedRecipe.ResultItemId;
             int recipeCost = GetRecipeCost(_selectedRecipe);
@@ -571,7 +573,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             ItemStack previewResult = new ItemStack(resultId, resultCount);
-            previewResult.CustomData = customData;
+            previewResult.Components = partMap;
 
             // Ensure sprite is cached
             string matSuffix = Context.ToolPartTextures != null
@@ -705,7 +707,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
                     if (!stack.IsEmpty)
                     {
-                        if (stack.HasCustomData)
+                        if (stack.HasComponents)
                         {
                             Context.PlayerInventory.AddItemStack(stack);
                         }

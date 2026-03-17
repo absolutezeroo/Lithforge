@@ -4,7 +4,7 @@ using Lithforge.Core.Data;
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Serializes/deserializes ToolPartData to/from byte[] for ItemStack.CustomData.
+    /// Serializes/deserializes ToolPartData to/from byte[] for component storage.
     /// Format: [byte version=1] [byte partType] [string materialId]
     /// </summary>
     public static class ToolPartDataSerializer

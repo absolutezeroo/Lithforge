@@ -1033,7 +1033,10 @@ namespace Lithforge.Runtime.Bootstrap
                             int durability = toolTemplate != null
                                 ? toolTemplate.MaxDurability : -1;
                             ItemStack toolStack = new(itemId, 1, durability);
-                            toolStack.CustomData = toolData;
+                            DataComponentMap toolMap = new DataComponentMap();
+                            toolMap.Set(DataComponentTypes.ToolInstanceId,
+                                new ToolInstanceComponent(toolTemplate));
+                            toolStack.Components = toolMap;
                             playerInventory.AddItemStack(toolStack);
                         }
                         else

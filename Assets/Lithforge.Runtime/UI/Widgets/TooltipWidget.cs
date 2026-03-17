@@ -93,19 +93,30 @@ namespace Lithforge.Runtime.UI.Widgets
             style.left = posX + 16;
             style.top = posY - 8;
 
-            // Resolve tool/part data from CustomData
+            // Resolve tool/part data from Components
             ToolInstance tool = null;
             ToolPartData partData = default;
             bool isToolPart = false;
 
-            if (stack.HasCustomData)
+            if (stack.HasComponents)
             {
-                ToolInstanceSerializer.TryDeserialize(stack.CustomData, out tool);
+                ToolInstanceComponent toolComp = stack.Components.Get<ToolInstanceComponent>(
+                    DataComponentTypes.ToolInstanceId);
 
-                if (tool == null &&
-                    ToolPartDataSerializer.TryDeserialize(stack.CustomData, out partData))
+                if (toolComp != null)
                 {
-                    isToolPart = true;
+                    tool = toolComp.Tool;
+                }
+                else
+                {
+                    ToolPartDataComponent partComp = stack.Components.Get<ToolPartDataComponent>(
+                        DataComponentTypes.ToolPartDataId);
+
+                    if (partComp != null)
+                    {
+                        partData = partComp.PartData;
+                        isToolPart = true;
+                    }
                 }
             }
 

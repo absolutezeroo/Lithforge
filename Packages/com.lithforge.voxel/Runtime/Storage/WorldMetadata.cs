@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -63,9 +64,23 @@ namespace Lithforge.Voxel.Storage
                                 ["durability"] = stack.Durability,
                             };
 
-                            if (!string.IsNullOrEmpty(stack.CustomDataBase64))
+                            // New format: components array
+                            if (stack.Components != null && stack.Components.Count > 0)
                             {
-                                slot["custom_data"] = stack.CustomDataBase64;
+                                JArray comps = new JArray();
+
+                                for (int c = 0; c < stack.Components.Count; c++)
+                                {
+                                    SavedComponentEntry entry = stack.Components[c];
+                                    JObject comp = new JObject
+                                    {
+                                        ["type"] = entry.TypeId,
+                                        ["data"] = entry.DataBase64,
+                                    };
+                                    comps.Add(comp);
+                                }
+
+                                slot["components"] = comps;
                             }
 
                             slots.Add(slot);
@@ -185,13 +200,47 @@ namespace Lithforge.Voxel.Storage
 
                             if (slotObj != null)
                             {
-                                slots[i] = new SavedItemStack(
-                                    slotObj["slot"]?.Value<int>() ?? 0,
-                                    slotObj["ns"]?.Value<string>() ?? "",
-                                    slotObj["name"]?.Value<string>() ?? "",
-                                    slotObj["count"]?.Value<int>() ?? 0,
-                                    slotObj["durability"]?.Value<int>() ?? -1,
-                                    slotObj["custom_data"]?.Value<string>());
+                                SavedItemStack saved = new SavedItemStack();
+                                saved.Slot = slotObj["slot"]?.Value<int>() ?? 0;
+                                saved.Ns = slotObj["ns"]?.Value<string>() ?? "";
+                                saved.Name = slotObj["name"]?.Value<string>() ?? "";
+                                saved.Count = slotObj["count"]?.Value<int>() ?? 0;
+                                saved.Durability = slotObj["durability"]?.Value<int>() ?? -1;
+
+                                // New format: components array
+                                JArray compsArray = slotObj["components"] as JArray;
+
+                                if (compsArray != null && compsArray.Count > 0)
+                                {
+                                    List<SavedComponentEntry> components =
+                                        new List<SavedComponentEntry>(compsArray.Count);
+
+                                    for (int c = 0; c < compsArray.Count; c++)
+                                    {
+                                        JObject compObj = compsArray[c] as JObject;
+
+                                        if (compObj != null)
+                                        {
+                                            int typeId = compObj["type"]?.Value<int>() ?? 0;
+                                            string data = compObj["data"]?.Value<string>();
+                                            components.Add(new SavedComponentEntry(typeId, data));
+                                        }
+                                    }
+
+                                    saved.Components = components;
+                                }
+                                else
+                                {
+                                    // Legacy format: custom_data string
+                                    string customData = slotObj["custom_data"]?.Value<string>();
+
+                                    if (!string.IsNullOrEmpty(customData))
+                                    {
+                                        saved.CustomDataBase64 = customData;
+                                    }
+                                }
+
+                                slots[i] = saved;
                             }
                         }
 
