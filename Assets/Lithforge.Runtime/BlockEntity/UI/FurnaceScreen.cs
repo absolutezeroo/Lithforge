@@ -2,9 +2,7 @@ using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Item;
-using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -36,9 +34,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
-            InitializeBase(context, 250);
-
-            Panel.style.display = DisplayStyle.None;
+            InitializeBase(context, 250, "UI/Screens/FurnaceScreen");
         }
 
         /// <summary>
@@ -75,99 +71,39 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
-            ClearSlotBindings();
-            Panel.Clear();
+            _burnBar = null;
+            _smeltBar = null;
 
-            // Re-add overlay class after clear
-            Panel.AddToClassList("lf-overlay");
+            if (!CloneTemplate())
+            {
+                return;
+            }
 
-            // Container panel centered in overlay
-            VisualElement container = new VisualElement();
-            container.AddToClassList("lf-panel");
-            Panel.Add(container);
+            VisualElement inputSlot = QueryContainer("input-slot");
+            VisualElement fuelSlot = QueryContainer("fuel-slot");
+            VisualElement outputSlot = QueryContainer("output-slot");
+            VisualElement mainSlots = QueryContainer("main-slots");
+            VisualElement hotbarSlots = QueryContainer("hotbar-slots");
 
-            // Title
-            Label title = new Label("Furnace");
-            title.AddToClassList("lf-panel__title");
-            container.Add(title);
+            _burnBar = Panel.Q<ProgressBar>("burn-bar");
+            _smeltBar = Panel.Q<ProgressBar>("smelt-bar");
 
-            // Furnace section: input + progress + output in a row
-            VisualElement furnaceSection = new VisualElement();
-            furnaceSection.AddToClassList("lf-craft-section");
-            container.Add(furnaceSection);
+            if (inputSlot == null || fuelSlot == null || outputSlot == null
+                || mainSlots == null || hotbarSlots == null
+                || _burnBar == null || _smeltBar == null)
+            {
+                return;
+            }
 
-            // Input slot (slot 0)
-            VisualElement inputCol = new VisualElement();
-            Label inputLabel = new Label("Input");
-            inputLabel.AddToClassList("lf-section-label");
-            inputCol.Add(inputLabel);
-            BuildSingleSlot(_furnaceInputAdapter, 0, inputCol);
-            furnaceSection.Add(inputCol);
-
-            // Fuel slot + burn bar
-            VisualElement fuelCol = new VisualElement();
-            Label fuelLabel = new Label("Fuel");
-            fuelLabel.AddToClassList("lf-section-label");
-            fuelCol.Add(fuelLabel);
-            BuildSingleSlot(_furnaceFuelAdapter, 0, fuelCol);
-
-            _burnBar = new ProgressBar();
-            _burnBar.title = "Burn";
-            _burnBar.style.width = 60;
-            _burnBar.style.height = 16;
-            fuelCol.Add(_burnBar);
-            furnaceSection.Add(fuelCol);
-
-            // Arrow + smelt progress
-            VisualElement arrowCol = new VisualElement();
-            arrowCol.style.justifyContent = Justify.Center;
-            arrowCol.style.alignItems = Align.Center;
-
-            _smeltBar = new ProgressBar();
-            _smeltBar.title = "Smelt";
-            _smeltBar.style.width = 80;
-            _smeltBar.style.height = 16;
-            arrowCol.Add(_smeltBar);
-
-            Label arrow = new Label("=>");
-            arrow.AddToClassList("lf-craft-arrow");
-            arrowCol.Add(arrow);
-            furnaceSection.Add(arrowCol);
-
-            // Output slot (slot 2, read-only)
-            VisualElement outputCol = new VisualElement();
-            Label outputLabel = new Label("Output");
-            outputLabel.AddToClassList("lf-section-label");
-            outputCol.Add(outputLabel);
-            BuildSingleSlot(_furnaceOutputAdapter, 0, outputCol);
-            furnaceSection.Add(outputCol);
-
-            // Separator
-            VisualElement sep1 = new VisualElement();
-            sep1.AddToClassList("lf-separator");
-            container.Add(sep1);
-
-            // Main inventory: 9x3
-            Label mainLabel = new Label("Inventory");
-            mainLabel.AddToClassList("lf-section-label");
-            container.Add(mainLabel);
+            BuildSingleSlot(_furnaceInputAdapter, 0, inputSlot);
+            BuildSingleSlot(_furnaceFuelAdapter, 0, fuelSlot);
+            BuildSingleSlot(_furnaceOutputAdapter, 0, outputSlot);
 
             SlotGroupDefinition mainGroupDef = SlotGroupDefinition.Create("main", 9, 3);
-            BuildSlotGroup(mainGroupDef, _mainAdapter, container);
-
-            // Separator
-            VisualElement sep2 = new VisualElement();
-            sep2.AddToClassList("lf-separator");
-            sep2.style.marginTop = 8;
-            container.Add(sep2);
-
-            // Hotbar: 9x1
-            Label hotbarLabel = new Label("Hotbar");
-            hotbarLabel.AddToClassList("lf-section-label");
-            container.Add(hotbarLabel);
+            BuildSlotGroup(mainGroupDef, _mainAdapter, mainSlots);
 
             SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
-            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, container);
+            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
         protected override void OnSlotPointerDown(

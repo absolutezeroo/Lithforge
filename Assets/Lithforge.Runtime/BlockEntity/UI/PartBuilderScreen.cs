@@ -84,9 +84,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
-            InitializeBase(context, 265);
-
-            Panel.style.display = DisplayStyle.None;
+            InitializeBase(context, 265, "UI/Screens/PartBuilderScreen");
         }
 
         public void OpenForEntity(BlockEntity entity)
@@ -121,129 +119,45 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
-            ClearSlotBindings();
-            Panel.Clear();
-            Panel.AddToClassList("lf-overlay");
+            _patternButtonContainer = null;
+            _materialLabel = null;
+            _costLabel = null;
+            _haveLabel = null;
 
-            VisualElement container = new VisualElement();
-            container.AddToClassList("lf-panel");
-            Panel.Add(container);
+            if (!CloneTemplate())
+            {
+                return;
+            }
 
-            // Title
-            Label title = new Label("Part Builder");
-            title.AddToClassList("lf-panel__title");
-            container.Add(title);
+            _patternButtonContainer = QueryContainer("pattern-button-container");
 
-            // Main content row: pattern buttons | slots
-            VisualElement contentRow = new VisualElement();
-            contentRow.style.flexDirection = FlexDirection.Row;
-            contentRow.style.marginBottom = 8;
-            container.Add(contentRow);
+            VisualElement patternSlot = QueryContainer("pattern-slot");
+            VisualElement materialSlot = QueryContainer("material-slot");
+            VisualElement outputSlot = QueryContainer("output-slot");
+            VisualElement mainSlots = QueryContainer("main-slots");
+            VisualElement hotbarSlots = QueryContainer("hotbar-slots");
 
-            // Pattern buttons column (left side)
-            VisualElement patternColumn = new VisualElement();
-            patternColumn.style.width = 160;
-            patternColumn.style.marginRight = 8;
-            contentRow.Add(patternColumn);
+            _materialLabel = Panel.Q<Label>("material-label");
+            _costLabel = Panel.Q<Label>("cost-label");
+            _haveLabel = Panel.Q<Label>("have-label");
 
-            Label patternLabel = new Label("Patterns");
-            patternLabel.AddToClassList("lf-section-label");
-            patternColumn.Add(patternLabel);
+            if (_patternButtonContainer == null
+                || patternSlot == null || materialSlot == null || outputSlot == null
+                || mainSlots == null || hotbarSlots == null
+                || _materialLabel == null || _costLabel == null || _haveLabel == null)
+            {
+                return;
+            }
 
-            // Scrollable pattern button container (4 columns)
-            ScrollView scrollView = new ScrollView(ScrollViewMode.Vertical);
-            scrollView.style.maxHeight = 120;
-            patternColumn.Add(scrollView);
-
-            _patternButtonContainer = new VisualElement();
-            _patternButtonContainer.style.flexDirection = FlexDirection.Row;
-            _patternButtonContainer.style.flexWrap = Wrap.Wrap;
-            scrollView.Add(_patternButtonContainer);
-
-            // Slots column (right side)
-            VisualElement slotsColumn = new VisualElement();
-            contentRow.Add(slotsColumn);
-
-            // Input slots row
-            VisualElement inputRow = new VisualElement();
-            inputRow.AddToClassList("lf-craft-section");
-            slotsColumn.Add(inputRow);
-
-            // Pattern slot
-            VisualElement patternSlotCol = new VisualElement();
-            Label patternSlotLabel = new Label("Pattern");
-            patternSlotLabel.AddToClassList("lf-section-label");
-            patternSlotCol.Add(patternSlotLabel);
-            BuildSingleSlot(_patternAdapter, 0, patternSlotCol);
-            inputRow.Add(patternSlotCol);
-
-            // Material slot
-            VisualElement materialSlotCol = new VisualElement();
-            Label materialSlotLabel = new Label("Material");
-            materialSlotLabel.AddToClassList("lf-section-label");
-            materialSlotCol.Add(materialSlotLabel);
-            BuildSingleSlot(_materialAdapter, 0, materialSlotCol);
-            inputRow.Add(materialSlotCol);
-
-            // Arrow
-            VisualElement arrowCol = new VisualElement();
-            arrowCol.style.justifyContent = Justify.Center;
-            arrowCol.style.alignItems = Align.Center;
-            Label arrow = new Label("=>");
-            arrow.AddToClassList("lf-craft-arrow");
-            arrowCol.Add(arrow);
-            inputRow.Add(arrowCol);
-
-            // Output slot
-            VisualElement outputCol = new VisualElement();
-            Label outputLabel = new Label("Result");
-            outputLabel.AddToClassList("lf-section-label");
-            outputCol.Add(outputLabel);
-            BuildSingleSlot(_outputAdapter, 0, outputCol);
-            inputRow.Add(outputCol);
-
-            // Info labels
-            _materialLabel = new Label("");
-            _materialLabel.AddToClassList("lf-section-label");
-            _materialLabel.style.marginTop = 4;
-            slotsColumn.Add(_materialLabel);
-
-            _costLabel = new Label("");
-            _costLabel.AddToClassList("lf-section-label");
-            _costLabel.style.fontSize = 10;
-            slotsColumn.Add(_costLabel);
-
-            _haveLabel = new Label("");
-            _haveLabel.AddToClassList("lf-section-label");
-            _haveLabel.style.fontSize = 10;
-            slotsColumn.Add(_haveLabel);
-
-            // Separator
-            VisualElement sep1 = new VisualElement();
-            sep1.AddToClassList("lf-separator");
-            container.Add(sep1);
-
-            // Main inventory: 9x3
-            Label mainLabel = new Label("Inventory");
-            mainLabel.AddToClassList("lf-section-label");
-            container.Add(mainLabel);
+            BuildSingleSlot(_patternAdapter, 0, patternSlot);
+            BuildSingleSlot(_materialAdapter, 0, materialSlot);
+            BuildSingleSlot(_outputAdapter, 0, outputSlot);
 
             SlotGroupDefinition mainGroupDef = SlotGroupDefinition.Create("main", 9, 3);
-            BuildSlotGroup(mainGroupDef, _mainAdapter, container);
-
-            // Separator
-            VisualElement sep2 = new VisualElement();
-            sep2.AddToClassList("lf-separator");
-            sep2.style.marginTop = 8;
-            container.Add(sep2);
-
-            // Hotbar: 9x1
-            Label hotbarLabel = new Label("Hotbar");
-            hotbarLabel.AddToClassList("lf-section-label");
-            container.Add(hotbarLabel);
+            BuildSlotGroup(mainGroupDef, _mainAdapter, mainSlots);
 
             SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
-            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, container);
+            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
         protected override void OnSlotPointerDown(
@@ -498,6 +412,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildPatternButtonsUI()
         {
+            if (_patternButtonContainer == null)
+            {
+                return;
+            }
+
             _patternButtonContainer.Clear();
             _patternButtons.Clear();
 
@@ -508,10 +427,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
                 Button btn = new Button();
                 btn.text = recipe.DisplayName;
-                btn.style.width = 72;
-                btn.style.height = 24;
-                btn.style.marginRight = 2;
-                btn.style.marginBottom = 2;
+                btn.AddToClassList("lf-btn");
+                btn.AddToClassList("lf-btn--compact");
 
                 // Disable if no material resolved or insufficient count
                 bool canCraft = _resolvedInput != null && _resolvedMaterial != null;
@@ -554,13 +471,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
                 if (selected)
                 {
-                    btn.style.backgroundColor = new Color(0.3f, 0.5f, 0.3f, 1f);
-                    btn.style.color = Color.white;
+                    btn.AddToClassList("lf-btn--selected");
                 }
                 else
                 {
-                    btn.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
-                    btn.style.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+                    btn.RemoveFromClassList("lf-btn--selected");
                 }
             }
         }
@@ -650,6 +565,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void UpdateInfoLabels()
         {
+            if (_materialLabel == null || _costLabel == null || _haveLabel == null)
+            {
+                return;
+            }
+
             if (_selectedRecipe == null)
             {
                 _materialLabel.text = _availableRecipes.Count > 0

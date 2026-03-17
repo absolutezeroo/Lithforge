@@ -1,7 +1,6 @@
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 using UnityEngine.InputSystem;
@@ -36,9 +35,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _craftAdapter = new CraftingGridContainerAdapter(
                 _craftingGrid, context.CraftingEngine, _outputAdapter);
 
-            InitializeBase(context, 255);
-
-            Panel.style.display = DisplayStyle.None;
+            InitializeBase(context, 255, "UI/Screens/CraftingTableScreen");
         }
 
         public void OpenForEntity(BlockEntity entity)
@@ -51,59 +48,31 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
-            ClearSlotBindings();
-            Panel.Clear();
-            Panel.AddToClassList("lf-overlay");
+            if (!CloneTemplate())
+            {
+                return;
+            }
 
-            VisualElement container = new VisualElement();
-            container.AddToClassList("lf-panel");
-            Panel.Add(container);
+            VisualElement craftGrid = QueryContainer("craft-grid");
+            VisualElement outputSlot = QueryContainer("output-slot");
+            VisualElement mainSlots = QueryContainer("main-slots");
+            VisualElement hotbarSlots = QueryContainer("hotbar-slots");
 
-            // Title
-            Label title = new Label("Crafting");
-            title.AddToClassList("lf-panel__title");
-            container.Add(title);
-
-            // Crafting section: 3x3 grid + arrow + output
-            VisualElement craftSection = new VisualElement();
-            craftSection.AddToClassList("lf-craft-section");
-            container.Add(craftSection);
+            if (craftGrid == null || outputSlot == null || mainSlots == null || hotbarSlots == null)
+            {
+                return;
+            }
 
             SlotGroupDefinition craftGroupDef = SlotGroupDefinition.Create("craft", 3, 3);
-            BuildSlotGroup(craftGroupDef, _craftAdapter, craftSection);
+            BuildSlotGroup(craftGroupDef, _craftAdapter, craftGrid);
 
-            Label arrow = new Label("=>");
-            arrow.AddToClassList("lf-craft-arrow");
-            craftSection.Add(arrow);
-
-            BuildSingleSlot(_outputAdapter, 0, craftSection);
-
-            // Separator
-            VisualElement sep1 = new VisualElement();
-            sep1.AddToClassList("lf-separator");
-            container.Add(sep1);
-
-            // Main inventory: 9x3
-            Label mainLabel = new Label("Inventory");
-            mainLabel.AddToClassList("lf-section-label");
-            container.Add(mainLabel);
+            BuildSingleSlot(_outputAdapter, 0, outputSlot);
 
             SlotGroupDefinition mainGroupDef = SlotGroupDefinition.Create("main", 9, 3);
-            BuildSlotGroup(mainGroupDef, _mainAdapter, container);
-
-            // Separator
-            VisualElement sep2 = new VisualElement();
-            sep2.AddToClassList("lf-separator");
-            sep2.style.marginTop = 8;
-            container.Add(sep2);
-
-            // Hotbar: 9x1
-            Label hotbarLabel = new Label("Hotbar");
-            hotbarLabel.AddToClassList("lf-section-label");
-            container.Add(hotbarLabel);
+            BuildSlotGroup(mainGroupDef, _mainAdapter, mainSlots);
 
             SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
-            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, container);
+            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
         protected override void OnSlotPointerDown(

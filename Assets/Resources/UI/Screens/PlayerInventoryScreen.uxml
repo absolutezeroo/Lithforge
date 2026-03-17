@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         editor-extension-mode="False">
+    <ui:Template name="PlayerInventorySections" src="PlayerInventorySections.uxml" />
+    <ui:VisualElement name="player-inventory-panel" class="lf-panel">
+        <ui:Label name="title-label" text="Inventory" class="lf-panel__title" />
+        <ui:VisualElement name="craft-section" class="lf-craft-section">
+            <ui:VisualElement name="craft-grid" />
+            <ui:Label text="=>" class="lf-craft-arrow" />
+            <ui:VisualElement name="output-slot" />
+        </ui:VisualElement>
+        <ui:Instance template="PlayerInventorySections" />
+    </ui:VisualElement>
+</ui:UXML>

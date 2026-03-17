@@ -1,0 +1,45 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         editor-extension-mode="False">
+    <ui:Template name="PlayerInventorySections" src="PlayerInventorySections.uxml" />
+    <ui:VisualElement name="part-builder-panel" class="lf-panel">
+        <ui:Label name="title-label" text="Part Builder" class="lf-panel__title" />
+        <ui:VisualElement name="content-row"
+            style="flex-direction: row; margin-bottom: 8px;">
+            <ui:VisualElement name="pattern-column"
+                style="width: 160px; margin-right: 8px;">
+                <ui:Label text="Patterns" class="lf-section-label" />
+                <ui:ScrollView name="pattern-scroll"
+                    mode="Vertical" style="max-height: 120px;">
+                    <ui:VisualElement name="pattern-button-container"
+                        style="flex-direction: row; flex-wrap: wrap;" />
+                </ui:ScrollView>
+            </ui:VisualElement>
+            <ui:VisualElement name="slots-column">
+                <ui:VisualElement name="input-row" class="lf-craft-section">
+                    <ui:VisualElement name="pattern-col">
+                        <ui:Label text="Pattern" class="lf-section-label" />
+                        <ui:VisualElement name="pattern-slot" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="material-col">
+                        <ui:Label text="Material" class="lf-section-label" />
+                        <ui:VisualElement name="material-slot" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="arrow-col" class="lf-craft-arrow-col">
+                        <ui:Label text="=>" class="lf-craft-arrow" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="output-col">
+                        <ui:Label text="Result" class="lf-section-label" />
+                        <ui:VisualElement name="output-slot" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label name="material-label" text="" class="lf-section-label"
+                    style="margin-top: 4px;" />
+                <ui:Label name="cost-label" text="" class="lf-section-label"
+                    style="font-size: 10px;" />
+                <ui:Label name="have-label" text="" class="lf-section-label"
+                    style="font-size: 10px;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Instance template="PlayerInventorySections" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         editor-extension-mode="False">
+    <ui:Template name="PlayerInventorySections" src="PlayerInventorySections.uxml" />
+    <ui:VisualElement name="furnace-panel" class="lf-panel">
+        <ui:Label name="title-label" text="Furnace" class="lf-panel__title" />
+        <ui:VisualElement name="furnace-section" class="lf-craft-section">
+            <ui:VisualElement name="input-col">
+                <ui:Label text="Input" class="lf-section-label" />
+                <ui:VisualElement name="input-slot" />
+            </ui:VisualElement>
+            <ui:VisualElement name="fuel-col">
+                <ui:Label text="Fuel" class="lf-section-label" />
+                <ui:VisualElement name="fuel-slot" />
+                <ui:ProgressBar name="burn-bar" title="Burn"
+                    style="width: 60px; height: 16px;" />
+            </ui:VisualElement>
+            <ui:VisualElement name="arrow-col" class="lf-craft-arrow-col">
+                <ui:ProgressBar name="smelt-bar" title="Smelt"
+                    style="width: 80px; height: 16px;" />
+                <ui:Label text="=>" class="lf-craft-arrow" />
+            </ui:VisualElement>
+            <ui:VisualElement name="output-col">
+                <ui:Label text="Output" class="lf-section-label" />
+                <ui:VisualElement name="output-slot" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Instance template="PlayerInventorySections" />
+    </ui:VisualElement>
+</ui:UXML>

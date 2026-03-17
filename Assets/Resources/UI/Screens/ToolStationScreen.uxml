@@ -1,0 +1,40 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements"
+         editor-extension-mode="False">
+    <ui:Template name="PlayerInventorySections" src="PlayerInventorySections.uxml" />
+    <ui:VisualElement name="tool-station-panel" class="lf-panel">
+        <ui:Label name="title-label" text="Tool Station" class="lf-panel__title" />
+        <ui:VisualElement name="selector-row" class="lf-slot-row"
+            style="margin-bottom: 8px;">
+            <ui:Button name="pickaxe-btn" text="Pickaxe" class="lf-btn" />
+            <ui:Button name="axe-btn" text="Axe" class="lf-btn" />
+            <ui:Button name="shovel-btn" text="Shovel" class="lf-btn" />
+            <ui:Button name="sword-btn" text="Sword" class="lf-btn" />
+        </ui:VisualElement>
+        <ui:VisualElement name="parts-section" class="lf-craft-section">
+            <ui:VisualElement name="head-col">
+                <ui:Label text="Head" class="lf-section-label" />
+                <ui:VisualElement name="head-slot" />
+            </ui:VisualElement>
+            <ui:VisualElement name="handle-col">
+                <ui:Label text="Handle" class="lf-section-label" />
+                <ui:VisualElement name="handle-slot" />
+            </ui:VisualElement>
+            <ui:VisualElement name="binding-col">
+                <ui:Label text="Binding" class="lf-section-label" />
+                <ui:VisualElement name="binding-slot" />
+            </ui:VisualElement>
+            <ui:VisualElement name="arrow-col" class="lf-craft-arrow-col">
+                <ui:Label text="=>" class="lf-craft-arrow" />
+            </ui:VisualElement>
+            <ui:VisualElement name="output-col">
+                <ui:Label text="Result" class="lf-section-label" />
+                <ui:VisualElement name="output-slot" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label name="result-label" text="" class="lf-section-label"
+            style="margin-top: 4px;" />
+        <ui:Label name="stats-label" text="" class="lf-section-label"
+            style="font-size: 10px;" />
+        <ui:Instance template="PlayerInventorySections" />
+    </ui:VisualElement>
+</ui:UXML>

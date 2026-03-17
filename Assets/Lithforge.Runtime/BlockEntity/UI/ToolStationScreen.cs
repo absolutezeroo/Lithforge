@@ -50,9 +50,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 context.PlayerInventory, Inventory.HotbarSize,
                 Inventory.SlotCount - Inventory.HotbarSize);
 
-            InitializeBase(context, 260);
-
-            Panel.style.display = DisplayStyle.None;
+            InitializeBase(context, 260, "UI/Screens/ToolStationScreen");
         }
 
         public void OpenForEntity(BlockEntity entity)
@@ -83,137 +81,80 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private void RebuildUI()
         {
-            ClearSlotBindings();
-            Panel.Clear();
-            Panel.AddToClassList("lf-overlay");
+            _resultLabel = null;
+            _statsLabel = null;
+            _pickaxeBtn = null;
+            _axeBtn = null;
+            _shovelBtn = null;
+            _swordBtn = null;
 
-            VisualElement container = new VisualElement();
-            container.AddToClassList("lf-panel");
-            Panel.Add(container);
-
-            // PointerUpEvent is already handled by ContainerScreen.InitializeBase
-
-            // Title
-            Label title = new Label("Tool Station");
-            title.AddToClassList("lf-panel__title");
-            container.Add(title);
-
-            // Tool type selector row
-            VisualElement selectorRow = new VisualElement();
-            selectorRow.AddToClassList("lf-slot-row");
-            selectorRow.style.marginBottom = 8;
-            container.Add(selectorRow);
-
-            _pickaxeBtn = CreateToolTypeButton("Pickaxe", ToolType.Pickaxe, selectorRow);
-            _axeBtn = CreateToolTypeButton("Axe", ToolType.Axe, selectorRow);
-            _shovelBtn = CreateToolTypeButton("Shovel", ToolType.Shovel, selectorRow);
-            _swordBtn = CreateToolTypeButton("Sword", ToolType.Sword, selectorRow);
-
-            UpdateToolTypeButtonStyles();
-
-            // Part slots section
-            VisualElement partsSection = new VisualElement();
-            partsSection.AddToClassList("lf-craft-section");
-            container.Add(partsSection);
-
-            // Head slot
-            VisualElement headCol = new VisualElement();
-            Label headLabel = new Label("Head");
-            headLabel.AddToClassList("lf-section-label");
-            headCol.Add(headLabel);
-            BuildSingleSlot(_headAdapter, 0, headCol);
-            partsSection.Add(headCol);
-
-            // Handle slot
-            VisualElement handleCol = new VisualElement();
-            Label handleLabel = new Label("Handle");
-            handleLabel.AddToClassList("lf-section-label");
-            handleCol.Add(handleLabel);
-            BuildSingleSlot(_handleAdapter, 0, handleCol);
-            partsSection.Add(handleCol);
-
-            // Binding slot
-            VisualElement bindingCol = new VisualElement();
-            Label bindingLabel = new Label("Binding");
-            bindingLabel.AddToClassList("lf-section-label");
-            bindingCol.Add(bindingLabel);
-            BuildSingleSlot(_bindingAdapter, 0, bindingCol);
-            partsSection.Add(bindingCol);
-
-            // Arrow
-            VisualElement arrowCol = new VisualElement();
-            arrowCol.style.justifyContent = Justify.Center;
-            arrowCol.style.alignItems = Align.Center;
-            Label arrow = new Label("=>");
-            arrow.AddToClassList("lf-craft-arrow");
-            arrowCol.Add(arrow);
-            partsSection.Add(arrowCol);
-
-            // Output slot
-            VisualElement outputCol = new VisualElement();
-            Label outputLabel = new Label("Result");
-            outputLabel.AddToClassList("lf-section-label");
-            outputCol.Add(outputLabel);
-            BuildSingleSlot(_outputAdapter, 0, outputCol);
-            partsSection.Add(outputCol);
-
-            // Stats preview
-            _resultLabel = new Label("");
-            _resultLabel.AddToClassList("lf-section-label");
-            _resultLabel.style.marginTop = 4;
-            container.Add(_resultLabel);
-
-            _statsLabel = new Label("");
-            _statsLabel.AddToClassList("lf-section-label");
-            _statsLabel.style.fontSize = 10;
-            container.Add(_statsLabel);
-
-            // Separator
-            VisualElement sep1 = new VisualElement();
-            sep1.AddToClassList("lf-separator");
-            container.Add(sep1);
-
-            // Main inventory: 9x3
-            Label mainLabel = new Label("Inventory");
-            mainLabel.AddToClassList("lf-section-label");
-            container.Add(mainLabel);
-
-            SlotGroupDefinition mainGroupDef = SlotGroupDefinition.Create("main", 9, 3);
-            BuildSlotGroup(mainGroupDef, _mainAdapter, container);
-
-            // Separator
-            VisualElement sep2 = new VisualElement();
-            sep2.AddToClassList("lf-separator");
-            sep2.style.marginTop = 8;
-            container.Add(sep2);
-
-            // Hotbar: 9x1
-            Label hotbarLabel = new Label("Hotbar");
-            hotbarLabel.AddToClassList("lf-section-label");
-            container.Add(hotbarLabel);
-
-            SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
-            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, container);
-        }
-
-        private Button CreateToolTypeButton(string label, ToolType toolType, VisualElement parent)
-        {
-            Button btn = new Button();
-            btn.text = label;
-            btn.style.width = 70;
-            btn.style.height = 24;
-            btn.style.marginRight = 4;
-
-            ToolType capturedType = toolType;
-            btn.clicked += () =>
+            if (!CloneTemplate())
             {
-                _selectedToolType = capturedType;
+                return;
+            }
+
+            VisualElement headSlot = QueryContainer("head-slot");
+            VisualElement handleSlot = QueryContainer("handle-slot");
+            VisualElement bindingSlot = QueryContainer("binding-slot");
+            VisualElement outputSlot = QueryContainer("output-slot");
+            VisualElement mainSlots = QueryContainer("main-slots");
+            VisualElement hotbarSlots = QueryContainer("hotbar-slots");
+
+            _resultLabel = Panel.Q<Label>("result-label");
+            _statsLabel = Panel.Q<Label>("stats-label");
+
+            _pickaxeBtn = Panel.Q<Button>("pickaxe-btn");
+            _axeBtn = Panel.Q<Button>("axe-btn");
+            _shovelBtn = Panel.Q<Button>("shovel-btn");
+            _swordBtn = Panel.Q<Button>("sword-btn");
+
+            if (headSlot == null || handleSlot == null || bindingSlot == null
+                || outputSlot == null || mainSlots == null || hotbarSlots == null
+                || _resultLabel == null || _statsLabel == null
+                || _pickaxeBtn == null || _axeBtn == null
+                || _shovelBtn == null || _swordBtn == null)
+            {
+                return;
+            }
+
+            // Wire button click handlers
+            _pickaxeBtn.clicked += () =>
+            {
+                _selectedToolType = ToolType.Pickaxe;
+                _previewDirty = true;
+                UpdateToolTypeButtonStyles();
+            };
+            _axeBtn.clicked += () =>
+            {
+                _selectedToolType = ToolType.Axe;
+                _previewDirty = true;
+                UpdateToolTypeButtonStyles();
+            };
+            _shovelBtn.clicked += () =>
+            {
+                _selectedToolType = ToolType.Shovel;
+                _previewDirty = true;
+                UpdateToolTypeButtonStyles();
+            };
+            _swordBtn.clicked += () =>
+            {
+                _selectedToolType = ToolType.Sword;
                 _previewDirty = true;
                 UpdateToolTypeButtonStyles();
             };
 
-            parent.Add(btn);
-            return btn;
+            UpdateToolTypeButtonStyles();
+
+            BuildSingleSlot(_headAdapter, 0, headSlot);
+            BuildSingleSlot(_handleAdapter, 0, handleSlot);
+            BuildSingleSlot(_bindingAdapter, 0, bindingSlot);
+            BuildSingleSlot(_outputAdapter, 0, outputSlot);
+
+            SlotGroupDefinition mainGroupDef = SlotGroupDefinition.Create("main", 9, 3);
+            BuildSlotGroup(mainGroupDef, _mainAdapter, mainSlots);
+
+            SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
+            BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
         private void UpdateToolTypeButtonStyles()
@@ -226,15 +167,18 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private static void SetButtonSelected(Button btn, bool selected)
         {
+            if (btn == null)
+            {
+                return;
+            }
+
             if (selected)
             {
-                btn.style.backgroundColor = new Color(0.3f, 0.5f, 0.3f, 1f);
-                btn.style.color = Color.white;
+                btn.AddToClassList("lf-btn--selected");
             }
             else
             {
-                btn.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
-                btn.style.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+                btn.RemoveFromClassList("lf-btn--selected");
             }
         }
 
@@ -401,7 +345,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             // Update assembly preview only when slots change
-            if (_currentStation != null && _previewDirty)
+            if (_currentStation != null && _previewDirty
+                && _resultLabel != null && _statsLabel != null)
             {
                 _previewDirty = false;
                 _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
