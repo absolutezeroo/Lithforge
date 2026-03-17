@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: furnace
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Models.BlockModel
   parent: {fileID: 0}
-  builtInParent: 1
+  builtInParent: 5
   textures:
   - variable: front
     texture: {fileID: 2800000, guid: 75527759212e80b42aa3e3fdac181b9a, type: 3}
@@ -28,3 +28,8 @@ MonoBehaviour:
     texture: {fileID: 2800000, guid: 9c5893e53802b704fbe8b7df72e093bf, type: 3}
     variableReference: 
   elements: []
+  firstPersonRightHand:
+    hasValue: 0
+    rotation: {x: 0, y: 0, z: 0}
+    translation: {x: 0, y: 0, z: 0}
+    scale: {x: 1, y: 1, z: 1}
