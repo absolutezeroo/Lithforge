@@ -33,6 +33,9 @@ namespace Lithforge.Runtime.Rendering
 
         private readonly IPipelineStats _pipelineStats;
 
+        /// <summary>GPU buffer resize service — dispatches compute copy and defers disposal.</summary>
+        private readonly GpuBufferResizer _resizer;
+
         /// <summary>Maps chunk coord to its vertex/index region in the shared buffers.</summary>
         private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
 
@@ -157,10 +160,11 @@ namespace Lithforge.Runtime.Rendering
         /// The buffer grows automatically by doubling when capacity is exceeded.
         /// </summary>
         public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity,
-            int maxChunkSlots, IPipelineStats pipelineStats)
+            int maxChunkSlots, GpuBufferResizer resizer, IPipelineStats pipelineStats)
         {
             _name = bufferName;
             _pipelineStats = pipelineStats;
+            _resizer = resizer;
             _maxChunkSlots = maxChunkSlots;
             _vertexCapacity = initialVertexCapacity;
             _indexCapacity = initialIndexCapacity;
@@ -168,7 +172,7 @@ namespace Lithforge.Runtime.Rendering
             _indexMirror = new NativeArray<int>(initialIndexCapacity, Allocator.Persistent);
 
             _vertexBuffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.Structured,
+                GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.Raw,
                 GraphicsBuffer.UsageFlags.None,
                 initialVertexCapacity,
                 s_vertexStride);
@@ -632,7 +636,11 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Grows the buffer capacity by doubling (or more if the required extra exceeds a double).
-        /// Recreates the GPU buffers and re-uploads all current data.
+        /// GPU buffers are resized via compute-shader copy (no CPU re-upload stall). Old GPU
+        /// buffers are retired for deferred disposal to avoid use-after-free on the GPU.
+        /// Dirty ranges are cleared because the compute copy transfers all pre-existing data.
+        /// New data written by the AllocateOrUpdate call that triggered the grow will add
+        /// fresh dirty ranges after Grow returns.
         /// </summary>
         private void Grow(int extraVertices, int extraIndices)
         {
@@ -677,40 +685,31 @@ namespace Lithforge.Runtime.Rendering
             _indexMirror.Dispose();
             _indexMirror = newIndexMirror;
 
-            // Dispose old GPU buffers and create new VRAM-resident ones
-            _vertexBuffer?.Dispose();
-            _indexBuffer?.Dispose();
-
-            _vertexBuffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.Structured,
-                GraphicsBuffer.UsageFlags.None,
+            // GPU buffer resize: compute copy old→new, deferred disposal of old buffers.
+            // No SetData re-upload — the compute shader copies existing data on the GPU.
+            // Old buffers survive for 3 frames so the GPU finishes any in-flight reads.
+            _vertexBuffer = _resizer.Resize(
+                _vertexBuffer,
                 newVertCap,
+                _usedVertices,
+                GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.Raw,
                 s_vertexStride);
 
-            _indexBuffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
-                GraphicsBuffer.UsageFlags.None,
+            _indexBuffer = _resizer.Resize(
+                _indexBuffer,
                 newIdxCap,
+                _usedIndices,
+                GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
                 sizeof(int));
-
-            // Re-upload current data to the new GPU buffers via SetData(NativeArray).
-            // The vertex mirror stores world-offset vertices (applied during WriteDataToMirror),
-            // so no per-element transform is needed here — straight copy is correct.
-            if (_usedVertices > 0)
-            {
-                _vertexBuffer.SetData(_vertexMirror, 0, 0, _usedVertices);
-            }
-
-            if (_usedIndices > 0)
-            {
-                _indexBuffer.SetData(_indexMirror, 0, 0, _usedIndices);
-            }
 
             _vertexCapacity = newVertCap;
             _indexCapacity = newIdxCap;
             _argsDirty = true;
 
-            // Grow re-uploaded everything — reset dirty ranges
+            // The compute copy transferred all pre-existing data to the new GPU buffers.
+            // Clear dirty ranges to avoid redundant re-upload of data already on the GPU.
+            // The AllocateOrUpdate call that triggered this grow will add its own fresh
+            // dirty range via WriteDataToMirror after Grow returns.
             _dirtyVertexRanges.Clear();
             _dirtyIndexRanges.Clear();
 
@@ -757,7 +756,8 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Grows the per-chunk args buffer to accommodate more chunk slots.
-        /// Copies existing args data to the new buffer. Called by ChunkMeshStore
+        /// Existing args data is copied via GPU compute dispatch (no blocking readback).
+        /// Old buffer is retired for deferred disposal. Called by ChunkMeshStore
         /// when the slot pool is exhausted due to render distance increase.
         /// </summary>
         public void GrowSlots(int newMaxSlots)
@@ -767,21 +767,13 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            int oldMax = _maxChunkSlots;
-
-            GraphicsBuffer newArgsBuffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Raw,
+            _perChunkArgsBuffer = _resizer.Resize(
+                _perChunkArgsBuffer,
                 newMaxSlots,
+                _maxChunkSlots,
+                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Raw,
                 GraphicsBuffer.IndirectDrawIndexedArgs.size);
 
-            // Copy old args data and zero-initialize new slots
-            GraphicsBuffer.IndirectDrawIndexedArgs[] argsCopy =
-                new GraphicsBuffer.IndirectDrawIndexedArgs[newMaxSlots];
-            _perChunkArgsBuffer.GetData(argsCopy, 0, 0, oldMax);
-            newArgsBuffer.SetData(argsCopy);
-
-            _perChunkArgsBuffer.Dispose();
-            _perChunkArgsBuffer = newArgsBuffer;
             _maxChunkSlots = newMaxSlots;
         }
 

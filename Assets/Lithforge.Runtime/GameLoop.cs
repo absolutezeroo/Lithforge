@@ -53,6 +53,7 @@ namespace Lithforge.Runtime
         private GameState _gameState = GameState.Playing;
         private IFrameProfiler _frameProfiler = new NullFrameProfiler();
         private IPipelineStats _pipelineStats = new NullPipelineStats();
+        private GpuBufferResizer _gpuBufferResizer;
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
@@ -98,6 +99,15 @@ namespace Lithforge.Runtime
         public void SetPipelineStats(IPipelineStats pipelineStats)
         {
             _pipelineStats = pipelineStats;
+        }
+
+        /// <summary>
+        /// Sets the GPU buffer resizer for deferred disposal ticking.
+        /// Must be called before Initialize.
+        /// </summary>
+        public void SetGpuBufferResizer(GpuBufferResizer resizer)
+        {
+            _gpuBufferResizer = resizer;
         }
 
         public void Initialize(
@@ -290,6 +300,8 @@ namespace Lithforge.Runtime
             {
                 return;
             }
+
+            _gpuBufferResizer?.Tick();
 
             _frameProfiler.BeginFrame();
             _pipelineStats.BeginFrame();

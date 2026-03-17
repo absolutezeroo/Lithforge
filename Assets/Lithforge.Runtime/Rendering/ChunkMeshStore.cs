@@ -55,6 +55,9 @@ namespace Lithforge.Runtime.Rendering
         private readonly HiZPyramid _hiZPyramid;
         private readonly int _occlusionCullKernel;
 
+        /// <summary>GPU buffer resize service — dispatches compute copy and defers disposal.</summary>
+        private readonly GpuBufferResizer _resizer;
+
         /// <summary>
         /// Shared bounds buffer: same AABB regardless of render layer.
         /// Slot IDs are keyed to the opaque buffer's coordToSlotId.
@@ -110,11 +113,13 @@ namespace Lithforge.Runtime.Rendering
             int renderDistance, int yLoadMin, int yLoadMax,
             int yUnloadMin, int yUnloadMax,
             ComputeShader frustumCullShader, ComputeShader hiZGenerateShader,
+            GpuBufferResizer resizer,
             IPipelineStats pipelineStats)
         {
             OpaqueMaterial = opaqueMaterial;
             CutoutMaterial = cutoutMaterial;
             TranslucentMaterial = translucentMaterial;
+            _resizer = resizer;
 
             // Compute max chunk slots from unload boundaries (worst-case loaded chunks).
             // Unload radius is renderDistance + 1 on XZ; Y uses the unload range.
@@ -177,14 +182,14 @@ namespace Lithforge.Runtime.Rendering
             int smallVerts = maxChunks * 300 * 3 / 2;
             int smallIdx = maxChunks * 450 * 3 / 2;
 
-            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, pipelineStats);
-            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, pipelineStats);
-            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, pipelineStats);
+            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats);
+            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
+            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
 
             // Shared chunk bounds buffer — same AABB regardless of render layer.
             // Slot IDs are sourced from the opaque buffer.
             _chunkBoundsBuffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.Structured,
+                GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.Raw,
                 maxChunkSlots,
                 Marshal.SizeOf<ChunkBoundsGPU>());
 
@@ -261,31 +266,28 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         /// Doubles the slot capacity for per-chunk indirect draw. Grows the shared
-        /// bounds buffer and per-chunk args in all three MegaMeshBuffers. Called when
-        /// render distance increases at runtime and the original slot count is exceeded.
+        /// bounds buffer and per-chunk args in all three MegaMeshBuffers via GPU
+        /// compute copy (no blocking GetData readback). Old buffers are retired for
+        /// deferred disposal. Called when render distance increases at runtime and the
+        /// original slot count is exceeded.
         /// </summary>
         private void GrowSlotCapacity()
         {
             int oldMax = _maxChunkSlots;
             int newMax = ((oldMax * 2 + 63) / 64) * 64;
 
-            // Grow per-chunk args in all 3 MegaMeshBuffers
+            // Grow per-chunk args in all 3 MegaMeshBuffers (each delegates to _resizer)
             _opaqueBuffer.GrowSlots(newMax);
             _cutoutBuffer.GrowSlots(newMax);
             _translucentBuffer.GrowSlots(newMax);
 
-            // Grow chunk bounds buffer
-            GraphicsBuffer newBoundsBuffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.Structured,
+            // Grow chunk bounds buffer via compute copy (no GetData blocking readback)
+            _chunkBoundsBuffer = _resizer.Resize(
+                _chunkBoundsBuffer,
                 newMax,
+                oldMax,
+                GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.Raw,
                 Marshal.SizeOf<ChunkBoundsGPU>());
-
-            ChunkBoundsGPU[] boundsCopy = new ChunkBoundsGPU[newMax];
-            _chunkBoundsBuffer.GetData(boundsCopy, 0, 0, oldMax);
-            newBoundsBuffer.SetData(boundsCopy);
-
-            _chunkBoundsBuffer.Dispose();
-            _chunkBoundsBuffer = newBoundsBuffer;
 
             Array.Resize(ref _slotToCoord, newMax);
 

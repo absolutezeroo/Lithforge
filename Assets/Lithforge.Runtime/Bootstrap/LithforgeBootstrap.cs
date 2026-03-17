@@ -73,12 +73,16 @@ namespace Lithforge.Runtime.Bootstrap
         /// <summary>Optional inspector-assigned compute shader for Hi-Z mipmap generation. Falls back to Resources.Load.</summary>
         [FormerlySerializedAs("_hiZGenerateShader"), SerializeField]
         private ComputeShader hiZGenerateShader;
+        /// <summary>Optional inspector-assigned compute shader for GPU buffer copy during grow. Falls back to Resources.Load.</summary>
+        [SerializeField]
+        private ComputeShader bufferCopyShader;
         private AsyncChunkSaver _asyncChunkSaver;
         private AutoSaveManager _autoSaveManager;
         private BiomeAmbientPlayer _biomeAmbientPlayer;
         private BiomeTintManager _biomeTintManager;
         private ChunkManager _chunkManager;
         private ChunkMeshStore _chunkMeshStore;
+        private GpuBufferResizer _gpuBufferResizer;
         private ChunkPool _chunkPool;
         private ContentPipelineResult _contentResult;
         private DecorationStage _decorationStage;
@@ -458,6 +462,12 @@ namespace Lithforge.Runtime.Bootstrap
                 {
                     _chunkMeshStore.Dispose();
                     _chunkMeshStore = null;
+                }
+
+                if (_gpuBufferResizer != null)
+                {
+                    _gpuBufferResizer.Dispose();
+                    _gpuBufferResizer = null;
                 }
 
                 if (_chunkManager != null)
@@ -859,6 +869,25 @@ namespace Lithforge.Runtime.Bootstrap
                     "Hi-Z occlusion culling will be disabled.");
             }
 
+            // Load buffer copy compute shader for GPU-to-GPU buffer resize (required)
+            ComputeShader copyShader = bufferCopyShader;
+
+            if (copyShader == null)
+            {
+                copyShader = Resources.Load<ComputeShader>("BufferCopy");
+            }
+
+            if (copyShader == null)
+            {
+                UnityEngine.Debug.LogError(
+                    "[Lithforge] BufferCopy compute shader not found. " +
+                    "Assign it in the Inspector or place it in a Resources folder.");
+            }
+
+            // GpuBufferResizer requires a non-null compute shader.
+            // If missing, session startup will fail at constructor (ArgumentNullException).
+            _gpuBufferResizer = new GpuBufferResizer(copyShader);
+
             _chunkMeshStore = new ChunkMeshStore(
                 opaqueMaterial, cutoutMaterial, translucentMaterial,
                 _settings.Chunk.RenderDistance,
@@ -868,6 +897,7 @@ namespace Lithforge.Runtime.Bootstrap
                 _settings.Chunk.YUnloadMax,
                 cullShader,
                 hiZShader,
+                _gpuBufferResizer,
                 _pipelineStats);
 
             // Build water color array indexed by biomeId
@@ -906,6 +936,7 @@ namespace Lithforge.Runtime.Bootstrap
             _gameLoop = gameObject.AddComponent<GameLoop>();
             _gameLoop.SetFrameProfiler(_frameProfiler);
             _gameLoop.SetPipelineStats(_pipelineStats);
+            _gameLoop.SetGpuBufferResizer(_gpuBufferResizer);
             _gameLoop.Initialize(
                 _chunkManager,
                 _generationPipeline,
