@@ -59,7 +59,7 @@ namespace Lithforge.Voxel.Item
             }
             else
             {
-                CurrentDurability = System.Math.Min(durability, MaxDurability);
+                CurrentDurability = Math.Min(durability, MaxDurability);
                 IsBroken = false;
             }
         }
@@ -169,7 +169,7 @@ namespace Lithforge.Voxel.Item
         /// </summary>
         public ToolInstance Clone()
         {
-            ToolInstance copy = new ToolInstance();
+            ToolInstance copy = new();
             copy.ToolType = ToolType;
             copy.BaseDamage = BaseDamage;
             copy.BaseSpeed = BaseSpeed;
@@ -189,6 +189,7 @@ namespace Lithforge.Voxel.Item
                     if (Parts[i].TraitIds != null)
                     {
                         copy.Parts[i].TraitIds = new ResourceId[Parts[i].TraitIds.Length];
+
                         Array.Copy(Parts[i].TraitIds, copy.Parts[i].TraitIds, Parts[i].TraitIds.Length);
                     }
                 }
@@ -197,6 +198,7 @@ namespace Lithforge.Voxel.Item
             if (Slots != null)
             {
                 copy.Slots = new ModifierSlot[Slots.Length];
+
                 Array.Copy(Slots, copy.Slots, Slots.Length);
             }
 
