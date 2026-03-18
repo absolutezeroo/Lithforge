@@ -48,6 +48,11 @@ namespace Lithforge.Runtime.World
 
         public void Tick(float realtimeSinceStartup)
         {
+            if (_worldStorage == null)
+            {
+                return;
+            }
+
             // Initialize timers on first tick so saves don't fire immediately
             if (_lastMetaFlushTime < 0f)
             {

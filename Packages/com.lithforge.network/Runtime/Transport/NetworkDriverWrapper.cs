@@ -134,7 +134,7 @@ namespace Lithforge.Network.Transport
 
                             // Rent from pool instead of allocating (Fix 3)
                             byte[] eventData = ArrayPool<byte>.Shared.Rent(dataLength);
-                            nativeRead.CopyTo(eventData);
+                            NativeArray<byte>.Copy(nativeRead, 0, eventData, 0, dataLength);
                             nativeRead.Dispose();
 
                             _eventBuffer.Add(new BufferedEvent
