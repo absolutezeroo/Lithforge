@@ -25,6 +25,18 @@ namespace Lithforge.Meshing
         public NativeArray<StateId> NeighborPosZ;
         public NativeArray<StateId> NeighborNegZ;
 
+        /// <summary>
+        /// Neighbor liquid ghost slabs for corner level interpolation (Luanti-style).
+        /// Each slab is Size*Size (1024 bytes), indexed [y * Size + edgeCoord].
+        /// Contains raw LiquidCell bytes from the boundary slice of each neighbor chunk.
+        /// When a neighbor has no liquid data, the slab is all zeros (empty).
+        /// Owner: GreedyMeshData. Lifetime: job flight. Allocator: TempJob.
+        /// </summary>
+        public NativeArray<byte> LiquidNeighborPosX;
+        public NativeArray<byte> LiquidNeighborNegX;
+        public NativeArray<byte> LiquidNeighborPosZ;
+        public NativeArray<byte> LiquidNeighborNegZ;
+
         public GreedyMeshData(Allocator allocator)
         {
             OpaqueVertices = new NativeList<PackedMeshVertex>(4096, allocator);
@@ -39,6 +51,10 @@ namespace Lithforge.Meshing
             NeighborNegY = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
             NeighborPosZ = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
             NeighborNegZ = new NativeArray<StateId>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
+            LiquidNeighborPosX = new NativeArray<byte>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
+            LiquidNeighborNegX = new NativeArray<byte>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
+            LiquidNeighborPosZ = new NativeArray<byte>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
+            LiquidNeighborNegZ = new NativeArray<byte>(ChunkConstants.SizeSquared, allocator, NativeArrayOptions.ClearMemory);
         }
 
         public void Dispose()
@@ -55,6 +71,10 @@ namespace Lithforge.Meshing
             if (NeighborNegY.IsCreated) { NeighborNegY.Dispose(); }
             if (NeighborPosZ.IsCreated) { NeighborPosZ.Dispose(); }
             if (NeighborNegZ.IsCreated) { NeighborNegZ.Dispose(); }
+            if (LiquidNeighborPosX.IsCreated) { LiquidNeighborPosX.Dispose(); }
+            if (LiquidNeighborNegX.IsCreated) { LiquidNeighborNegX.Dispose(); }
+            if (LiquidNeighborPosZ.IsCreated) { LiquidNeighborPosZ.Dispose(); }
+            if (LiquidNeighborNegZ.IsCreated) { LiquidNeighborNegZ.Dispose(); }
         }
     }
 }

@@ -39,6 +39,17 @@ namespace Lithforge.Meshing
         /// </summary>
         public bool HasLiquidData;
 
+        /// <summary>
+        /// Neighbor liquid ghost slabs for corner level interpolation (Luanti-style).
+        /// Each slab is Size*Size (1024 bytes), indexed [y * Size + edgeCoord].
+        /// Contains raw LiquidCell bytes from the boundary slice of each neighbor chunk.
+        /// When a neighbor has no liquid data, the slab is all zeros (empty).
+        /// </summary>
+        [ReadOnly] public NativeArray<byte> LiquidNeighborPosX;
+        [ReadOnly] public NativeArray<byte> LiquidNeighborNegX;
+        [ReadOnly] public NativeArray<byte> LiquidNeighborPosZ;
+        [ReadOnly] public NativeArray<byte> LiquidNeighborNegZ;
+
         /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
         public int3 ChunkCoord;
 
@@ -51,10 +62,16 @@ namespace Lithforge.Meshing
 
         public void Execute()
         {
-            // Process each of the 6 face directions
+            // Process each of the 6 face directions (greedy merge for opaque/cutout/glass)
             for (int face = 0; face < 6; face++)
             {
                 ProcessFaceDirection(face);
+            }
+
+            // Per-block liquid pass (Luanti-style with corner levels)
+            if (HasLiquidData)
+            {
+                ProcessLiquidBlocks();
             }
         }
 
@@ -127,21 +144,20 @@ namespace Lithforge.Meshing
 
                     if (!blockState.IsAir)
                     {
-                        if (blockState.IsOpaque)
+                        if (blockState.IsFluid)
+                        {
+                            // Fluid blocks are meshed in the dedicated liquid pass.
+                            // Don't render any faces in the greedy pipeline.
+                            shouldRender = false;
+                        }
+                        else if (blockState.IsOpaque)
                         {
                             shouldRender = !neighborState.IsOpaque;
                         }
                         else
                         {
-                            if (blockState.IsFluid && neighborState.IsFluid)
-                            {
-                                // Same fluid type at any level: cull internal face
-                                shouldRender = false;
-                            }
-                            else
-                            {
-                                shouldRender = !neighborState.IsOpaque && neighborId.Value != blockId.Value;
-                            }
+                            // Translucent non-fluid (glass, etc.)
+                            shouldRender = !neighborState.IsOpaque && neighborId.Value != blockId.Value;
                         }
                     }
 
@@ -440,6 +456,512 @@ namespace Lithforge.Meshing
                 targetIndices.Add(vertexStart + 3);
                 targetIndices.Add(vertexStart + 2);
             }
+        }
+
+        // =====================================================================
+        // Per-block liquid meshing pass (Luanti-style corner levels)
+        // =====================================================================
+
+        private void ProcessLiquidBlocks()
+        {
+            for (int y = 0; y < ChunkConstants.Size; y++)
+            {
+                for (int z = 0; z < ChunkConstants.Size; z++)
+                {
+                    for (int x = 0; x < ChunkConstants.Size; x++)
+                    {
+                        int flatIndex = y * ChunkConstants.SizeSquared + z * ChunkConstants.Size + x;
+                        StateId blockId = ChunkData[flatIndex];
+                        BlockStateCompact blockState = StateTable[blockId.Value];
+
+                        if (!blockState.IsFluid)
+                        {
+                            continue;
+                        }
+
+                        byte cell = LiquidData[flatIndex];
+
+                        // If LiquidData hasn't been populated yet for this block, treat as source
+                        if (LiquidCell.IsEmpty(cell))
+                        {
+                            cell = LiquidCell.MakeSource();
+                        }
+
+                        DrawLiquidNode(x, y, z, blockId);
+                    }
+                }
+            }
+        }
+
+        private void DrawLiquidNode(int x, int y, int z, StateId blockId)
+        {
+            // Get corner levels (4 corners of the top face)
+            float c00 = GetCornerLevel(x, y, z, 0, 0); // (-X, -Z corner)
+            float c10 = GetCornerLevel(x, y, z, 1, 0); // (+X, -Z corner)
+            float c01 = GetCornerLevel(x, y, z, 0, 1); // (-X, +Z corner)
+            float c11 = GetCornerLevel(x, y, z, 1, 1); // (+X, +Z corner)
+
+            bool topIsLiquid = LiquidSampleIsFluid(x, y + 1, z);
+            bool bottomIsLiquid = LiquidSampleIsFluid(x, y - 1, z);
+
+            // Atlas/tint info
+            AtlasEntry atlas = AtlasEntries[blockId.Value];
+            int cwx = ChunkCoord.x * ChunkConstants.Size;
+            int cwy = ChunkCoord.y * ChunkConstants.Size;
+            int cwz = ChunkCoord.z * ChunkConstants.Size;
+
+            // Light: sample from block position
+            byte light = SampleLight(new int3(x, y, z));
+            int sunLight = light >> 4;
+            int blockLight = light & 0x0F;
+
+            // Top face — only if no liquid above
+            if (!topIsLiquid)
+            {
+                EmitLiquidTopFace(x, y, z, c00, c10, c01, c11, blockId, atlas,
+                    sunLight, blockLight, cwx, cwy, cwz);
+            }
+
+            // Bottom face — only if no liquid below and no solid below
+            if (!bottomIsLiquid && !LiquidSampleIsSolid(x, y - 1, z))
+            {
+                EmitLiquidBottomFace(x, y, z, blockId, atlas,
+                    sunLight, blockLight, cwx, cwy, cwz);
+            }
+
+            // Side faces (4 directions): nearCornerA/B matched to vertex winding.
+            // For each face, A maps to the vertex at lower secondary axis,
+            // B maps to the vertex at higher secondary axis in the quad.
+            // +X: v2(z+1)=flTopB, v3(z)=flTopA → A=c10(+X,-Z), B=c11(+X,+Z)
+            EmitLiquidSideFace(x, y, z, 1, 0, c10, c11,
+                blockId, atlas, sunLight, blockLight, cwx, cwy, cwz, topIsLiquid);
+            // -X: v2(z)=flTopA, v3(z+1)=flTopB → A=c00(-X,-Z), B=c01(-X,+Z)
+            EmitLiquidSideFace(x, y, z, -1, 0, c00, c01,
+                blockId, atlas, sunLight, blockLight, cwx, cwy, cwz, topIsLiquid);
+            // +Z: v2(x)=flTopB, v3(x+1)=flTopA → A=c11(+X,+Z), B=c01(-X,+Z)
+            EmitLiquidSideFace(x, y, z, 0, 1, c11, c01,
+                blockId, atlas, sunLight, blockLight, cwx, cwy, cwz, topIsLiquid);
+            // -Z: v2(x+1)=flTopA, v3(x)=flTopB → A=c10(+X,-Z), B=c00(-X,-Z)
+            EmitLiquidSideFace(x, y, z, 0, -1, c10, c00,
+                blockId, atlas, sunLight, blockLight, cwx, cwy, cwz, topIsLiquid);
+        }
+
+        /// <summary>
+        /// Computes the corner Y height for a liquid block at (x,y,z).
+        /// cornerX: 0=left edge, 1=right edge (in X).
+        /// cornerZ: 0=back edge, 1=front edge (in Z).
+        /// Returns a value in [0.0, 1.0] where 1.0 = top of block, 0.0 = bottom.
+        /// </summary>
+        private float GetCornerLevel(int x, int y, int z, int cornerX, int cornerZ)
+        {
+            // Sample the 4 blocks that share this corner:
+            // Corner (0,0) is shared by (x-1,z-1), (x,z-1), (x-1,z), (x,z)
+            // Corner (1,0) is shared by (x,z-1), (x+1,z-1), (x,z), (x+1,z)
+            // etc.
+
+            float sum = 0f;
+            int count = 0;
+            int airCount = 0;
+
+            for (int dz = -1; dz <= 0; dz++)
+            {
+                for (int dx = -1; dx <= 0; dx++)
+                {
+                    int nx = x + cornerX + dx;
+                    int nz = z + cornerZ + dz;
+
+                    // Check if block above this neighbor is also liquid
+                    if (LiquidSampleIsFluid(nx, y + 1, nz))
+                    {
+                        // If any sharing block has liquid above, corner is at full height
+                        return 1.0f;
+                    }
+
+                    float level = SampleLiquidLevel(nx, y, nz);
+
+                    if (level > 0f)
+                    {
+                        sum += level;
+                        count++;
+                    }
+                    else
+                    {
+                        if (!LiquidSampleIsSolid(nx, y, nz))
+                        {
+                            airCount++;
+                        }
+                    }
+                }
+            }
+
+            if (count == 0)
+            {
+                return 0.111f;
+            }
+
+            float avg = sum / count;
+
+            // If 2+ air neighbors at this corner, pull height down
+            if (airCount >= 2)
+            {
+                avg = math.min(avg, 0.111f);
+            }
+
+            return avg;
+        }
+
+        /// <summary>
+        /// Returns liquid level as [0, 1] for a position (can be outside chunk via ghost slabs).
+        /// 0 = empty/air, 1.0 = source, 7/8..1/8 = flowing levels.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private float SampleLiquidLevel(int x, int y, int z)
+        {
+            if (y < 0 || y >= ChunkConstants.Size)
+            {
+                return 0f;
+            }
+
+            byte cell = SampleLiquidCell(x, y, z);
+
+            if (LiquidCell.IsEmpty(cell))
+            {
+                return 0f;
+            }
+
+            if (LiquidCell.IsSource(cell))
+            {
+                return 1.0f;
+            }
+
+            byte level = LiquidCell.GetLevel(cell);
+
+            return level / 8.0f;
+        }
+
+        /// <summary>
+        /// Reads a liquid cell at (x, y, z), using ghost slabs for out-of-bounds x/z.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private byte SampleLiquidCell(int x, int y, int z)
+        {
+            if (y < 0 || y >= ChunkConstants.Size)
+            {
+                return 0;
+            }
+
+            if (x >= 0 && x < ChunkConstants.Size && z >= 0 && z < ChunkConstants.Size)
+            {
+                return LiquidData[y * ChunkConstants.SizeSquared + z * ChunkConstants.Size + x];
+            }
+
+            // Out of bounds on X
+            if (x < 0 && z >= 0 && z < ChunkConstants.Size)
+            {
+                return LiquidNeighborNegX[y * ChunkConstants.Size + z];
+            }
+
+            if (x >= ChunkConstants.Size && z >= 0 && z < ChunkConstants.Size)
+            {
+                return LiquidNeighborPosX[y * ChunkConstants.Size + z];
+            }
+
+            // Out of bounds on Z
+            if (z < 0 && x >= 0 && x < ChunkConstants.Size)
+            {
+                return LiquidNeighborNegZ[y * ChunkConstants.Size + x];
+            }
+
+            if (z >= ChunkConstants.Size && x >= 0 && x < ChunkConstants.Size)
+            {
+                return LiquidNeighborPosZ[y * ChunkConstants.Size + x];
+            }
+
+            // Diagonal corner — no data, treat as empty
+            return 0;
+        }
+
+        /// <summary>
+        /// Checks if the block at (x, y, z) is a fluid block using the block state table.
+        /// Uses SampleBlock for cross-chunk reads.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool LiquidSampleIsFluid(int x, int y, int z)
+        {
+            StateId id = SampleBlock(new int3(x, y, z));
+
+            return StateTable[id.Value].IsFluid;
+        }
+
+        /// <summary>
+        /// Checks if the block at (x, y, z) is a solid non-fluid block.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool LiquidSampleIsSolid(int x, int y, int z)
+        {
+            StateId id = SampleBlock(new int3(x, y, z));
+            BlockStateCompact s = StateTable[id.Value];
+
+            return s.CollisionShape != 0 && !s.IsFluid;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private byte CornerLevelToFluidLevel(float cornerLevel)
+        {
+            int fl = (int)math.round((1.0f - cornerLevel) * 7.0f);
+
+            return (byte)math.clamp(fl, 0, 7);
+        }
+
+        private void EmitLiquidTopFace(int x, int y, int z,
+            float c00, float c10, float c01, float c11,
+            StateId blockId, AtlasEntry atlas,
+            int sunLight, int blockLight,
+            int cwx, int cwy, int cwz)
+        {
+            int face = 2; // +Y
+            ushort texIndex = atlas.GetTextureIndex(face);
+            byte baseTintType = atlas.GetBaseTintType(face);
+            ushort overlayTexIdx = atlas.GetOverlayTextureIndex(face);
+            byte overlayTintType = atlas.GetOverlayTintType(face);
+            bool hasOverlay = overlayTexIdx != 0xFFFF;
+            int ovlIdx = hasOverlay ? overlayTexIdx : 0;
+
+            int vertStart = TranslucentVertices.Length;
+            int py = y + 1;
+
+            // 4 vertices with different fluidLevel per corner
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x, py, z, face, 3, blockLight, sunLight, true,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, CornerLevelToFluidLevel(c00), 0, 0, cwx, cwy, cwz));
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x + 1, py, z, face, 3, blockLight, sunLight, true,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, CornerLevelToFluidLevel(c10), 1, 0, cwx, cwy, cwz));
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x + 1, py, z + 1, face, 3, blockLight, sunLight, true,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, CornerLevelToFluidLevel(c11), 1, 1, cwx, cwy, cwz));
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x, py, z + 1, face, 3, blockLight, sunLight, true,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, CornerLevelToFluidLevel(c01), 0, 1, cwx, cwy, cwz));
+
+            // Standard winding (CW for Unity front-face)
+            TranslucentIndices.Add(vertStart);
+            TranslucentIndices.Add(vertStart + 2);
+            TranslucentIndices.Add(vertStart + 1);
+            TranslucentIndices.Add(vertStart);
+            TranslucentIndices.Add(vertStart + 3);
+            TranslucentIndices.Add(vertStart + 2);
+        }
+
+        private void EmitLiquidBottomFace(int x, int y, int z,
+            StateId blockId, AtlasEntry atlas,
+            int sunLight, int blockLight,
+            int cwx, int cwy, int cwz)
+        {
+            int face = 3; // -Y
+            ushort texIndex = atlas.GetTextureIndex(face);
+            byte baseTintType = atlas.GetBaseTintType(face);
+            ushort overlayTexIdx = atlas.GetOverlayTextureIndex(face);
+            byte overlayTintType = atlas.GetOverlayTintType(face);
+            bool hasOverlay = overlayTexIdx != 0xFFFF;
+            int ovlIdx = hasOverlay ? overlayTexIdx : 0;
+
+            int vertStart = TranslucentVertices.Length;
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x, y, z + 1, face, 3, blockLight, sunLight, false,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, 0, 0, 1, cwx, cwy, cwz));
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x + 1, y, z + 1, face, 3, blockLight, sunLight, false,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, 0, 1, 1, cwx, cwy, cwz));
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x + 1, y, z, face, 3, blockLight, sunLight, false,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, 0, 1, 0, cwx, cwy, cwz));
+
+            TranslucentVertices.Add(PackedMeshVertex.Pack(
+                x, y, z, face, 3, blockLight, sunLight, false,
+                texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                0, 0, 0, 0, cwx, cwy, cwz));
+
+            TranslucentIndices.Add(vertStart);
+            TranslucentIndices.Add(vertStart + 2);
+            TranslucentIndices.Add(vertStart + 1);
+            TranslucentIndices.Add(vertStart);
+            TranslucentIndices.Add(vertStart + 3);
+            TranslucentIndices.Add(vertStart + 2);
+        }
+
+        /// <summary>
+        /// Emits one side face of a liquid block.
+        /// dx/dz: face normal direction (exactly one nonzero).
+        /// nearCornerA/B: corner levels for the two top-edge vertices on this face.
+        /// </summary>
+        private void EmitLiquidSideFace(int x, int y, int z,
+            int dx, int dz,
+            float nearCornerA, float nearCornerB,
+            StateId blockId, AtlasEntry atlas,
+            int sunLight, int blockLight,
+            int cwx, int cwy, int cwz,
+            bool topIsLiquid)
+        {
+            int nx = x + dx;
+            int nz = z + dz;
+
+            // Check if neighbor is same liquid
+            bool neighborIsLiquid = LiquidSampleIsFluid(nx, y, nz);
+
+            // Culling rules:
+            // - If both are liquid at surface: skip (internal face)
+            // - If current is submerged (topIsLiquid) and neighbor is liquid: skip
+            // - If current is at surface and neighbor is submerged: render transition face
+            if (neighborIsLiquid)
+            {
+                if (topIsLiquid)
+                {
+                    // Current block is submerged — skip internal face
+                    return;
+                }
+
+                bool neighborTopIsLiquid = LiquidSampleIsFluid(nx, y + 1, nz);
+
+                if (!neighborTopIsLiquid)
+                {
+                    // Both at surface — skip internal face
+                    return;
+                }
+
+                // Current = surface, neighbor = submerged → render transition face
+            }
+
+            // Don't render face against solid blocks
+            if (LiquidSampleIsSolid(nx, y, nz))
+            {
+                return;
+            }
+
+            // Determine face index for atlas lookup
+            int face;
+
+            if (dx > 0) { face = 0; }       // +X
+            else if (dx < 0) { face = 1; }   // -X
+            else if (dz > 0) { face = 4; }   // +Z
+            else { face = 5; }                // -Z
+
+            ushort texIndex = atlas.GetTextureIndex(face);
+            byte baseTintType = atlas.GetBaseTintType(face);
+            ushort overlayTexIdx = atlas.GetOverlayTextureIndex(face);
+            byte overlayTintType = atlas.GetOverlayTintType(face);
+            bool hasOverlay = overlayTexIdx != 0xFFFF;
+            int ovlIdx = hasOverlay ? overlayTexIdx : 0;
+
+            // Top edge Y: corner levels (or full block height if submerged)
+            float topA = topIsLiquid ? 1.0f : nearCornerA;
+            float topB = topIsLiquid ? 1.0f : nearCornerB;
+
+            byte flTopA = CornerLevelToFluidLevel(topA);
+            byte flTopB = CornerLevelToFluidLevel(topB);
+
+            int vertStart = TranslucentVertices.Length;
+
+            // Emit 4 vertices: bottom at y (fluidTop=false), top at y+1 (fluidTop=true + fluidLevel)
+            // Vertex winding matches EmitGreedyQuad conventions (CW from outside)
+            switch (face)
+            {
+                case 0: // +X: face at x+1, spans z (u) and y (v)
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y, z, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 0, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y, z + 1, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 1, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y + 1, z + 1, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopB, 1, 1, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y + 1, z, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopA, 0, 1, cwx, cwy, cwz));
+                    break;
+
+                case 1: // -X: face at x, spans z and y
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y, z + 1, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 0, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y, z, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 1, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y + 1, z, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopA, 1, 1, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y + 1, z + 1, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopB, 0, 1, cwx, cwy, cwz));
+                    break;
+
+                case 4: // +Z: face at z+1, spans x and y
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y, z + 1, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 0, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y, z + 1, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 1, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y + 1, z + 1, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopB, 1, 1, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y + 1, z + 1, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopA, 0, 1, cwx, cwy, cwz));
+                    break;
+
+                default: // -Z (face=5): face at z, spans x and y
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y, z, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 0, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y, z, face, 3, blockLight, sunLight, false,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, 0, 1, 0, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x + 1, y + 1, z, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopA, 1, 1, cwx, cwy, cwz));
+                    TranslucentVertices.Add(PackedMeshVertex.Pack(
+                        x, y + 1, z, face, 3, blockLight, sunLight, true,
+                        texIndex, baseTintType, hasOverlay, ovlIdx, overlayTintType,
+                        0, flTopB, 0, 1, cwx, cwy, cwz));
+                    break;
+            }
+
+            TranslucentIndices.Add(vertStart);
+            TranslucentIndices.Add(vertStart + 2);
+            TranslucentIndices.Add(vertStart + 1);
+            TranslucentIndices.Add(vertStart);
+            TranslucentIndices.Add(vertStart + 3);
+            TranslucentIndices.Add(vertStart + 2);
         }
 
         private void ComputeVertexAO(int face, int3 blockPos, int u, int v,

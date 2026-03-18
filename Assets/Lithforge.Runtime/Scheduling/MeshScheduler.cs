@@ -441,6 +441,10 @@ namespace Lithforge.Runtime.Scheduling
                 long ts0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 JobHandle borderDependency = ScheduleBorderExtractionJob(chunk.Coord, meshData);
 
+                // Extract liquid neighbor ghost slabs for corner level interpolation.
+                // Must complete neighbor liquid jobs before reading their LiquidData.
+                ExtractLiquidBorderSlabs(chunk, meshData);
+
                 GreedyMeshJob meshJob = new GreedyMeshJob
                 {
                     ChunkData = chunk.Data,
@@ -455,6 +459,10 @@ namespace Lithforge.Runtime.Scheduling
                     LightData = chunk.LightData,
                     LiquidData = chunk.LiquidData.IsCreated ? chunk.LiquidData : _dummyLiquid,
                     HasLiquidData = chunk.LiquidData.IsCreated,
+                    LiquidNeighborPosX = meshData.LiquidNeighborPosX,
+                    LiquidNeighborNegX = meshData.LiquidNeighborNegX,
+                    LiquidNeighborPosZ = meshData.LiquidNeighborPosZ,
+                    LiquidNeighborNegZ = meshData.LiquidNeighborNegZ,
                     ChunkCoord = chunk.Coord,
                     OpaqueVertices = meshData.OpaqueVertices,
                     OpaqueIndices = meshData.OpaqueIndices,
@@ -682,6 +690,85 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             return candidate;
+        }
+
+        /// <summary>
+        /// Extracts liquid border slabs from the 4 horizontal neighbors (+X, -X, +Z, -Z)
+        /// into the GreedyMeshData's LiquidNeighbor arrays for cross-chunk corner level
+        /// interpolation. Completes any in-flight liquid jobs on neighbors before reading.
+        /// </summary>
+        private void ExtractLiquidBorderSlabs(ManagedChunk centerChunk, GreedyMeshData meshData)
+        {
+            ExtractLiquidBorderSlab(centerChunk, 0, meshData.LiquidNeighborPosX);
+            ExtractLiquidBorderSlab(centerChunk, 1, meshData.LiquidNeighborNegX);
+            ExtractLiquidBorderSlab(centerChunk, 4, meshData.LiquidNeighborPosZ);
+            ExtractLiquidBorderSlab(centerChunk, 5, meshData.LiquidNeighborNegZ);
+        }
+
+        /// <summary>
+        /// Extracts a single liquid border slab from a neighbor chunk.
+        /// face: 0=+X, 1=-X, 4=+Z, 5=-Z (matching GetFaceNormal convention).
+        /// The output slab is indexed [y * Size + edgeCoord] and contains raw
+        /// LiquidCell bytes from the neighbor's boundary slice.
+        /// </summary>
+        private void ExtractLiquidBorderSlab(ManagedChunk centerChunk, int face, NativeArray<byte> output)
+        {
+            int3 offset;
+
+            switch (face)
+            {
+                case 0: offset = new int3(1, 0, 0); break;
+                case 1: offset = new int3(-1, 0, 0); break;
+                case 4: offset = new int3(0, 0, 1); break;
+                default: offset = new int3(0, 0, -1); break;
+            }
+
+            int neighborIndex = face switch
+            {
+                0 => 0,
+                1 => 1,
+                4 => 4,
+                _ => 5,
+            };
+
+            ManagedChunk neighbor = centerChunk.Neighbors[neighborIndex];
+
+            if (neighbor == null || !neighbor.LiquidData.IsCreated)
+            {
+                // output is already zero-initialized by GreedyMeshData constructor
+                return;
+            }
+
+            // Complete any in-flight liquid job before reading neighbor's LiquidData
+            neighbor.LiquidJobHandle.Complete();
+
+            NativeArray<byte> srcLiquid = neighbor.LiquidData;
+
+            for (int y = 0; y < ChunkConstants.Size; y++)
+            {
+                for (int i = 0; i < ChunkConstants.Size; i++)
+                {
+                    int srcIndex;
+
+                    switch (face)
+                    {
+                        case 0: // +X neighbor: read x=0 slice, indexed [y*Size+z]
+                            srcIndex = y * ChunkConstants.SizeSquared + i * ChunkConstants.Size + 0;
+                            break;
+                        case 1: // -X neighbor: read x=Size-1 slice, indexed [y*Size+z]
+                            srcIndex = y * ChunkConstants.SizeSquared + i * ChunkConstants.Size + (ChunkConstants.Size - 1);
+                            break;
+                        case 4: // +Z neighbor: read z=0 slice, indexed [y*Size+x]
+                            srcIndex = y * ChunkConstants.SizeSquared + 0 * ChunkConstants.Size + i;
+                            break;
+                        default: // -Z neighbor: read z=Size-1 slice, indexed [y*Size+x]
+                            srcIndex = y * ChunkConstants.SizeSquared + (ChunkConstants.Size - 1) * ChunkConstants.Size + i;
+                            break;
+                    }
+
+                    output[y * ChunkConstants.Size + i] = srcLiquid[srcIndex];
+                }
+            }
         }
 
         private struct PendingMesh
