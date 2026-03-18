@@ -51,6 +51,7 @@ namespace Lithforge.Network.Server
         private readonly ChunkStreamingManager _streamingManager;
 
         private bool _disposed;
+        private int _streamDebugCounter;
         private float _tickAccumulator;
 
         /// <summary>Fires when a remote player leaves the host's view.</summary>
@@ -540,6 +541,46 @@ namespace Lithforge.Network.Server
         private void ProcessChunkStreaming(float currentTime)
         {
             IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
+            bool shouldLog = _streamDebugCounter++ % 30 == 0;
+
+            if (shouldLog)
+            {
+                int peerCount = allPeers.Count;
+
+                if (peerCount > 0)
+                {
+                    bool anyActive = false;
+
+                    for (int i = 0; i < peerCount; i++)
+                    {
+                        ConnectionState s = allPeers[i].StateMachine.Current;
+
+                        if (s == ConnectionState.Loading || s == ConnectionState.Playing)
+                        {
+                            anyActive = true;
+                            break;
+                        }
+                    }
+
+                    if (!anyActive)
+                    {
+                        string states = "";
+
+                        for (int i = 0; i < peerCount; i++)
+                        {
+                            if (i > 0)
+                            {
+                                states += ", ";
+                            }
+
+                            states += $"{allPeers[i].ConnectionId}={allPeers[i].StateMachine.Current}";
+                        }
+
+                        UnityEngine.Debug.Log(
+                            $"[STREAM] {peerCount} peer(s) but none in Loading/Playing. States: {states}");
+                    }
+                }
+            }
 
             for (int i = 0; i < allPeers.Count; i++)
             {
@@ -548,6 +589,23 @@ namespace Lithforge.Network.Server
 
                 if (state == ConnectionState.Loading || state == ConnectionState.Playing)
                 {
+                    if (shouldLog)
+                    {
+                        if (peer.InterestState != null)
+                        {
+                            UnityEngine.Debug.Log(
+                                $"[STREAM] peer={peer.ConnectionId} state={state} " +
+                                $"queue={peer.InterestState.StreamingQueue.Count} " +
+                                $"loaded={peer.InterestState.LoadedChunks.Count} " +
+                                $"idx={peer.InterestState.StreamingQueueIndex}");
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.Log(
+                                $"[STREAM] peer={peer.ConnectionId} state={state} InterestState=NULL");
+                        }
+                    }
+
                     _streamingManager.ProcessForPeer(peer, _server, _chunkProvider, CurrentTick);
 
                     // Check if Loading peer is ready to transition to Playing

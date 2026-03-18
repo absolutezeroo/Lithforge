@@ -410,7 +410,7 @@ namespace Lithforge.Network.Server
                 }
                 else if (state == ConnectionState.Loading)
                 {
-                    if (peer.StateMachine.IsTimedOut(currentTime, NetworkConstants.LoadingTimeoutSeconds))
+                    if (currentTime - peer.LastMessageTime > NetworkConstants.LoadingTimeoutSeconds)
                     {
                         _timeoutDisconnectList.Add(peer.ConnectionId);
                     }

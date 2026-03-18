@@ -257,7 +257,9 @@ namespace Lithforge.Network.Client
 
         private void SchedulePing(float currentTime)
         {
-            if (_stateMachine.Current != ConnectionState.Playing)
+            ConnectionState state = _stateMachine.Current;
+
+            if (state != ConnectionState.Playing && state != ConnectionState.Loading)
             {
                 return;
             }
