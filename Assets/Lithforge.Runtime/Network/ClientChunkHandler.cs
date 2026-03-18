@@ -6,6 +6,7 @@ using Lithforge.Network.Chunk;
 using Lithforge.Network.Client;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
+using Lithforge.Runtime.Spawn;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 
@@ -33,6 +34,12 @@ namespace Lithforge.Runtime.Network
 
         // Pending unloads — queued by network handler, drained by GameLoop
         private readonly List<int3> _pendingUnloads = new();
+
+        // Loading progress from server (remote clients only)
+        private int _loadingProgressReady;
+        private int _loadingProgressTotal;
+        private bool _gameReady;
+
         private NativeArray<byte> _deserializeLightBuffer;
 
         private NativeArray<StateId> _deserializeVoxelBuffer;
@@ -57,6 +64,7 @@ namespace Lithforge.Runtime.Network
             dispatcher.RegisterHandler(MessageType.BlockChange, OnBlockChange);
             dispatcher.RegisterHandler(MessageType.MultiBlockChange, OnMultiBlockChange);
             dispatcher.RegisterHandler(MessageType.GameReady, OnGameReady);
+            dispatcher.RegisterHandler(MessageType.LoadingProgress, OnLoadingProgress);
         }
 
         public void Dispose()
@@ -170,7 +178,30 @@ namespace Lithforge.Runtime.Network
         private void OnGameReady(ConnectionId connId, byte[] data, int offset, int length)
         {
             GameReadyMessage msg = GameReadyMessage.Deserialize(data, offset, length);
+            _gameReady = true;
+            _loadingProgressReady = _loadingProgressTotal;
             _onGameReady?.Invoke(msg);
+        }
+
+        private void OnLoadingProgress(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            LoadingProgressMessage msg = LoadingProgressMessage.Deserialize(data, offset, length);
+            _loadingProgressReady = msg.ReadyChunks;
+            _loadingProgressTotal = msg.TotalChunks;
+        }
+
+        /// <summary>
+        ///     Returns the current spawn loading progress as reported by the server.
+        ///     Used by remote clients to drive the loading screen progress bar.
+        /// </summary>
+        public SpawnProgress GetProgress()
+        {
+            return new SpawnProgress
+            {
+                Phase = _gameReady ? SpawnState.Done : SpawnState.Checking,
+                ReadyChunks = _loadingProgressReady,
+                TotalChunks = _loadingProgressTotal,
+            };
         }
     }
 }

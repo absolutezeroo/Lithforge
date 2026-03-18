@@ -42,5 +42,19 @@ namespace Lithforge.Network.Server
         /// for zero-copy local chunk delivery.
         /// </summary>
         public bool IsChunkGenerated(int3 coord);
+
+        /// <summary>
+        /// Returns true if the chunk at the given coordinate has completed generation
+        /// and contains only air voxels. All-air chunks skip meshing and streaming
+        /// and count as immediately ready for the spawn-readiness gate.
+        /// </summary>
+        public bool IsChunkAllAir(int3 coord);
+
+        /// <summary>
+        /// Computes how many chunks in the spawn volume are ready (either meshed to
+        /// ChunkState.Ready, or confirmed all-air). Returns a snapshot used to drive
+        /// loading screen progress and the Loading→Playing gate.
+        /// </summary>
+        public SpawnReadinessSnapshot GetSpawnReadiness(int3 center, int readyRadius, int yMin, int yMax);
     }
 }

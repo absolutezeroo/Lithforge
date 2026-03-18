@@ -43,7 +43,7 @@ namespace Lithforge.Runtime.Session
                 Resources.Load<PanelSettings>("DefaultPanelSettings");
             GameObject loadingObject = new("LoadingScreen");
             LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
-            loadingScreen.Initialize(null, panelSettings, null);
+            loadingScreen.Initialize(panelSettings);
 
             // ── Phase 1: Content pipeline ──
             ContentValidator validator = new();

@@ -13,6 +13,9 @@ namespace Lithforge.Runtime.UI
     ///     Full-screen Minecraft-style loading overlay displayed while spawn chunks load.
     ///     Shows a dirt-brown background, game title, progress bar, and status text.
     ///     Fades out and self-destructs once spawn is complete.
+    ///     Decoupled from SpawnManager — accepts a <see cref="Func{SpawnProgress}" />
+    ///     delegate that abstracts whether progress comes from SpawnLoadingTracker
+    ///     (SP/Host) or ClientChunkHandler (remote Client).
     /// </summary>
     public sealed class LoadingScreen : MonoBehaviour, IScreen
     {
@@ -32,17 +35,17 @@ namespace Lithforge.Runtime.UI
         private bool _fadingOut;
         private Action _onFadeComplete;
         private VisualElement _progressFill;
-        private SpawnManager _spawnManager;
+        private Func<SpawnProgress> _progressSource;
         private Label _statusLabel;
 
         private void Update()
         {
-            if (_spawnManager == null || _progressFill == null || _fadingOut)
+            if (_progressSource == null || _progressFill == null || _fadingOut)
             {
                 return;
             }
 
-            SpawnProgress progress = _spawnManager.GetProgress();
+            SpawnProgress progress = _progressSource();
 
             float fraction = progress.TotalChunks > 0
                 ? (float)progress.ReadyChunks / progress.TotalChunks
@@ -89,11 +92,8 @@ namespace Lithforge.Runtime.UI
             return true;
         }
 
-        public void Initialize(SpawnManager spawnManager, PanelSettings panelSettings, Action onFadeComplete)
+        public void Initialize(PanelSettings panelSettings)
         {
-            _spawnManager = spawnManager;
-            _onFadeComplete = onFadeComplete;
-
             _document = gameObject.AddComponent<UIDocument>();
             _document.panelSettings = panelSettings;
             _document.sortingOrder = 500;
@@ -102,8 +102,8 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        ///     Forces the loading screen to fade out immediately. Used in Client mode
-        ///     where there is no SpawnManager to drive the normal completion flow.
+        ///     Forces the loading screen to fade out immediately.
+        ///     Fallback for edge cases where no progress source is wired.
         /// </summary>
         public void ForceComplete()
         {
@@ -117,18 +117,20 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        ///     Sets the SpawnManager after content loading is complete.
-        ///     The loading screen transitions from content phase display to spawn progress display.
+        ///     Sets the progress source delegate and fade-complete callback.
+        ///     The delegate is polled each frame to drive the progress bar.
+        ///     In SP/Host mode, this is <see cref="SpawnLoadingTracker.GetProgress" />.
+        ///     In Client mode, this is <see cref="ClientChunkHandler.GetProgress" />.
         /// </summary>
-        public void SetSpawnManager(SpawnManager spawnManager, Action onFadeComplete)
+        public void SetProgressSource(Func<SpawnProgress> source, Action onFadeComplete)
         {
-            _spawnManager = spawnManager;
+            _progressSource = source;
             _onFadeComplete = onFadeComplete;
         }
 
         /// <summary>
         ///     Updates the status text to show the current content loading phase.
-        ///     Used before SpawnManager is available.
+        ///     Used before a progress source is available.
         /// </summary>
         public void SetContentPhase(string phase)
         {

@@ -753,6 +753,7 @@ namespace Lithforge.Voxel.Chunk
 
             chunk.IsDirty = true;
             chunk.HasPlayerEdit = true;
+            chunk.IsAllAir = false;
 
             // Check block entity flags for old and new states
             StateId oldState = chunk.Data[index];

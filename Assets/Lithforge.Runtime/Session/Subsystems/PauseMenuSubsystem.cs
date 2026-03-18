@@ -194,7 +194,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             {
                 serverName = sp.DisplayName,
                 gamePort = port,
-                playerCount = 1,
+                playerCount = 0,
                 maxPlayers = 8,
                 gameVersion = Application.version,
                 contentHash = contentHash.ToString(),

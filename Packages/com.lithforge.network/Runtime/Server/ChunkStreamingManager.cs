@@ -10,7 +10,8 @@ namespace Lithforge.Network.Server
 {
     /// <summary>
     ///     Manages per-player chunk streaming: rate limiting, spiral priority ordering,
-    ///     look-direction bias, boundary-crossing unloads, and Loading→Playing gating.
+    ///     look-direction bias, Y-level priority, skip-air optimization,
+    ///     boundary-crossing unloads, and Loading→Playing gating.
     ///     Stateless — all per-player state lives in <see cref="PlayerInterestState" />.
     /// </summary>
     public sealed class ChunkStreamingManager
@@ -24,9 +25,18 @@ namespace Lithforge.Network.Server
         /// <summary>Weight for look-direction bias when scoring chunk priority.</summary>
         private const float LookBiasWeight = 0.4f;
 
+        /// <summary>
+        ///     Weight for Y-level priority penalty. Chunks above the player's Y level
+        ///     get a score penalty proportional to their height above the player,
+        ///     deprioritizing sky chunks in favor of ground-level terrain.
+        /// </summary>
+        private const float YPriorityWeight = 0.5f;
+
         private readonly List<int3> _candidateChunks = new();
 
         private readonly List<float> _candidateScores = new();
+
+        private readonly IServerChunkProvider _chunkProvider;
 
         private readonly ILogger _logger;
 
@@ -36,11 +46,17 @@ namespace Lithforge.Network.Server
 
         private readonly List<int3> _unloadCandidates = new();
 
-        public ChunkStreamingManager(int yLoadMin, int yLoadMax, int readyRadius, ILogger logger)
+        public ChunkStreamingManager(
+            int yLoadMin,
+            int yLoadMax,
+            int readyRadius,
+            IServerChunkProvider chunkProvider,
+            ILogger logger)
         {
             YLoadMin = yLoadMin;
             YLoadMax = yLoadMax;
             _readyRadius = readyRadius;
+            _chunkProvider = chunkProvider;
             _logger = logger;
         }
 
@@ -52,6 +68,7 @@ namespace Lithforge.Network.Server
         ///     Processes chunk streaming for a single peer. Called each tick from ServerGameLoop Phase 5.
         ///     Handles streaming queue rebuild on chunk boundary crossing, chunk unloads, and
         ///     rate-limited chunk data sends via the provided streaming strategy.
+        ///     All-air chunks are marked loaded immediately without invoking the strategy.
         /// </summary>
         public void ProcessForPeer(
             PeerInfo peer,
@@ -87,6 +104,16 @@ namespace Lithforge.Network.Server
                 if (interest.LoadedChunks.Contains(coord))
                 {
                     interest.StreamingQueueIndex++;
+                    continue;
+                }
+
+                // Skip-air fast path: all-air chunks require no mesh and no network data.
+                // Mark as loaded immediately without invoking the strategy.
+                if (_chunkProvider.IsChunkAllAir(coord))
+                {
+                    interest.LoadedChunks.Add(coord);
+                    interest.StreamingQueueIndex++;
+                    sent++;
                     continue;
                 }
 
@@ -127,38 +154,21 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        ///     Checks whether a peer in Loading state has received enough chunks
-        ///     to transition to Playing. Returns true if all chunks within the
-        ///     ready radius around the player's current chunk are loaded.
+        ///     Computes a readiness snapshot for the spawn volume around the peer's current chunk.
+        ///     A chunk is considered ready if it is meshed (ChunkState.Ready) or confirmed all-air.
+        ///     Used by ServerGameLoop to gate Loading→Playing and to send progress updates.
         /// </summary>
-        public bool IsReadyForPlaying(PeerInfo peer, IServerChunkProvider chunkProvider)
+        public SpawnReadinessSnapshot GetReadinessSnapshot(PeerInfo peer)
         {
             PlayerInterestState interest = peer.InterestState;
 
             if (interest == null)
             {
-                return false;
+                return new SpawnReadinessSnapshot();
             }
 
-            int3 center = interest.CurrentChunk;
-
-            for (int x = -_readyRadius; x <= _readyRadius; x++)
-            {
-                for (int z = -_readyRadius; z <= _readyRadius; z++)
-                {
-                    for (int y = YLoadMin; y <= YLoadMax; y++)
-                    {
-                        int3 coord = new(center.x + x, y, center.z + z);
-
-                        if (!interest.LoadedChunks.Contains(coord))
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            return true;
+            return _chunkProvider.GetSpawnReadiness(
+                interest.CurrentChunk, _readyRadius, YLoadMin, YLoadMax);
         }
 
         /// <summary>
@@ -176,7 +186,7 @@ namespace Lithforge.Network.Server
         /// <summary>
         ///     Rebuilds the streaming queue using spiral ordering from the player's current chunk.
         ///     Excludes chunks already in LoadedChunks. Sorts by Chebyshev distance with
-        ///     optional look-direction bias.
+        ///     look-direction bias and Y-level priority (sky chunks deprioritized).
         /// </summary>
         private void RebuildStreamingQueue(PlayerInterestState interest)
         {
@@ -219,8 +229,12 @@ namespace Lithforge.Network.Server
                             bias = -LookBiasWeight * math.dot(chunkDir, lookDir);
                         }
 
+                        // Y-level priority: penalize sky chunks above the player.
+                        // Ground-level and below chunks are unaffected (penalty = 0).
+                        float yPenalty = math.max(0f, (float)(coord.y - center.y)) * YPriorityWeight;
+
                         _candidateChunks.Add(coord);
-                        _candidateScores.Add(distance + bias);
+                        _candidateScores.Add(distance + bias + yPenalty);
                     }
                 }
             }

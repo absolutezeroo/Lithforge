@@ -83,5 +83,51 @@ namespace Lithforge.Runtime.Simulation
 
             return chunk != null && chunk.State >= ChunkState.Generated && chunk.Data.IsCreated;
         }
+
+        public bool IsChunkAllAir(int3 coord)
+        {
+            ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+            return chunk != null && chunk.State >= ChunkState.Generated && chunk.IsAllAir;
+        }
+
+        public SpawnReadinessSnapshot GetSpawnReadiness(int3 center, int readyRadius, int yMin, int yMax)
+        {
+            int total = 0;
+            int ready = 0;
+
+            for (int x = -readyRadius; x <= readyRadius; x++)
+            {
+                for (int z = -readyRadius; z <= readyRadius; z++)
+                {
+                    for (int y = yMin; y <= yMax; y++)
+                    {
+                        int3 coord = new(center.x + x, y, center.z + z);
+                        total++;
+
+                        ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+                        if (chunk == null)
+                        {
+                            continue;
+                        }
+
+                        // Ready if fully meshed, or all-air (no mesh needed)
+                        if (chunk.State == ChunkState.Ready ||
+                            (chunk.State >= ChunkState.Generated && chunk.IsAllAir))
+                        {
+                            ready++;
+                        }
+                    }
+                }
+            }
+
+            return new SpawnReadinessSnapshot
+            {
+                TotalChunks = total,
+                ReadyChunks = ready,
+                IsComplete = total > 0 && ready >= total,
+            };
+        }
     }
 }

@@ -142,6 +142,15 @@ namespace Lithforge.Voxel.Chunk
         public bool IsDirty { get; set; }
 
         /// <summary>
+        /// True if all voxels in this chunk are air (StateId == 0).
+        /// Set by GenerationScheduler after generation completes via ChunkAirDetector.
+        /// All-air chunks skip meshing and count as immediately ready for
+        /// the spawn-readiness gate and chunk streaming.
+        /// Cleared by ChunkManager.SetBlock when any voxel is modified.
+        /// </summary>
+        public bool IsAllAir { get; set; }
+
+        /// <summary>
         /// Sparse per-block entity storage, keyed by flat voxel index.
         /// Null until a block entity is first placed or loaded in this chunk.
         /// Owner: ManagedChunk. Populated by BlockEntityTickScheduler on placement

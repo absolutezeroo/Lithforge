@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.World;
@@ -24,7 +23,6 @@ namespace Lithforge.Runtime.Session.Subsystems
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
-            typeof(SpawnSubsystem),
         };
 
         public bool ShouldCreate(SessionConfig config)
@@ -57,10 +55,11 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public void PostInitialize(SessionContext context)
         {
-            // Wire loading screen to spawn manager
+            // Create HudVisibilityController and register it for other subsystems.
+            // Loading screen progress wiring is handled by ClientChunkHandlerSubsystem.
             SessionInitArgs args = SessionInitArgsHolder.Current;
 
-            if (args?.LoadingScreen != null && context.TryGet(out SpawnManager spawn))
+            if (args?.LoadingScreen != null)
             {
                 CrosshairHUD crosshair = context.Get<CrosshairHUD>();
                 HotbarDisplay hotbar = context.Get<HotbarDisplay>();
@@ -68,22 +67,6 @@ namespace Lithforge.Runtime.Session.Subsystems
                 HudVisibilityController hudVisibility = new(
                     crosshair, hotbar, null, null, null, null, null);
                 hudVisibility.HideAll();
-
-                args.LoadingScreen.SetSpawnManager(spawn, () => { hudVisibility.ShowGameplay(); });
-
-                context.Register(hudVisibility);
-            }
-            else if (args?.LoadingScreen != null)
-            {
-                // Client mode: no SpawnManager, fade triggered by GameReady → ForceComplete()
-                CrosshairHUD crosshair = context.Get<CrosshairHUD>();
-                HotbarDisplay hotbar = context.Get<HotbarDisplay>();
-
-                HudVisibilityController hudVisibility = new(
-                    crosshair, hotbar, null, null, null, null, null);
-                hudVisibility.HideAll();
-
-                args.LoadingScreen.SetSpawnManager(null, () => { hudVisibility.ShowGameplay(); });
 
                 context.Register(hudVisibility);
             }

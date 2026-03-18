@@ -34,5 +34,6 @@ namespace Lithforge.Network.Message
         AcknowledgeBlockChange = 46,
         SpawnPlayer = 47,
         DespawnPlayer = 48,
+        LoadingProgress = 49,
     }
 }

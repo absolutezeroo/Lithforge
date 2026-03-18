@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 using Lithforge.Network.Client;
 using Lithforge.Runtime.Network;
+using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
@@ -27,6 +28,7 @@ namespace Lithforge.Runtime.Session.Subsystems
         {
             typeof(NetworkClientSubsystem),
             typeof(ChunkManagerSubsystem),
+            typeof(HudSubsystem),
         };
 
         public bool ShouldCreate(SessionConfig config)
@@ -39,9 +41,6 @@ namespace Lithforge.Runtime.Session.Subsystems
         {
             ChunkManager chunkManager = context.Get<ChunkManager>();
             NetworkClient client = context.Get<NetworkClient>();
-
-            SessionInitArgs args = SessionInitArgsHolder.Current;
-            LoadingScreen loadingScreen = args?.LoadingScreen;
 
             // Capture player references for GameReady teleport
             PlayerTransformHolder player =
@@ -70,9 +69,6 @@ namespace Lithforge.Runtime.Session.Subsystems
 
                     // Transition client to Playing state so input/block commands are sent
                     client.TransitionToPlaying();
-
-                    // Dismiss loading screen (Client mode has no SpawnManager)
-                    loadingScreen?.ForceComplete();
                 });
 
             context.Register(_handler);
@@ -86,6 +82,33 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             ClientBlockPredictor predictor = new(chunkManager, client);
             context.Register(predictor);
+
+            // Wire loading screen progress source
+            SessionInitArgs args = SessionInitArgsHolder.Current;
+            LoadingScreen loadingScreen = args?.LoadingScreen;
+
+            if (loadingScreen == null)
+            {
+                return;
+            }
+
+            Action onFadeComplete = null;
+
+            if (context.TryGet(out HudVisibilityController hud))
+            {
+                onFadeComplete = () => { hud.ShowGameplay(); };
+            }
+
+            // SP/Host: use SpawnLoadingTracker (polls ChunkManager readiness directly)
+            if (context.TryGet(out SpawnLoadingTracker tracker))
+            {
+                loadingScreen.SetProgressSource(tracker.GetProgress, onFadeComplete);
+            }
+            else
+            {
+                // Remote client: use ClientChunkHandler progress (from LoadingProgressMessage)
+                loadingScreen.SetProgressSource(_handler.GetProgress, onFadeComplete);
+            }
         }
 
         public void Shutdown()

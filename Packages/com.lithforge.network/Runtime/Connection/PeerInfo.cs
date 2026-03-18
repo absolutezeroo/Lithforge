@@ -34,6 +34,12 @@ namespace Lithforge.Network.Connection
         public float LastMessageTime { get; internal set; }
 
         /// <summary>
+        ///     True for the local peer in SP/Host mode (DirectTransport).
+        ///     Local peers skip LoadingProgressMessage sends since they share ChunkManager.
+        /// </summary>
+        public bool IsLocal { get; set; }
+
+        /// <summary>
         ///     Per-player interest state for chunk streaming and network filtering.
         ///     Allocated when the peer transitions to Loading state, null before that.
         /// </summary>

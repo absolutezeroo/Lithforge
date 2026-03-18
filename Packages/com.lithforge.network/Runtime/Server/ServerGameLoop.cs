@@ -79,6 +79,13 @@ namespace Lithforge.Network.Server
         /// <summary>Fired when the number of playing peers changes. Parameter is the new count.</summary>
         public Action<int> OnPlayerCountChanged;
 
+        /// <summary>
+        ///     Fires after a player is accepted and initialized (physics body created,
+        ///     streaming queue built). Parameters: PeerInfo, spawn position.
+        ///     Used by NetworkServerSubsystem to update SpawnLoadingTracker's spawn chunk.
+        /// </summary>
+        public Action<PeerInfo, float3> OnPlayerAcceptedCallback;
+
         /// <summary>Fires when a remote player enters the host's view.</summary>
         public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
 
@@ -140,6 +147,7 @@ namespace Lithforge.Network.Server
                 _hostDespawnCache.Clear();
                 _serverImpl.OnPeerAccepted = null;
                 OnPlayerCountChanged = null;
+                OnPlayerAcceptedCallback = null;
                 OnHostSpawnPlayer = null;
                 OnHostDespawnPlayer = null;
                 OnHostPlayerState = null;
@@ -683,10 +691,26 @@ namespace Lithforge.Network.Server
                     _streamingManager.ProcessForPeer(peer, strategy, CurrentTick);
 
                     // Check if Loading peer is ready to transition to Playing
-                    if (state == ConnectionState.Loading &&
-                        _streamingManager.IsReadyForPlaying(peer, _chunkProvider))
+                    if (state == ConnectionState.Loading)
                     {
-                        TransitionToPlaying(peer, currentTime);
+                        SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
+
+                        if (snapshot.IsComplete)
+                        {
+                            TransitionToPlaying(peer, currentTime);
+                        }
+                        else if (!peer.IsLocal && CurrentTick % 10 == 0)
+                        {
+                            // Send progress to remote clients every ~333ms for loading screen
+                            LoadingProgressMessage progressMsg = new()
+                            {
+                                ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue),
+                                TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
+                            };
+
+                            _server.SendTo(
+                                peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
+                        }
                     }
                 }
             }
@@ -853,6 +877,8 @@ namespace Lithforge.Network.Server
 
             _logger.LogInfo(
                 $"Player {playerId} ({peer.PlayerName}) accepted, spawning at {spawnPosition}");
+
+            OnPlayerAcceptedCallback?.Invoke(peer, spawnPosition);
         }
 
         /// <summary>
