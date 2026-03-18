@@ -131,6 +131,12 @@ namespace Lithforge.Runtime.Session
 
         private void ShutdownAndDispose()
         {
+            // Complete any in-flight Burst jobs before disposing NativeContainers.
+            // Even if Shutdown() was already called (e.g., by SessionOrchestrator),
+            // new jobs may have been scheduled during save coroutine yields.
+            // Shutdown() is idempotent — completing already-completed jobs is a no-op.
+            Shutdown();
+
             // Dispose subsystems in reverse order
             for (int i = _subsystems.Count - 1; i >= 0; i--)
             {
