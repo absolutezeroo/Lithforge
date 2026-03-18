@@ -691,10 +691,14 @@ namespace Lithforge.Network.Server
 
         private void OnPeerAcceptedInternal(PeerInfo peer)
         {
-            // Spawn at world origin, fallback Y = 65 (above typical terrain).
-            // The host's SpawnManager does proper surface-finding but lives in Tier 3
-            // (Runtime), not accessible from this Tier 2 package.
-            float3 spawnPosition = new float3(0f, 65f, 0f);
+            int spawnX = 0;
+            int spawnZ = 0;
+            int safeY = _chunkProvider.FindSafeSpawnY(
+                spawnX, spawnZ,
+                _streamingManager.YLoadMin, _streamingManager.YLoadMax,
+                65);
+
+            float3 spawnPosition = new(spawnX + 0.5f, safeY, spawnZ + 0.5f);
             OnPlayerAccepted(peer, spawnPosition);
         }
 

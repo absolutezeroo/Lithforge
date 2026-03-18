@@ -36,6 +36,16 @@ namespace Lithforge.Network.Server
 
         private readonly int _yLoadMin;
 
+        public int YLoadMin
+        {
+            get { return _yLoadMin; }
+        }
+
+        public int YLoadMax
+        {
+            get { return _yLoadMax; }
+        }
+
         public ChunkStreamingManager(int yLoadMin, int yLoadMax, int readyRadius, ILogger logger)
         {
             _yLoadMin = yLoadMin;

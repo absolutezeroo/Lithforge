@@ -1,6 +1,8 @@
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
+using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Spawn;
 
 using Unity.Mathematics;
 
@@ -14,10 +16,12 @@ namespace Lithforge.Runtime.Simulation
     public sealed class ServerChunkProvider : IServerChunkProvider
     {
         private readonly ChunkManager _chunkManager;
+        private readonly NativeStateRegistry _nativeStateRegistry;
 
-        public ServerChunkProvider(ChunkManager chunkManager)
+        public ServerChunkProvider(ChunkManager chunkManager, NativeStateRegistry nativeStateRegistry)
         {
             _chunkManager = chunkManager;
+            _nativeStateRegistry = nativeStateRegistry;
         }
 
         public bool IsChunkReady(int3 coord)
@@ -62,6 +66,13 @@ namespace Lithforge.Runtime.Simulation
             }
 
             return true;
+        }
+
+        public int FindSafeSpawnY(int worldX, int worldZ, int chunkYMin, int chunkYMax, int fallbackY)
+        {
+            return SpawnUtility.FindSafeSpawnY(
+                _chunkManager.GetBlock, _nativeStateRegistry,
+                worldX, worldZ, chunkYMin, chunkYMax, fallbackY);
         }
     }
 }

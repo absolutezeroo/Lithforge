@@ -91,7 +91,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 blockProcessor,
                 () => 0f); // TimeOfDay wired in PostInitialize
 
-            ServerChunkProvider chunkProvider = new(chunkManager);
+            ServerChunkProvider chunkProvider = new(chunkManager, context.Content.NativeStateRegistry);
 
             ChunkStreamingManager streamingManager = new(
                 context.App.Settings.Chunk.YLoadMin,

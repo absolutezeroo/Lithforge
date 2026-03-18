@@ -28,5 +28,12 @@ namespace Lithforge.Network.Server
         /// Used to gate the Loading→Playing transition.
         /// </summary>
         public bool AreChunksReady(int3 center, int radius, int yMin, int yMax);
+
+        /// <summary>
+        /// Finds a safe Y coordinate for spawning at the given world XZ position.
+        /// Scans downward through the specified chunk Y range.
+        /// Returns fallbackY if no solid ground is found.
+        /// </summary>
+        public int FindSafeSpawnY(int worldX, int worldZ, int chunkYMin, int chunkYMax, int fallbackY);
     }
 }
