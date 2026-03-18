@@ -5,6 +5,7 @@ using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
@@ -29,6 +30,8 @@ namespace Lithforge.Runtime
 {
     public sealed class GameLoop : MonoBehaviour
     {
+        private readonly List<int3> _networkUnloadCache = new();
+        private readonly List<int3> _unloadedCoords = new();
         private GameLoopAudioState _audio;
         private AutoSaveManager _autoSaveManager;
 
@@ -50,7 +53,6 @@ namespace Lithforge.Runtime
         private Camera _mainCamera;
         private MeshScheduler _meshScheduler;
         private GameLoopNetworkState _network;
-        private readonly List<int3> _networkUnloadCache = new();
         private PlayerController _playerController;
         private PlayerRenderer _playerRenderer;
         private RelightScheduler _relightScheduler;
@@ -60,7 +62,6 @@ namespace Lithforge.Runtime
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
         private float _unloadBudgetMs;
-        private readonly List<int3> _unloadedCoords = new();
         private WorldStorage _worldStorage;
 
         public int PendingGenerationCount
