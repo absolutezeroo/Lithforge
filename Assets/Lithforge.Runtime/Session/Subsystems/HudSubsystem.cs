@@ -73,6 +73,20 @@ namespace Lithforge.Runtime.Session.Subsystems
 
                 context.Register(hudVisibility);
             }
+            else if (args?.LoadingScreen != null)
+            {
+                // Client mode: no SpawnManager, fade triggered by GameReady → ForceComplete()
+                CrosshairHUD crosshair = context.Get<CrosshairHUD>();
+                HotbarDisplay hotbar = context.Get<HotbarDisplay>();
+
+                HudVisibilityController hudVisibility = new(
+                    crosshair, hotbar, null, null, null, null, null);
+                hudVisibility.HideAll();
+
+                args.LoadingScreen.SetSpawnManager(null, () => { hudVisibility.ShowGameplay(); });
+
+                context.Register(hudVisibility);
+            }
         }
 
         public void Shutdown()

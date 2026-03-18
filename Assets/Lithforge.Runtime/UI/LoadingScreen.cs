@@ -102,6 +102,21 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
+        ///     Forces the loading screen to fade out immediately. Used in Client mode
+        ///     where there is no SpawnManager to drive the normal completion flow.
+        /// </summary>
+        public void ForceComplete()
+        {
+            if (_fadingOut)
+            {
+                return;
+            }
+
+            _fadingOut = true;
+            StartCoroutine(FadeOut());
+        }
+
+        /// <summary>
         ///     Sets the SpawnManager after content loading is complete.
         ///     The loading screen transitions from content phase display to spawn progress display.
         /// </summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 using Lithforge.Network.Client;
 using Lithforge.Runtime.Network;
+using Lithforge.Runtime.UI;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
 
@@ -36,12 +37,18 @@ namespace Lithforge.Runtime.Session.Subsystems
             ChunkManager chunkManager = context.Get<ChunkManager>();
             NetworkClient client = context.Get<NetworkClient>();
 
+            SessionInitArgs args = SessionInitArgsHolder.Current;
+            LoadingScreen loadingScreen = args?.LoadingScreen;
+
             _handler = new ClientChunkHandler(
                 chunkManager, client,
                 msg =>
                 {
                     UnityEngine.Debug.Log(
                         $"[Lithforge] GameReady: spawn=({msg.SpawnX},{msg.SpawnY},{msg.SpawnZ})");
+
+                    // Dismiss loading screen (Client mode has no SpawnManager to do this)
+                    loadingScreen?.ForceComplete();
                 });
 
             context.Register(_handler);
