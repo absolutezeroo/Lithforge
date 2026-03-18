@@ -48,6 +48,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(MetricsSubsystem),
             typeof(PauseMenuSubsystem),
             typeof(BenchmarkSubsystem),
+            typeof(RemotePlayerManagerSubsystem),
         };
 
         public bool ShouldCreate(SessionConfig config)

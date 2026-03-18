@@ -27,7 +27,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        public IReadOnlyList<Type> Dependencies { get; } = Array.Empty<Type>();
+        public IReadOnlyList<Type> Dependencies { get; } = new[]
+        {
+            typeof(PlayerSubsystem),
+            typeof(NetworkServerSubsystem),
+            typeof(NetworkClientSubsystem),
+        };
 
         public bool ShouldCreate(SessionConfig config)
         {
