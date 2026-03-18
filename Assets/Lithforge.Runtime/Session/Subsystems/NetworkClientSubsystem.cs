@@ -120,6 +120,12 @@ namespace Lithforge.Runtime.Session.Subsystems
                 // Wire into the running GameLoopPoco
                 if (context.TryGet(out GameLoopPoco gameLoop))
                 {
+                    // Update physics body reference (was set to placeholder body during PostInitialize)
+                    if (serverBody != null)
+                    {
+                        gameLoop.SetPlayerPhysicsBody(serverBody);
+                    }
+
                     gameLoop.SetWorldSimulation(clientSim);
                 }
 

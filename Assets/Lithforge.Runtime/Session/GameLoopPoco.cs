@@ -88,6 +88,11 @@ namespace Lithforge.Runtime.Session
             _config.WorldSimulation = worldSimulation;
         }
 
+        public void SetPlayerPhysicsBody(PlayerPhysicsBody body)
+        {
+            _config.PlayerPhysicsBody = body;
+        }
+
         public void NotifyRenderDistanceChanged(int renderDistance)
         {
             _config.ServerLoop?.NotifyRenderDistanceChanged(renderDistance);
