@@ -46,6 +46,13 @@ namespace Lithforge.Runtime.Simulation
                 return null;
             }
 
+            // Complete any in-flight light job before reading LightData to avoid
+            // the job safety system rejecting the read.
+            if (chunk.LightJobInFlight)
+            {
+                chunk.ActiveJobHandle.Complete();
+            }
+
             return ChunkNetSerializer.SerializeFullChunk(chunk.Data, chunk.LightData);
         }
 
