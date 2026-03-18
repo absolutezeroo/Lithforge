@@ -103,6 +103,21 @@ namespace Lithforge.Runtime
 
             _debug.FrameProfiler.Begin(FrameProfilerSections.UpdateTotal);
 
+            // ── Pump network transport (client mode) ──
+            // Must run BEFORE the tick loop so transport events (Connect, HandshakeResponse)
+            // are processed before gameplay ticks attempt to send messages.
+            if (_network?.NetworkClient != null)
+            {
+                _network.NetworkClient.Update(Time.realtimeSinceStartup);
+            }
+
+            // ── Tick server game loop (host mode only) ──
+            // Runs before tick loop so the host player's ticks see the latest server state.
+            if (_network?.ServerGameLoop != null)
+            {
+                _network.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
+            }
+
             // ── Fixed tick accumulator (skipped when fully paused) ──
             if (_tick?.WorldSimulation != null && _gameState != GameState.PausedFull)
             {
@@ -132,18 +147,6 @@ namespace Lithforge.Runtime
 
                 Profiler.EndSample();
                 _debug.FrameProfiler.End(FrameProfilerSections.TickLoop);
-            }
-
-            // ── Pump network transport (client mode) ──
-            if (_network?.NetworkClient != null)
-            {
-                _network.NetworkClient.Update(Time.realtimeSinceStartup);
-            }
-
-            // ── Tick server game loop (host mode only) ──
-            if (_network?.ServerGameLoop != null)
-            {
-                _network.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
             }
 
             // ── Tick remote player timeouts (client/host mode) ──

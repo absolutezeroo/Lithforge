@@ -44,6 +44,12 @@ namespace Lithforge.Network.Client
         ///     True when the client is fully connected and in Playing state.
         /// </summary>
         public bool IsPlaying { get; }
+
+        /// <summary>
+        ///     True when the UTP connection is established (Handshaking, Loading, or Playing).
+        /// </summary>
+        public bool IsConnected { get; }
+
         /// <summary>
         ///     Initiates a connection to the given server address and port.
         /// </summary>

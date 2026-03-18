@@ -60,6 +60,15 @@ namespace Lithforge.Network.Client
             get { return _stateMachine?.Current == ConnectionState.Playing; }
         }
 
+        public bool IsConnected
+        {
+            get
+            {
+                return _stateMachine?.Current is ConnectionState.Handshaking
+                    or ConnectionState.Loading or ConnectionState.Playing;
+            }
+        }
+
         public void Connect(string address, ushort port, float currentTime)
         {
             if (_transport != null)

@@ -46,6 +46,11 @@ namespace Lithforge.Runtime.Network
         /// </summary>
         public void SendStartDigging(int3 position)
         {
+            if (!_networkClient.IsPlaying)
+            {
+                return;
+            }
+
             ushort seqId = _sequenceId++;
 
             StartDiggingCmdMessage msg = new()
@@ -61,6 +66,11 @@ namespace Lithforge.Runtime.Network
         /// </summary>
         public void PredictPlace(int3 position, StateId newState, byte face)
         {
+            if (!_networkClient.IsPlaying)
+            {
+                return;
+            }
+
             StateId oldState = _chunkManager.GetBlock(position);
             ushort seqId = _sequenceId++;
 
@@ -93,6 +103,11 @@ namespace Lithforge.Runtime.Network
         /// </summary>
         public void PredictBreak(int3 position)
         {
+            if (!_networkClient.IsPlaying)
+            {
+                return;
+            }
+
             StateId oldState = _chunkManager.GetBlock(position);
             ushort seqId = _sequenceId++;
 
