@@ -1,14 +1,10 @@
 using System.Collections.Generic;
 
 using Lithforge.Meshing.Atlas;
-using Lithforge.Network.Client;
-using Lithforge.Network.Server;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
-using Lithforge.Runtime.Input;
-using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
@@ -33,9 +29,7 @@ namespace Lithforge.Runtime
 {
     public sealed class GameLoop : MonoBehaviour
     {
-        private readonly List<int3> _networkUnloadCache = new();
-        private readonly List<int3> _unloadedCoords = new();
-        private AudioEnvironmentController _audioEnvironmentController;
+        private GameLoopAudioState _audio;
         private AutoSaveManager _autoSaveManager;
 
         private BiomeTintManager _biomeTintManager;
@@ -43,44 +37,30 @@ namespace Lithforge.Runtime
         private BlockInteraction _blockInteraction;
         private ChunkManager _chunkManager;
         private ChunkMeshStore _chunkMeshStore;
-        private ClientChunkHandler _clientChunkHandler;
         private ChunkCulling _culling;
-        private FallSoundDetector _fallSoundDetector;
-        private FootstepController _footstepController;
-        private IFrameProfiler _frameProfiler = new NullFrameProfiler();
+        private GameLoopDebugState _debug = new();
         private GameState _gameState = GameState.Playing;
         private GenerationScheduler _generationScheduler;
         private GpuBufferResizer _gpuBufferResizer;
         private bool _initialized;
-        private InputSnapshotBuilder _inputSnapshotBuilder;
-
-        // Network mode
-        private bool _isClientMode;
 
         // Liquid simulation
         private LiquidScheduler _liquidScheduler;
         private LODScheduler _lodScheduler;
         private Camera _mainCamera;
         private MeshScheduler _meshScheduler;
-        private MetricsRegistry _metricsRegistry;
-        private INetworkClient _networkClient;
-        private IPipelineStats _pipelineStats = new NullPipelineStats();
+        private GameLoopNetworkState _network;
+        private readonly List<int3> _networkUnloadCache = new();
         private PlayerController _playerController;
-        private PlayerPhysicsBody _playerPhysicsBody;
         private PlayerRenderer _playerRenderer;
-        private Transform _playerTransform;
         private RelightScheduler _relightScheduler;
-
-        // Remote players
-        private RemotePlayerManager _remotePlayerManager;
-        private ServerGameLoop _serverGameLoop;
-        private SfxSourcePool _sfxSourcePool;
         private SpawnManager _spawnManager;
+        private GameLoopTickState _tick;
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
         private float _unloadBudgetMs;
-        private IWorldSimulation _worldSimulation;
+        private readonly List<int3> _unloadedCoords = new();
         private WorldStorage _worldStorage;
 
         public int PendingGenerationCount
@@ -117,25 +97,25 @@ namespace Lithforge.Runtime
 
             _gpuBufferResizer?.Tick();
 
-            _frameProfiler.BeginFrame();
-            _pipelineStats.BeginFrame();
+            _debug.FrameProfiler.BeginFrame();
+            _debug.PipelineStats.BeginFrame();
 
-            _frameProfiler.Begin(FrameProfilerSections.UpdateTotal);
+            _debug.FrameProfiler.Begin(FrameProfilerSections.UpdateTotal);
 
             // ── Fixed tick accumulator (skipped when fully paused) ──
-            if (_worldSimulation != null && _gameState != GameState.PausedFull)
+            if (_tick?.WorldSimulation != null && _gameState != GameState.PausedFull)
             {
-                _frameProfiler.Begin(FrameProfilerSections.TickLoop);
+                _debug.FrameProfiler.Begin(FrameProfilerSections.TickLoop);
                 Profiler.BeginSample("GL.TickLoop");
 
                 // Update spawn-ready flag on physics body
-                if (_playerPhysicsBody != null)
+                if (_tick.PlayerPhysicsBody != null)
                 {
-                    _playerPhysicsBody.SpawnReady = SpawnReady;
+                    _tick.PlayerPhysicsBody.SpawnReady = SpawnReady;
                 }
 
                 // Latch edge-triggered inputs before the tick loop
-                _inputSnapshotBuilder.LatchFrame();
+                _tick.InputSnapshotBuilder.LatchFrame();
 
                 _tickAccumulator.Accumulate(Time.deltaTime);
 
@@ -143,41 +123,41 @@ namespace Lithforge.Runtime
 
                 while (_tickAccumulator.ShouldTick)
                 {
-                    _worldSimulation.Tick(FixedTickRate.TickDeltaTime);
+                    _tick.WorldSimulation.Tick(FixedTickRate.TickDeltaTime);
 
                     _tickAccumulator.ConsumeOneTick();
                     TicksThisFrame++;
                 }
 
                 Profiler.EndSample();
-                _frameProfiler.End(FrameProfilerSections.TickLoop);
+                _debug.FrameProfiler.End(FrameProfilerSections.TickLoop);
             }
 
             // ── Pump network transport (client mode) ──
-            if (_networkClient != null)
+            if (_network?.NetworkClient != null)
             {
-                _networkClient.Update(Time.realtimeSinceStartup);
+                _network.NetworkClient.Update(Time.realtimeSinceStartup);
             }
 
             // ── Tick server game loop (host mode only) ──
-            if (_serverGameLoop != null)
+            if (_network?.ServerGameLoop != null)
             {
-                _serverGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
+                _network.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
             }
 
             // ── Tick remote player timeouts (client/host mode) ──
-            if (_remotePlayerManager != null)
+            if (_network?.RemotePlayerManager != null)
             {
-                _remotePlayerManager.Tick(Time.deltaTime);
+                _network.RemotePlayerManager.Tick(Time.deltaTime);
             }
 
             // ── Async pipeline poll ──
-            if (!_isClientMode)
+            if (!(_network?.IsClientMode ?? false))
             {
                 Profiler.BeginSample("GL.PollGen");
-                _frameProfiler.Begin(FrameProfilerSections.PollGen);
+                _debug.FrameProfiler.Begin(FrameProfilerSections.PollGen);
                 _generationScheduler.PollCompleted();
-                _frameProfiler.End(FrameProfilerSections.PollGen);
+                _debug.FrameProfiler.End(FrameProfilerSections.PollGen);
                 Profiler.EndSample();
             }
 
@@ -190,9 +170,9 @@ namespace Lithforge.Runtime
             // that same Data via ExtractAllBordersJob (neighbor border slices).
             // Completing mesh jobs first releases those safety locks.
             Profiler.BeginSample("GL.PollMesh");
-            _frameProfiler.Begin(FrameProfilerSections.PollMesh);
+            _debug.FrameProfiler.Begin(FrameProfilerSections.PollMesh);
             _meshScheduler.PollCompleted();
-            _frameProfiler.End(FrameProfilerSections.PollMesh);
+            _debug.FrameProfiler.End(FrameProfilerSections.PollMesh);
             Profiler.EndSample();
 
             Profiler.BeginSample("GL.PollLiquid");
@@ -200,9 +180,9 @@ namespace Lithforge.Runtime
             Profiler.EndSample();
 
             Profiler.BeginSample("GL.PollLOD");
-            _frameProfiler.Begin(FrameProfilerSections.PollLOD);
+            _debug.FrameProfiler.Begin(FrameProfilerSections.PollLOD);
             _lodScheduler.PollCompleted();
-            _frameProfiler.End(FrameProfilerSections.PollLOD);
+            _debug.FrameProfiler.End(FrameProfilerSections.PollLOD);
             Profiler.EndSample();
 
             // ── Frustum + load/unload (skipped when fully paused) ──
@@ -213,27 +193,27 @@ namespace Lithforge.Runtime
                 _culling.UpdateFrustum(_mainCamera);
 
                 // Client mode: server manages chunk streaming, skip local load/unload
-                if (!_isClientMode)
+                if (!(_network?.IsClientMode ?? false))
                 {
                     Profiler.BeginSample("GL.LoadQueue");
-                    _frameProfiler.Begin(FrameProfilerSections.LoadQueue);
+                    _debug.FrameProfiler.Begin(FrameProfilerSections.LoadQueue);
                     _chunkManager.UpdateLoadingQueue(cameraChunkCoord, _mainCamera.transform.forward);
-                    _frameProfiler.End(FrameProfilerSections.LoadQueue);
+                    _debug.FrameProfiler.End(FrameProfilerSections.LoadQueue);
                     Profiler.EndSample();
                 }
 
                 Profiler.BeginSample("GL.Unload");
-                _frameProfiler.Begin(FrameProfilerSections.Unload);
-                if (!_isClientMode)
+                _debug.FrameProfiler.Begin(FrameProfilerSections.Unload);
+                if (!(_network?.IsClientMode ?? false))
                 {
                     _chunkManager.UnloadDistantChunks(
                         cameraChunkCoord, _unloadedCoords, _worldStorage, _unloadBudgetMs);
                 }
 
                 // Drain network-driven chunk unloads (client mode)
-                if (_clientChunkHandler != null)
+                if (_network?.ClientChunkHandler != null)
                 {
-                    _clientChunkHandler.DrainPendingUnloads(_networkUnloadCache);
+                    _network.ClientChunkHandler.DrainPendingUnloads(_networkUnloadCache);
 
                     for (int i = 0; i < _networkUnloadCache.Count; i++)
                     {
@@ -270,7 +250,7 @@ namespace Lithforge.Runtime
                     _meshScheduler.CleanupCoord(coord);
                     _lodScheduler.CleanupCoord(coord);
                 }
-                _frameProfiler.End(FrameProfilerSections.Unload);
+                _debug.FrameProfiler.End(FrameProfilerSections.Unload);
                 Profiler.EndSample();
             }
 
@@ -278,54 +258,54 @@ namespace Lithforge.Runtime
             if (_gameState != GameState.PausedFull)
             {
                 // Client mode: server generates chunks, skip local generation scheduling
-                if (!_isClientMode)
+                if (!(_network?.IsClientMode ?? false))
                 {
                     Profiler.BeginSample("GL.SchedGen");
-                    _frameProfiler.Begin(FrameProfilerSections.SchedGen);
+                    _debug.FrameProfiler.Begin(FrameProfilerSections.SchedGen);
                     _generationScheduler.ScheduleJobs();
-                    _frameProfiler.End(FrameProfilerSections.SchedGen);
+                    _debug.FrameProfiler.End(FrameProfilerSections.SchedGen);
                     Profiler.EndSample();
 
                     Profiler.BeginSample("GL.CrossLight");
-                    _frameProfiler.Begin(FrameProfilerSections.CrossLight);
+                    _debug.FrameProfiler.Begin(FrameProfilerSections.CrossLight);
                     _generationScheduler.ProcessCrossChunkLightUpdates();
-                    _frameProfiler.End(FrameProfilerSections.CrossLight);
+                    _debug.FrameProfiler.End(FrameProfilerSections.CrossLight);
                     Profiler.EndSample();
                 }
 
                 Profiler.BeginSample("GL.Relight");
-                _frameProfiler.Begin(FrameProfilerSections.Relight);
+                _debug.FrameProfiler.Begin(FrameProfilerSections.Relight);
                 _relightScheduler.ScheduleJobs();
-                _frameProfiler.End(FrameProfilerSections.Relight);
+                _debug.FrameProfiler.End(FrameProfilerSections.Relight);
                 Profiler.EndSample();
 
                 // LOD level assignment must run BEFORE mesh scheduling
                 // so chunks get their LOD level before MeshScheduler decides who to mesh
                 Profiler.BeginSample("GL.LODLevels");
-                _frameProfiler.Begin(FrameProfilerSections.LODLevels);
+                _debug.FrameProfiler.Begin(FrameProfilerSections.LODLevels);
                 _lodScheduler.UpdateLODLevels(cameraChunkCoord);
-                _frameProfiler.End(FrameProfilerSections.LODLevels);
+                _debug.FrameProfiler.End(FrameProfilerSections.LODLevels);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.SchedMesh");
-                _frameProfiler.Begin(FrameProfilerSections.SchedMesh);
+                _debug.FrameProfiler.Begin(FrameProfilerSections.SchedMesh);
                 float3 camForwardXZ = math.normalizesafe(
                     new float3(_mainCamera.transform.forward.x, 0, _mainCamera.transform.forward.z));
                 _meshScheduler.ScheduleJobs(SpawnReady, cameraChunkCoord, camForwardXZ);
-                _frameProfiler.End(FrameProfilerSections.SchedMesh);
+                _debug.FrameProfiler.End(FrameProfilerSections.SchedMesh);
                 Profiler.EndSample();
 
                 Profiler.BeginSample("GL.SchedLOD");
-                _frameProfiler.Begin(FrameProfilerSections.SchedLOD);
+                _debug.FrameProfiler.Begin(FrameProfilerSections.SchedLOD);
                 _lodScheduler.ScheduleJobs();
-                _frameProfiler.End(FrameProfilerSections.SchedLOD);
+                _debug.FrameProfiler.End(FrameProfilerSections.SchedLOD);
                 Profiler.EndSample();
             }
 
             // Audio environment frame-rate updates (filter/reverb smoothing, crossfade)
-            if (_audioEnvironmentController != null)
+            if (_audio?.AudioEnvironmentController != null)
             {
-                _audioEnvironmentController.UpdateFrame(Time.deltaTime);
+                _audio.AudioEnvironmentController.UpdateFrame(Time.deltaTime);
             }
 
             // Auto-save: periodic metadata + dirty chunk flush
@@ -334,13 +314,13 @@ namespace Lithforge.Runtime
                 _autoSaveManager.Tick(Time.realtimeSinceStartup);
             }
 
-            _frameProfiler.End(FrameProfilerSections.UpdateTotal);
+            _debug.FrameProfiler.End(FrameProfilerSections.UpdateTotal);
 
             // CommitFrame AFTER all systems have run so the snapshot captures
             // incremented PipelineStats counters and completed FrameProfiler sections.
-            if (_metricsRegistry != null)
+            if (_debug.MetricsRegistry != null)
             {
-                _metricsRegistry.CommitFrame();
+                _debug.MetricsRegistry.CommitFrame();
             }
         }
 
@@ -353,42 +333,42 @@ namespace Lithforge.Runtime
 
             // Apply interpolated player position for smooth rendering.
             // Skip when externally controlled (e.g. BenchmarkRunner moves transform directly).
-            if (_playerPhysicsBody != null && _playerTransform != null
-                                           && !_playerPhysicsBody.ExternallyControlled)
+            if (_tick?.PlayerPhysicsBody != null && _tick.PlayerTransform != null
+                                                 && !_tick.PlayerPhysicsBody.ExternallyControlled)
             {
                 float alpha = _tickAccumulator.Alpha;
                 float3 interpPos = math.lerp(
-                    _playerPhysicsBody.PreviousPosition,
-                    _playerPhysicsBody.CurrentPosition,
+                    _tick.PlayerPhysicsBody.PreviousPosition,
+                    _tick.PlayerPhysicsBody.CurrentPosition,
                     alpha);
 
                 // Apply reconciliation position error offset (client mode)
-                if (_worldSimulation is ClientWorldSimulation clientSim)
+                if (_tick.WorldSimulation is ClientWorldSimulation clientSim)
                 {
                     interpPos += clientSim.PositionError;
                 }
 
-                _playerTransform.position = new Vector3(interpPos.x, interpPos.y, interpPos.z);
+                _tick.PlayerTransform.position = new Vector3(interpPos.x, interpPos.y, interpPos.z);
             }
 
             // Footstep and fall detection (after interpolation, before render)
-            if (_footstepController != null)
+            if (_audio?.FootstepController != null)
             {
-                _footstepController.Update();
+                _audio.FootstepController.Update();
             }
 
-            if (_fallSoundDetector != null)
+            if (_audio?.FallSoundDetector != null)
             {
-                _fallSoundDetector.Update();
+                _audio.FallSoundDetector.Update();
             }
 
             // Release finished SFX sources
-            if (_sfxSourcePool != null)
+            if (_audio?.SfxSourcePool != null)
             {
-                _sfxSourcePool.ReleaseFinished();
+                _audio.SfxSourcePool.ReleaseFinished();
             }
 
-            _frameProfiler.Begin(FrameProfilerSections.Render);
+            _debug.FrameProfiler.Begin(FrameProfilerSections.Render);
             _chunkMeshStore.RenderAll(_mainCamera);
 
             if (_playerRenderer != null)
@@ -399,22 +379,32 @@ namespace Lithforge.Runtime
                     _blockInteraction != null && _blockInteraction.IsMining);
             }
 
-            if (_remotePlayerManager != null)
+            if (_network?.RemotePlayerManager != null)
             {
-                _remotePlayerManager.RenderAll(_mainCamera);
+                _network.RemotePlayerManager.RenderAll(_mainCamera);
             }
 
-            _frameProfiler.End(FrameProfilerSections.Render);
+            _debug.FrameProfiler.End(FrameProfilerSections.Render);
         }
 
-        public void SetFrameProfiler(IFrameProfiler frameProfiler)
+        public void SetDebugState(GameLoopDebugState debug)
         {
-            _frameProfiler = frameProfiler;
+            _debug = debug ?? new GameLoopDebugState();
         }
 
-        public void SetPipelineStats(IPipelineStats pipelineStats)
+        public void SetNetworkState(GameLoopNetworkState network)
         {
-            _pipelineStats = pipelineStats;
+            _network = network;
+        }
+
+        public void SetAudioState(GameLoopAudioState audio)
+        {
+            _audio = audio;
+        }
+
+        public void SetTickState(GameLoopTickState tick)
+        {
+            _tick = tick;
         }
 
         /// <summary>
@@ -452,7 +442,7 @@ namespace Lithforge.Runtime
                 decorationStage,
                 worldStorage,
                 nativeStateRegistry,
-                _pipelineStats,
+                _debug.PipelineStats,
                 seed,
                 SchedulingConfig.MaxGenerationsPerFrame(rd),
                 SchedulingConfig.MaxGenCompletionsPerFrame(rd),
@@ -466,7 +456,7 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
-                _pipelineStats,
+                _debug.PipelineStats,
                 SchedulingConfig.MaxMeshesPerFrame(rd),
                 SchedulingConfig.MaxMeshCompletionsPerFrame(rd),
                 chunkSettings.MeshCompletionBudgetMs);
@@ -482,7 +472,7 @@ namespace Lithforge.Runtime
                 nativeAtlasLookup,
                 chunkMeshStore,
                 _culling,
-                _pipelineStats,
+                _debug.PipelineStats,
                 SchedulingConfig.MaxLODMeshesPerFrame(rd),
                 SchedulingConfig.MaxLODCompletionsPerFrame(rd),
                 chunkSettings.LodCompletionBudgetMs,
@@ -575,29 +565,6 @@ namespace Lithforge.Runtime
             _autoSaveManager = autoSaveManager;
         }
 
-        /// <summary>
-        ///     Sets the MetricsRegistry for per-frame diagnostic aggregation.
-        ///     CommitFrame() is called at the end of Update, after all systems have run.
-        /// </summary>
-        public void SetMetricsRegistry(MetricsRegistry metricsRegistry)
-        {
-            _metricsRegistry = metricsRegistry;
-        }
-
-        /// <summary>
-        ///     Sets the audio subsystems for footstep, fall, pool cleanup, and environment.
-        /// </summary>
-        public void SetAudioSystems(
-            FootstepController footstepController,
-            FallSoundDetector fallSoundDetector,
-            SfxSourcePool sfxSourcePool,
-            AudioEnvironmentController audioEnvironmentController)
-        {
-            _footstepController = footstepController;
-            _fallSoundDetector = fallSoundDetector;
-            _sfxSourcePool = sfxSourcePool;
-            _audioEnvironmentController = audioEnvironmentController;
-        }
 
         /// <summary>
         ///     Recalibrates all schedulers when render distance changes at runtime.
@@ -610,61 +577,6 @@ namespace Lithforge.Runtime
             _lodScheduler.UpdateConfig(renderDistance);
         }
 
-        /// <summary>
-        ///     Wires the fixed tick rate systems. Must be called after Initialize.
-        /// </summary>
-        public void SetTickSystems(
-            IWorldSimulation worldSimulation,
-            InputSnapshotBuilder inputSnapshotBuilder,
-            PlayerPhysicsBody playerPhysicsBody,
-            Transform playerTransform)
-        {
-            _worldSimulation = worldSimulation;
-            _inputSnapshotBuilder = inputSnapshotBuilder;
-            _playerPhysicsBody = playerPhysicsBody;
-            _playerTransform = playerTransform;
-        }
-
-        /// <summary>
-        ///     Enables client mode: skips generation/load queue scheduling (server streams chunks).
-        /// </summary>
-        public void SetClientMode(bool isClientMode)
-        {
-            _isClientMode = isClientMode;
-        }
-
-        /// <summary>
-        ///     Sets the server game loop for host mode. Update will call its Update method.
-        /// </summary>
-        public void SetServerGameLoop(ServerGameLoop serverGameLoop)
-        {
-            _serverGameLoop = serverGameLoop;
-        }
-
-        /// <summary>
-        ///     Sets the network client for client mode. Update will pump the transport each frame.
-        /// </summary>
-        public void SetNetworkClient(INetworkClient networkClient)
-        {
-            _networkClient = networkClient;
-        }
-
-        /// <summary>
-        ///     Sets the client chunk handler for network-driven chunk unloads.
-        /// </summary>
-        public void SetClientChunkHandler(ClientChunkHandler clientChunkHandler)
-        {
-            _clientChunkHandler = clientChunkHandler;
-        }
-
-        /// <summary>
-        ///     Sets the remote player manager for rendering remote entities.
-        ///     Must be called after Initialize.
-        /// </summary>
-        public void SetRemotePlayerManager(RemotePlayerManager remotePlayerManager)
-        {
-            _remotePlayerManager = remotePlayerManager;
-        }
 
         private int3 GetCameraChunkCoord()
         {
@@ -694,8 +606,12 @@ namespace Lithforge.Runtime
             _lodScheduler?.Shutdown();
             _playerRenderer?.Dispose();
             _playerRenderer = null;
-            _remotePlayerManager?.Dispose();
-            _remotePlayerManager = null;
+
+            if (_network != null)
+            {
+                _network.RemotePlayerManager?.Dispose();
+                _network.RemotePlayerManager = null;
+            }
         }
     }
 }

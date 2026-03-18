@@ -1091,8 +1091,12 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Create GameLoop first (needed by PlayerController for spawn readiness)
             _gameLoop = gameObject.AddComponent<GameLoop>();
-            _gameLoop.SetFrameProfiler(_frameProfiler);
-            _gameLoop.SetPipelineStats(_pipelineStats);
+            GameLoopDebugState gameLoopDebugState = new()
+            {
+                FrameProfiler = _frameProfiler,
+                PipelineStats = _pipelineStats,
+            };
+            _gameLoop.SetDebugState(gameLoopDebugState);
             _gameLoop.SetGpuBufferResizer(_gpuBufferResizer);
             _gameLoop.Initialize(
                 _chunkManager,
@@ -1452,7 +1456,7 @@ namespace Lithforge.Runtime.Bootstrap
                     _frameProfiler,
                     _pipelineStats,
                     _settings.Debug.FpsAlpha);
-                _gameLoop.SetMetricsRegistry(metricsRegistry);
+                gameLoopDebugState.MetricsRegistry = metricsRegistry;
 
                 // Add chunk border renderer (F3+G toggle)
                 ChunkBorderRenderer chunkBorderRenderer = gameObject.AddComponent<ChunkBorderRenderer>();
@@ -1627,7 +1631,6 @@ namespace Lithforge.Runtime.Bootstrap
                         Material remoteNameTagMat = new(Shader.Find("UI/Default"));
                         _remotePlayerManager = new RemotePlayerManager(
                             armBaseMaterialRef, armOverlayMaterialRef, remoteNameTagMat);
-                        _gameLoop.SetRemotePlayerManager(_remotePlayerManager);
 
                         _clientRemotePlayerHandler =
                             new ClientRemotePlayerHandler(
@@ -1641,12 +1644,20 @@ namespace Lithforge.Runtime.Bootstrap
                             _clientRemotePlayerHandler.OnRemotePlayerState);
                     }
 
-                    _gameLoop.SetClientMode(true);
-                    _gameLoop.SetNetworkClient(networkClient);
-                    _gameLoop.SetClientChunkHandler(_clientChunkHandler);
-                    _gameLoop.SetTickSystems(
-                        clientSim, inputSnapshotBuilder, physicsBody,
-                        playerObject.transform);
+                    _gameLoop.SetNetworkState(new GameLoopNetworkState
+                    {
+                        IsClientMode = true,
+                        NetworkClient = networkClient,
+                        ClientChunkHandler = _clientChunkHandler,
+                        RemotePlayerManager = _remotePlayerManager,
+                    });
+                    _gameLoop.SetTickState(new GameLoopTickState
+                    {
+                        WorldSimulation = clientSim,
+                        InputSnapshotBuilder = inputSnapshotBuilder,
+                        PlayerPhysicsBody = physicsBody,
+                        PlayerTransform = playerObject.transform,
+                    });
                 }
                 else if (_pendingSession is SessionConfig.Host hostConfig)
                 {
@@ -1701,8 +1712,6 @@ namespace Lithforge.Runtime.Bootstrap
                         networkServer, serverSim, blockProcessor, chunkProvider,
                         dirtyTracker, streamingManager, _logger);
 
-                    _gameLoop.SetServerGameLoop(serverGameLoop);
-
                     // ── Host-mode remote player rendering ──
                     // Host needs to see connected players. Wire ServerGameLoop host-local
                     // callbacks to a RemotePlayerManager, same as Client mode but without
@@ -1712,7 +1721,6 @@ namespace Lithforge.Runtime.Bootstrap
                         Material remoteNameTagMat = new(Shader.Find("UI/Default"));
                         _remotePlayerManager = new RemotePlayerManager(
                             armBaseMaterialRef, armOverlayMaterialRef, remoteNameTagMat);
-                        _gameLoop.SetRemotePlayerManager(_remotePlayerManager);
 
                         RemotePlayerManager hostRemoteManager = _remotePlayerManager;
 
@@ -1744,21 +1752,35 @@ namespace Lithforge.Runtime.Bootstrap
                         };
                     }
 
+                    _gameLoop.SetNetworkState(new GameLoopNetworkState
+                    {
+                        ServerGameLoop = serverGameLoop,
+                        RemotePlayerManager = _remotePlayerManager,
+                    });
+
                     // Singleplayer-style local simulation (host is also a player)
                     WorldSimulation worldSimulation = new(
                         tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
-                    _gameLoop.SetTickSystems(
-                        worldSimulation, inputSnapshotBuilder, physicsBody,
-                        playerObject.transform);
+                    _gameLoop.SetTickState(new GameLoopTickState
+                    {
+                        WorldSimulation = worldSimulation,
+                        InputSnapshotBuilder = inputSnapshotBuilder,
+                        PlayerPhysicsBody = physicsBody,
+                        PlayerTransform = playerObject.transform,
+                    });
                 }
                 else
                 {
                     // Singleplayer mode (default)
                     WorldSimulation worldSimulation = new(
                         tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
-                    _gameLoop.SetTickSystems(
-                        worldSimulation, inputSnapshotBuilder, physicsBody,
-                        playerObject.transform);
+                    _gameLoop.SetTickState(new GameLoopTickState
+                    {
+                        WorldSimulation = worldSimulation,
+                        InputSnapshotBuilder = inputSnapshotBuilder,
+                        PlayerPhysicsBody = physicsBody,
+                        PlayerTransform = playerObject.transform,
+                    });
                 }
             }
 
@@ -1972,8 +1994,13 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 // Wire all audio systems to GameLoop
-                _gameLoop.SetAudioSystems(
-                    footstepController, fallSoundDetector, _sfxSourcePool, audioEnvController);
+                _gameLoop.SetAudioState(new GameLoopAudioState
+                {
+                    FootstepController = footstepController,
+                    FallSoundDetector = fallSoundDetector,
+                    SfxSourcePool = _sfxSourcePool,
+                    AudioEnvironmentController = audioEnvController,
+                });
             }
 
             // Initialize SettingsScreen now that all systems are available
