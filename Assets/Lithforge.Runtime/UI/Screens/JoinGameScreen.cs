@@ -726,6 +726,18 @@ namespace Lithforge.Runtime.UI.Screens
             field.style.paddingBottom = 6;
             field.style.paddingLeft = 8;
             field.style.paddingRight = 8;
+
+            // Style the inner text input element (UI Toolkit nests it under #unity-text-input)
+            VisualElement textInput = field.Q("unity-text-input");
+            if (textInput != null)
+            {
+                textInput.style.color = s_textColor;
+                textInput.style.backgroundColor = s_fieldBgColor;
+                textInput.style.borderTopWidth = 0;
+                textInput.style.borderBottomWidth = 0;
+                textInput.style.borderLeftWidth = 0;
+                textInput.style.borderRightWidth = 0;
+            }
         }
 
         private Button BuildButton(string text, Color normalColor, Color hoverColor, int width)
