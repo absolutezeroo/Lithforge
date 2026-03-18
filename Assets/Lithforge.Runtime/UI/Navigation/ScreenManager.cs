@@ -275,6 +275,16 @@ namespace Lithforge.Runtime.UI.Navigation
             return null;
         }
 
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus)
+            {
+                // Re-apply the cursor state based on current screen stack.
+                // If no UI screen is open, this will re-lock the cursor.
+                ApplyCursorState();
+            }
+        }
+
         private void ApplyCursorState()
         {
             // Find the topmost opaque screen that wants cursor

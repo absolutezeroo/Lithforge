@@ -46,6 +46,14 @@ namespace Lithforge.Runtime.Session.Subsystems
             SettingsScreen settingsScreen = context.Get<SettingsScreen>();
             PanelSettings panelSettings = SessionInitArgsHolder.Current?.PanelSettings;
 
+            bool isMultiplayer = context.Config is SessionConfig.Client
+                or SessionConfig.Host
+                or SessionConfig.DedicatedServer;
+
+            GameState pauseState = isMultiplayer
+                ? GameState.PausedOverlay
+                : GameState.PausedFull;
+
             // Capture context for deferred resolution — SessionBridge is created
             // in SessionBridgeSubsystem.PostInitialize which runs after this.
             SessionContext capturedContext = context;
@@ -58,7 +66,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 {
                     if (capturedContext.TryGet(out GameLoopPoco loop))
                     {
-                        loop.SetGameState(GameState.PausedFull);
+                        loop.SetGameState(pauseState);
                     }
 
                     pauseMenuScreen.Open();
@@ -88,7 +96,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                     {
                         if (capturedContext.TryGet(out GameLoopPoco loop))
                         {
-                            loop.SetGameState(GameState.PausedFull);
+                            loop.SetGameState(pauseState);
                         }
 
                         pauseMenuScreen.HideOverlay();
