@@ -62,6 +62,9 @@ namespace Lithforge.Network.Server
         // Host-local callbacks: let the host see remote players without a NetworkClient.
         // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
 
+        /// <summary>Fired when the number of playing peers changes. Parameter is the new count.</summary>
+        public Action<int> OnPlayerCountChanged;
+
         /// <summary>Fires when a remote player enters the host's view.</summary>
         public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
 
@@ -100,6 +103,7 @@ namespace Lithforge.Network.Server
                 _disposed = true;
                 _hostSpawnedPlayers.Clear();
                 _hostDespawnCache.Clear();
+                OnPlayerCountChanged = null;
                 OnHostSpawnPlayer = null;
                 OnHostDespawnPlayer = null;
                 OnHostPlayerState = null;
@@ -580,6 +584,8 @@ namespace Lithforge.Network.Server
 
             _logger.LogInfo(
                 $"Player {peer.AssignedPlayerId} ({peer.PlayerName}) transitioned to Playing at tick {CurrentTick}");
+
+            OnPlayerCountChanged?.Invoke(CountPlayingPeers());
         }
 
         // ── Message handlers ──
@@ -738,9 +744,27 @@ namespace Lithforge.Network.Server
                     PlayerId = playerId,
                 });
             }
+
+            OnPlayerCountChanged?.Invoke(CountPlayingPeers());
         }
 
         // ── Helpers ──
+
+        private int CountPlayingPeers()
+        {
+            int count = 0;
+            IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
+
+            for (int i = 0; i < allPeers.Count; i++)
+            {
+                if (allPeers[i].StateMachine.Current == ConnectionState.Playing)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
 
         private void GatherPeersByState(List<PeerInfo> result, ConnectionState targetState)
         {

@@ -1659,6 +1659,9 @@ namespace Lithforge.Runtime.Bootstrap
                         PlayerPhysicsBody = physicsBody,
                         PlayerTransform = playerObject.transform,
                     });
+
+                    // Return to main menu on client disconnect/timeout
+                    _gameLoop.OnClientDisconnected = () => StartCoroutine(QuitToTitleCoroutine());
                 }
                 else if (_pendingSession is SessionConfig.Host hostConfig)
                 {
@@ -1677,7 +1680,7 @@ namespace Lithforge.Runtime.Bootstrap
                     {
                         serverName = hostConfig.DisplayName,
                         gamePort = hostConfig.ServerPort,
-                        playerCount = 0,
+                        playerCount = 1,
                         maxPlayers = hostConfig.MaxPlayers,
                         gameVersion = Application.version,
                         contentHash = contentHash.ToString(),
@@ -1712,6 +1715,10 @@ namespace Lithforge.Runtime.Bootstrap
                     ServerGameLoop serverGameLoop = new(
                         networkServer, serverSim, blockProcessor, chunkProvider,
                         dirtyTracker, streamingManager, _logger);
+
+                    // Wire player count changes to LAN broadcaster (+1 for host)
+                    LanBroadcaster lanRef = _lanBroadcaster;
+                    serverGameLoop.OnPlayerCountChanged = count => lanRef.UpdatePlayerCount(count + 1);
 
                     // ── Host-mode remote player rendering ──
                     // Host needs to see connected players. Wire ServerGameLoop host-local

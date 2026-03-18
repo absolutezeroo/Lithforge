@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 
 using Lithforge.Meshing.Atlas;
+using Lithforge.Network;
+using Lithforge.Network.Connection;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
@@ -61,8 +64,15 @@ namespace Lithforge.Runtime
 
         // Fixed tick rate system
         private TickAccumulator _tickAccumulator;
+        private bool _clientDisconnectNotified;
         private float _unloadBudgetMs;
         private WorldStorage _worldStorage;
+
+        /// <summary>
+        ///     Invoked when a client-mode network connection transitions to Disconnected.
+        ///     Wired by the bootstrap to trigger quit-to-title.
+        /// </summary>
+        public Action OnClientDisconnected;
 
         public int PendingGenerationCount
         {
@@ -109,6 +119,17 @@ namespace Lithforge.Runtime
             if (_network?.NetworkClient != null)
             {
                 _network.NetworkClient.Update(Time.realtimeSinceStartup);
+
+                // Detect client disconnection/timeout and return to menu
+                if (_network.IsClientMode
+                    && !_clientDisconnectNotified
+                    && _network.NetworkClient.State == ConnectionState.Disconnected)
+                {
+                    _clientDisconnectNotified = true;
+                    UnityEngine.Debug.LogWarning(
+                        "[Lithforge] Client disconnected — returning to main menu.");
+                    OnClientDisconnected?.Invoke();
+                }
             }
 
             // ── Tick server game loop (host mode only) ──
