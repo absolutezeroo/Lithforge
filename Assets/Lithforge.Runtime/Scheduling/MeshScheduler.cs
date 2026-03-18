@@ -666,20 +666,39 @@ namespace Lithforge.Runtime.Scheduling
             ManagedChunk nPZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[4] : null);
             ManagedChunk nNZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[5] : null);
 
+            // Secondary guard: re-verify Data.IsCreated right before capturing
+            // the NativeArray struct. ExtractLiquidBorderSlabs (called before this
+            // method) may trigger work-stealing via LiquidJobHandle.Complete() that
+            // indirectly invalidates a neighbor's NativeArray between the
+            // ValidateMeshableNeighbor check and job scheduling.
+            bool hasPX = nPX != null && nPX.Data.IsCreated;
+            bool hasNX = nNX != null && nNX.Data.IsCreated;
+            bool hasPY = nPY != null && nPY.Data.IsCreated;
+            bool hasNY = nNY != null && nNY.Data.IsCreated;
+            bool hasPZ = nPZ != null && nPZ.Data.IsCreated;
+            bool hasNZ = nNZ != null && nNZ.Data.IsCreated;
+
+            NativeArray<StateId> pxData = hasPX ? nPX.Data : _dummyBorder;
+            NativeArray<StateId> nxData = hasNX ? nNX.Data : _dummyBorder;
+            NativeArray<StateId> pyData = hasPY ? nPY.Data : _dummyBorder;
+            NativeArray<StateId> nyData = hasNY ? nNY.Data : _dummyBorder;
+            NativeArray<StateId> pzData = hasPZ ? nPZ.Data : _dummyBorder;
+            NativeArray<StateId> nzData = hasNZ ? nNZ.Data : _dummyBorder;
+
             ExtractAllBordersJob job = new()
             {
-                NeighborPosXData = nPX != null ? nPX.Data : _dummyBorder,
-                NeighborNegXData = nNX != null ? nNX.Data : _dummyBorder,
-                NeighborPosYData = nPY != null ? nPY.Data : _dummyBorder,
-                NeighborNegYData = nNY != null ? nNY.Data : _dummyBorder,
-                NeighborPosZData = nPZ != null ? nPZ.Data : _dummyBorder,
-                NeighborNegZData = nNZ != null ? nNZ.Data : _dummyBorder,
-                HasPosX = nPX != null,
-                HasNegX = nNX != null,
-                HasPosY = nPY != null,
-                HasNegY = nNY != null,
-                HasPosZ = nPZ != null,
-                HasNegZ = nNZ != null,
+                NeighborPosXData = pxData,
+                NeighborNegXData = nxData,
+                NeighborPosYData = pyData,
+                NeighborNegYData = nyData,
+                NeighborPosZData = pzData,
+                NeighborNegZData = nzData,
+                HasPosX = hasPX,
+                HasNegX = hasNX,
+                HasPosY = hasPY,
+                HasNegY = hasNY,
+                HasPosZ = hasPZ,
+                HasNegZ = hasNZ,
                 OutputPosX = meshData.NeighborPosX,
                 OutputNegX = meshData.NeighborNegX,
                 OutputPosY = meshData.NeighborPosY,
