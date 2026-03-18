@@ -26,6 +26,17 @@ namespace Lithforge.Runtime.Network
 
         private ushort _sequenceId;
 
+        /// <summary>
+        ///     Returns true when the predictor is ready to accept commands (network
+        ///     connection is in <c>Playing</c> state). Callers should check this before
+        ///     invoking <see cref="PredictPlace" /> or <see cref="PredictBreak" /> to
+        ///     avoid silently dropping commands.
+        /// </summary>
+        public bool IsReady
+        {
+            get { return _networkClient.IsPlaying; }
+        }
+
         public ClientBlockPredictor(
             ChunkManager chunkManager,
             INetworkClient networkClient)

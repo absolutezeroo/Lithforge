@@ -51,10 +51,13 @@ namespace Lithforge.Network.Server
         public bool IsChunkAllAir(int3 coord);
 
         /// <summary>
-        /// Computes how many chunks in the spawn volume are ready (either meshed to
-        /// ChunkState.Ready, or confirmed all-air). Returns a snapshot used to drive
-        /// loading screen progress and the Loading→Playing gate.
+        ///     Computes how many chunks in the spawn volume are ready.
+        ///     When <paramref name="requireMeshed" /> is true (SP/Host), a chunk must be at
+        ///     <c>ChunkState.Ready</c> or confirmed all-air.
+        ///     When false (remote client), <c>ChunkState.Generated</c> or better counts as ready
+        ///     because the remote client meshes locally after receiving the voxel data.
         /// </summary>
-        public SpawnReadinessSnapshot GetSpawnReadiness(int3 center, int readyRadius, int yMin, int yMax);
+        public SpawnReadinessSnapshot GetSpawnReadiness(
+            int3 center, int readyRadius, int yMin, int yMax, bool requireMeshed);
     }
 }

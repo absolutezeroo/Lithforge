@@ -50,7 +50,7 @@ namespace Lithforge.Runtime.Spawn
         public SpawnProgress GetProgress()
         {
             SpawnReadinessSnapshot snapshot = _provider.GetSpawnReadiness(
-                _spawnChunk, _readyRadius, _yMin, _yMax);
+                _spawnChunk, _readyRadius, _yMin, _yMax, requireMeshed: true);
 
             return new SpawnProgress
             {

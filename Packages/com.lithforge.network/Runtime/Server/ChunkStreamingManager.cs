@@ -162,7 +162,8 @@ namespace Lithforge.Network.Server
 
         /// <summary>
         ///     Computes a readiness snapshot for the spawn volume around the peer's current chunk.
-        ///     A chunk is considered ready if it is meshed (ChunkState.Ready) or confirmed all-air.
+        ///     Local peers (SP/Host) require full meshing; remote peers only need
+        ///     <c>Generated</c> state since they mesh locally after chunk delivery.
         ///     Used by ServerGameLoop to gate Loading→Playing and to send progress updates.
         /// </summary>
         public SpawnReadinessSnapshot GetReadinessSnapshot(PeerInfo peer)
@@ -174,8 +175,12 @@ namespace Lithforge.Network.Server
                 return new SpawnReadinessSnapshot();
             }
 
+            // Local peers require full meshing (Ready state); remote peers
+            // only need Generated — they mesh locally after receiving ChunkData.
+            bool requireMeshed = peer.IsLocal;
+
             return _chunkProvider.GetSpawnReadiness(
-                interest.CurrentChunk, _readyRadius, YLoadMin, YLoadMax);
+                interest.CurrentChunk, _readyRadius, YLoadMin, YLoadMax, requireMeshed);
         }
 
         /// <summary>

@@ -43,6 +43,14 @@ namespace Lithforge.Runtime.Simulation
         private ushort _moveSequenceId;
 
         /// <summary>
+        ///     When true, the server and client share the same <see cref="PlayerPhysicsBody" />
+        ///     (SP/Host via DirectTransport). The server already ticks physics and world systems
+        ///     authoritatively, so <see cref="Tick" /> skips <c>TickPlayer</c> and
+        ///     <c>TickRegistry.TickAll</c> to avoid double-advancing.
+        /// </summary>
+        private readonly bool _isSharedBody;
+
+        /// <summary>
         /// Optional callback invoked for remote player state messages (PlayerId != localPlayerId).
         /// Set via <see cref="SetRemotePlayerStateHandler"/> after construction.
         /// </summary>
@@ -54,13 +62,15 @@ namespace Lithforge.Runtime.Simulation
             InputSnapshotBuilder inputSnapshotBuilder,
             INetworkClient networkClient,
             ushort localPlayerId,
-            uint initialServerTick)
+            uint initialServerTick,
+            bool isSharedBody = false)
         {
             _tickRegistry = tickRegistry;
             _playerPhysicsManager = playerPhysicsManager;
             _inputSnapshotBuilder = inputSnapshotBuilder;
             _networkClient = networkClient;
             _localPlayerId = localPlayerId;
+            _isSharedBody = isSharedBody;
             CurrentTick = initialServerTick;
             _predictionBuffer = new CommandRingBuffer<MoveCommand>();
             _inputBuffer = new CommandRingBuffer<InputSnapshot>();
@@ -103,12 +113,17 @@ namespace Lithforge.Runtime.Simulation
             // 1. Consume input
             InputSnapshot snapshot = _inputSnapshotBuilder.ConsumeTick();
 
-            // 2. Apply prediction: run physics locally
+            // 2. Apply prediction: run physics locally.
+            // In SP/Host (_isSharedBody) the server already ticked this body authoritatively
+            // via ServerSimulation.ApplyMoveInput — calling TickPlayer again would double-advance.
             if (_playerPhysicsManager != null)
             {
-                _playerPhysicsManager.TickPlayer(_localPlayerId, tickDt, in snapshot);
+                if (!_isSharedBody)
+                {
+                    _playerPhysicsManager.TickPlayer(_localPlayerId, tickDt, in snapshot);
+                }
 
-                // 3. Record predicted state
+                // 3. Record predicted state (always — keeps prediction buffer live)
                 PlayerPhysicsState state = _playerPhysicsManager.GetState(_localPlayerId);
                 MoveCommand move = new()
                 {
@@ -138,8 +153,13 @@ namespace Lithforge.Runtime.Simulation
             // 5. Decay position error (visual smoothing)
             PositionError *= PositionErrorDecay;
 
-            // 6. Tick all registered systems
-            _tickRegistry.TickAll(tickDt);
+            // 6. Tick all registered systems.
+            // In SP/Host (_isSharedBody) the server already ran TickRegistry.TickAll via
+            // ServerSimulation.TickWorldSystems — running it again would double-tick every ITickable.
+            if (!_isSharedBody)
+            {
+                _tickRegistry.TickAll(tickDt);
+            }
 
             CurrentTick++;
         }
@@ -156,6 +176,15 @@ namespace Lithforge.Runtime.Simulation
             {
                 // Remote player state — route to remote player manager
                 _onRemotePlayerState?.Invoke(msg);
+                return;
+            }
+
+            // In SP/Host the server and client share the same body — reconciliation
+            // is not needed (and would corrupt the body by replaying TickPlayer).
+            if (_isSharedBody)
+            {
+                _predictionBuffer.DiscardBefore(CurrentTick);
+                _inputBuffer.DiscardBefore(CurrentTick);
                 return;
             }
 

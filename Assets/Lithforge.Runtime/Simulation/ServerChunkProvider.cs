@@ -98,7 +98,8 @@ namespace Lithforge.Runtime.Simulation
             return chunk != null && chunk.State >= ChunkState.Generated && chunk.IsAllAir;
         }
 
-        public SpawnReadinessSnapshot GetSpawnReadiness(int3 center, int readyRadius, int yMin, int yMax)
+        public SpawnReadinessSnapshot GetSpawnReadiness(
+            int3 center, int readyRadius, int yMin, int yMax, bool requireMeshed)
         {
             int total = 0;
             int ready = 0;
@@ -119,11 +120,23 @@ namespace Lithforge.Runtime.Simulation
                             continue;
                         }
 
-                        // Ready if fully meshed, or all-air (no mesh needed)
-                        if (chunk.State == ChunkState.Ready ||
-                            (chunk.State >= ChunkState.Generated && chunk.IsAllAir))
+                        if (requireMeshed)
                         {
-                            ready++;
+                            // SP/Host: must be fully meshed or all-air
+                            if (chunk.State == ChunkState.Ready ||
+                                (chunk.State >= ChunkState.Generated && chunk.IsAllAir))
+                            {
+                                ready++;
+                            }
+                        }
+                        else
+                        {
+                            // Remote client: Generated or better is sufficient;
+                            // the client meshes locally after receiving voxel data
+                            if (chunk.State >= ChunkState.Generated)
+                            {
+                                ready++;
+                            }
                         }
                     }
                 }

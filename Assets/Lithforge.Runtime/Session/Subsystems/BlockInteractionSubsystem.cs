@@ -16,6 +16,8 @@ namespace Lithforge.Runtime.Session.Subsystems
 {
     public sealed class BlockInteractionSubsystem : IGameSubsystem
     {
+        private LocalInventoryCommandProcessor _inventoryProcessor;
+
         public string Name
         {
             get
@@ -60,15 +62,16 @@ namespace Lithforge.Runtime.Session.Subsystems
                 physics,
                 player.Controller);
 
-            // Wire command processor
-            LocalInventoryCommandProcessor inventoryProcessor = new(player.Inventory);
+            // Wire command processor (LocalCommandProcessor as default; PostInitialize may
+            // replace it with NetworkCommandProcessor when ClientBlockPredictor is available)
+            _inventoryProcessor = new LocalInventoryCommandProcessor(player.Inventory);
             LocalCommandProcessor commandProcessor = new(
                 chunkManager,
                 context.Content.NativeStateRegistry,
                 player.Transform,
                 physics.PlayerHalfWidth,
                 physics.PlayerHeight,
-                inventoryProcessor);
+                _inventoryProcessor);
             blockInteraction.SetCommandProcessor(commandProcessor);
 
             // Wire block entity references
@@ -89,10 +92,15 @@ namespace Lithforge.Runtime.Session.Subsystems
                 registry.Register(new MiningTickAdapter(blockInteraction));
             }
 
-            // Wire StartDigging to client predictor if in client mode
+            // Wire block commands through the network when ClientBlockPredictor is available.
+            // This replaces LocalCommandProcessor with NetworkCommandProcessor so that
+            // place/break commands go through optimistic prediction + server validation.
             if (context.TryGet(out ClientBlockPredictor predictor))
             {
                 blockInteraction.SetStartDiggingCallback(predictor.SendStartDigging);
+
+                NetworkCommandProcessor networkProcessor = new(predictor, _inventoryProcessor);
+                blockInteraction.SetCommandProcessor(networkProcessor);
             }
         }
 

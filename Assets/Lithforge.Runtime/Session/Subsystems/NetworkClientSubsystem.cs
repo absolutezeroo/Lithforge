@@ -104,10 +104,16 @@ namespace Lithforge.Runtime.Session.Subsystems
                     }
                 }
 
+                // In SP/Host the server and client share the same PlayerPhysicsBody.
+                // The server ticks it authoritatively — the client must not double-tick.
+                bool isSharedBody = context.Config is SessionConfig.Singleplayer
+                    or SessionConfig.Host;
+
                 ClientWorldSimulation clientSim = new(
                     tickRegistry, physicsManager, input,
                     _client, localId,
-                    _client.ServerTickAtHandshake);
+                    _client.ServerTickAtHandshake,
+                    isSharedBody);
 
                 // Register player state handler for reconciliation
                 _client.Dispatcher.RegisterHandler(

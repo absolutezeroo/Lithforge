@@ -588,10 +588,17 @@ namespace Lithforge.Network.Server
                         PositionX = change.Position.x, PositionY = change.Position.y, PositionZ = change.Position.z, NewState = change.NewState.Value,
                     };
 
-                    // Send to all players who have this chunk loaded
+                    // Send to all players who have this chunk loaded.
+                    // Skip the local peer — it already applied the change optimistically
+                    // via ClientBlockPredictor and does not need the echo.
                     for (int i = 0; i < _playingPeersCache.Count; i++)
                     {
                         PeerInfo peer = _playingPeersCache[i];
+
+                        if (peer.IsLocal)
+                        {
+                            continue;
+                        }
 
                         if (peer.InterestState != null &&
                             peer.InterestState.LoadedChunks.Contains(chunkCoord))
@@ -611,6 +618,11 @@ namespace Lithforge.Network.Server
                     for (int i = 0; i < _playingPeersCache.Count; i++)
                     {
                         PeerInfo peer = _playingPeersCache[i];
+
+                        if (peer.IsLocal)
+                        {
+                            continue;
+                        }
 
                         if (peer.InterestState != null &&
                             peer.InterestState.LoadedChunks.Contains(chunkCoord))
