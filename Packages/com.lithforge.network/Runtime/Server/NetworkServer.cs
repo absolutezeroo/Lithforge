@@ -25,6 +25,7 @@ namespace Lithforge.Network.Server
         private PeerRegistry _peerRegistry;
         private ReliableSendQueue _sendQueue;
 
+        private float _currentTime;
         private INetworkTransport _transport;
 
         public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
@@ -86,6 +87,8 @@ namespace Lithforge.Network.Server
             {
                 return;
             }
+
+            _currentTime = currentTime;
 
             _transport.Update();
             Dispatcher.ProcessEvents(_transport);
@@ -180,7 +183,7 @@ namespace Lithforge.Network.Server
             };
             SendTo(connectionId, msg, PipelineId.ReliableSequenced);
 
-            peer.StateMachine.Transition(ConnectionState.Disconnecting, 0f);
+            peer.StateMachine.Transition(ConnectionState.Disconnecting, _currentTime);
             _transport.Disconnect(connectionId);
             _sendQueue.RemoveForConnection(connectionId);
             _peerRegistry.Remove(connectionId);
@@ -253,8 +256,8 @@ namespace Lithforge.Network.Server
             }
 
             PeerInfo peer = _peerRegistry.Add(connectionId);
-            peer.StateMachine.Transition(ConnectionState.Connecting, 0f);
-            peer.StateMachine.Transition(ConnectionState.Handshaking, 0f);
+            peer.StateMachine.Transition(ConnectionState.Connecting, _currentTime);
+            peer.StateMachine.Transition(ConnectionState.Handshaking, _currentTime);
 
             _logger.LogDebug($"Peer connected: {connectionId}, awaiting handshake");
         }
@@ -322,7 +325,7 @@ namespace Lithforge.Network.Server
             };
 
             SendTo(connectionId, response, PipelineId.ReliableSequenced);
-            peer.StateMachine.Transition(ConnectionState.Loading, 0f);
+            peer.StateMachine.Transition(ConnectionState.Loading, _currentTime);
 
             _logger.LogInfo(
                 $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName})");
