@@ -1,5 +1,5 @@
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 using UnityEngine.Serialization;
 

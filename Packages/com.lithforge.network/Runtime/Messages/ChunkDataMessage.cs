@@ -6,7 +6,7 @@ namespace Lithforge.Network.Messages
     /// <summary>
     /// Server→Client full chunk data. Sent on fragmented reliable pipeline.
     /// Contains chunk coordinate and the serialized chunk payload from
-    /// <see cref="Lithforge.Voxel.Network.ChunkNetSerializer.SerializeFullChunk"/>.
+    /// <see cref="Lithforge.Network.Chunk.ChunkNetSerializer.SerializeFullChunk"/>.
     /// Wire format: [ChunkX:4][ChunkY:4][ChunkZ:4][PayloadLength:4][Payload:N] = 16 + N bytes.
     /// </summary>
     public struct ChunkDataMessage : INetworkMessage

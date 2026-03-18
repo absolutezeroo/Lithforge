@@ -1,5 +1,5 @@
 using Lithforge.Runtime.UI.Sprites;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI.Widgets

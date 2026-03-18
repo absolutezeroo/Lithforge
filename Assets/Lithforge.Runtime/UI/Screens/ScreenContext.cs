@@ -1,7 +1,7 @@
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Sprites;
-using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
+using Lithforge.Item.Crafting;
+using Lithforge.Item;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI.Screens

@@ -1,6 +1,6 @@
 using Lithforge.Core.Data;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 namespace Lithforge.Runtime.UI.Screens
 {

@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 985a792172627d5448cffde2d1506116, type: 3}
+  m_Script: {fileID: 11500000, guid: b170c0e993483fb4c902eacb3f052ee9, type: 3}
   m_Name: stonebound
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Tools.ToolTraitDefinitionSO
   traitId: lithforge:stonebound

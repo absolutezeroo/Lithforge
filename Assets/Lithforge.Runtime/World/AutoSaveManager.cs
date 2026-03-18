@@ -1,5 +1,5 @@
 using System;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 using Lithforge.Voxel.Storage;
 using UnityEngine;
 

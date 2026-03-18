@@ -6,14 +6,16 @@ using Lithforge.Core.Logging;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 
+using Unity.Collections;
 using Unity.Mathematics;
+using Unity.Profiling;
 
 namespace Lithforge.Voxel.Storage
 {
     public sealed class WorldStorage : IDisposable
     {
-        private static readonly ProfilerMarker s_loadChunkMarker = new ProfilerMarker("WS.LoadChunk");
-        private static readonly ProfilerMarker s_saveChunkMarker = new ProfilerMarker("WS.SaveChunk");
+        private static readonly ProfilerMarker s_loadChunkMarker = new("WS.LoadChunk");
+        private static readonly ProfilerMarker s_saveChunkMarker = new("WS.SaveChunk");
         private readonly List<RegionFile> _flushCache = new();
         private readonly ILogger _logger;
         private readonly string _regionDir;

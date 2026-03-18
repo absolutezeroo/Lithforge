@@ -4,6 +4,7 @@
   "references": [
     "Lithforge.Core",
     "Lithforge.Voxel",
+    "Lithforge.Item",
     "Lithforge.WorldGen",
     "Lithforge.Meshing",
     "Lithforge.Physics",
