@@ -28,6 +28,8 @@ namespace Lithforge.Runtime.Session.Subsystems
         {
             typeof(ChunkManagerSubsystem),
             typeof(ChunkMeshStoreSubsystem),
+            typeof(WorldGenSubsystem),
+            typeof(DecorationSubsystem),
         };
 
         public bool ShouldCreate(SessionConfig config)

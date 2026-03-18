@@ -92,6 +92,8 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.PlaceBlockCmd, OnPlaceBlockCmd);
             dispatcher.RegisterHandler(MessageType.BreakBlockCmd, OnBreakBlockCmd);
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
+
+            _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
         }
 
         public uint CurrentTick { get; private set; } = 1;
@@ -103,6 +105,7 @@ namespace Lithforge.Network.Server
                 _disposed = true;
                 _hostSpawnedPlayers.Clear();
                 _hostDespawnCache.Clear();
+                _serverImpl.OnPeerAccepted = null;
                 OnPlayerCountChanged = null;
                 OnHostSpawnPlayer = null;
                 OnHostDespawnPlayer = null;
@@ -592,6 +595,7 @@ namespace Lithforge.Network.Server
 
         private void OnMoveInput(ConnectionId connId, byte[] data, int offset, int length)
         {
+            _serverImpl.TouchPeer(connId);
             PeerInfo peer = _serverImpl.GetPeer(connId);
 
             if (peer?.InterestState == null ||
@@ -617,6 +621,7 @@ namespace Lithforge.Network.Server
 
         private void OnPlaceBlockCmd(ConnectionId connId, byte[] data, int offset, int length)
         {
+            _serverImpl.TouchPeer(connId);
             PeerInfo peer = _serverImpl.GetPeer(connId);
 
             if (peer?.InterestState == null ||
@@ -642,6 +647,7 @@ namespace Lithforge.Network.Server
 
         private void OnBreakBlockCmd(ConnectionId connId, byte[] data, int offset, int length)
         {
+            _serverImpl.TouchPeer(connId);
             PeerInfo peer = _serverImpl.GetPeer(connId);
 
             if (peer?.InterestState == null ||
@@ -662,6 +668,7 @@ namespace Lithforge.Network.Server
 
         private void OnStartDiggingCmd(ConnectionId connId, byte[] data, int offset, int length)
         {
+            _serverImpl.TouchPeer(connId);
             PeerInfo peer = _serverImpl.GetPeer(connId);
 
             if (peer?.InterestState == null ||
@@ -681,6 +688,15 @@ namespace Lithforge.Network.Server
         }
 
         // ── Player lifecycle ──
+
+        private void OnPeerAcceptedInternal(PeerInfo peer)
+        {
+            // Spawn at world origin, fallback Y = 65 (above typical terrain).
+            // The host's SpawnManager does proper surface-finding but lives in Tier 3
+            // (Runtime), not accessible from this Tier 2 package.
+            float3 spawnPosition = new float3(0f, 65f, 0f);
+            OnPlayerAccepted(peer, spawnPosition);
+        }
 
         /// <summary>
         ///     Called when a new player's handshake is accepted. Creates the physics body

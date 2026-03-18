@@ -7,6 +7,7 @@ namespace Lithforge.Network
         public const int MaxConnections = 200;
         public const float HandshakeTimeoutSeconds = 10f;
         public const float IdleTimeoutSeconds = 30f;
+        public const float LoadingTimeoutSeconds = 120f;
         public const float PingIntervalSeconds = 5f;
         public const int SendQueueFullError = -5;
         public const int MaxSendRetries = 3;

@@ -46,17 +46,9 @@ namespace Lithforge.Runtime.Session.Subsystems
             SettingsScreen settingsScreen = context.Get<SettingsScreen>();
             PanelSettings panelSettings = SessionInitArgsHolder.Current?.PanelSettings;
 
-            // Get SessionBridge for game state control
-            // (SessionBridge may not exist yet, use a deferred approach)
-            SessionBridge bridge = null;
-
-            if (context.TryGet(out SessionBridge b))
-            {
-                bridge = b;
-            }
-
-            SessionBridge capturedBridge = bridge;
-            GameLoopPoco capturedLoop = bridge?.GameLoop;
+            // Capture context for deferred resolution — SessionBridge is created
+            // in SessionBridgeSubsystem.PostInitialize which runs after this.
+            SessionContext capturedContext = context;
 
             pauseMenuScreen.Initialize(
                 panelSettings,
@@ -64,14 +56,22 @@ namespace Lithforge.Runtime.Session.Subsystems
                 // onPause
                 () =>
                 {
-                    capturedLoop?.SetGameState(GameState.PausedFull);
+                    if (capturedContext.TryGet(out GameLoopPoco loop))
+                    {
+                        loop.SetGameState(GameState.PausedFull);
+                    }
+
                     pauseMenuScreen.Open();
                 },
                 // onResume
                 () =>
                 {
                     pauseMenuScreen.Close();
-                    capturedLoop?.SetGameState(GameState.Playing);
+
+                    if (capturedContext.TryGet(out GameLoopPoco loop))
+                    {
+                        loop.SetGameState(GameState.Playing);
+                    }
                 },
                 // onOptions
                 () =>
@@ -84,11 +84,15 @@ namespace Lithforge.Runtime.Session.Subsystems
                 // onQuitToTitle
                 () =>
                 {
-                    if (capturedBridge != null)
+                    if (capturedContext.TryGet(out SessionBridge bridge))
                     {
-                        capturedLoop?.SetGameState(GameState.PausedFull);
+                        if (capturedContext.TryGet(out GameLoopPoco loop))
+                        {
+                            loop.SetGameState(GameState.PausedFull);
+                        }
+
                         pauseMenuScreen.HideOverlay();
-                        capturedBridge.QuitRequested = true;
+                        bridge.QuitRequested = true;
                     }
                 });
 

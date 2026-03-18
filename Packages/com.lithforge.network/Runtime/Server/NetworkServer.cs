@@ -28,6 +28,9 @@ namespace Lithforge.Network.Server
         private float _currentTime;
         private INetworkTransport _transport;
 
+        /// <summary>Fired after a peer passes handshake validation and enters Loading state.</summary>
+        public Action<PeerInfo> OnPeerAccepted;
+
         public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
         {
             _logger = logger;
@@ -243,6 +246,19 @@ namespace Lithforge.Network.Server
             return _peerRegistry.GetByPlayerId(playerId);
         }
 
+        /// <summary>
+        ///     Resets the idle timeout for the given peer. Call on every received message.
+        /// </summary>
+        public void TouchPeer(ConnectionId connectionId)
+        {
+            PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
+
+            if (peer != null)
+            {
+                peer.LastMessageTime = _currentTime;
+            }
+        }
+
         // --- Event handlers ---
 
         private void OnPeerConnected(ConnectionId connectionId)
@@ -256,6 +272,7 @@ namespace Lithforge.Network.Server
             }
 
             PeerInfo peer = _peerRegistry.Add(connectionId);
+            peer.LastMessageTime = _currentTime;
             peer.StateMachine.Transition(ConnectionState.Connecting, _currentTime);
             peer.StateMachine.Transition(ConnectionState.Handshaking, _currentTime);
 
@@ -280,6 +297,7 @@ namespace Lithforge.Network.Server
 
         private void OnHandshakeRequest(ConnectionId connectionId, byte[] data, int offset, int length)
         {
+            TouchPeer(connectionId);
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
 
             if (peer == null || peer.StateMachine.Current != ConnectionState.Handshaking)
@@ -329,10 +347,13 @@ namespace Lithforge.Network.Server
 
             _logger.LogInfo(
                 $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName})");
+
+            OnPeerAccepted?.Invoke(peer);
         }
 
         private void OnPing(ConnectionId connectionId, byte[] data, int offset, int length)
         {
+            TouchPeer(connectionId);
             PingMessage ping = PingMessage.Deserialize(data, offset, length);
             PongMessage pong = new()
             {
@@ -343,6 +364,7 @@ namespace Lithforge.Network.Server
 
         private void OnDisconnectMessage(ConnectionId connectionId, byte[] data, int offset, int length)
         {
+            TouchPeer(connectionId);
             DisconnectMessage msg = DisconnectMessage.Deserialize(data, offset, length);
             _logger.LogInfo($"Peer {connectionId} requested disconnect: {msg.Reason}");
 
@@ -386,9 +408,16 @@ namespace Lithforge.Network.Server
                         _timeoutDisconnectList.Add(peer.ConnectionId);
                     }
                 }
+                else if (state == ConnectionState.Loading)
+                {
+                    if (peer.StateMachine.IsTimedOut(currentTime, NetworkConstants.LoadingTimeoutSeconds))
+                    {
+                        _timeoutDisconnectList.Add(peer.ConnectionId);
+                    }
+                }
                 else if (state == ConnectionState.Playing)
                 {
-                    if (peer.StateMachine.IsTimedOut(currentTime, NetworkConstants.IdleTimeoutSeconds))
+                    if (currentTime - peer.LastMessageTime > NetworkConstants.IdleTimeoutSeconds)
                     {
                         _timeoutDisconnectList.Add(peer.ConnectionId);
                     }
