@@ -37,7 +37,7 @@ namespace Lithforge.Runtime.Content.Mods
         /// <summary>Other mods that must be loaded before this one, with optional minimum versions.</summary>
         [FormerlySerializedAs("_dependencies"),Header("Dependencies")]
         [Tooltip("Required mod dependencies (mod_id:min_version)")]
-        [SerializeField] private List<ModDependency> dependencies = new List<ModDependency>();
+        [SerializeField] private List<ModDependency> dependencies = new();
 
         /// <summary>Globally unique mod identifier used for dependency resolution.</summary>
         public string ModId

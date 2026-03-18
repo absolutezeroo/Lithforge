@@ -13,9 +13,9 @@ namespace Lithforge.Voxel.Item
 
         public static byte[] Serialize(ToolPartData data)
         {
-            using (MemoryStream ms = new MemoryStream())
+            using (MemoryStream ms = new())
             {
-                using (BinaryWriter w = new BinaryWriter(ms))
+                using (BinaryWriter w = new(ms))
                 {
                     w.Write(Version);
                     w.Write((byte)data.PartType);
@@ -28,9 +28,9 @@ namespace Lithforge.Voxel.Item
 
         public static ToolPartData Deserialize(byte[] bytes)
         {
-            using (MemoryStream ms = new MemoryStream(bytes))
+            using (MemoryStream ms = new(bytes))
             {
-                using (BinaryReader r = new BinaryReader(ms))
+                using (BinaryReader r = new(ms))
                 {
                     byte version = r.ReadByte();
 
@@ -46,7 +46,7 @@ namespace Lithforge.Voxel.Item
                     return new ToolPartData
                     {
                         PartType = partType,
-                        MaterialId = materialId
+                        MaterialId = materialId,
                     };
                 }
             }

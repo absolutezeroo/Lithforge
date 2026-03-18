@@ -67,7 +67,7 @@ namespace Lithforge.Runtime.UI.Container
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(toolData);
                     int durability = tool != null ? tool.MaxDurability : -1;
                     _displayStack = new ItemStack(match.ResultItem, match.ResultCount, durability);
-                    DataComponentMap toolMap = new DataComponentMap();
+                    DataComponentMap toolMap = new();
                     toolMap.Set(DataComponentTypes.ToolInstanceId,
                         new ToolInstanceComponent(tool));
                     _displayStack.Components = toolMap;

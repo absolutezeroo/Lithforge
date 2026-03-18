@@ -85,10 +85,10 @@ namespace Lithforge.WorldGen.Stages
         {
             // Queue entries use unified 25-bit encoding:
             //   [24..19: skipMask] [18..15: level] [14..0: index]
-            NativeQueue<int> sunRemovalQueue = new NativeQueue<int>(Allocator.TempJob);
-            NativeQueue<int> blockRemovalQueue = new NativeQueue<int>(Allocator.TempJob);
-            NativeQueue<int> sunReseedQueue = new NativeQueue<int>(Allocator.TempJob);
-            NativeQueue<int> blockReseedQueue = new NativeQueue<int>(Allocator.TempJob);
+            NativeQueue<int> sunRemovalQueue = new(Allocator.TempJob);
+            NativeQueue<int> blockRemovalQueue = new(Allocator.TempJob);
+            NativeQueue<int> sunReseedQueue = new(Allocator.TempJob);
+            NativeQueue<int> blockReseedQueue = new(Allocator.TempJob);
 
             // Step 1a: Seed removal queues from border removal seeds (cross-chunk cascade)
             SeedFromBorderRemovals(ref sunRemovalQueue, ref blockRemovalQueue,

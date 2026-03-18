@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Assembles a ToolInstance from a tool type and an array of ToolParts.
-    /// Resolves material stats from ToolMaterialRegistry and collects trait IDs.
+    ///     Assembles a ToolInstance from a tool type and an array of ToolParts.
+    ///     Resolves material stats from ToolMaterialRegistry and collects trait IDs.
     /// </summary>
     public static class ToolAssembler
     {
         /// <summary>
-        /// Assembles a ToolInstance from parts using material data from the registry.
-        /// Returns null if no valid head/blade part is found.
+        ///     Assembles a ToolInstance from parts using material data from the registry.
+        ///     Returns null if no valid head/blade part is found.
         /// </summary>
         public static ToolInstance Assemble(
             ToolType toolType,
@@ -99,22 +100,24 @@ namespace Lithforge.Voxel.Item
                 maxDurability = 1;
             }
 
-            ToolInstance tool = new ToolInstance();
-            tool.ToolType = toolType;
-            tool.Parts = parts;
-            tool.Slots = new ModifierSlot[ToolInstance.MaxModifierSlots];
-            tool.CurrentDurability = maxDurability;
-            tool.MaxDurability = maxDurability;
-            tool.BaseSpeed = baseSpeed * speedMultiplier;
-            tool.BaseDamage = baseDamage;
-            tool.EffectiveToolLevel = toolLevel;
+            ToolInstance tool = new()
+            {
+                ToolType = toolType,
+                Parts = parts,
+                Slots = new ModifierSlot[ToolInstance.MaxModifierSlots],
+                CurrentDurability = maxDurability,
+                MaxDurability = maxDurability,
+                BaseSpeed = baseSpeed * speedMultiplier,
+                BaseDamage = baseDamage,
+                EffectiveToolLevel = toolLevel,
+            };
 
             return tool;
         }
 
         private static ResourceId[] ConvertTraitIds(string[] traitIds)
         {
-            List<ResourceId> result = new List<ResourceId>(traitIds.Length);
+            List<ResourceId> result = new(traitIds.Length);
 
             for (int i = 0; i < traitIds.Length; i++)
             {

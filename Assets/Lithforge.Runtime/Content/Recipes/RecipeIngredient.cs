@@ -1,4 +1,3 @@
-using Lithforge.Runtime.Content.Items;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -9,32 +8,21 @@ namespace Lithforge.Runtime.Content.Recipes
     /// or any item belonging to a tag (e.g. "lithforge:planks").
     /// </summary>
     /// <remarks>
-    /// Resolution priority: <see cref="Item"/> (direct SO reference) takes precedence over
-    /// <see cref="ItemId"/> (string fallback), and both take precedence over <see cref="TagId"/>.
+    /// Resolution priority: <see cref="ItemId"/> takes precedence over <see cref="TagId"/>.
     /// When <see cref="TagId"/> is set, any item in that tag satisfies the ingredient.
     /// </remarks>
     [System.Serializable]
     public sealed class RecipeIngredient
     {
-        /// <summary>Direct SO reference to the required item, or null if matched by id or tag.</summary>
-        [FormerlySerializedAs("_item"),Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition item;
-
-        /// <summary>ResourceId string fallback when the SO reference is unset.</summary>
-        [FormerlySerializedAs("_itemId"),Tooltip("Item id (fallback)")]
+        /// <summary>ResourceId string for the required item, or empty if matched by tag.</summary>
+        [FormerlySerializedAs("_itemId"),Tooltip("Item resource ID")]
         [SerializeField] private string itemId;
 
         /// <summary>Tag ResourceId allowing any member of the tag to satisfy this ingredient.</summary>
         [FormerlySerializedAs("_tagId"),Tooltip("Tag reference (alternative to item)")]
         [SerializeField] private string tagId;
 
-        /// <summary>Direct SO reference to the required item, or null if matched by id or tag.</summary>
-        public ItemDefinition Item
-        {
-            get { return item; }
-        }
-
-        /// <summary>ResourceId string fallback when the SO reference is unset.</summary>
+        /// <summary>ResourceId string for the required item, or empty if matched by tag.</summary>
         public string ItemId
         {
             get { return itemId; }

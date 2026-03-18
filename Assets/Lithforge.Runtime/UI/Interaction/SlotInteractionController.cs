@@ -1,43 +1,42 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.UI.Interaction
 {
     /// <summary>
-    /// Screen-agnostic controller for all slot interaction modes:
-    ///   1. Left-click:   pick up / place / merge / swap
-    ///   2. Right-click:  pick up half / place 1
-    ///   3. Shift+click:  quick transfer between hotbar and main
-    ///   4. Paint-drag:   right-click drag to distribute 1 item per slot
-    ///   5. Number keys:  swap hovered slot with hotbar slot
-    ///   6. Output take:  consume craft ingredients and collect result
-    /// Operates entirely on ISlotContainer — no knowledge of specific screen layout.
+    ///     Screen-agnostic controller for all slot interaction modes:
+    ///     1. Left-click:   pick up / place / merge / swap
+    ///     2. Right-click:  pick up half / place 1
+    ///     3. Shift+click:  quick transfer between hotbar and main
+    ///     4. Paint-drag:   right-click drag to distribute 1 item per slot
+    ///     5. Number keys:  swap hovered slot with hotbar slot
+    ///     6. Output take:  consume craft ingredients and collect result
+    ///     Operates entirely on ISlotContainer — no knowledge of specific screen layout.
     /// </summary>
     public sealed class SlotInteractionController
     {
-        private readonly HeldStack _held;
         private readonly ItemRegistry _itemRegistry;
-        private readonly ToolTemplateRegistry _toolTemplateRegistry;
+        private readonly HashSet<long> _paintedSlots = new();
         private readonly ToolMaterialRegistry _toolMaterialRegistry;
+        private readonly ToolTemplateRegistry _toolTemplateRegistry;
+
+        // Hover tracking
 
         // Paint mode state
         private bool _isPainting;
-        private bool _paintPending;
-        private int _paintOriginSlot;
-        private ISlotContainer _paintOriginContainer;
-        private ResourceId _paintItemId;
-        private int _paintDurability;
         private DataComponentMap _paintComponents;
-        private readonly HashSet<long> _paintedSlots = new HashSet<long>();
-
-        // Hover tracking
-        private ISlotContainer _hoveredContainer;
-        private int _hoveredSlotIndex = -1;
+        private int _paintDurability;
+        private ResourceId _paintItemId;
+        private ISlotContainer _paintOriginContainer;
+        private int _paintOriginSlot;
+        private bool _paintPending;
 
         public SlotInteractionController(
             HeldStack held,
@@ -45,26 +44,17 @@ namespace Lithforge.Runtime.UI.Interaction
             ToolTemplateRegistry toolTemplateRegistry,
             ToolMaterialRegistry toolMaterialRegistry)
         {
-            _held = held;
+            Held = held;
             _itemRegistry = itemRegistry;
             _toolTemplateRegistry = toolTemplateRegistry;
             _toolMaterialRegistry = toolMaterialRegistry;
         }
 
-        public HeldStack Held
-        {
-            get { return _held; }
-        }
+        public HeldStack Held { get; }
 
-        public int HoveredSlotIndex
-        {
-            get { return _hoveredSlotIndex; }
-        }
+        public int HoveredSlotIndex { get; private set; } = -1;
 
-        public ISlotContainer HoveredContainer
-        {
-            get { return _hoveredContainer; }
-        }
+        public ISlotContainer HoveredContainer { get; private set; }
 
         // ────────────────────────────────────────────────────────────────────
         // Hover tracking
@@ -72,17 +62,17 @@ namespace Lithforge.Runtime.UI.Interaction
 
         public void OnSlotEnter(ISlotContainer container, int slotIndex)
         {
-            _hoveredContainer = container;
-            _hoveredSlotIndex = slotIndex;
+            HoveredContainer = container;
+            HoveredSlotIndex = slotIndex;
             HandlePaintHover(container, slotIndex);
         }
 
         public void OnSlotLeave(ISlotContainer container, int slotIndex)
         {
-            if (_hoveredContainer == container && _hoveredSlotIndex == slotIndex)
+            if (HoveredContainer == container && HoveredSlotIndex == slotIndex)
             {
-                _hoveredContainer = null;
-                _hoveredSlotIndex = -1;
+                HoveredContainer = null;
+                HoveredSlotIndex = -1;
             }
         }
 
@@ -100,24 +90,24 @@ namespace Lithforge.Runtime.UI.Interaction
             ItemStack slotItem = container.GetSlot(slotIndex);
             int slotMaxStack = GetMaxStack(slotItem);
 
-            if (_held.IsEmpty && slotItem.IsEmpty)
+            if (Held.IsEmpty && slotItem.IsEmpty)
             {
                 return;
             }
 
-            if (_held.IsEmpty)
+            if (Held.IsEmpty)
             {
                 // Pick up entire stack
-                _held.Set(slotItem);
+                Held.Set(slotItem);
                 container.SetSlot(slotIndex, ItemStack.Empty);
             }
             else if (slotItem.IsEmpty)
             {
                 // Place entire held stack
-                container.SetSlot(slotIndex, _held.Stack);
-                _held.Clear();
+                container.SetSlot(slotIndex, Held.Stack);
+                Held.Clear();
             }
-            else if (ItemStack.CanStack(_held.Stack, slotItem))
+            else if (ItemStack.CanStack(Held.Stack, slotItem))
             {
                 // Merge held into slot
                 int space = slotMaxStack - slotItem.Count;
@@ -125,26 +115,26 @@ namespace Lithforge.Runtime.UI.Interaction
                 if (space <= 0)
                 {
                     // Slot full, swap
-                    container.SetSlot(slotIndex, _held.Stack);
-                    _held.Set(slotItem);
+                    container.SetSlot(slotIndex, Held.Stack);
+                    Held.Set(slotItem);
                 }
                 else
                 {
-                    int toMove = Mathf.Min(_held.Stack.Count, space);
+                    int toMove = Mathf.Min(Held.Stack.Count, space);
                     ItemStack newSlot = slotItem;
                     newSlot.Count += toMove;
                     container.SetSlot(slotIndex, newSlot);
 
-                    ItemStack newHeld = _held.Stack;
+                    ItemStack newHeld = Held.Stack;
                     newHeld.Count -= toMove;
-                    _held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
+                    Held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
                 }
             }
             else
             {
                 // Swap different items
-                container.SetSlot(slotIndex, _held.Stack);
-                _held.Set(slotItem);
+                container.SetSlot(slotIndex, Held.Stack);
+                Held.Set(slotItem);
             }
 
             container.OnSlotChanged(slotIndex);
@@ -165,9 +155,9 @@ namespace Lithforge.Runtime.UI.Interaction
             int slotMaxStack = GetMaxStack(slotItem);
 
             // Repair kit on tool: TiC-style inventory repair
-            if (!_held.IsEmpty && !slotItem.IsEmpty && _toolMaterialRegistry != null)
+            if (!Held.IsEmpty && !slotItem.IsEmpty && _toolMaterialRegistry != null)
             {
-                ToolPartDataComponent kitComp = _held.Stack.Components?.Get<ToolPartDataComponent>(
+                ToolPartDataComponent kitComp = Held.Stack.Components?.Get<ToolPartDataComponent>(
                     DataComponentTypes.ToolPartDataId);
 
                 if (kitComp != null && kitComp.PartData.PartType == ToolPartType.RepairKit)
@@ -188,15 +178,15 @@ namespace Lithforge.Runtime.UI.Interaction
 
                             ItemStack repairedStack = slotItem;
                             repairedStack.Durability = tool.CurrentDurability;
-                            DataComponentMap repairedMap = new DataComponentMap();
+                            DataComponentMap repairedMap = new();
                             repairedMap.Set(DataComponentTypes.ToolInstanceId,
                                 new ToolInstanceComponent(tool));
                             repairedStack.Components = repairedMap;
                             container.SetSlot(slotIndex, repairedStack);
 
-                            ItemStack newHeld = _held.Stack;
+                            ItemStack newHeld = Held.Stack;
                             newHeld.Count -= 1;
-                            _held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
+                            Held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
 
                             container.OnSlotChanged(slotIndex);
                             return;
@@ -205,18 +195,20 @@ namespace Lithforge.Runtime.UI.Interaction
                 }
             }
 
-            if (_held.IsEmpty && slotItem.IsEmpty)
+            if (Held.IsEmpty && slotItem.IsEmpty)
             {
                 return;
             }
 
-            if (_held.IsEmpty)
+            if (Held.IsEmpty)
             {
                 // Pick up half (rounded up)
                 int half = (slotItem.Count + 1) / 2;
-                ItemStack pickup = new ItemStack(slotItem.ItemId, half, slotItem.Durability);
-                pickup.Components = slotItem.Components;
-                _held.Set(pickup);
+                ItemStack pickup = new(slotItem.ItemId, half, slotItem.Durability)
+                {
+                    Components = slotItem.Components,
+                };
+                Held.Set(pickup);
 
                 ItemStack remaining = slotItem;
                 remaining.Count -= half;
@@ -225,31 +217,33 @@ namespace Lithforge.Runtime.UI.Interaction
             else if (slotItem.IsEmpty)
             {
                 // Place 1
-                ItemStack placed = new ItemStack(_held.Stack.ItemId, 1, _held.Stack.Durability);
-                placed.Components = _held.Stack.Components;
+                ItemStack placed = new(Held.Stack.ItemId, 1, Held.Stack.Durability)
+                {
+                    Components = Held.Stack.Components,
+                };
                 container.SetSlot(slotIndex, placed);
 
-                ItemStack newHeld = _held.Stack;
+                ItemStack newHeld = Held.Stack;
                 newHeld.Count -= 1;
-                _held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
+                Held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
 
-                if (!_held.IsEmpty)
+                if (!Held.IsEmpty)
                 {
                     StartPaint(container, slotIndex);
                 }
             }
-            else if (ItemStack.CanStack(_held.Stack, slotItem) && slotItem.Count < slotMaxStack)
+            else if (ItemStack.CanStack(Held.Stack, slotItem) && slotItem.Count < slotMaxStack)
             {
                 // Place 1 on same item
                 ItemStack newSlot = slotItem;
                 newSlot.Count += 1;
                 container.SetSlot(slotIndex, newSlot);
 
-                ItemStack newHeld = _held.Stack;
+                ItemStack newHeld = Held.Stack;
                 newHeld.Count -= 1;
-                _held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
+                Held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
 
-                if (!_held.IsEmpty)
+                if (!Held.IsEmpty)
                 {
                     StartPaint(container, slotIndex);
                 }
@@ -264,7 +258,7 @@ namespace Lithforge.Runtime.UI.Interaction
         // ────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Quick-transfers a slot between hotbar and main inventory adapters.
+        ///     Quick-transfers a slot between hotbar and main inventory adapters.
         /// </summary>
         public void ShiftClick(
             ISlotContainer source,
@@ -297,8 +291,10 @@ namespace Lithforge.Runtime.UI.Interaction
 
             if (remaining > 0)
             {
-                ItemStack remainder = new ItemStack(slotItem.ItemId, remaining, slotItem.Durability);
-                remainder.Components = slotItem.Components;
+                ItemStack remainder = new(slotItem.ItemId, remaining, slotItem.Durability)
+                {
+                    Components = slotItem.Components,
+                };
                 source.SetSlot(slotIndex, remainder);
             }
             else
@@ -314,7 +310,7 @@ namespace Lithforge.Runtime.UI.Interaction
         // ────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Swaps the hovered inventory slot with the given hotbar slot index.
+        ///     Swaps the hovered inventory slot with the given hotbar slot index.
         /// </summary>
         public void NumberKeySwap(
             ISlotContainer hoveredContainer,
@@ -347,7 +343,7 @@ namespace Lithforge.Runtime.UI.Interaction
         // ────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Takes the crafting output. Adds result to held stack.
+        ///     Takes the crafting output. Adds result to held stack.
         /// </summary>
         public void TakeOutput(CraftingOutputContainerAdapter output, CraftingGridContainerAdapter grid)
         {
@@ -358,19 +354,19 @@ namespace Lithforge.Runtime.UI.Interaction
 
             ItemStack result = output.GetSlot(0);
 
-            if (_held.IsEmpty)
+            if (Held.IsEmpty)
             {
-                _held.Set(result);
+                Held.Set(result);
             }
-            else if (ItemStack.CanStack(_held.Stack, result))
+            else if (ItemStack.CanStack(Held.Stack, result))
             {
-                int maxStack = GetMaxStack(_held.Stack);
+                int maxStack = GetMaxStack(Held.Stack);
 
-                if (_held.Stack.Count + result.Count <= maxStack)
+                if (Held.Stack.Count + result.Count <= maxStack)
                 {
-                    ItemStack updated = _held.Stack;
+                    ItemStack updated = Held.Stack;
                     updated.Count += result.Count;
-                    _held.Set(updated);
+                    Held.Set(updated);
                 }
                 else
                 {
@@ -386,7 +382,7 @@ namespace Lithforge.Runtime.UI.Interaction
         }
 
         /// <summary>
-        /// Shift+click on output: craft as many as possible and send to inventory.
+        ///     Shift+click on output: craft as many as possible and send to inventory.
         /// </summary>
         public void ShiftClickOutput(
             CraftingOutputContainerAdapter output,
@@ -412,8 +408,8 @@ namespace Lithforge.Runtime.UI.Interaction
                 {
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(toolData);
                     int durability = tool != null ? tool.MaxDurability : -1;
-                    ItemStack resultStack = new ItemStack(match.ResultItem, 1, durability);
-                    DataComponentMap toolMap = new DataComponentMap();
+                    ItemStack resultStack = new(match.ResultItem, 1, durability);
+                    DataComponentMap toolMap = new();
                     toolMap.Set(DataComponentTypes.ToolInstanceId,
                         new ToolInstanceComponent(tool));
                     resultStack.Components = toolMap;
@@ -453,28 +449,28 @@ namespace Lithforge.Runtime.UI.Interaction
         }
 
         /// <summary>
-        /// Returns held items to inventory on screen close.
+        ///     Returns held items to inventory on screen close.
         /// </summary>
         public void ReturnHeldToInventory(Inventory inventory)
         {
-            if (_held.IsEmpty)
+            if (Held.IsEmpty)
             {
                 return;
             }
 
-            ItemStack heldStack = _held.Stack;
+            ItemStack heldStack = Held.Stack;
             ItemEntry def = _itemRegistry.Get(heldStack.ItemId);
             int maxStack = def != null ? def.MaxStackSize : 64;
 
             if (heldStack.HasComponents)
             {
                 int leftOver = inventory.AddItemStack(heldStack);
-                _held.Set(leftOver == 0 ? ItemStack.Empty : heldStack);
+                Held.Set(leftOver == 0 ? ItemStack.Empty : heldStack);
             }
             else if (heldStack.Durability > 0)
             {
                 int leftOver = inventory.AddItemWithDurability(heldStack.ItemId, heldStack.Durability);
-                _held.Set(leftOver == 0 ? ItemStack.Empty : heldStack);
+                Held.Set(leftOver == 0 ? ItemStack.Empty : heldStack);
             }
             else
             {
@@ -482,27 +478,27 @@ namespace Lithforge.Runtime.UI.Interaction
 
                 if (leftOver == 0)
                 {
-                    _held.Clear();
+                    Held.Clear();
                 }
                 else
                 {
                     ItemStack partial = heldStack;
                     partial.Count = leftOver;
-                    _held.Set(partial);
+                    Held.Set(partial);
                 }
             }
         }
 
         /// <summary>
-        /// Resets paint/hover state. Call on screen close.
+        ///     Resets paint/hover state. Call on screen close.
         /// </summary>
         public void ResetState()
         {
             _isPainting = false;
             _paintPending = false;
             _paintedSlots.Clear();
-            _hoveredContainer = null;
-            _hoveredSlotIndex = -1;
+            HoveredContainer = null;
+            HoveredSlotIndex = -1;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -515,9 +511,9 @@ namespace Lithforge.Runtime.UI.Interaction
             _paintPending = true;
             _paintOriginSlot = slotIndex;
             _paintOriginContainer = container;
-            _paintItemId = _held.IsEmpty ? default : _held.Stack.ItemId;
-            _paintDurability = _held.IsEmpty ? -1 : _held.Stack.Durability;
-            _paintComponents = _held.IsEmpty ? null : _held.Stack.Components;
+            _paintItemId = Held.IsEmpty ? default : Held.Stack.ItemId;
+            _paintDurability = Held.IsEmpty ? -1 : Held.Stack.Durability;
+            _paintComponents = Held.IsEmpty ? null : Held.Stack.Components;
             _paintedSlots.Clear();
             _paintedSlots.Add(MakePaintKey(container, slotIndex));
         }
@@ -548,7 +544,7 @@ namespace Lithforge.Runtime.UI.Interaction
                 return;
             }
 
-            if (_held.IsEmpty)
+            if (Held.IsEmpty)
             {
                 _isPainting = false;
                 _paintPending = false;
@@ -578,8 +574,10 @@ namespace Lithforge.Runtime.UI.Interaction
             // Place 1
             if (slotItem.IsEmpty)
             {
-                ItemStack paintStack = new ItemStack(_paintItemId, 1, _paintDurability);
-                paintStack.Components = _paintComponents;
+                ItemStack paintStack = new(_paintItemId, 1, _paintDurability)
+                {
+                    Components = _paintComponents,
+                };
                 container.SetSlot(slotIndex, paintStack);
             }
             else
@@ -589,9 +587,9 @@ namespace Lithforge.Runtime.UI.Interaction
                 container.SetSlot(slotIndex, updated);
             }
 
-            ItemStack h = _held.Stack;
+            ItemStack h = Held.Stack;
             h.Count -= 1;
-            _held.Set(h.IsEmpty ? ItemStack.Empty : h);
+            Held.Set(h.IsEmpty ? ItemStack.Empty : h);
             _paintedSlots.Add(key);
             container.OnSlotChanged(slotIndex);
         }
@@ -644,8 +642,10 @@ namespace Lithforge.Runtime.UI.Interaction
                 }
 
                 int toMove = Mathf.Min(remaining, maxStack);
-                ItemStack newSlot = new ItemStack(source.ItemId, toMove, source.Durability);
-                newSlot.Components = source.Components;
+                ItemStack newSlot = new(source.ItemId, toMove, source.Durability)
+                {
+                    Components = source.Components,
+                };
                 target.SetSlot(i, newSlot);
                 remaining -= toMove;
             }
@@ -655,14 +655,16 @@ namespace Lithforge.Runtime.UI.Interaction
 
         private ItemStack BuildPaintProbe()
         {
-            ItemStack probe = new ItemStack(_paintItemId, 1, _paintDurability);
-            probe.Components = _paintComponents;
+            ItemStack probe = new(_paintItemId, 1, _paintDurability)
+            {
+                Components = _paintComponents,
+            };
             return probe;
         }
 
         private static long MakePaintKey(ISlotContainer container, int slotIndex)
         {
-            return ((long)container.GetHashCode() << 32) | (uint)slotIndex;
+            return (long)container.GetHashCode() << 32 | (uint)slotIndex;
         }
     }
 }

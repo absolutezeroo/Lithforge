@@ -105,12 +105,12 @@ namespace Lithforge.Runtime.Content.Blocks
         /// </summary>
         [FormerlySerializedAs("_properties"),Header("Properties")]
         [Tooltip("Block state properties (axis, facing, lit, etc.)")]
-        [SerializeField] private List<BlockPropertyEntry> properties = new List<BlockPropertyEntry>();
+        [SerializeField] private List<BlockPropertyEntry> properties = new();
 
         /// <summary>Tag string IDs this block belongs to (e.g. "mineable_pickaxe", "logs").</summary>
         [FormerlySerializedAs("_tags"),Header("Tags")]
         [Tooltip("Tags this block belongs to (string ids for backward compatibility)")]
-        [SerializeField] private List<string> tags = new List<string>();
+        [SerializeField] private List<string> tags = new();
 
         /// <summary>ResourceId namespace — almost always "lithforge" for base content.</summary>
         public string Namespace

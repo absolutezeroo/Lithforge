@@ -134,7 +134,7 @@ namespace Lithforge.Runtime.Content.WorldGen
         /// <summary>Tint applied to water faces rendered within this biome.</summary>
         [FormerlySerializedAs("_waterColor"),Header("Tinting")]
         [Tooltip("Water tint color for this biome")]
-        [SerializeField] private Color waterColor = new Color(0.247f, 0.463f, 0.894f, 1f);
+        [SerializeField] private Color waterColor = new(0.247f, 0.463f, 0.894f, 1f);
 
         /// <summary>Representative color used on the minimap and world overview.</summary>
         [FormerlySerializedAs("_mapColor"),Header("Map")]

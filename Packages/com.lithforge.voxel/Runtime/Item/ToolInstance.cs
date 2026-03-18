@@ -12,11 +12,17 @@ namespace Lithforge.Voxel.Item
         public float BaseDamage;
 
         public float BaseSpeed;
+
         public int CurrentDurability;
+
         public int EffectiveToolLevel;
+
         public bool IsBroken;
+
         public int MaxDurability;
+
         public ToolPart[] Parts;
+
         public ModifierSlot[] Slots;
 
         public ToolType ToolType;
@@ -32,17 +38,13 @@ namespace Lithforge.Voxel.Item
 
                 float pct = MaxDurability > 0 ? (float)CurrentDurability / MaxDurability : 0f;
 
-                switch (pct)
+                return pct switch
                 {
-                    case > 0.50f:
-                        return ToolDurabilityState.New;
-                    case > 0.20f:
-                        return ToolDurabilityState.Worn;
-                    case > 0.05f:
-                        return ToolDurabilityState.Damaged;
-                    default:
-                        return ToolDurabilityState.Critical;
-                }
+                    > 0.50f => ToolDurabilityState.New,
+                    > 0.20f => ToolDurabilityState.Worn,
+                    > 0.05f => ToolDurabilityState.Damaged,
+                    _ => ToolDurabilityState.Critical,
+                };
             }
         }
 
@@ -59,7 +61,7 @@ namespace Lithforge.Voxel.Item
             }
             else
             {
-                CurrentDurability = System.Math.Min(durability, MaxDurability);
+                CurrentDurability = Math.Min(durability, MaxDurability);
                 IsBroken = false;
             }
         }
@@ -169,14 +171,16 @@ namespace Lithforge.Voxel.Item
         /// </summary>
         public ToolInstance Clone()
         {
-            ToolInstance copy = new ToolInstance();
-            copy.ToolType = ToolType;
-            copy.BaseDamage = BaseDamage;
-            copy.BaseSpeed = BaseSpeed;
-            copy.CurrentDurability = CurrentDurability;
-            copy.MaxDurability = MaxDurability;
-            copy.IsBroken = IsBroken;
-            copy.EffectiveToolLevel = EffectiveToolLevel;
+            ToolInstance copy = new()
+            {
+                ToolType = ToolType,
+                BaseDamage = BaseDamage,
+                BaseSpeed = BaseSpeed,
+                CurrentDurability = CurrentDurability,
+                MaxDurability = MaxDurability,
+                IsBroken = IsBroken,
+                EffectiveToolLevel = EffectiveToolLevel,
+            };
 
             if (Parts != null)
             {
@@ -189,6 +193,7 @@ namespace Lithforge.Voxel.Item
                     if (Parts[i].TraitIds != null)
                     {
                         copy.Parts[i].TraitIds = new ResourceId[Parts[i].TraitIds.Length];
+
                         Array.Copy(Parts[i].TraitIds, copy.Parts[i].TraitIds, Parts[i].TraitIds.Length);
                     }
                 }
@@ -197,6 +202,7 @@ namespace Lithforge.Voxel.Item
             if (Slots != null)
             {
                 copy.Slots = new ModifierSlot[Slots.Length];
+
                 Array.Copy(Slots, copy.Slots, Slots.Length);
             }
 

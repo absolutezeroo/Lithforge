@@ -5,6 +5,6 @@ namespace Lithforge.Network
         None = 0,
         DedicatedServer = 1,
         Client = 2,
-        Host = 3
+        Host = 3,
     }
 }

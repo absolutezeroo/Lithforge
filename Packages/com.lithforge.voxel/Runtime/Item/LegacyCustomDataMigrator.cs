@@ -20,7 +20,7 @@ namespace Lithforge.Voxel.Item
             // Try ToolInstance first (most common case)
             if (ToolInstanceSerializer.TryDeserialize(customData, out ToolInstance tool))
             {
-                DataComponentMap map = new DataComponentMap();
+                DataComponentMap map = new();
                 map.Set(DataComponentTypes.ToolInstanceId, new ToolInstanceComponent(tool));
                 return map;
             }
@@ -28,7 +28,7 @@ namespace Lithforge.Voxel.Item
             // Try ToolPartData
             if (ToolPartDataSerializer.TryDeserialize(customData, out ToolPartData partData))
             {
-                DataComponentMap map = new DataComponentMap();
+                DataComponentMap map = new();
                 map.Set(DataComponentTypes.ToolPartDataId, new ToolPartDataComponent(partData));
                 return map;
             }

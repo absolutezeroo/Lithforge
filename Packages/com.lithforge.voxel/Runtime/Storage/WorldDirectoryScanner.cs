@@ -8,11 +8,11 @@ namespace Lithforge.Voxel.Storage
     public static class WorldDirectoryScanner
     {
         private const int MaxNameLength = 64;
-        private static readonly Regex s_invalidChars = new Regex(@"[^a-zA-Z0-9_\-]", RegexOptions.Compiled);
+        private static readonly Regex s_invalidChars = new(@"[^a-zA-Z0-9_\-]", RegexOptions.Compiled);
 
         public static List<WorldScanEntry> ScanWorlds(string worldsRoot)
         {
-            List<WorldScanEntry> entries = new List<WorldScanEntry>();
+            List<WorldScanEntry> entries = new();
 
             if (!Directory.Exists(worldsRoot))
             {
@@ -45,7 +45,7 @@ namespace Lithforge.Voxel.Storage
             }
 
             // Sort by last played (most recent first), nulls last
-            entries.Sort((WorldScanEntry a, WorldScanEntry b) =>
+            entries.Sort((a, b) =>
             {
                 if (a.Metadata == null && b.Metadata == null)
                 {
@@ -89,13 +89,15 @@ namespace Lithforge.Voxel.Storage
 
             Directory.CreateDirectory(worldDir);
 
-            WorldMetadata meta = new WorldMetadata();
-            meta.DisplayName = displayName;
-            meta.Seed = seed;
-            meta.GameMode = mode;
-            meta.CreationDate = DateTime.UtcNow;
-            meta.LastPlayed = DateTime.UtcNow;
-            meta.DataVersion = 2;
+            WorldMetadata meta = new()
+            {
+                DisplayName = displayName,
+                Seed = seed,
+                GameMode = mode,
+                CreationDate = DateTime.UtcNow,
+                LastPlayed = DateTime.UtcNow,
+                DataVersion = 2,
+            };
 
             meta.Save(Path.Combine(worldDir, "world.json"));
 

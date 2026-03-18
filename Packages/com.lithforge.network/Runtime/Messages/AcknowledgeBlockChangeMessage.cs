@@ -50,7 +50,7 @@ namespace Lithforge.Network.Messages
 
         public static AcknowledgeBlockChangeMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            AcknowledgeBlockChangeMessage msg = new AcknowledgeBlockChangeMessage();
+            AcknowledgeBlockChangeMessage msg = new();
 
             if (length < Size)
             {

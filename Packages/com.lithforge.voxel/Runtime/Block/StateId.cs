@@ -12,7 +12,7 @@ namespace Lithforge.Voxel.Block
     {
         public readonly ushort Value;
 
-        public static readonly StateId Air = new StateId(0);
+        public static readonly StateId Air = new(0);
 
         public StateId(ushort value)
         {

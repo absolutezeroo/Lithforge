@@ -68,7 +68,7 @@ namespace Lithforge.Network.Messages
 
         public static PlayerStateMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            PlayerStateMessage msg = new PlayerStateMessage();
+            PlayerStateMessage msg = new();
 
             if (length < Size)
             {

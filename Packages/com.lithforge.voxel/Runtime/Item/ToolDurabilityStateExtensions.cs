@@ -2,29 +2,20 @@ namespace Lithforge.Voxel.Item
 {
     public static class ToolDurabilityStateExtensions
     {
-        public static float GetEffectiveSpeedMultiplier(this ToolDurabilityState s)
+        /// <summary>
+        /// Returns a mining speed multiplier based on the tool's durability tier.
+        /// Applied in <see cref="MiningContext.SpeedMultiplier"/> during mining calculations.
+        /// </summary>
+        public static float GetEffectiveSpeedMultiplier(this ToolDurabilityState state)
         {
-            return s switch
+            return state switch
             {
-                ToolDurabilityState.New      => 1.0f,
-                ToolDurabilityState.Worn     => 0.9f,
-                ToolDurabilityState.Damaged  => 0.7f,
-                ToolDurabilityState.Critical => 0.4f,
-                ToolDurabilityState.Broken   => 0.0f,
-                _                            => 1.0f,
-            };
-        }
-
-        public static int GetCrackStage(this ToolDurabilityState s, float normalizedDur)
-        {
-            return s switch
-            {
-                ToolDurabilityState.New      => 0,
-                ToolDurabilityState.Worn     => 1 + (int)((1f - normalizedDur / 0.5f) * 3),
-                ToolDurabilityState.Damaged  => 4 + (int)((1f - normalizedDur / 0.2f) * 3),
-                ToolDurabilityState.Critical => 7 + (int)((1f - normalizedDur / 0.05f) * 2),
-                ToolDurabilityState.Broken   => 10,
-                _                            => 0,
+                ToolDurabilityState.New => 1.0f,
+                ToolDurabilityState.Worn => 1.0f,
+                ToolDurabilityState.Damaged => 0.75f,
+                ToolDurabilityState.Critical => 0.5f,
+                ToolDurabilityState.Broken => 0.0f,
+                _ => 1.0f,
             };
         }
     }

@@ -150,12 +150,12 @@ namespace Lithforge.WorldGen.Decoration
                     int worldY = chunkCoord.y * ChunkConstants.Size + localY;
                     int worldZ = chunkCoord.z * ChunkConstants.Size + localZ;
 
-                    int3 targetChunk = new int3(
+                    int3 targetChunk = new(
                         (int)math.floor((float)worldX / ChunkConstants.Size),
                         (int)math.floor((float)worldY / ChunkConstants.Size),
                         (int)math.floor((float)worldZ / ChunkConstants.Size));
 
-                    int3 targetLocal = new int3(
+                    int3 targetLocal = new(
                         ((worldX % ChunkConstants.Size) + ChunkConstants.Size) % ChunkConstants.Size,
                         ((worldY % ChunkConstants.Size) + ChunkConstants.Size) % ChunkConstants.Size,
                         ((worldZ % ChunkConstants.Size) + ChunkConstants.Size) % ChunkConstants.Size);

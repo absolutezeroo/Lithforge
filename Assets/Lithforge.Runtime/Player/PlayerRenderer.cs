@@ -28,8 +28,7 @@ namespace Lithforge.Runtime.Player
         private static readonly int s_partTransformsId = Shader.PropertyToID("_PartTransforms");
         private static readonly int s_skinTexId = Shader.PropertyToID("_SkinTex");
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
-        private static readonly Bounds s_worldBounds =
-            new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+        private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
         // GPU buffers — player model mesh (static)
         private readonly GraphicsBuffer _playerVertexBuffer;

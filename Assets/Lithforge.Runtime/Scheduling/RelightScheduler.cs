@@ -27,21 +27,21 @@ namespace Lithforge.Runtime.Scheduling
         /// Reusable list for FillChunksNeedingRelight — avoids per-frame allocation.
         /// Owner: RelightScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<ManagedChunk> _relightCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _relightCache = new();
 
         /// <summary>
         /// Relight jobs in flight, awaiting completion next frame.
         /// Two-phase pattern: schedule frame N, complete frame N+1.
         /// Owner: RelightScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<PendingRelight> _inFlightRelights = new List<PendingRelight>();
+        private readonly List<PendingRelight> _inFlightRelights = new();
 
         /// <summary>
         /// Pool for List&lt;BorderLightEntry&gt; snapshots used during relight.
         /// Avoids per-relight allocation of the old border entry snapshot list.
         /// Owner: RelightScheduler. Lifetime: application.
         /// </summary>
-        private readonly Stack<List<BorderLightEntry>> _borderEntryListPool = new Stack<List<BorderLightEntry>>();
+        private readonly Stack<List<BorderLightEntry>> _borderEntryListPool = new();
 
         /// <summary>
         /// Reusable flat array for O(1) old-border-entry lookup in ProcessBorderCascade.
@@ -58,12 +58,12 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private static readonly int3[] s_faceOffsets =
         {
-            new int3(1, 0, 0),   // 0: +X
-            new int3(-1, 0, 0),  // 1: -X
-            new int3(0, 1, 0),   // 2: +Y
-            new int3(0, -1, 0),  // 3: -Y
-            new int3(0, 0, 1),   // 4: +Z
-            new int3(0, 0, -1),  // 5: -Z
+            new(1, 0, 0),  // 0: +X
+            new(-1, 0, 0), // 1: -X
+            new(0, 1, 0),  // 2: +Y
+            new(0, -1, 0), // 3: -Y
+            new(0, 0, 1),  // 4: +Z
+            new(0, 0, -1), // 5: -Z
         };
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 // Build targeted changed indices from pending edits
-                NativeArray<int> changedIndices = new NativeArray<int>(
+                NativeArray<int> changedIndices = new(
                     chunk.PendingEditIndices.Count, Allocator.Persistent);
 
                 for (int j = 0; j < chunk.PendingEditIndices.Count; j++)
@@ -146,7 +146,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 // Build border removal seeds from pending cross-chunk cascade
                 NativeArray<NativeBorderLightEntry> borderRemovalSeeds =
-                    new NativeArray<NativeBorderLightEntry>(
+                    new(
                         chunk.PendingBorderRemovals.Count, Allocator.Persistent);
 
                 for (int j = 0; j < chunk.PendingBorderRemovals.Count; j++)
@@ -163,8 +163,7 @@ namespace Lithforge.Runtime.Scheduling
                 chunk.PendingBorderRemovals.Clear();
 
                 // Allocate border light output for post-relight border scanning
-                NativeList<NativeBorderLightEntry> borderLightOutput =
-                    new NativeList<NativeBorderLightEntry>(256, Allocator.Persistent);
+                NativeList<NativeBorderLightEntry> borderLightOutput = new(256, Allocator.Persistent);
 
                 // Snapshot old border entries for diffing after job completes
                 List<BorderLightEntry> oldBorderEntries;
@@ -181,7 +180,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 oldBorderEntries.AddRange(chunk.BorderLightEntries);
 
-                LightRemovalJob removalJob = new LightRemovalJob
+                LightRemovalJob removalJob = new()
                 {
                     LightData = chunk.LightData,
                     ChunkData = chunk.Data,
@@ -515,23 +514,22 @@ namespace Lithforge.Runtime.Scheduling
         {
             int lastIdx = ChunkConstants.Size - 1;
 
-            switch (sourceFace)
+            return sourceFace switch
             {
-                case 0: // +X face of source -> -X face of receiver (x=0)
-                    return new int3(0, sourceLocal.y, sourceLocal.z);
-                case 1: // -X face of source -> +X face of receiver (x=31)
-                    return new int3(lastIdx, sourceLocal.y, sourceLocal.z);
-                case 2: // +Y face of source -> -Y face of receiver (y=0)
-                    return new int3(sourceLocal.x, 0, sourceLocal.z);
-                case 3: // -Y face of source -> +Y face of receiver (y=31)
-                    return new int3(sourceLocal.x, lastIdx, sourceLocal.z);
-                case 4: // +Z face of source -> -Z face of receiver (z=0)
-                    return new int3(sourceLocal.x, sourceLocal.y, 0);
-                case 5: // -Z face of source -> +Z face of receiver (z=31)
-                    return new int3(sourceLocal.x, sourceLocal.y, lastIdx);
-                default:
-                    return sourceLocal;
-            }
+                0 => // +X face of source -> -X face of receiver (x=0)
+                    new int3(0, sourceLocal.y, sourceLocal.z),
+                1 => // -X face of source -> +X face of receiver (x=31)
+                    new int3(lastIdx, sourceLocal.y, sourceLocal.z),
+                2 => // +Y face of source -> -Y face of receiver (y=0)
+                    new int3(sourceLocal.x, 0, sourceLocal.z),
+                3 => // -Y face of source -> +Y face of receiver (y=31)
+                    new int3(sourceLocal.x, lastIdx, sourceLocal.z),
+                4 => // +Z face of source -> -Z face of receiver (z=0)
+                    new int3(sourceLocal.x, sourceLocal.y, 0),
+                5 => // -Z face of source -> +Z face of receiver (z=31)
+                    new int3(sourceLocal.x, sourceLocal.y, lastIdx),
+                _ => sourceLocal,
+            };
         }
 
         private bool IsRelightInFlight(ManagedChunk chunk)

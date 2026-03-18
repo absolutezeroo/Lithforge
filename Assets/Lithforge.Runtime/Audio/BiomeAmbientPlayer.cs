@@ -26,12 +26,12 @@ namespace Lithforge.Runtime.Audio
         {
             _crossfadeTime = crossfadeTime;
 
-            GameObject childA = new GameObject("AmbientSourceA");
+            GameObject childA = new("AmbientSourceA");
             childA.transform.SetParent(host.transform);
             _sourceA = childA.AddComponent<AudioSource>();
             ConfigureSource(_sourceA, ambientGroup);
 
-            GameObject childB = new GameObject("AmbientSourceB");
+            GameObject childB = new("AmbientSourceB");
             childB.transform.SetParent(host.transform);
             _sourceB = childB.AddComponent<AudioSource>();
             ConfigureSource(_sourceB, ambientGroup);

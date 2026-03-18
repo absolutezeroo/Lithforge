@@ -29,7 +29,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         [SerializeField] private int seed = 42;
 
         // Reusable scratch list for dirtied chunk coordinates
-        private readonly List<int3> _dirtiedChunks = new List<int3>();
+        private readonly List<int3> _dirtiedChunks = new();
 
         public override IEnumerator Execute(BenchmarkContext context)
         {
@@ -44,10 +44,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
             int pz = Mathf.FloorToInt(playerPos.z);
 
             // Use torch StateId — stone (1) as fallback if torch isn't available
-            StateId torchState = new StateId(1);
+            StateId torchState = new(1);
             StateId airState = StateId.Air;
 
-            System.Random rng = new System.Random(seed);
+            System.Random rng = new(seed);
             int placed = 0;
             _dirtiedChunks.Clear();
 
@@ -57,7 +57,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 int y = py + rng.Next(-spreadRadius / 4, spreadRadius / 4 + 1);
                 int z = pz + rng.Next(-spreadRadius, spreadRadius + 1);
 
-                int3 worldPos = new int3(x, y, z);
+                int3 worldPos = new(x, y, z);
                 StateId fillState = remove ? airState : torchState;
                 context.ChunkManager.SetBlock(worldPos, fillState, _dirtiedChunks);
                 placed++;

@@ -30,7 +30,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void ExtractPosX_ReturnsX31Plane()
         {
-            StateId stone = new StateId(1);
+            StateId stone = new(1);
 
             // Fill entire x=31 plane with stone
             for (int y = 0; y < ChunkConstants.Size; y++)
@@ -54,7 +54,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void ExtractNegX_ReturnsX0Plane()
         {
-            StateId stone = new StateId(1);
+            StateId stone = new(1);
 
             // Fill only x=0, y=0, z=0
             _chunkData[ChunkData.GetIndex(0, 0, 0)] = stone;
@@ -75,7 +75,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void ExtractPosY_ReturnsY31Plane()
         {
-            StateId stone = new StateId(1);
+            StateId stone = new(1);
 
             // Place stone at x=5, y=31, z=10
             _chunkData[ChunkData.GetIndex(5, 31, 10)] = stone;

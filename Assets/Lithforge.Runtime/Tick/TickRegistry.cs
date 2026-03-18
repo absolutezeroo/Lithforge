@@ -8,7 +8,7 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public sealed class TickRegistry
     {
-        private readonly List<ITickable> _tickables = new List<ITickable>();
+        private readonly List<ITickable> _tickables = new();
 
         public void Register(ITickable tickable)
         {

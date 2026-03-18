@@ -33,7 +33,7 @@ namespace Lithforge.Meshing
                         }
 
                         half4 color = UnpackColor(state.MapColor);
-                        float3 pos = new float3(x, y, z);
+                        float3 pos = new(x, y, z);
 
                         // +X (East)
                         if (IsFaceVisible(x + 1, y, z, 1, 0, 0))
@@ -98,7 +98,7 @@ namespace Lithforge.Meshing
             float3 v0, v1, v2, v3;
             GetFaceVertices(pos, faceIndex, out v0, out v1, out v2, out v3);
 
-            MeshVertex vert0 = new MeshVertex
+            MeshVertex vert0 = new()
             {
                 Position = v0,
                 Normal = normal,
@@ -108,7 +108,7 @@ namespace Lithforge.Meshing
                 Pad = 0,
             };
 
-            MeshVertex vert1 = new MeshVertex
+            MeshVertex vert1 = new()
             {
                 Position = v1,
                 Normal = normal,
@@ -118,7 +118,7 @@ namespace Lithforge.Meshing
                 Pad = 0,
             };
 
-            MeshVertex vert2 = new MeshVertex
+            MeshVertex vert2 = new()
             {
                 Position = v2,
                 Normal = normal,
@@ -128,7 +128,7 @@ namespace Lithforge.Meshing
                 Pad = 0,
             };
 
-            MeshVertex vert3 = new MeshVertex
+            MeshVertex vert3 = new()
             {
                 Position = v3,
                 Normal = normal,

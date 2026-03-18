@@ -37,7 +37,7 @@ namespace Lithforge.Runtime.Rendering
                 return true;
             }
 
-            float3 min = new float3(
+            float3 min = new(
                 chunkCoord.x * Lithforge.Voxel.Chunk.ChunkConstants.Size,
                 chunkCoord.y * Lithforge.Voxel.Chunk.ChunkConstants.Size,
                 chunkCoord.z * Lithforge.Voxel.Chunk.ChunkConstants.Size);
@@ -46,7 +46,7 @@ namespace Lithforge.Runtime.Rendering
                 Lithforge.Voxel.Chunk.ChunkConstants.Size,
                 Lithforge.Voxel.Chunk.ChunkConstants.Size);
 
-            Bounds bounds = new Bounds();
+            Bounds bounds = new();
             bounds.SetMinMax(
                 new Vector3(min.x, min.y, min.z),
                 new Vector3(max.x, max.y, max.z));

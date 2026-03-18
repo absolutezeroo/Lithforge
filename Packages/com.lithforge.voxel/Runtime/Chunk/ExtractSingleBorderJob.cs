@@ -37,29 +37,21 @@ namespace Lithforge.Voxel.Chunk
             {
                 for (int u = 0; u < size; u++)
                 {
-                    int srcIndex;
 
-                    switch (FaceDirection)
+                    int srcIndex = FaceDirection switch
                     {
-                        case 0: // +X: x=31, u=z, v=y
-                            srcIndex = Chunk.ChunkData.GetIndex(lastIdx, v, u);
-                            break;
-                        case 1: // -X: x=0, u=z, v=y
-                            srcIndex = Chunk.ChunkData.GetIndex(0, v, u);
-                            break;
-                        case 2: // +Y: y=31, u=x, v=z
-                            srcIndex = Chunk.ChunkData.GetIndex(u, lastIdx, v);
-                            break;
-                        case 3: // -Y: y=0, u=x, v=z
-                            srcIndex = Chunk.ChunkData.GetIndex(u, 0, v);
-                            break;
-                        case 4: // +Z: z=31, u=x, v=y
-                            srcIndex = Chunk.ChunkData.GetIndex(u, v, lastIdx);
-                            break;
-                        default: // -Z: z=0, u=x, v=y
-                            srcIndex = Chunk.ChunkData.GetIndex(u, v, 0);
-                            break;
-                    }
+                        0 => // +X: x=31, u=z, v=y
+                            Chunk.ChunkData.GetIndex(lastIdx, v, u),
+                        1 => // -X: x=0, u=z, v=y
+                            Chunk.ChunkData.GetIndex(0, v, u),
+                        2 => // +Y: y=31, u=x, v=z
+                            Chunk.ChunkData.GetIndex(u, lastIdx, v),
+                        3 => // -Y: y=0, u=x, v=z
+                            Chunk.ChunkData.GetIndex(u, 0, v),
+                        4 => // +Z: z=31, u=x, v=y
+                            Chunk.ChunkData.GetIndex(u, v, lastIdx),
+                        _ => Chunk.ChunkData.GetIndex(u, v, 0),
+                    };
 
                     Output[v * size + u] = ChunkData[srcIndex];
                 }

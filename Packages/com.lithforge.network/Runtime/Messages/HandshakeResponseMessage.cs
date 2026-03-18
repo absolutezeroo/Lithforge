@@ -39,7 +39,7 @@ namespace Lithforge.Network.Messages
 
         public static HandshakeResponseMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            HandshakeResponseMessage msg = new HandshakeResponseMessage();
+            HandshakeResponseMessage msg = new();
 
             if (length < Size)
             {

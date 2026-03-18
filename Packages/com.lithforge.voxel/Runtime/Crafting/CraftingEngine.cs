@@ -10,7 +10,7 @@ namespace Lithforge.Voxel.Crafting
     public sealed class CraftingEngine
     {
         private readonly List<RecipeEntry> _recipes;
-        private readonly List<ResourceId> _shapelessCache = new List<ResourceId>();
+        private readonly List<ResourceId> _shapelessCache = new();
         private bool[] _matchedCache;
 
         public CraftingEngine(List<RecipeEntry> recipes)

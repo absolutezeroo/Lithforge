@@ -26,7 +26,7 @@ namespace Lithforge.Network.Server
         private bool _disposed;
 
         // Reusable list for timeout iteration (avoids allocation during Update)
-        private readonly List<ConnectionId> _timeoutDisconnectList = new List<ConnectionId>();
+        private readonly List<ConnectionId> _timeoutDisconnectList = new();
 
         public int PeerCount
         {
@@ -172,7 +172,8 @@ namespace Lithforge.Network.Server
                 return;
             }
 
-            DisconnectMessage msg = new DisconnectMessage { Reason = reason };
+            DisconnectMessage msg = new()
+                { Reason = reason };
             SendTo(connectionId, msg, PipelineId.ReliableSequenced);
 
             peer.StateMachine.Transition(ConnectionState.Disconnecting, 0f);
@@ -316,13 +317,13 @@ namespace Lithforge.Network.Server
             ushort playerId = _peerRegistry.AllocatePlayerId(connectionId);
             peer.PlayerName = request.PlayerName ?? "";
 
-            HandshakeResponseMessage response = new HandshakeResponseMessage
+            HandshakeResponseMessage response = new()
             {
                 Accepted = true,
                 RejectReason = HandshakeRejectReason.None,
                 PlayerId = playerId,
                 ServerTick = CurrentTick,
-                WorldSeed = WorldSeed
+                WorldSeed = WorldSeed,
             };
 
             SendTo(connectionId, response, PipelineId.ReliableSequenced);
@@ -335,10 +336,10 @@ namespace Lithforge.Network.Server
         private void OnPing(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             PingMessage ping = PingMessage.Deserialize(data, offset, length);
-            PongMessage pong = new PongMessage
+            PongMessage pong = new()
             {
                 EchoTimestamp = ping.Timestamp,
-                ServerTick = CurrentTick
+                ServerTick = CurrentTick,
             };
             SendTo(connectionId, pong, PipelineId.UnreliableSequenced);
         }
@@ -355,13 +356,13 @@ namespace Lithforge.Network.Server
 
         private void SendHandshakeReject(ConnectionId connectionId, HandshakeRejectReason reason)
         {
-            HandshakeResponseMessage response = new HandshakeResponseMessage
+            HandshakeResponseMessage response = new()
             {
                 Accepted = false,
                 RejectReason = reason,
                 PlayerId = 0,
                 ServerTick = 0,
-                WorldSeed = 0
+                WorldSeed = 0,
             };
 
             SendTo(connectionId, response, PipelineId.ReliableSequenced);
@@ -420,7 +421,8 @@ namespace Lithforge.Network.Server
                 if (currentTime - peer.LastPingTime >= NetworkConstants.PingIntervalSeconds)
                 {
                     peer.LastPingTime = currentTime;
-                    PingMessage ping = new PingMessage { Timestamp = currentTime };
+                    PingMessage ping = new()
+                        { Timestamp = currentTime };
                     SendTo(peer.ConnectionId, ping, PipelineId.UnreliableSequenced);
                 }
             }

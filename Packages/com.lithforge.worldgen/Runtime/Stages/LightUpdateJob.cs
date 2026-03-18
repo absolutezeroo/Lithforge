@@ -35,8 +35,8 @@ namespace Lithforge.WorldGen.Stages
 
         public void Execute()
         {
-            NativeQueue<int> sunQueue = new NativeQueue<int>(Allocator.TempJob);
-            NativeQueue<int> blockQueue = new NativeQueue<int>(Allocator.TempJob);
+            NativeQueue<int> sunQueue = new(Allocator.TempJob);
+            NativeQueue<int> blockQueue = new(Allocator.TempJob);
 
             // Seed from neighbor border values
             for (int i = 0; i < SeedEntries.Length; i++)

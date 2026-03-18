@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
 using Lithforge.Network;
+using Lithforge.Network.Client;
 using Lithforge.Network.Message;
 using Lithforge.Network.Server;
 using Lithforge.Runtime.Audio;
@@ -12,11 +13,11 @@ using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Settings;
-using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Content.WorldGen;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Debug.Benchmark;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
@@ -31,6 +32,7 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Liquid;
 using Lithforge.Voxel.Loot;
+using Lithforge.Voxel.Network;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Decoration;
@@ -49,6 +51,7 @@ using UnityEngine.UIElements;
 
 using AudioSettings = Lithforge.Runtime.Content.Settings.AudioSettings;
 using ILogger = Lithforge.Core.Logging.ILogger;
+using NetworkRole = Lithforge.Runtime.World.NetworkRole;
 
 namespace Lithforge.Runtime.Bootstrap
 {
@@ -86,19 +89,30 @@ namespace Lithforge.Runtime.Bootstrap
         private BiomeTintManager _biomeTintManager;
         private ChunkManager _chunkManager;
         private ChunkMeshStore _chunkMeshStore;
-        private GpuBufferResizer _gpuBufferResizer;
         private ChunkPool _chunkPool;
-        private LiquidPool _liquidPool;
+        private ClientBlockPredictor _clientBlockPredictor;
+        private ClientChunkHandler _clientChunkHandler;
+        private ClientRemotePlayerHandler _clientRemotePlayerHandler;
         private ContentPipelineResult _contentResult;
         private DecorationStage _decorationStage;
+        private IFrameProfiler _frameProfiler;
         private GameLoop _gameLoop;
         private GenerationPipeline _generationPipeline;
+        private GpuBufferResizer _gpuBufferResizer;
+        private LiquidPool _liquidPool;
         private ILogger _logger;
         private NativeArray<NativeBiomeData> _nativeBiomeData;
         private NativeArray<NativeOreConfig> _nativeOreConfigs;
+        private NetworkClient _networkClient;
+
+        // Network resources (host/client mode)
+        private NetworkServer _networkServer;
         private PauseMenuScreen _pauseMenuScreen;
+        private WorldSession _pendingSession;
+        private IPipelineStats _pipelineStats;
         private bool _quitInProgress;
         private bool _quitToTitle;
+        private RemotePlayerManager _remotePlayerManager;
         private SessionLockHandle _sessionLockHandle;
         private bool _sessionShutdownComplete;
 
@@ -109,17 +123,6 @@ namespace Lithforge.Runtime.Bootstrap
         private UserPreferences _userPreferences;
         private WorldMetadata _worldMetadata;
         private WorldStorage _worldStorage;
-        private IFrameProfiler _frameProfiler;
-        private IPipelineStats _pipelineStats;
-        private WorldSession _pendingSession;
-
-        // Network resources (host/client mode)
-        private Lithforge.Network.Server.NetworkServer _networkServer;
-        private Lithforge.Network.Client.NetworkClient _networkClient;
-        private Lithforge.Runtime.Network.ClientChunkHandler _clientChunkHandler;
-        private Lithforge.Runtime.Network.ClientBlockPredictor _clientBlockPredictor;
-        private RemotePlayerManager _remotePlayerManager;
-        private Lithforge.Runtime.Network.ClientRemotePlayerHandler _clientRemotePlayerHandler;
 
         private void Awake()
         {
@@ -145,7 +148,7 @@ namespace Lithforge.Runtime.Bootstrap
                 _pendingSession = null;
                 GameObject selectionObject = new("WorldSelectionScreen");
                 WorldSelectionScreen selectionScreen = selectionObject.AddComponent<WorldSelectionScreen>();
-                selectionScreen.Initialize(earlyPanelSettings, (WorldSession session) =>
+                selectionScreen.Initialize(earlyPanelSettings, session =>
                 {
                     _pendingSession = session;
                 });
@@ -260,8 +263,10 @@ namespace Lithforge.Runtime.Bootstrap
             SavingScreen savingScreen = savingObject.AddComponent<SavingScreen>();
             savingScreen.Initialize(panelSettings);
 
-            SaveProgress progress = new();
-            progress.Phase = SaveState.CompletingJobs;
+            SaveProgress progress = new()
+            {
+                Phase = SaveState.CompletingJobs,
+            };
             savingScreen.SetProgress(progress);
 
             // Let the saving screen render
@@ -682,10 +687,10 @@ namespace Lithforge.Runtime.Bootstrap
             if (_worldMetadata == null)
             {
                 // New world or corrupt metadata — create fresh
-                _worldMetadata = new WorldMetadata();
-                _worldMetadata.DisplayName = _pendingSession.DisplayName ?? "New World";
-                _worldMetadata.Seed = _pendingSession.Seed;
-                _worldMetadata.GameMode = _pendingSession.GameMode;
+                _worldMetadata = new WorldMetadata
+                {
+                    DisplayName = _pendingSession.DisplayName ?? "New World", Seed = _pendingSession.Seed, GameMode = _pendingSession.GameMode,
+                };
                 _worldStorage.SaveMetadataFull(_worldMetadata);
             }
 
@@ -1023,11 +1028,16 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 // Create player parent object
-                GameObject playerObject = new("Player");
-                playerObject.transform.position = new Vector3(
-                    0,
-                    _settings.WorldGen.SeaLevel + _settings.Chunk.InitialSpawnYOffset,
-                    0);
+                GameObject playerObject = new("Player")
+                {
+                    transform =
+                    {
+                        position = new Vector3(
+                            0,
+                            _settings.WorldGen.SeaLevel + _settings.Chunk.InitialSpawnYOffset,
+                            0),
+                    },
+                };
 
                 // Reparent camera under player
                 mainCamera.transform.SetParent(playerObject.transform);
@@ -1088,7 +1098,7 @@ namespace Lithforge.Runtime.Bootstrap
                             int durability = toolTemplate != null
                                 ? toolTemplate.MaxDurability : -1;
                             ItemStack toolStack = new(itemId, 1, durability);
-                            DataComponentMap toolMap = new DataComponentMap();
+                            DataComponentMap toolMap = new();
                             toolMap.Set(DataComponentTypes.ToolInstanceId,
                                 new ToolInstanceComponent(toolTemplate));
                             toolStack.Components = toolMap;
@@ -1117,9 +1127,8 @@ namespace Lithforge.Runtime.Bootstrap
                     playerController);
 
                 // Wire command processor for block placement/break validation
-                LocalInventoryCommandProcessor inventoryProcessor =
-                    new LocalInventoryCommandProcessor(playerInventory);
-                LocalCommandProcessor commandProcessor = new LocalCommandProcessor(
+                LocalInventoryCommandProcessor inventoryProcessor = new(playerInventory);
+                LocalCommandProcessor commandProcessor = new(
                     _chunkManager,
                     _contentResult.NativeStateRegistry,
                     playerObject.transform,
@@ -1360,14 +1369,16 @@ namespace Lithforge.Runtime.Bootstrap
                     _pipelineStats);
 
                 // Add benchmark runner (F5 trigger, SO-driven scenarios)
-                BenchmarkContext benchmarkContext = new();
-                benchmarkContext.Metrics = metricsRegistry;
-                benchmarkContext.ChunkManager = _chunkManager;
-                benchmarkContext.PlayerController = playerController;
-                benchmarkContext.PlayerTransform = playerObject.transform;
-                benchmarkContext.MainCamera = mainCamera;
-                benchmarkContext.GameLoop = _gameLoop;
-                benchmarkContext.BlockInteraction = blockInteraction;
+                BenchmarkContext benchmarkContext = new()
+                {
+                    Metrics = metricsRegistry,
+                    ChunkManager = _chunkManager,
+                    PlayerController = playerController,
+                    PlayerTransform = playerObject.transform,
+                    MainCamera = mainCamera,
+                    GameLoop = _gameLoop,
+                    BlockInteraction = blockInteraction,
+                };
 
                 BenchmarkRunner benchmarkRunner = gameObject.AddComponent<BenchmarkRunner>();
                 benchmarkRunner.Initialize(
@@ -1437,7 +1448,7 @@ namespace Lithforge.Runtime.Bootstrap
                     playerObject.transform.position.y,
                     playerObject.transform.position.z);
 
-                PlayerPhysicsManager playerPhysicsManager = new PlayerPhysicsManager(
+                PlayerPhysicsManager playerPhysicsManager = new(
                     _chunkManager, _contentResult.NativeStateRegistry);
 
                 PlayerPhysicsBody physicsBody = playerPhysicsManager.AddPlayer(
@@ -1445,7 +1456,7 @@ namespace Lithforge.Runtime.Bootstrap
 
                 playerController.SetPhysicsBody(physicsBody);
 
-                InputSnapshotBuilder inputSnapshotBuilder = new InputSnapshotBuilder(
+                InputSnapshotBuilder inputSnapshotBuilder = new(
                     playerObject.transform, mainCamera.transform);
 
                 tickRegistryRef = new TickRegistry();
@@ -1456,7 +1467,7 @@ namespace Lithforge.Runtime.Bootstrap
                 _liquidPool = new LiquidPool(64);
                 StateId waterSourceId = FindStateId("lithforge:water");
                 LiquidJobConfig waterConfig = LiquidJobConfig.Water(waterSourceId.Value);
-                LiquidScheduler liquidScheduler = new LiquidScheduler(
+                LiquidScheduler liquidScheduler = new(
                     _chunkManager,
                     _liquidPool,
                     _contentResult.NativeStateRegistry,
@@ -1464,15 +1475,15 @@ namespace Lithforge.Runtime.Bootstrap
                 _gameLoop.SetLiquidScheduler(liquidScheduler);
                 tickRegistryRef.Register(new LiquidTickAdapter(liquidScheduler));
 
-                World.NetworkRole role = _pendingSession.NetworkRole;
+                NetworkRole role = _pendingSession.NetworkRole;
 
-                if (role == World.NetworkRole.Client)
+                if (role == NetworkRole.Client)
                 {
                     // Client mode: connect to remote server
                     ContentHash contentHash = ContentHashComputer.Compute(
                         _contentResult.StateRegistry);
-                    Lithforge.Network.Client.NetworkClient networkClient =
-                        new Lithforge.Network.Client.NetworkClient(
+                    NetworkClient networkClient =
+                        new(
                             _logger, contentHash, "Player");
                     _networkClient = networkClient;
 
@@ -1481,9 +1492,9 @@ namespace Lithforge.Runtime.Bootstrap
                         _pendingSession.ServerPort);
 
                     // Create client chunk handler for network-streamed chunks
-                    _clientChunkHandler = new Lithforge.Runtime.Network.ClientChunkHandler(
+                    _clientChunkHandler = new ClientChunkHandler(
                         _chunkManager, networkClient,
-                        (msg) =>
+                        msg =>
                         {
                             // GameReady: server says we can start playing
                             UnityEngine.Debug.Log(
@@ -1491,7 +1502,7 @@ namespace Lithforge.Runtime.Bootstrap
                         });
 
                     // Create client-side prediction with reconciliation
-                    ClientWorldSimulation clientSim = new ClientWorldSimulation(
+                    ClientWorldSimulation clientSim = new(
                         tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder,
                         networkClient, networkClient.LocalPlayerId,
                         networkClient.ServerTickAtHandshake);
@@ -1501,7 +1512,7 @@ namespace Lithforge.Runtime.Bootstrap
                         MessageType.PlayerState, clientSim.OnPlayerStateReceived);
 
                     // Create block predictor for optimistic block placement
-                    _clientBlockPredictor = new Lithforge.Runtime.Network.ClientBlockPredictor(
+                    _clientBlockPredictor = new ClientBlockPredictor(
                         _chunkManager, networkClient);
 
                     // Wire StartDigging notification to server
@@ -1511,13 +1522,13 @@ namespace Lithforge.Runtime.Bootstrap
                     // Create remote player rendering
                     if (armBaseMaterialRef != null)
                     {
-                        Material remoteNameTagMat = new Material(Shader.Find("UI/Default"));
+                        Material remoteNameTagMat = new(Shader.Find("UI/Default"));
                         _remotePlayerManager = new RemotePlayerManager(
                             armBaseMaterialRef, armOverlayMaterialRef, remoteNameTagMat);
                         _gameLoop.SetRemotePlayerManager(_remotePlayerManager);
 
                         _clientRemotePlayerHandler =
-                            new Lithforge.Runtime.Network.ClientRemotePlayerHandler(
+                            new ClientRemotePlayerHandler(
                                 _remotePlayerManager, networkClient,
                                 networkClient.LocalPlayerId);
 
@@ -1535,43 +1546,42 @@ namespace Lithforge.Runtime.Bootstrap
                         clientSim, inputSnapshotBuilder, physicsBody,
                         playerObject.transform);
                 }
-                else if (role == World.NetworkRole.Host)
+                else if (role == NetworkRole.Host)
                 {
                     // Host mode: run server + local client together
                     ContentHash contentHash = ContentHashComputer.Compute(
                         _contentResult.StateRegistry);
-                    Lithforge.Network.Server.NetworkServer networkServer =
-                        new Lithforge.Network.Server.NetworkServer(
+                    NetworkServer networkServer =
+                        new(
                             _logger, contentHash, NetworkConstants.MaxConnections);
                     _networkServer = networkServer;
                     networkServer.WorldSeed = (ulong)_worldMetadata.Seed;
                     networkServer.Start(_pendingSession.ServerPort);
 
                     // Wire ChunkDirtyTracker to ChunkManager block changes
-                    Lithforge.Voxel.Network.ChunkDirtyTracker dirtyTracker =
-                        new Lithforge.Voxel.Network.ChunkDirtyTracker();
+                    ChunkDirtyTracker dirtyTracker = new();
                     _chunkManager.OnBlockChanged += dirtyTracker.OnBlockChanged;
 
                     // Create Tier 3 bridge implementations
-                    ServerBlockProcessor blockProcessor = new ServerBlockProcessor(
+                    ServerBlockProcessor blockProcessor = new(
                         _chunkManager,
                         _contentResult.StateRegistry,
                         _contentResult.NativeStateRegistry,
                         _settings.Physics.HandMiningMultiplier,
                         _logger);
 
-                    ServerSimulation serverSim = new ServerSimulation(
+                    ServerSimulation serverSim = new(
                         playerPhysicsManager, tickRegistryRef, _settings.Physics,
                         blockProcessor,
                         () => { return _timeOfDayController != null ? _timeOfDayController.TimeOfDay : 0f; });
-                    ServerChunkProvider chunkProvider = new ServerChunkProvider(_chunkManager);
+                    ServerChunkProvider chunkProvider = new(_chunkManager);
 
-                    ChunkStreamingManager streamingManager = new ChunkStreamingManager(
+                    ChunkStreamingManager streamingManager = new(
                         _settings.Chunk.YLoadMin,
                         _settings.Chunk.YLoadMax,
                         3, _logger);
 
-                    ServerGameLoop serverGameLoop = new ServerGameLoop(
+                    ServerGameLoop serverGameLoop = new(
                         networkServer, serverSim, blockProcessor, chunkProvider,
                         dirtyTracker, streamingManager, _logger);
 
@@ -1583,46 +1593,43 @@ namespace Lithforge.Runtime.Bootstrap
                     // a NetworkClient or ClientRemotePlayerHandler.
                     if (armBaseMaterialRef != null)
                     {
-                        Material remoteNameTagMat = new Material(Shader.Find("UI/Default"));
+                        Material remoteNameTagMat = new(Shader.Find("UI/Default"));
                         _remotePlayerManager = new RemotePlayerManager(
                             armBaseMaterialRef, armOverlayMaterialRef, remoteNameTagMat);
                         _gameLoop.SetRemotePlayerManager(_remotePlayerManager);
 
                         RemotePlayerManager hostRemoteManager = _remotePlayerManager;
 
-                        serverGameLoop.OnHostSpawnPlayer = (Lithforge.Network.Messages.SpawnPlayerMessage msg) =>
+                        serverGameLoop.OnHostSpawnPlayer = msg =>
                         {
                             hostRemoteManager.SpawnPlayer(
                                 msg.PlayerId,
                                 msg.PlayerName,
-                                new Unity.Mathematics.float3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                                new float3(msg.PositionX, msg.PositionY, msg.PositionZ),
                                 msg.Yaw,
                                 msg.Pitch,
                                 msg.Flags);
                         };
 
-                        serverGameLoop.OnHostDespawnPlayer = (Lithforge.Network.Messages.DespawnPlayerMessage msg) =>
+                        serverGameLoop.OnHostDespawnPlayer = msg =>
                         {
                             hostRemoteManager.DespawnPlayer(msg.PlayerId);
                         };
 
-                        serverGameLoop.OnHostPlayerState = (Lithforge.Network.Messages.PlayerStateMessage msg) =>
+                        serverGameLoop.OnHostPlayerState = msg =>
                         {
-                            Simulation.RemotePlayerSnapshot snapshot = new Simulation.RemotePlayerSnapshot
+                            RemotePlayerSnapshot snapshot = new()
                             {
-                                Position = new Unity.Mathematics.float3(msg.PositionX, msg.PositionY, msg.PositionZ),
-                                Yaw = msg.Yaw,
-                                Pitch = msg.Pitch,
-                                Flags = msg.Flags,
+                                Position = new float3(msg.PositionX, msg.PositionY, msg.PositionZ), Yaw = msg.Yaw, Pitch = msg.Pitch, Flags = msg.Flags,
                             };
 
-                            float serverTimestamp = msg.ServerTick * Tick.FixedTickRate.TickDeltaTime;
+                            float serverTimestamp = msg.ServerTick * FixedTickRate.TickDeltaTime;
                             hostRemoteManager.PushSnapshot(msg.PlayerId, serverTimestamp, snapshot);
                         };
                     }
 
                     // Singleplayer-style local simulation (host is also a player)
-                    WorldSimulation worldSimulation = new WorldSimulation(
+                    WorldSimulation worldSimulation = new(
                         tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
                     _gameLoop.SetTickSystems(
                         worldSimulation, inputSnapshotBuilder, physicsBody,
@@ -1631,7 +1638,7 @@ namespace Lithforge.Runtime.Bootstrap
                 else
                 {
                     // Singleplayer mode (default)
-                    WorldSimulation worldSimulation = new WorldSimulation(
+                    WorldSimulation worldSimulation = new(
                         tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
                     _gameLoop.SetTickSystems(
                         worldSimulation, inputSnapshotBuilder, physicsBody,

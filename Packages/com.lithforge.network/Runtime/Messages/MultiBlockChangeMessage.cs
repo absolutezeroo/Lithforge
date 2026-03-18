@@ -39,7 +39,7 @@ namespace Lithforge.Network.Messages
 
         public static MultiBlockChangeMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            MultiBlockChangeMessage msg = new MultiBlockChangeMessage();
+            MultiBlockChangeMessage msg = new();
 
             if (length <= 0)
             {

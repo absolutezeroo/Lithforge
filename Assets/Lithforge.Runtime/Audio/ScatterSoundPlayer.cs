@@ -109,7 +109,7 @@ namespace Lithforge.Runtime.Audio
             float distance = _minDistance + (float)_rng.NextDouble() * (_maxDistance - _minDistance);
             float angle = (float)_rng.NextDouble() * Mathf.PI * 2f;
 
-            Vector3 offset = new Vector3(
+            Vector3 offset = new(
                 Mathf.Cos(angle) * distance,
                 (float)_rng.NextDouble() * 4f - 2f,
                 Mathf.Sin(angle) * distance);

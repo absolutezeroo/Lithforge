@@ -40,7 +40,7 @@ namespace Lithforge.Runtime.Content.Models
         /// </summary>
         [FormerlySerializedAs("_textures"),Header("Textures")]
         [Tooltip("Texture variable mappings (variable name → texture path or #variable reference)")]
-        [SerializeField] private List<TextureVariable> textures = new List<TextureVariable>();
+        [SerializeField] private List<TextureVariable> textures = new();
 
         /// <summary>
         /// Cuboid sub-meshes that define custom geometry. If a child model provides
@@ -49,7 +49,7 @@ namespace Lithforge.Runtime.Content.Models
         /// </summary>
         [FormerlySerializedAs("_elements"),Header("Elements")]
         [Tooltip("Model geometry elements (optional, for custom shapes)")]
-        [SerializeField] private List<ModelElement> elements = new List<ModelElement>();
+        [SerializeField] private List<ModelElement> elements = new();
 
         /// <summary>
         /// How to position, rotate, and scale this model when held in the player's

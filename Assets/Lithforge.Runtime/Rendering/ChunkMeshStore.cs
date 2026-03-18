@@ -34,8 +34,7 @@ namespace Lithforge.Runtime.Rendering
         private static readonly int s_hiZMipCountId = Shader.PropertyToID("_HiZMipCount");
 
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
-        private static readonly Bounds s_worldBounds =
-            new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+        private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
         private readonly MegaMeshBuffer _opaqueBuffer;
         private readonly MegaMeshBuffer _cutoutBuffer;
@@ -72,7 +71,7 @@ namespace Lithforge.Runtime.Rendering
         // --- Shared slot ID space (same slot ID for a chunk across all 3 layers) ---
         // Swap-and-pop: active slots are always contiguous in 0.._activeCount-1.
         // When a chunk is destroyed, its slot is swapped with the last active slot.
-        private readonly Dictionary<int3, int> _coordToSlotId = new Dictionary<int3, int>();
+        private readonly Dictionary<int3, int> _coordToSlotId = new();
         private int3[] _slotToCoord;
         private int _activeCount;
 
@@ -309,7 +308,7 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            float3 worldMin = new float3(
+            float3 worldMin = new(
                 coord.x * ChunkConstants.Size,
                 coord.y * ChunkConstants.Size,
                 coord.z * ChunkConstants.Size);

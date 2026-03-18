@@ -62,7 +62,7 @@ namespace Lithforge.WorldGen.Tests
                 }
             }
 
-            LightPropagationJob job = new LightPropagationJob
+            LightPropagationJob job = new()
             {
                 ChunkData = _chunkData,
                 StateTable = _stateTable,
@@ -86,7 +86,7 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_SunlightBlockedByOpaqueBlock()
         {
-            StateId stoneId = new StateId(1);
+            StateId stoneId = new(1);
 
             // Place a stone block in the middle
             int blockY = 16;
@@ -105,7 +105,7 @@ namespace Lithforge.WorldGen.Tests
                 }
             }
 
-            LightPropagationJob job = new LightPropagationJob
+            LightPropagationJob job = new()
             {
                 ChunkData = _chunkData,
                 StateTable = _stateTable,
@@ -135,7 +135,7 @@ namespace Lithforge.WorldGen.Tests
             int centerIndex = ChunkData.GetIndex(cx, cy, cz);
             _lightData[centerIndex] = LightUtils.Pack(0, 14);
 
-            LightPropagationJob job = new LightPropagationJob
+            LightPropagationJob job = new()
             {
                 ChunkData = _chunkData,
                 StateTable = _stateTable,
@@ -167,7 +167,7 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_BlockLightStoppedByOpaqueBlock()
         {
-            StateId stoneId = new StateId(1);
+            StateId stoneId = new(1);
 
             int cx = 16;
             int cy = 16;
@@ -181,7 +181,7 @@ namespace Lithforge.WorldGen.Tests
             int wallIndex = ChunkData.GetIndex(cx + 1, cy, cz);
             _chunkData[wallIndex] = stoneId;
 
-            LightPropagationJob job = new LightPropagationJob
+            LightPropagationJob job = new()
             {
                 ChunkData = _chunkData,
                 StateTable = _stateTable,

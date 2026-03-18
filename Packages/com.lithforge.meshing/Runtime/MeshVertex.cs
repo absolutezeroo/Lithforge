@@ -30,12 +30,12 @@ namespace Lithforge.Meshing
 
         public static readonly VertexAttributeDescriptor[] VertexAttributes = new VertexAttributeDescriptor[]
         {
-            new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-            new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
-            new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float16, 4),
-            new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
-            new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.UInt32, 1),
-            new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.UInt32, 1),
+            new(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+            new(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
+            new(VertexAttribute.Color, VertexAttributeFormat.Float16, 4),
+            new(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
+            new(VertexAttribute.TexCoord1, VertexAttributeFormat.UInt32, 1),
+            new(VertexAttribute.TexCoord2, VertexAttributeFormat.UInt32, 1),
         };
     }
 }

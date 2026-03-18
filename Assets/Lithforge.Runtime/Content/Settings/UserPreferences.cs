@@ -1,15 +1,18 @@
+using System;
 using System.IO;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Settings
 {
     /// <summary>
-    /// User preferences persisted as human-readable JSON at
-    /// Application.persistentDataPath/preferences.json.
-    /// Sentinel value -1 means "not explicitly set by user — use system default."
-    /// Follows the WorldMetadata.cs atomic-write pattern (.tmp → .bak → rename).
+    ///     User preferences persisted as human-readable JSON at
+    ///     Application.persistentDataPath/preferences.json.
+    ///     Sentinel value -1 means "not explicitly set by user — use system default."
+    ///     Follows the WorldMetadata.cs atomic-write pattern (.tmp → .bak → rename).
     /// </summary>
     public sealed class UserPreferences
     {
@@ -73,13 +76,13 @@ namespace Lithforge.Runtime.Content.Settings
         }
 
         /// <summary>
-        /// Persists preferences to disk using atomic write.
+        ///     Persists preferences to disk using atomic write.
         /// </summary>
         public void Save()
         {
             string filePath = GetFilePath();
 
-            JObject root = new JObject
+            JObject root = new()
             {
                 ["version"] = Version,
                 ["render_distance"] = RenderDistance,
@@ -139,9 +142,9 @@ namespace Lithforge.Runtime.Content.Settings
         }
 
         /// <summary>
-        /// Loads preferences from disk. If no file exists, attempts one-time
-        /// migration from legacy PlayerPrefs keys. Returns a new instance with
-        /// sentinel defaults if nothing is found.
+        ///     Loads preferences from disk. If no file exists, attempts one-time
+        ///     migration from legacy PlayerPrefs keys. Returns a new instance with
+        ///     sentinel defaults if nothing is found.
         /// </summary>
         public static UserPreferences Load()
         {
@@ -154,20 +157,22 @@ namespace Lithforge.Runtime.Content.Settings
                     string json = File.ReadAllText(filePath);
                     JObject root = JObject.Parse(json);
 
-                    UserPreferences prefs = new UserPreferences();
-                    prefs.Version = root["version"]?.Value<int>() ?? CurrentVersion;
-                    prefs.RenderDistance = root["render_distance"]?.Value<int>() ?? -1;
-                    prefs.FieldOfView = root["field_of_view"]?.Value<float>() ?? -1f;
-                    prefs.MouseSensitivity = root["mouse_sensitivity"]?.Value<float>() ?? -1f;
-                    prefs.AOStrength = root["ao_strength"]?.Value<float>() ?? -1f;
-                    prefs.MasterVolume = root["master_volume"]?.Value<float>() ?? -1f;
-                    prefs.SfxVolume = root["sfx_volume"]?.Value<float>() ?? -1f;
-                    prefs.MusicVolume = root["music_volume"]?.Value<float>() ?? -1f;
-                    prefs.AmbientVolume = root["ambient_volume"]?.Value<float>() ?? -1f;
+                    UserPreferences prefs = new()
+                    {
+                        Version = root["version"]?.Value<int>() ?? CurrentVersion,
+                        RenderDistance = root["render_distance"]?.Value<int>() ?? -1,
+                        FieldOfView = root["field_of_view"]?.Value<float>() ?? -1f,
+                        MouseSensitivity = root["mouse_sensitivity"]?.Value<float>() ?? -1f,
+                        AOStrength = root["ao_strength"]?.Value<float>() ?? -1f,
+                        MasterVolume = root["master_volume"]?.Value<float>() ?? -1f,
+                        SfxVolume = root["sfx_volume"]?.Value<float>() ?? -1f,
+                        MusicVolume = root["music_volume"]?.Value<float>() ?? -1f,
+                        AmbientVolume = root["ambient_volume"]?.Value<float>() ?? -1f,
+                    };
 
                     return prefs;
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     UnityEngine.Debug.LogWarning(
                         $"[UserPreferences] Failed to load {filePath}: {ex.Message}. Using defaults.");
@@ -181,12 +186,12 @@ namespace Lithforge.Runtime.Content.Settings
         }
 
         /// <summary>
-        /// Reads legacy PlayerPrefs keys, creates a UserPreferences, saves it to JSON,
-        /// then deletes the old PlayerPrefs keys. Returns defaults if no legacy keys exist.
+        ///     Reads legacy PlayerPrefs keys, creates a UserPreferences, saves it to JSON,
+        ///     then deletes the old PlayerPrefs keys. Returns defaults if no legacy keys exist.
         /// </summary>
         private static UserPreferences MigrateFromPlayerPrefs()
         {
-            UserPreferences prefs = new UserPreferences();
+            UserPreferences prefs = new();
             bool migrated = false;
 
             if (PlayerPrefs.HasKey(LegacyPrefRenderDistance))
@@ -229,7 +234,7 @@ namespace Lithforge.Runtime.Content.Settings
                     UnityEngine.Debug.Log(
                         "[UserPreferences] Migrated settings from PlayerPrefs to preferences.json.");
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     UnityEngine.Debug.LogWarning(
                         $"[UserPreferences] Migration save failed: {ex.Message}. " +

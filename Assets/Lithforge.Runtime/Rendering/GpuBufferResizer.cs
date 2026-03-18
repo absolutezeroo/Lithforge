@@ -39,7 +39,7 @@ namespace Lithforge.Runtime.Rendering
         private readonly int _copyKernel;
         private readonly int _zeroKernel;
 
-        private readonly List<DeferredDisposal> _disposalQueue = new List<DeferredDisposal>(8);
+        private readonly List<DeferredDisposal> _disposalQueue = new(8);
 
         private bool _disposed;
 
@@ -72,7 +72,7 @@ namespace Lithforge.Runtime.Rendering
             GraphicsBuffer.Target target,
             int elementStride)
         {
-            GraphicsBuffer newBuffer = new GraphicsBuffer(
+            GraphicsBuffer newBuffer = new(
                 target,
                 GraphicsBuffer.UsageFlags.None,
                 newElementCount,

@@ -11,8 +11,8 @@ namespace Lithforge.Voxel.Storage
         private const int SectorSize = 4096;
 
         private readonly string _filePath;
-        private readonly Dictionary<int, byte[]> _cache = new Dictionary<int, byte[]>();
-        private readonly object _cacheLock = new object();
+        private readonly Dictionary<int, byte[]> _cache = new();
+        private readonly object _cacheLock = new();
         private bool _disposed;
         private bool _isDirty;
 
@@ -38,8 +38,8 @@ namespace Lithforge.Voxel.Storage
                 return false;
             }
 
-            using (FileStream fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
-            using (BinaryReader reader = new BinaryReader(fs))
+            using (FileStream fs = new(_filePath, FileMode.Open, FileAccess.Read))
+            using (BinaryReader reader = new(fs))
             {
                 int headerOffset = key * 8;
 
@@ -73,8 +73,8 @@ namespace Lithforge.Voxel.Storage
                 return null;
             }
 
-            using (FileStream fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
-            using (BinaryReader reader = new BinaryReader(fs))
+            using (FileStream fs = new(_filePath, FileMode.Open, FileAccess.Read))
+            using (BinaryReader reader = new(fs))
             {
                 if (fs.Length < HeaderSize)
                 {
@@ -134,12 +134,12 @@ namespace Lithforge.Voxel.Storage
             }
 
             // Read existing data or create new
-            Dictionary<int, byte[]> existingData = new Dictionary<int, byte[]>();
+            Dictionary<int, byte[]> existingData = new();
 
             if (File.Exists(_filePath))
             {
-                using (FileStream fs = new FileStream(_filePath, FileMode.Open, FileAccess.Read))
-                using (BinaryReader reader = new BinaryReader(fs))
+                using (FileStream fs = new(_filePath, FileMode.Open, FileAccess.Read))
+                using (BinaryReader reader = new(fs))
                 {
                     if (fs.Length >= HeaderSize)
                     {
@@ -178,8 +178,8 @@ namespace Lithforge.Voxel.Storage
 
             try
             {
-                using (FileStream fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
-                using (BinaryWriter writer = new BinaryWriter(fs))
+                using (FileStream fs = new(tempPath, FileMode.Create, FileAccess.Write))
+                using (BinaryWriter writer = new(fs))
                 {
                     // Reserve header space
                     writer.Write(new byte[HeaderSize]);

@@ -72,7 +72,7 @@ namespace Lithforge.Runtime.Player
 
             // Seed with initial snapshot at the calibrated render time so
             // interpolation starts immediately rather than waiting for clock sync
-            RemotePlayerSnapshot initial = new RemotePlayerSnapshot
+            RemotePlayerSnapshot initial = new()
             {
                 Position = initialPosition,
                 Yaw = yaw,

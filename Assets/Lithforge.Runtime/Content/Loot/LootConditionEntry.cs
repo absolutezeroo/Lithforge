@@ -17,7 +17,7 @@ namespace Lithforge.Runtime.Content.Loot
 
         /// <summary>Key-value parameters interpreted by the condition evaluator (e.g. "chance"="0.5").</summary>
         [FormerlySerializedAs("_parameters"),Tooltip("Condition parameters as key=value pairs")]
-        [SerializeField] private List<StringPair> parameters = new List<StringPair>();
+        [SerializeField] private List<StringPair> parameters = new();
 
         /// <summary>Condition identifier (e.g. "random_chance", "silk_touch", "match_tool").</summary>
         public string ConditionType

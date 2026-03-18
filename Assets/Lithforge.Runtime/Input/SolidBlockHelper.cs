@@ -66,7 +66,7 @@ namespace Lithforge.Runtime.Input
             int sizeZ = bpMax.z - bpMin.z + 1;
             int volume = sizeX * sizeY * sizeZ;
 
-            NativeHashMap<int3, bool> solidMap = new NativeHashMap<int3, bool>(volume, Allocator.Temp);
+            NativeHashMap<int3, bool> solidMap = new(volume, Allocator.Temp);
 
             for (int x = bpMin.x; x <= bpMax.x; x++)
             {
@@ -74,7 +74,7 @@ namespace Lithforge.Runtime.Input
                 {
                     for (int z = bpMin.z; z <= bpMax.z; z++)
                     {
-                        int3 coord = new int3(x, y, z);
+                        int3 coord = new(x, y, z);
                         solidMap.TryAdd(coord, IsSolid(coord, chunkManager, nativeStateRegistry));
                     }
                 }

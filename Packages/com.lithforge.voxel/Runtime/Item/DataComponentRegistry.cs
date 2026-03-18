@@ -10,18 +10,16 @@ namespace Lithforge.Voxel.Item
     /// </summary>
     public static class DataComponentRegistry
     {
-        private static readonly Dictionary<int, ComponentEntry> s_entries =
-            new Dictionary<int, ComponentEntry>();
+        private static readonly Dictionary<int, ComponentEntry> s_entries = new();
 
-        private static readonly Dictionary<Type, int> s_typeToId =
-            new Dictionary<Type, int>();
+        private static readonly Dictionary<Type, int> s_typeToId = new();
 
         /// <summary>
         /// Registers a component type with its serializer/deserializer.
         /// </summary>
         public static void Register<T>(DataComponentType<T> componentType) where T : class, IDataComponent
         {
-            ComponentEntry entry = new ComponentEntry(
+            ComponentEntry entry = new(
                 componentType.Id,
                 typeof(T),
                 (BinaryWriter w, IDataComponent c) => componentType.Serializer(w, (T)c),
@@ -55,9 +53,9 @@ namespace Lithforge.Voxel.Item
                 if (s_entries.TryGetValue(typeId, out ComponentEntry entry))
                 {
                     // Write data to temp buffer to get length
-                    using (MemoryStream tempMs = new MemoryStream())
+                    using (MemoryStream tempMs = new())
                     {
-                        using (BinaryWriter tempW = new BinaryWriter(tempMs))
+                        using (BinaryWriter tempW = new(tempMs))
                         {
                             entry.SerializeFunc(tempW, component);
                         }
@@ -87,7 +85,7 @@ namespace Lithforge.Voxel.Item
                 return null;
             }
 
-            DataComponentMap map = new DataComponentMap();
+            DataComponentMap map = new();
 
             for (int i = 0; i < count; i++)
             {
@@ -98,8 +96,8 @@ namespace Lithforge.Voxel.Item
                 {
                     byte[] data = reader.ReadBytes(dataLen);
 
-                    using (MemoryStream ms = new MemoryStream(data))
-                    using (BinaryReader dataReader = new BinaryReader(ms))
+                    using (MemoryStream ms = new(data))
+                    using (BinaryReader dataReader = new(ms))
                     {
                         IDataComponent component = entry.DeserializeFunc(dataReader);
                         map.Set(typeId, component);

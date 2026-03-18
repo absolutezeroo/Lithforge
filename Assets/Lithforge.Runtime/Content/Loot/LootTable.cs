@@ -29,7 +29,7 @@ namespace Lithforge.Runtime.Content.Loot
         /// <summary>Pools rolled independently when this table is resolved.</summary>
         [FormerlySerializedAs("_pools"),Header("Pools")]
         [Tooltip("Loot pools — each pool is rolled independently")]
-        [SerializeField] private List<LootPoolEntry> pools = new List<LootPoolEntry>();
+        [SerializeField] private List<LootPoolEntry> pools = new();
 
         /// <summary>ResourceId namespace.</summary>
         public string Namespace

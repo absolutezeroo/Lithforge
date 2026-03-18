@@ -23,10 +23,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
         [SerializeField] private bool clearRegion;
 
         [Tooltip("Offset from player position to place the region center")]
-        [SerializeField] private Vector3 offset = new Vector3(0f, 0f, 32f);
+        [SerializeField] private Vector3 offset = new(0f, 0f, 32f);
 
         // Reusable scratch list for dirtied chunk coordinates
-        private readonly List<int3> _dirtiedChunks = new List<int3>();
+        private readonly List<int3> _dirtiedChunks = new();
 
         public override IEnumerator Execute(BenchmarkContext context)
         {
@@ -51,7 +51,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 {
                     for (int z = cz - halfSize; z <= cz + halfSize; z++)
                     {
-                        int3 worldPos = new int3(x, y, z);
+                        int3 worldPos = new(x, y, z);
                         context.ChunkManager.SetBlock(worldPos, fillState, _dirtiedChunks);
                         count++;
                     }

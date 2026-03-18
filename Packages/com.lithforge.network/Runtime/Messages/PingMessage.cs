@@ -31,7 +31,7 @@ namespace Lithforge.Network.Messages
 
         public static PingMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            PingMessage msg = new PingMessage();
+            PingMessage msg = new();
 
             if (length < Size)
             {

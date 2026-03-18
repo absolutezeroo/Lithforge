@@ -54,40 +54,40 @@ namespace Lithforge.Runtime.Player
             // Pivots are the rotation center for each part
 
             // Body: 8w x 12h x 4d, pivot at (0, 24, 0) — top of body
-            float3 bodyMin = new float3(-4f, 12f, -2f);
-            float3 bodySize = new float3(8f, 12f, 4f);
-            float3 bodyPivot = new float3(0f, 24f, 0f);
+            float3 bodyMin = new(-4f, 12f, -2f);
+            float3 bodySize = new(8f, 12f, 4f);
+            float3 bodyPivot = new(0f, 24f, 0f);
 
             // Right Arm: (armWidth)w x 12h x 4d
             float3 rightArmMin = isSlim
                 ? new float3(-4f - 3f, 12f, -2f)
                 : new float3(-4f - 4f, 12f, -2f);
-            float3 rightArmSize = new float3(armWidth, 12f, 4f);
+            float3 rightArmSize = new(armWidth, 12f, 4f);
             float3 rightArmPivot = isSlim
                 ? new float3(-5.5f, 22f, 0f)
                 : new float3(-6f, 22f, 0f);
 
             // Left Arm: (armWidth)w x 12h x 4d
-            float3 leftArmMin = new float3(4f, 12f, -2f);
-            float3 leftArmSize = new float3(armWidth, 12f, 4f);
+            float3 leftArmMin = new(4f, 12f, -2f);
+            float3 leftArmSize = new(armWidth, 12f, 4f);
             float3 leftArmPivot = isSlim
                 ? new float3(5.5f, 22f, 0f)
                 : new float3(6f, 22f, 0f);
 
             // Right Leg: 4w x 12h x 4d
-            float3 rightLegMin = new float3(-4f, 0f, -2f);
-            float3 rightLegSize = new float3(4f, 12f, 4f);
-            float3 rightLegPivot = new float3(-2f, 12f, 0f);
+            float3 rightLegMin = new(-4f, 0f, -2f);
+            float3 rightLegSize = new(4f, 12f, 4f);
+            float3 rightLegPivot = new(-2f, 12f, 0f);
 
             // Left Leg: 4w x 12h x 4d
-            float3 leftLegMin = new float3(0f, 0f, -2f);
-            float3 leftLegSize = new float3(4f, 12f, 4f);
-            float3 leftLegPivot = new float3(2f, 12f, 0f);
+            float3 leftLegMin = new(0f, 0f, -2f);
+            float3 leftLegSize = new(4f, 12f, 4f);
+            float3 leftLegPivot = new(2f, 12f, 0f);
 
             // Head: 8w x 8h x 8d
-            float3 headMin = new float3(-4f, 24f, -4f);
-            float3 headSize = new float3(8f, 8f, 8f);
-            float3 headPivot = new float3(0f, 24f, 0f);
+            float3 headMin = new(-4f, 24f, -4f);
+            float3 headSize = new(8f, 8f, 8f);
+            float3 headPivot = new(0f, 24f, 0f);
 
             // UV part definitions
             SkinPartDefinition rightArmBase = isSlim ? SkinUVMapper.RightArmBase3 : SkinUVMapper.RightArmBase4;

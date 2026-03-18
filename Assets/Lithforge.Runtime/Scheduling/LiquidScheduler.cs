@@ -242,19 +242,19 @@ namespace Lithforge.Runtime.Scheduling
             NativeArray<int> inputActiveSet = BuildInputActiveSet(chunk);
 
             // Allocate output containers
-            NativeList<LiquidChunkEdit> outputEdits = new NativeList<LiquidChunkEdit>(
+            NativeList<LiquidChunkEdit> outputEdits = new(
                 64, Allocator.TempJob);
-            NativeList<int> outputActiveSet = new NativeList<int>(
+            NativeList<int> outputActiveSet = new(
                 inputActiveSet.Length, Allocator.TempJob);
 
             // Copy ghost slabs from neighbors
             int slabSize = ChunkConstants.SizeSquared;
-            NativeArray<byte> ghostPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostPosY = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostNegY = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostNegZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostPosX = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostNegX = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostPosY = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostNegY = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostPosZ = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostNegZ = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             CopyGhostSlab(chunk, 0, ghostPosX);
             CopyGhostSlab(chunk, 1, ghostNegX);
@@ -264,17 +264,17 @@ namespace Lithforge.Runtime.Scheduling
             CopyGhostSlab(chunk, 5, ghostNegZ);
 
             // Block-solidity ghost slabs for cross-boundary solid checks
-            NativeArray<byte> ghostBlockSolidPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostBlockSolidNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostBlockSolidPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostBlockSolidNegZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidPosX = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidNegX = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidPosZ = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidNegZ = new(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             CopyBlockSolidGhostSlab(chunk, 0, ghostBlockSolidPosX);
             CopyBlockSolidGhostSlab(chunk, 1, ghostBlockSolidNegX);
             CopyBlockSolidGhostSlab(chunk, 4, ghostBlockSolidPosZ);
             CopyBlockSolidGhostSlab(chunk, 5, ghostBlockSolidNegZ);
 
-            LiquidSimJob job = new LiquidSimJob
+            LiquidSimJob job = new()
             {
                 LiquidData = chunk.LiquidData,
                 BlockData = chunk.Data,
@@ -336,7 +336,7 @@ namespace Lithforge.Runtime.Scheduling
                     }
                 }
 
-                NativeArray<int> result = new NativeArray<int>(
+                NativeArray<int> result = new(
                     _fullScanCache.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 for (int i = 0; i < _fullScanCache.Count; i++)
@@ -348,7 +348,7 @@ namespace Lithforge.Runtime.Scheduling
             }
             else
             {
-                NativeArray<int> result = new NativeArray<int>(
+                NativeArray<int> result = new(
                     chunk.LiquidActiveSet.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 for (int i = 0; i < chunk.LiquidActiveSet.Count; i++)

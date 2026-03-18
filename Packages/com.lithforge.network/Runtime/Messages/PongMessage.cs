@@ -33,7 +33,7 @@ namespace Lithforge.Network.Messages
 
         public static PongMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            PongMessage msg = new PongMessage();
+            PongMessage msg = new();
 
             if (length < Size)
             {

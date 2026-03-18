@@ -37,10 +37,10 @@ namespace Lithforge.Runtime.Rendering
         private readonly GpuBufferResizer _resizer;
 
         /// <summary>Maps chunk coord to its vertex/index region in the shared buffers.</summary>
-        private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
+        private readonly Dictionary<int3, SlotInfo> _slots = new();
 
         /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
-        private readonly List<FreeRegion> _freeRegions = new List<FreeRegion>();
+        private readonly List<FreeRegion> _freeRegions = new();
 
         /// <summary>CPU-side mirror of GPU vertex data, enabling sub-range uploads without GPU readback.</summary>
         private NativeArray<PackedMeshVertex> _vertexMirror;
@@ -327,7 +327,7 @@ namespace Lithforge.Runtime.Rendering
 
                 if (leftoverVerts > 0 && leftoverIdx > 0)
                 {
-                    FreeRegion remainder = new FreeRegion
+                    FreeRegion remainder = new()
                     {
                         VertexOffset = region.VertexOffset + vertCount,
                         VertexCapacity = leftoverVerts,
@@ -511,7 +511,7 @@ namespace Lithforge.Runtime.Rendering
             _slots.Remove(coord);
 
             // Insert into free-list sorted by VertexOffset
-            FreeRegion region = new FreeRegion
+            FreeRegion region = new()
             {
                 VertexOffset = slot.VertexOffset,
                 VertexCapacity = slot.VertexCapacity,
@@ -649,7 +649,7 @@ namespace Lithforge.Runtime.Rendering
 
             // Resize vertex mirror: allocate new, copy used portion, dispose old
             NativeArray<PackedMeshVertex> newVertexMirror =
-                new NativeArray<PackedMeshVertex>(newVertCap, Allocator.Persistent,
+                new(newVertCap, Allocator.Persistent,
                     NativeArrayOptions.UninitializedMemory);
 
             if (_usedVertices > 0)
@@ -668,7 +668,7 @@ namespace Lithforge.Runtime.Rendering
 
             // Resize index mirror: allocate new, copy used portion, dispose old
             NativeArray<int> newIndexMirror =
-                new NativeArray<int>(newIdxCap, Allocator.Persistent,
+                new(newIdxCap, Allocator.Persistent,
                     NativeArrayOptions.UninitializedMemory);
 
             if (_usedIndices > 0)

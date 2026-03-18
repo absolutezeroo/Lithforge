@@ -8,12 +8,12 @@ namespace Lithforge.Network.Connection
     /// </summary>
     public sealed class PeerRegistry
     {
-        private readonly Dictionary<int, PeerInfo> _byConnection = new Dictionary<int, PeerInfo>();
-        private readonly Dictionary<ushort, PeerInfo> _byPlayerId = new Dictionary<ushort, PeerInfo>();
+        private readonly Dictionary<int, PeerInfo> _byConnection = new();
+        private readonly Dictionary<ushort, PeerInfo> _byPlayerId = new();
         private ushort _nextPlayerId = 1;
 
         // Cached list for iteration to avoid allocating during broadcast
-        private readonly List<PeerInfo> _allPeersCache = new List<PeerInfo>();
+        private readonly List<PeerInfo> _allPeersCache = new();
         private bool _cacheDirty = true;
 
         public int Count
@@ -45,7 +45,7 @@ namespace Lithforge.Network.Connection
         /// </summary>
         public PeerInfo Add(ConnectionId connectionId)
         {
-            PeerInfo peer = new PeerInfo(connectionId);
+            PeerInfo peer = new(connectionId);
             _byConnection[connectionId.Value] = peer;
             _cacheDirty = true;
             return peer;

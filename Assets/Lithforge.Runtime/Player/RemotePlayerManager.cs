@@ -25,8 +25,7 @@ namespace Lithforge.Runtime.Player
         private static readonly int s_skinTexId = Shader.PropertyToID("_SkinTex");
 
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
-        private static readonly Bounds s_worldBounds =
-            new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+        private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
         // Shared static GPU buffers (built once from PlayerModelMeshBuilder)
         private readonly GraphicsBuffer _sharedVertexBuffer;
@@ -42,11 +41,10 @@ namespace Lithforge.Runtime.Player
         private readonly SkinLoader _skinLoader;
 
         // Entities
-        private readonly Dictionary<ushort, RemotePlayerEntity> _entities =
-            new Dictionary<ushort, RemotePlayerEntity>();
+        private readonly Dictionary<ushort, RemotePlayerEntity> _entities = new();
 
         // Timeout sweep cache (fill pattern)
-        private readonly List<ushort> _timedOutIds = new List<ushort>();
+        private readonly List<ushort> _timedOutIds = new();
 
         // Render time: offset so _renderTime aligns with server-tick-based timestamps
         private float _renderTime;
@@ -157,7 +155,7 @@ namespace Lithforge.Runtime.Player
             // buffer is in the same time space as incoming server timestamps
             float initialTimestamp = _renderTime + _renderTimeOffset;
 
-            RemotePlayerEntity entity = new RemotePlayerEntity(
+            RemotePlayerEntity entity = new(
                 playerId,
                 playerName,
                 position,

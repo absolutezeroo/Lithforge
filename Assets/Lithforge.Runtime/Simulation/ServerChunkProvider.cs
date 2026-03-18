@@ -50,7 +50,7 @@ namespace Lithforge.Runtime.Simulation
                 {
                     for (int y = yMin; y <= yMax; y++)
                     {
-                        int3 coord = new int3(center.x + x, y, center.z + z);
+                        int3 coord = new(center.x + x, y, center.z + z);
 
                         if (!IsChunkReady(coord))
                         {

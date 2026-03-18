@@ -58,7 +58,7 @@ namespace Lithforge.Runtime.Audio
             }
 
             Vector3 headPos = _cameraTransform.position;
-            int3 headBlock = new int3(
+            int3 headBlock = new(
                 (int)math.floor(headPos.x),
                 (int)math.floor(headPos.y),
                 (int)math.floor(headPos.z));

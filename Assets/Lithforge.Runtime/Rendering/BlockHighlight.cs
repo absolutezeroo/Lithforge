@@ -19,7 +19,7 @@ namespace Lithforge.Runtime.Rendering
         // Path: 0->1->2->3->0->4->5->1->5->6->2->6->7->3->7->4
         private static readonly int[] s_lineIndices = new int[]
         {
-            0, 1, 2, 3, 0, 4, 5, 1, 5, 6, 2, 6, 7, 3, 7, 4
+            0, 1, 2, 3, 0, 4, 5, 1, 5, 6, 2, 6, 7, 3, 7, 4,
         };
 
         private void Awake()

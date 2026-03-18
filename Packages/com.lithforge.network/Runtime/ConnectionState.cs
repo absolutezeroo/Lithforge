@@ -7,6 +7,6 @@ namespace Lithforge.Network
         Handshaking = 2,
         Loading = 3,
         Playing = 4,
-        Disconnecting = 5
+        Disconnecting = 5,
     }
 }

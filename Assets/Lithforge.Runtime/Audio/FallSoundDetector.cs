@@ -91,7 +91,7 @@ namespace Lithforge.Runtime.Audio
                 if (fallHeight >= _fallThreshold)
                 {
                     // Query block at feet
-                    int3 feetBlock = new int3(
+                    int3 feetBlock = new(
                         (int)math.floor(_playerTransform.position.x),
                         (int)math.floor(_playerTransform.position.y) - 1,
                         (int)math.floor(_playerTransform.position.z));

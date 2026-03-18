@@ -10,7 +10,7 @@ namespace Lithforge.Core.Registry
     /// </summary>
     public sealed class RegistryBuilder<T>
     {
-        private readonly Dictionary<ResourceId, T> _entries = new Dictionary<ResourceId, T>();
+        private readonly Dictionary<ResourceId, T> _entries = new();
         private bool _frozen;
 
         public void Register(ResourceId id, T value)

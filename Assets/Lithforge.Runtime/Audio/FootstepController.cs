@@ -106,7 +106,7 @@ namespace Lithforge.Runtime.Audio
                 _accumulatedDistance -= threshold;
 
                 // Query block directly below feet
-                int3 feetBlock = new int3(
+                int3 feetBlock = new(
                     (int)math.floor(_playerTransform.position.x),
                     (int)math.floor(_playerTransform.position.y) - 1,
                     (int)math.floor(_playerTransform.position.z));
@@ -125,7 +125,7 @@ namespace Lithforge.Runtime.Audio
 
                         if ((compact.Flags & BlockStateCompact.FlagFullCube) == 0)
                         {
-                            int3 belowBlock = new int3(feetBlock.x, feetBlock.y - 1, feetBlock.z);
+                            int3 belowBlock = new(feetBlock.x, feetBlock.y - 1, feetBlock.z);
                             StateId belowState = _chunkManager.GetBlock(belowBlock);
 
                             if (belowState.Value != 0)
@@ -134,7 +134,7 @@ namespace Lithforge.Runtime.Audio
 
                                 if (belowEntry != null)
                                 {
-                                    Vector3 pos = new Vector3(
+                                    Vector3 pos = new(
                                         feetBlock.x + 0.5f, feetBlock.y + 0.5f, feetBlock.z + 0.5f);
                                     _blockSoundPlayer.PlayGroupSound(
                                         belowEntry.SoundGroup, SoundEventType.Step, pos);

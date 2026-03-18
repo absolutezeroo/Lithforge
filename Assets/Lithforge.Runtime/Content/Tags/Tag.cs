@@ -32,11 +32,11 @@ namespace Lithforge.Runtime.Content.Tags
         /// <summary>Direct SO references (BlockDefinition, ItemDefinition, etc.) that belong to this tag.</summary>
         [FormerlySerializedAs("_entries"),Header("Entries")]
         [Tooltip("ScriptableObject entries (blocks, items, etc.) that belong to this tag")]
-        [SerializeField] private List<ScriptableObject> entries = new List<ScriptableObject>();
+        [SerializeField] private List<ScriptableObject> entries = new();
 
         /// <summary>ResourceId strings for entries that cannot be referenced by SO (e.g. cross-mod ids).</summary>
         [FormerlySerializedAs("_entryIds"),Tooltip("String entry ids (for backward compatibility or cross-reference)")]
-        [SerializeField] private List<string> entryIds = new List<string>();
+        [SerializeField] private List<string> entryIds = new();
 
         /// <summary>Resource-id namespace (typically "lithforge").</summary>
         public string Namespace

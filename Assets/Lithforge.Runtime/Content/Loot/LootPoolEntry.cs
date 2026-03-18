@@ -23,11 +23,11 @@ namespace Lithforge.Runtime.Content.Loot
 
         /// <summary>Weighted-random entries — one is selected per roll.</summary>
         [FormerlySerializedAs("_entries"),Tooltip("Entries in this pool")]
-        [SerializeField] private List<LootItemEntry> entries = new List<LootItemEntry>();
+        [SerializeField] private List<LootItemEntry> entries = new();
 
         /// <summary>All conditions must pass for this pool to be rolled at all.</summary>
         [FormerlySerializedAs("_conditions"),Tooltip("Conditions for this pool")]
-        [SerializeField] private List<LootConditionEntry> conditions = new List<LootConditionEntry>();
+        [SerializeField] private List<LootConditionEntry> conditions = new();
 
         /// <summary>Minimum number of times this pool is rolled (inclusive).</summary>
         public int RollsMin

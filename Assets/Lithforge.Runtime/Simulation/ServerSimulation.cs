@@ -54,7 +54,7 @@ namespace Lithforge.Runtime.Simulation
             ushort playerId, float yaw, float pitch, byte flags, float tickDt)
         {
             // Reconstruct InputSnapshot from wire-format flags
-            InputSnapshot snapshot = new InputSnapshot
+            InputSnapshot snapshot = new()
             {
                 Yaw = yaw,
                 Pitch = pitch,

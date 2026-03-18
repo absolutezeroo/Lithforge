@@ -51,7 +51,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidateRequiredField_NullValue_AddsError()
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
             _validator.ValidateRequiredField(result, "name", null, "test");
 
             Assert.IsFalse(result.IsValid);
@@ -61,7 +61,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidateRequiredField_NonNullValue_NoError()
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
             _validator.ValidateRequiredField(result, "name", "value", "test");
 
             Assert.IsTrue(result.IsValid);
@@ -70,7 +70,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidateRange_InRange_NoError()
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
             _validator.ValidateRange(result, "emission", 10, 0, 15, "test");
 
             Assert.IsTrue(result.IsValid);
@@ -79,7 +79,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidateRange_OutOfRange_AddsError()
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
             _validator.ValidateRange(result, "emission", 20, 0, 15, "test");
 
             Assert.IsFalse(result.IsValid);
@@ -88,7 +88,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidateEnumField_ValidValue_NoError()
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
             _validator.ValidateEnumField(result, "render_layer", "opaque",
                 new string[] { "opaque", "cutout", "translucent" }, "test");
 
@@ -98,7 +98,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidateEnumField_InvalidValue_AddsError()
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
             _validator.ValidateEnumField(result, "render_layer", "invalid",
                 new string[] { "opaque", "cutout", "translucent" }, "test");
 
@@ -108,11 +108,11 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ValidationResult_Merge_CombinesErrorsAndWarnings()
         {
-            ValidationResult a = new ValidationResult();
+            ValidationResult a = new();
             a.AddError("error1");
             a.AddWarning("warn1");
 
-            ValidationResult b = new ValidationResult();
+            ValidationResult b = new();
             b.AddError("error2");
 
             a.Merge(b);

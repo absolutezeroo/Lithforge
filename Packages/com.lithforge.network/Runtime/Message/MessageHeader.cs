@@ -22,11 +22,11 @@ namespace Lithforge.Network.Message
 
         public static MessageHeader Read(byte[] buffer, int offset)
         {
-            MessageHeader header = new MessageHeader
+            MessageHeader header = new()
             {
                 Type = (MessageType)buffer[offset],
                 PayloadLength = (ushort)(buffer[offset + 1] | (buffer[offset + 2] << 8)),
-                Flags = buffer[offset + 3]
+                Flags = buffer[offset + 3],
             };
             return header;
         }

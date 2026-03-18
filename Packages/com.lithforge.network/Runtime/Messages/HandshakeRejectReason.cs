@@ -6,6 +6,6 @@ namespace Lithforge.Network.Messages
         ProtocolMismatch = 1,
         ContentMismatch = 2,
         ServerFull = 3,
-        Banned = 4
+        Banned = 4,
     }
 }

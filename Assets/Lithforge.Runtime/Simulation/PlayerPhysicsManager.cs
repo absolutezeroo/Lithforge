@@ -15,8 +15,7 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class PlayerPhysicsManager : IPlayerManager
     {
-        private readonly Dictionary<ushort, PlayerPhysicsBody> _bodies =
-            new Dictionary<ushort, PlayerPhysicsBody>();
+        private readonly Dictionary<ushort, PlayerPhysicsBody> _bodies = new();
 
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
@@ -36,7 +35,7 @@ namespace Lithforge.Runtime.Simulation
         public PlayerPhysicsBody AddPlayer(
             ushort playerId, float3 spawnPosition, PhysicsSettings settings)
         {
-            PlayerPhysicsBody body = new PlayerPhysicsBody(
+            PlayerPhysicsBody body = new(
                 spawnPosition, _chunkManager, _nativeStateRegistry, settings);
 
             _bodies[playerId] = body;

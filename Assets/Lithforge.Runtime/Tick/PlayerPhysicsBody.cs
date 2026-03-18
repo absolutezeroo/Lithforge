@@ -397,8 +397,8 @@ namespace Lithforge.Runtime.Tick
 
             // Derive forward/right from yaw (degrees) — no Transform.forward dependency
             float yawRad = math.radians(snapshot.Yaw);
-            float3 forward = new float3(math.sin(yawRad), 0f, math.cos(yawRad));
-            float3 right = new float3(math.cos(yawRad), 0f, -math.sin(yawRad));
+            float3 forward = new(math.sin(yawRad), 0f, math.cos(yawRad));
+            float3 right = new(math.cos(yawRad), 0f, -math.sin(yawRad));
 
             float3 moveDir = float3.zero;
 
@@ -438,12 +438,12 @@ namespace Lithforge.Runtime.Tick
         /// </summary>
         private void UpdateWaterState()
         {
-            int3 feetBlock = new int3(
+            int3 feetBlock = new(
                 (int)math.floor(_currentPosition.x),
                 (int)math.floor(_currentPosition.y),
                 (int)math.floor(_currentPosition.z));
 
-            int3 eyeBlock = new int3(
+            int3 eyeBlock = new(
                 (int)math.floor(_currentPosition.x),
                 (int)math.floor(_currentPosition.y + _playerEyeHeight),
                 (int)math.floor(_currentPosition.z));
@@ -485,8 +485,8 @@ namespace Lithforge.Runtime.Tick
         private void TickSwimFromSnapshot(in InputSnapshot snapshot, float dt)
         {
             float yawRad = math.radians(snapshot.Yaw);
-            float3 forward = new float3(math.sin(yawRad), 0f, math.cos(yawRad));
-            float3 right = new float3(math.cos(yawRad), 0f, -math.sin(yawRad));
+            float3 forward = new(math.sin(yawRad), 0f, math.cos(yawRad));
+            float3 right = new(math.cos(yawRad), 0f, -math.sin(yawRad));
 
             float3 moveDir = float3.zero;
 
@@ -535,7 +535,7 @@ namespace Lithforge.Runtime.Tick
             _verticalSpeed *= _swimDrag;
 
             // Build displacement from velocity (per-second units, scaled by dt)
-            float3 displacement = new float3(
+            float3 displacement = new(
                 _horizontalSpeedX * dt,
                 _verticalSpeed * dt,
                 _horizontalSpeedZ * dt);

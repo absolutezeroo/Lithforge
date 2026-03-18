@@ -25,8 +25,8 @@ namespace Lithforge.WorldGen.Stages
 
         public void Execute()
         {
-            NativeQueue<int> sunQueue = new NativeQueue<int>(Allocator.TempJob);
-            NativeQueue<int> blockQueue = new NativeQueue<int>(Allocator.TempJob);
+            NativeQueue<int> sunQueue = new(Allocator.TempJob);
+            NativeQueue<int> blockQueue = new(Allocator.TempJob);
 
             // Seed queues with all voxels that have light > 0.
             // Encode level in the queue entry for stale-entry detection.

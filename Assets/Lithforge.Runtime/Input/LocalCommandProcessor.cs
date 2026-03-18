@@ -66,12 +66,12 @@ namespace Lithforge.Runtime.Input
             // Check that the placed block does not overlap the player AABB
             if (_playerTransform != null)
             {
-                float3 feetPos = new float3(
+                float3 feetPos = new(
                     _playerTransform.position.x,
                     _playerTransform.position.y,
                     _playerTransform.position.z);
 
-                Aabb playerBox = new Aabb(
+                Aabb playerBox = new(
                     new float3(
                         feetPos.x - _playerHalfWidth,
                         feetPos.y,

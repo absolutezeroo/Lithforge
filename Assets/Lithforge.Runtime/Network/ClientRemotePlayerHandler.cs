@@ -45,7 +45,7 @@ namespace Lithforge.Runtime.Network
         /// </summary>
         public void OnRemotePlayerState(PlayerStateMessage msg)
         {
-            RemotePlayerSnapshot snapshot = new RemotePlayerSnapshot
+            RemotePlayerSnapshot snapshot = new()
             {
                 Position = new float3(msg.PositionX, msg.PositionY, msg.PositionZ),
                 Yaw = msg.Yaw,
@@ -68,7 +68,7 @@ namespace Lithforge.Runtime.Network
                 return;
             }
 
-            float3 position = new float3(msg.PositionX, msg.PositionY, msg.PositionZ);
+            float3 position = new(msg.PositionX, msg.PositionY, msg.PositionZ);
 
             _remotePlayerManager.SpawnPlayer(
                 msg.PlayerId,

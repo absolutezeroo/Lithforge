@@ -36,7 +36,8 @@ namespace Lithforge.Runtime.Content.Settings
         [Tooltip("Items granted to the player at first spawn")]
         [SerializeField] private StartingItemEntry[] startingItems = new StartingItemEntry[]
         {
-            new StartingItemEntry { itemNamespace = "lithforge", itemName = "cobblestone", count = 64 },
+            new()
+                { itemNamespace = "lithforge", itemName = "cobblestone", count = 64 },
         };
 
         /// <inheritdoc cref="inventorySlotCount"/>

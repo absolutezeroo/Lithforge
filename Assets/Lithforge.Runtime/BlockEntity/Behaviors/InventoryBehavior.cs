@@ -152,7 +152,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     int itemCount = reader.ReadInt32();
                     int durability = reader.ReadInt32();
                     ResourceId id = ResourceId.Parse(idStr);
-                    ItemStack stack = new ItemStack(id, itemCount, durability);
+                    ItemStack stack = new(id, itemCount, durability);
 
                     if (formatVersion == 3)
                     {

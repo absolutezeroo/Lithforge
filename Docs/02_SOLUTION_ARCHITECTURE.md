@@ -129,7 +129,6 @@ Lithforge/
 │   │
 │   ├── com.lithforge.meshing/
 │   │   ├── Runtime/
-│   │   │   ├── MeshData.cs                    # NativeList<MeshVertex> + NativeList<int>
 │   │   │   ├── MeshVertex.cs                  # 40-byte blittable vertex struct
 │   │   │   ├── VoxelAO.cs                     # per-vertex AO (Burst-compatible)
 │   │   │   ├── GreedyMeshJob.cs               # [BurstCompile] IJob — binary greedy meshing
@@ -137,7 +136,6 @@ Lithforge/
 │   │   │   ├── CulledMeshJob.cs               # [BurstCompile] IJob — simple face culling
 │   │   │   ├── VoxelDownsampleJob.cs          # [BurstCompile] IJob — majority-vote downsample
 │   │   │   ├── LODGreedyMeshJob.cs            # [BurstCompile] IJob — greedy meshing for LOD
-│   │   │   ├── LODMeshJob.cs                  # [BurstCompile] IJob — culled faces for LOD
 │   │   │   ├── LODMeshData.cs                 # TempJob containers for LOD mesh flight
 │   │   │   ├── PackedMeshVertex.cs            # 16-byte blittable vertex (4×uint32)
 │   │   │   └── Atlas/
@@ -219,18 +217,15 @@ Lithforge/
 │   │   │   │   ├── ISlotContainer.cs
 │   │   │   │   ├── InventoryContainerAdapter.cs
 │   │   │   │   ├── CraftingGridContainerAdapter.cs
-│   │   │   │   ├── CraftingOutputContainerAdapter.cs
-│   │   │   │   └── SlotContainerContext.cs
+│   │   │   │   └── CraftingOutputContainerAdapter.cs
 │   │   │   ├── Layout/
-│   │   │   │   ├── SlotGroupDefinition.cs
-│   │   │   │   └── ContainerLayoutSO.cs
+│   │   │   │   └── SlotGroupDefinition.cs
 │   │   │   ├── Sprites/
 │   │   │   │   ├── ItemSpriteAtlas.cs
 │   │   │   │   └── ItemSpriteAtlasBuilder.cs
 │   │   │   ├── CrosshairHUD.cs
 │   │   │   ├── LoadingScreen.cs               # UI Toolkit, sortingOrder=500, progress bar + fade
 │   │   │   ├── HudVisibilityController.cs     # hides HUDs during loading
-│   │   │   ├── ItemDisplayFormatter.cs
 │   │   │   └── Resources/DefaultPanelSettings.asset
 │   │   ├── Spawn/
 │   │   │   ├── SpawnManager.cs                # Minecraft-style safe spawn finding
@@ -242,16 +237,12 @@ Lithforge/
 │   │   │   ├── PipelineStats.cs               # per-frame + cumulative counters
 │   │   │   └── BenchmarkRunner.cs             # F5 trigger, CSV export, fly-through benchmark
 │   │   ├── Content/
-│   │   │   ├── Blocks/                        # BlockDefinition.cs, BlockStateMapping.cs, BlockBehavior.cs
+│   │   │   ├── Blocks/                        # BlockDefinition.cs, BlockStateMapping.cs
 │   │   │   ├── Items/                         # ItemDefinition.cs (ScriptableObject)
 │   │   │   │   ├── Affixes/
 │   │   │   │   │   ├── AffixDefinition.cs
 │   │   │   │   │   ├── AffixEffectType.cs
 │   │   │   │   │   └── AffixMiningEffect.cs
-│   │   │   │   └── Enchantments/
-│   │   │   │       ├── EnchantmentDefinition.cs
-│   │   │   │       ├── EnchantmentCategory.cs
-│   │   │   │       └── EnchantmentLevelData.cs
 │   │   │   ├── Loot/                          # LootTable.cs (ScriptableObject)
 │   │   │   ├── Models/                        # BlockModel.cs, ContentModelResolver.cs
 │   │   │   ├── Recipes/                       # RecipeDefinition.cs (ScriptableObject)
@@ -260,13 +251,6 @@ Lithforge/
 │   │   │   │   └── ToolSpeedProfile.cs
 │   │   │   ├── WorldGen/                      # BiomeDefinition.cs, OreDefinition.cs (SOs)
 │   │   │   ├── Mods/                          # ModLoader.cs (AssetBundle-based .lithmod loading)
-│   │   │   ├── Behaviors/
-│   │   │   │   ├── BehaviorAction.cs
-│   │   │   │   ├── GiveItemAction.cs
-│   │   │   │   ├── PlaySoundAction.cs
-│   │   │   │   ├── SetBlockAction.cs
-│   │   │   │   ├── SpawnEntityAction.cs
-│   │   │   │   └── SpawnParticleAction.cs
 │   │   │   └── Settings/                      # SettingsLoader.cs, ChunkSettings.cs, etc. (SOs)
 │   │   └── Lithforge.Runtime.asmdef           # References: ALL Tier 1+2 packages, UnityEngine, URP, InputSystem
 │   │
