@@ -6,6 +6,7 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Storage;
 
+using Unity.Collections;
 using Unity.Mathematics;
 
 namespace Lithforge.Voxel.Chunk
@@ -402,9 +403,11 @@ namespace Lithforge.Voxel.Chunk
                 NativeArray<StateId> data = _pool.Checkout();
                 ManagedChunk chunk = new(coord, data);
                 _chunks[coord] = chunk;
+
                 RegisterChunk(chunk);
                 SetChunkState(chunk, ChunkState.Generating);
                 result.Add(chunk);
+
                 created++;
             }
 
