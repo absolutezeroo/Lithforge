@@ -531,6 +531,13 @@ namespace Lithforge.Runtime.Bootstrap
 
             _sessionShutdownComplete = true;
 
+            // Clear gameplay screens from ScreenManager before destroying their GameObjects
+            if (_screenManager != null)
+            {
+                _screenManager.OnEscapeEmpty = null;
+                _screenManager.ClearAll();
+            }
+
             // Dispose network resources (before audio/native)
             try
             {
@@ -2005,6 +2012,14 @@ namespace Lithforge.Runtime.Bootstrap
                     {
                         StartCoroutine(QuitToTitleCoroutine());
                     });
+
+                // Register with ScreenManager so Escape can push it during gameplay
+                _screenManager.Register(_pauseMenuScreen);
+
+                _screenManager.OnEscapeEmpty = () =>
+                {
+                    _screenManager.Push(ScreenNames.Pause);
+                };
             }
         }
 
