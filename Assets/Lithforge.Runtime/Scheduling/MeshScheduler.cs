@@ -433,6 +433,15 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
+                // Fast-track all-air chunks to Ready without scheduling a mesh job.
+                // Greedy meshing would produce zero vertices anyway.
+                if (chunk.IsAllAir)
+                {
+                    _chunkManager.SetChunkState(chunk, ChunkState.Ready);
+                    chunk.RenderedLODLevel = 0;
+                    continue;
+                }
+
                 _chunkManager.SetChunkState(chunk, ChunkState.Meshing);
 
                 long ta0 = Stopwatch.GetTimestamp();

@@ -256,9 +256,9 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.LightData = pending.Handle.LightData;
                         chunk.HeightMap = pending.Handle.HeightMap;
                         chunk.RiverFlags = pending.Handle.RiverFlags;
+                        chunk.IsAllAir = ChunkAirDetector.IsAllAir(chunk.Data);
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
-                        chunk.IsAllAir = ChunkAirDetector.IsAllAir(chunk.Data);
                         _pipelineStats.IncrGenCompleted();
 
                         // Initialize liquid data for chunks containing water

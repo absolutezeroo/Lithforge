@@ -878,6 +878,19 @@ namespace Lithforge.Network.Server
             _logger.LogInfo(
                 $"Player {playerId} ({peer.PlayerName}) accepted, spawning at {spawnPosition}");
 
+            // Send initial loading progress immediately so remote clients don't show "0/0"
+            if (!peer.IsLocal)
+            {
+                SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
+                LoadingProgressMessage progressMsg = new()
+                {
+                    ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue),
+                    TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
+                };
+
+                _server.SendTo(peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
+            }
+
             OnPlayerAcceptedCallback?.Invoke(peer, spawnPosition);
         }
 
