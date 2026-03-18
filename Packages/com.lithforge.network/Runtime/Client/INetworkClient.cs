@@ -42,7 +42,8 @@ namespace Lithforge.Network.Client
         /// <summary>
         ///     Initiates a connection to the given server address and port.
         /// </summary>
-        public void Connect(string address, ushort port);
+        /// <param name="currentTime">Current time (e.g. Time.realtimeSinceStartup) used to seed state-machine timestamps.</param>
+        public void Connect(string address, ushort port, float currentTime);
 
         /// <summary>
         ///     Pumps the transport, processes events, checks timeouts, sends pings.

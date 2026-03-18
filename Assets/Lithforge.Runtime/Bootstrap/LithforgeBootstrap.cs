@@ -1595,7 +1595,8 @@ namespace Lithforge.Runtime.Bootstrap
 
                     networkClient.Connect(
                         clientConfig.ServerAddress,
-                        clientConfig.ServerPort);
+                        clientConfig.ServerPort,
+                        Time.realtimeSinceStartup);
 
                     // Create client chunk handler for network-streamed chunks
                     _clientChunkHandler = new ClientChunkHandler(
