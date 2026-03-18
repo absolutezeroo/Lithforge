@@ -107,6 +107,7 @@ namespace Lithforge.Runtime.Bootstrap
         private NetworkClient _networkClient;
 
         // Network resources (host/client mode)
+        private LanBroadcaster _lanBroadcaster;
         private NetworkServer _networkServer;
         private PauseMenuScreen _pauseMenuScreen;
         private SessionConfig _pendingSession;
@@ -561,6 +562,12 @@ namespace Lithforge.Runtime.Bootstrap
                     _networkClient.Disconnect();
                     _networkClient.Dispose();
                     _networkClient = null;
+                }
+
+                if (_lanBroadcaster != null)
+                {
+                    _lanBroadcaster.Dispose();
+                    _lanBroadcaster = null;
                 }
 
                 if (_networkServer != null)
@@ -1652,6 +1659,20 @@ namespace Lithforge.Runtime.Bootstrap
                     _networkServer = networkServer;
                     networkServer.WorldSeed = (ulong)_worldMetadata.Seed;
                     networkServer.Start(hostConfig.ServerPort);
+
+                    // Start LAN discovery broadcaster so JoinGameScreen can find this server
+                    _lanBroadcaster = new LanBroadcaster(new LanServerInfo
+                    {
+                        serverName = hostConfig.DisplayName,
+                        gamePort = hostConfig.ServerPort,
+                        playerCount = 0,
+                        maxPlayers = hostConfig.MaxPlayers,
+                        gameVersion = Application.version,
+                        contentHash = contentHash.ToString(),
+                        worldName = hostConfig.DisplayName,
+                        gameMode = hostConfig.GameMode.ToString(),
+                    });
+                    _lanBroadcaster.Start();
 
                     // Wire ChunkDirtyTracker to ChunkManager block changes
                     ChunkDirtyTracker dirtyTracker = new();

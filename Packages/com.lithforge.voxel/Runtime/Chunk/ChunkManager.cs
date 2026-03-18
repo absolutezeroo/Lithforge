@@ -828,6 +828,10 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void ApplyDeferredEdits(ManagedChunk chunk)
         {
+            // Complete any in-flight LiquidSimJob holding a [ReadOnly] safety lock
+            // on chunk.Data before writing deferred edits.
+            chunk.LiquidJobHandle.Complete();
+
             NativeArray<StateId> chunkData = chunk.Data;
             _deferredDirtiedCache.Clear();
             _deferredDirtiedCache.Add(chunk.Coord);
