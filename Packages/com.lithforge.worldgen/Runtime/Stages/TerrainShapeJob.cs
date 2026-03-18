@@ -21,7 +21,7 @@ namespace Lithforge.WorldGen.Stages
     /// Schedule with columnCount=ChunkConstants.SizeSquared (1024), batchSize=32
     /// (one Z row for Y-major cache locality).
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct TerrainShapeJob : IJobParallelFor
     {
         // Each column writes to distinct Y-major indices (y*1024 + z*32 + x).

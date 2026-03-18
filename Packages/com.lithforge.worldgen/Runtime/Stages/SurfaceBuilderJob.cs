@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct SurfaceBuilderJob : IJobParallelFor
     {
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.

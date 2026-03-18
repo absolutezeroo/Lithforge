@@ -18,7 +18,7 @@ namespace Lithforge.WorldGen.Stages
     /// Owner: GenerationPipeline.Schedule allocates ClimateMap (Persistent).
     /// Dispose: GenerationHandle.Dispose after downstream jobs complete.
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct ClimateNoiseJob : IJobParallelFor
     {
         [WriteOnly] public NativeArray<ClimateData> ClimateMap;

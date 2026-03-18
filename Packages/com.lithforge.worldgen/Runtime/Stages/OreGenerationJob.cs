@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct OreGenerationJob : IJob
     {
         public NativeArray<StateId> ChunkData;

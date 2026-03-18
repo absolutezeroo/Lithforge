@@ -19,7 +19,7 @@ namespace Lithforge.WorldGen.Stages
     /// never carved, and a safety buffer around sea level protects ocean floors.
     /// </remarks>
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct CaveCarverJob : IJobParallelFor
     {
         /// <summary>Chunk voxel data to carve into. Written in-place per column.</summary>

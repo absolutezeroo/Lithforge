@@ -19,7 +19,7 @@ namespace Lithforge.WorldGen.Stages
     /// Owner: GenerationPipeline.Schedule allocates both output arrays.
     /// Dispose: RiverFlags transferred to ManagedChunk; RiverCarveDepth transient.
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct RiverNoiseJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<ClimateData> ClimateMap;

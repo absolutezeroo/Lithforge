@@ -19,7 +19,7 @@ namespace Lithforge.WorldGen.Stages
     /// Owner: GenerationPipeline.Schedule allocates RiverCarveDepth (Persistent).
     /// Dispose: RiverCarveDepth disposed in GenerationHandle.Dispose.
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct RiverCarveJob : IJobParallelFor
     {
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.
