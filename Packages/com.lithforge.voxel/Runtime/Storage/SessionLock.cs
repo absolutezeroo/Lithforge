@@ -23,14 +23,14 @@ namespace Lithforge.Voxel.Storage
                 Directory.CreateDirectory(worldDir);
             }
 
-            FileStream fs = new FileStream(
+            FileStream fs = new(
                 lockPath,
                 FileMode.Create,
                 FileAccess.ReadWrite,
                 FileShare.None);
 
             // Write timestamp and PID for stale detection
-            StreamWriter writer = new StreamWriter(fs);
+            StreamWriter writer = new(fs);
             writer.WriteLine(DateTime.UtcNow.ToString("o"));
             writer.WriteLine(Process.GetCurrentProcess().Id);
             writer.Flush();
@@ -65,11 +65,11 @@ namespace Lithforge.Voxel.Storage
 
             try
             {
-                using (FileStream fs = new FileStream(
-                    lockPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.None))
+                using (FileStream fs = new(
+                           lockPath,
+                           FileMode.Open,
+                           FileAccess.Read,
+                           FileShare.None))
                 {
                     // If we can open exclusively, it's not locked
                     return false;
@@ -94,12 +94,12 @@ namespace Lithforge.Voxel.Storage
             try
             {
                 // Try to read the lock file non-exclusively
-                using (FileStream fs = new FileStream(
-                    lockPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.ReadWrite))
-                using (StreamReader reader = new StreamReader(fs))
+                using (FileStream fs = new(
+                           lockPath,
+                           FileMode.Open,
+                           FileAccess.Read,
+                           FileShare.ReadWrite))
+                using (StreamReader reader = new(fs))
                 {
                     string timestampLine = reader.ReadLine();
                     string pidLine = reader.ReadLine();

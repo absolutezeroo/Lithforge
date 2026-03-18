@@ -1,6 +1,8 @@
 using System;
+
+using Lithforge.Runtime.UI.Navigation;
+
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 using Cursor = UnityEngine.Cursor;
@@ -8,38 +10,67 @@ using Cursor = UnityEngine.Cursor;
 namespace Lithforge.Runtime.UI
 {
     /// <summary>
-    /// Minecraft-style pause overlay. Appears over the world when Escape is pressed
-    /// during gameplay. Buttons delegate to callers via injected Actions.
-    /// sortingOrder=400: above SettingsScreen(300), below LoadingScreen(500).
+    ///     Minecraft-style pause overlay. Appears over the world when Escape is pressed
+    ///     during gameplay. Buttons delegate to callers via injected Actions.
+    ///     sortingOrder=400: above SettingsScreen(300), below LoadingScreen(500).
+    ///     Escape key handling is delegated to <see cref="ScreenManager" /> via
+    ///     <see cref="IScreen.HandleEscape" />.
     /// </summary>
-    public sealed class PauseMenuScreen : MonoBehaviour
+    public sealed class PauseMenuScreen : MonoBehaviour, IScreen
     {
-        private static readonly Color s_overlayColor = new Color(0f, 0f, 0f, 0.55f);
-        private static readonly Color s_panelColor = new Color(0.12f, 0.12f, 0.15f, 0.97f);
-        private static readonly Color s_buttonColor = new Color(0.22f, 0.22f, 0.28f, 1f);
-        private static readonly Color s_buttonHoverColor = new Color(0.30f, 0.30f, 0.38f, 1f);
-        private static readonly Color s_quitButtonColor = new Color(0.50f, 0.20f, 0.20f, 1f);
-        private static readonly Color s_quitButtonHoverColor = new Color(0.65f, 0.25f, 0.25f, 1f);
+        private static readonly Color s_overlayColor = new(0f, 0f, 0f, 0.55f);
+        private static readonly Color s_panelColor = new(0.12f, 0.12f, 0.15f, 0.97f);
+        private static readonly Color s_buttonColor = new(0.22f, 0.22f, 0.28f, 1f);
+        private static readonly Color s_buttonHoverColor = new(0.30f, 0.30f, 0.38f, 1f);
+        private static readonly Color s_quitButtonColor = new(0.50f, 0.20f, 0.20f, 1f);
+        private static readonly Color s_quitButtonHoverColor = new(0.65f, 0.25f, 0.25f, 1f);
         private static readonly Color s_textColor = Color.white;
 
         private UIDocument _document;
-        private VisualElement _overlay;
-        private bool _isOpen;
+        private Action _onOptions;
 
         private Action _onPause;
-        private Action _onResume;
-        private Action _onOptions;
         private Action _onQuitToTitle;
+        private Action _onResume;
+        private VisualElement _overlay;
 
         private SettingsScreen _settingsScreen;
 
-        public bool IsOpen
+        public bool IsOpen { get; private set; }
+
+        public string ScreenName { get { return ScreenNames.Pause; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return true; } }
+
+        public void OnShow(ScreenShowArgs args)
         {
-            get { return _isOpen; }
+            Open();
+            _onPause?.Invoke();
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            Close();
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // If settings is open (from Options), close it back to pause menu
+            if (_settingsScreen != null && _settingsScreen.IsOpen)
+            {
+                _settingsScreen.Close(true);
+                Open();
+                return true;
+            }
+
+            // Otherwise, resume game (pop this screen)
+            _onResume?.Invoke();
+            return false;
         }
 
         /// <summary>
-        /// Initializes the pause menu with its dependencies and callback actions.
+        ///     Initializes the pause menu with its dependencies and callback actions.
         /// </summary>
         /// <param name="panelSettings">Shared PanelSettings for UIDocument.</param>
         /// <param name="settingsScreen">Reference for Escape-key coordination.</param>
@@ -73,54 +104,9 @@ namespace Lithforge.Runtime.UI
             _overlay.style.display = DisplayStyle.None;
         }
 
-        private void Update()
-        {
-            Keyboard keyboard = Keyboard.current;
-
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            if (!keyboard.escapeKey.wasPressedThisFrame)
-            {
-                return;
-            }
-
-            // Priority 1: If settings is open (from Options), close it back to pause menu
-            if (_settingsScreen != null && _settingsScreen.IsOpen)
-            {
-                _settingsScreen.Close(true);
-                Open();
-                return;
-            }
-
-            // Priority 2: If pause menu is open, resume game
-            if (_isOpen)
-            {
-                if (_onResume != null)
-                {
-                    _onResume();
-                }
-
-                return;
-            }
-
-            // Priority 3: If playing and cursor locked, enter pause
-            if (Cursor.lockState == CursorLockMode.Locked)
-            {
-                if (_onPause != null)
-                {
-                    _onPause();
-                }
-
-                return;
-            }
-        }
-
         public void Open()
         {
-            _isOpen = true;
+            IsOpen = true;
             _overlay.style.display = DisplayStyle.Flex;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -128,16 +114,16 @@ namespace Lithforge.Runtime.UI
 
         public void Close()
         {
-            _isOpen = false;
+            IsOpen = false;
             _overlay.style.display = DisplayStyle.None;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
 
         /// <summary>
-        /// Hides the pause overlay without re-locking the cursor or clearing
-        /// the open state. Used when transitioning to another screen (e.g. settings)
-        /// that manages its own cursor state. The pause is still logically active.
+        ///     Hides the pause overlay without re-locking the cursor or clearing
+        ///     the open state. Used when transitioning to another screen (e.g. settings)
+        ///     that manages its own cursor state. The pause is still logically active.
         /// </summary>
         public void HideOverlay()
         {
@@ -145,7 +131,7 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Controls root document visibility (used by HudVisibilityController).
+        ///     Controls root document visibility (used by HudVisibilityController).
         /// </summary>
         public void SetVisible(bool visible)
         {
@@ -171,7 +157,7 @@ namespace Lithforge.Runtime.UI
             _overlay.style.justifyContent = Justify.Center;
             root.Add(_overlay);
 
-            VisualElement panel = new VisualElement();
+            VisualElement panel = new();
             panel.style.width = 340;
             panel.style.backgroundColor = s_panelColor;
             panel.style.borderTopLeftRadius = 8;
@@ -185,7 +171,7 @@ namespace Lithforge.Runtime.UI
             panel.style.alignItems = Align.Center;
             _overlay.Add(panel);
 
-            Label title = new Label("Game Paused");
+            Label title = new("Game Paused");
             title.style.fontSize = 28;
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             title.style.color = s_textColor;
@@ -227,7 +213,7 @@ namespace Lithforge.Runtime.UI
 
         private Button BuildMenuButton(string text, Color normalColor, Color hoverColor)
         {
-            Button btn = new Button();
+            Button btn = new();
             btn.text = text;
             btn.style.width = new Length(100, LengthUnit.Percent);
             btn.style.height = 44;
@@ -245,12 +231,12 @@ namespace Lithforge.Runtime.UI
             btn.style.marginBottom = 10;
             btn.style.unityFontStyleAndWeight = FontStyle.Bold;
 
-            btn.RegisterCallback<PointerEnterEvent>((PointerEnterEvent evt) =>
+            btn.RegisterCallback((PointerEnterEvent evt) =>
             {
                 btn.style.backgroundColor = hoverColor;
             });
 
-            btn.RegisterCallback<PointerLeaveEvent>((PointerLeaveEvent evt) =>
+            btn.RegisterCallback((PointerLeaveEvent evt) =>
             {
                 btn.style.backgroundColor = normalColor;
             });

@@ -4,23 +4,22 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.Debug
 {
     /// <summary>
-    /// UI Toolkit element that paints a frame-time bar graph using Painter2D.
-    /// Replaces the Texture2D+SetPixels32 approach from the old DebugOverlayHUD.
-    /// Each sample is one pixel-wide bar, colored green/yellow/red by frame time.
-    /// Reference lines at 16.67ms (60fps) and 33.33ms (30fps).
+    ///     UI Toolkit element that paints a frame-time bar graph using Painter2D.
+    ///     Replaces the Texture2D+SetPixels32 approach from the old DebugOverlayHUD.
+    ///     Each sample is one pixel-wide bar, colored green/yellow/red by frame time.
+    ///     Reference lines at 16.67ms (60fps) and 33.33ms (30fps).
     /// </summary>
     public sealed class FrameTimeGraphElement : VisualElement
     {
-        private float[] _history;
-        private int _head;
+        private static readonly Color s_green = new(0f, 0.78f, 0f, 1f);
+        private static readonly Color s_yellow = new(0.86f, 0.78f, 0f, 1f);
+        private static readonly Color s_red = new(0.86f, 0.16f, 0.16f, 1f);
+        private static readonly Color s_bgColor = new(0f, 0f, 0f, 0.63f);
+        private static readonly Color s_line60 = new(0f, 0.7f, 0f, 0.35f);
+        private static readonly Color s_line30 = new(0.86f, 0.16f, 0.16f, 0.35f);
         private int _filled;
-
-        private static readonly Color s_green = new Color(0f, 0.78f, 0f, 1f);
-        private static readonly Color s_yellow = new Color(0.86f, 0.78f, 0f, 1f);
-        private static readonly Color s_red = new Color(0.86f, 0.16f, 0.16f, 1f);
-        private static readonly Color s_bgColor = new Color(0f, 0f, 0f, 0.63f);
-        private static readonly Color s_line60 = new Color(0f, 0.7f, 0f, 0.35f);
-        private static readonly Color s_line30 = new Color(0.86f, 0.16f, 0.16f, 0.35f);
+        private int _head;
+        private float[] _history;
 
         public FrameTimeGraphElement()
         {
@@ -74,7 +73,7 @@ namespace Lithforge.Runtime.Debug
                 int idx = (_head - sampleCount + i + _history.Length) % _history.Length;
                 float ms = _history[idx];
                 float barH = Mathf.Clamp(ms / graphMaxMs, 0f, 1f) * h;
-                float x = (w - sampleCount) + i;
+                float x = w - sampleCount + i;
 
                 Color barColor;
 
@@ -104,7 +103,7 @@ namespace Lithforge.Runtime.Debug
 
         private static void DrawRefLine(Painter2D p, float w, float h, float ms, float maxMs, Color color)
         {
-            float y = h - (ms / maxMs) * h;
+            float y = h - ms / maxMs * h;
 
             if (y < 0f || y > h)
             {

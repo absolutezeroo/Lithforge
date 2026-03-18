@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+
 using Lithforge.Meshing;
 using Lithforge.Runtime.Debug;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
@@ -13,13 +16,13 @@ using UnityEngine.Rendering;
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Stores chunk meshes in three persistent GPU buffers (opaque, cutout, translucent)
-    /// and draws them via GPU-driven per-chunk indirect draw with compute frustum culling.
-    /// Each chunk gets its own DrawIndexedIndirectArgs entry. A compute shader tests AABBs
-    /// against the camera frustum and sets instanceCount=0 for culled chunks.
-    /// No GameObjects, MeshFilters, MeshRenderers, or Mesh objects are created.
-    /// Shaders read vertex data from StructuredBuffer via SV_VertexID.
-    /// Owner: LithforgeBootstrap. Lifetime: application session.
+    ///     Stores chunk meshes in three persistent GPU buffers (opaque, cutout, translucent)
+    ///     and draws them via GPU-driven per-chunk indirect draw with compute frustum culling.
+    ///     Each chunk gets its own DrawIndexedIndirectArgs entry. A compute shader tests AABBs
+    ///     against the camera frustum and sets instanceCount=0 for culled chunks.
+    ///     No GameObjects, MeshFilters, MeshRenderers, or Mesh objects are created.
+    ///     Shaders read vertex data from StructuredBuffer via SV_VertexID.
+    ///     Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
     public sealed class ChunkMeshStore : IDisposable
     {
@@ -34,79 +37,41 @@ namespace Lithforge.Runtime.Rendering
         private static readonly int s_hiZMipCountId = Shader.PropertyToID("_HiZMipCount");
 
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
-        private static readonly Bounds s_worldBounds =
-            new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+        private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+        private readonly ChunkBoundsGPU[] _boundsUpload = new ChunkBoundsGPU[1];
 
-        private readonly MegaMeshBuffer _opaqueBuffer;
-        private readonly MegaMeshBuffer _cutoutBuffer;
-        private readonly MegaMeshBuffer _translucentBuffer;
-
-        private readonly RenderParams _opaqueParams;
+        // --- Shared slot ID space (same slot ID for a chunk across all 3 layers) ---
+        // Swap-and-pop: active slots are always contiguous in 0.._activeCount-1.
+        // When a chunk is destroyed, its slot is swapped with the last active slot.
+        private readonly Dictionary<int3, int> _coordToSlotId = new();
         private readonly RenderParams _cutoutParams;
-        private readonly RenderParams _translucentParams;
+        private readonly int _frustumCullKernel;
 
         // --- GPU frustum culling ---
         private readonly ComputeShader _frustumCullShader;
-        private readonly int _resetCullKernel;
-        private readonly int _frustumCullKernel;
-        private int _maxChunkSlots;
+        private readonly Plane[] _frustumPlanes = new Plane[6];
+
+        /// <summary>Cached frustum plane vectors to avoid per-frame array allocation.</summary>
+        private readonly Vector4[] _frustumPlaneVectors = new Vector4[6];
 
         // --- Hi-Z occlusion culling ---
         private readonly HiZPyramid _hiZPyramid;
         private readonly int _occlusionCullKernel;
 
+        private readonly RenderParams _opaqueParams;
+        private readonly int _resetCullKernel;
+
         /// <summary>GPU buffer resize service — dispatches compute copy and defers disposal.</summary>
         private readonly GpuBufferResizer _resizer;
+        private readonly RenderParams _translucentParams;
 
         /// <summary>
-        /// Shared bounds buffer: same AABB regardless of render layer.
-        /// Slot IDs are keyed to the opaque buffer's coordToSlotId.
+        ///     Shared bounds buffer: same AABB regardless of render layer.
+        ///     Slot IDs are keyed to the opaque buffer's coordToSlotId.
         /// </summary>
         private GraphicsBuffer _chunkBoundsBuffer;
-        private readonly ChunkBoundsGPU[] _boundsUpload = new ChunkBoundsGPU[1];
-
-        /// <summary>Cached frustum plane vectors to avoid per-frame array allocation.</summary>
-        private readonly Vector4[] _frustumPlaneVectors = new Vector4[6];
-        private readonly Plane[] _frustumPlanes = new Plane[6];
-
-        // --- Shared slot ID space (same slot ID for a chunk across all 3 layers) ---
-        // Swap-and-pop: active slots are always contiguous in 0.._activeCount-1.
-        // When a chunk is destroyed, its slot is swapped with the last active slot.
-        private readonly Dictionary<int3, int> _coordToSlotId = new Dictionary<int3, int>();
+        private int _maxChunkSlots;
         private int3[] _slotToCoord;
-        private int _activeCount;
-
-        public int RendererCount
-        {
-            get { return _activeCount; }
-        }
-
-        public MegaMeshBuffer OpaqueBuffer
-        {
-            get { return _opaqueBuffer; }
-        }
-
-        public MegaMeshBuffer CutoutBuffer
-        {
-            get { return _cutoutBuffer; }
-        }
-
-        public MegaMeshBuffer TranslucentBuffer
-        {
-            get { return _translucentBuffer; }
-        }
-
-        public Material OpaqueMaterial { get; }
-
-        public Material CutoutMaterial { get; }
-
-        public Material TranslucentMaterial { get; }
-
-        /// <summary>Whether Hi-Z occlusion culling is active (pyramid generated successfully).</summary>
-        public bool IsOcclusionCullingActive
-        {
-            get { return _hiZPyramid != null && _hiZPyramid.IsValid; }
-        }
 
         public ChunkMeshStore(
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
@@ -126,7 +91,7 @@ namespace Lithforge.Runtime.Rendering
             int unloadDiameter = (renderDistance + 1) * 2 + 1;
             int yUnloadLevels = yUnloadMax - yUnloadMin + 1;
             int maxLoadedChunks = unloadDiameter * unloadDiameter * yUnloadLevels;
-            int maxChunkSlots = ((maxLoadedChunks + 63) / 64) * 64; // align to compute group size
+            int maxChunkSlots = (maxLoadedChunks + 63) / 64 * 64; // align to compute group size
             maxChunkSlots = math.max(maxChunkSlots, 256);
             _maxChunkSlots = maxChunkSlots;
             _frustumCullShader = frustumCullShader;
@@ -182,9 +147,9 @@ namespace Lithforge.Runtime.Rendering
             int smallVerts = maxChunks * 300 * 3 / 2;
             int smallIdx = maxChunks * 450 * 3 / 2;
 
-            _opaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats);
-            _cutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
-            _translucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
+            OpaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats);
+            CutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
+            TranslucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
 
             // Shared chunk bounds buffer — same AABB regardless of render layer.
             // Slot IDs are sourced from the opaque buffer.
@@ -200,9 +165,41 @@ namespace Lithforge.Runtime.Rendering
             _slotToCoord = new int3[maxChunkSlots];
         }
 
+        public int RendererCount { get; private set; }
+
+        public MegaMeshBuffer OpaqueBuffer { get; }
+
+        public MegaMeshBuffer CutoutBuffer { get; }
+
+        public MegaMeshBuffer TranslucentBuffer { get; }
+
+        public Material OpaqueMaterial { get; }
+
+        public Material CutoutMaterial { get; }
+
+        public Material TranslucentMaterial { get; }
+
+        /// <summary>Whether Hi-Z occlusion culling is active (pyramid generated successfully).</summary>
+        public bool IsOcclusionCullingActive
+        {
+            get { return _hiZPyramid != null && _hiZPyramid.IsValid; }
+        }
+
+        public void Dispose()
+        {
+            _hiZPyramid?.Dispose();
+            _coordToSlotId.Clear();
+            _slotToCoord = null;
+            RendererCount = 0;
+            OpaqueBuffer.Dispose();
+            CutoutBuffer.Dispose();
+            TranslucentBuffer.Dispose();
+            _chunkBoundsBuffer?.Dispose();
+        }
+
         /// <summary>
-        /// Updates or creates a chunk's mesh data with 3-submesh data (LOD0).
-        /// Called by MeshScheduler.PollCompleted.
+        ///     Updates or creates a chunk's mesh data with 3-submesh data (LOD0).
+        ///     Called by MeshScheduler.PollCompleted.
         /// </summary>
         public void UpdateRenderer(
             int3 coord,
@@ -210,40 +207,40 @@ namespace Lithforge.Runtime.Rendering
             NativeList<PackedMeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
             NativeList<PackedMeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
-            _opaqueBuffer.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
-            _cutoutBuffer.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
-            _translucentBuffer.AllocateOrUpdate(coord, translucentVerts, translucentIndices);
+            OpaqueBuffer.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
+            CutoutBuffer.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
+            TranslucentBuffer.AllocateOrUpdate(coord, translucentVerts, translucentIndices);
 
             int slotId = EnsureSlotId(coord);
-            _opaqueBuffer.UpdatePerChunkArgs(slotId, coord);
-            _cutoutBuffer.UpdatePerChunkArgs(slotId, coord);
-            _translucentBuffer.UpdatePerChunkArgs(slotId, coord);
+            OpaqueBuffer.UpdatePerChunkArgs(slotId, coord);
+            CutoutBuffer.UpdatePerChunkArgs(slotId, coord);
+            TranslucentBuffer.UpdatePerChunkArgs(slotId, coord);
             UpdateChunkBounds(coord, slotId);
         }
 
         /// <summary>
-        /// Updates or creates a chunk's mesh data with a single opaque submesh (LOD).
-        /// Called by LODScheduler.PollCompleted.
+        ///     Updates or creates a chunk's mesh data with a single opaque submesh (LOD).
+        ///     Called by LODScheduler.PollCompleted.
         /// </summary>
         public void UpdateRendererSingleMesh(
             int3 coord,
             NativeList<PackedMeshVertex> vertices, NativeList<int> indices)
         {
-            _opaqueBuffer.AllocateOrUpdate(coord, vertices, indices);
-            _cutoutBuffer.Free(coord);
-            _translucentBuffer.Free(coord);
+            OpaqueBuffer.AllocateOrUpdate(coord, vertices, indices);
+            CutoutBuffer.Free(coord);
+            TranslucentBuffer.Free(coord);
 
             int slotId = EnsureSlotId(coord);
-            _opaqueBuffer.UpdatePerChunkArgs(slotId, coord);
-            _cutoutBuffer.ZeroPerChunkArgs(slotId);
-            _translucentBuffer.ZeroPerChunkArgs(slotId);
+            OpaqueBuffer.UpdatePerChunkArgs(slotId, coord);
+            CutoutBuffer.ZeroPerChunkArgs(slotId);
+            TranslucentBuffer.ZeroPerChunkArgs(slotId);
             UpdateChunkBounds(coord, slotId);
         }
 
         /// <summary>
-        /// Ensures a shared slot ID exists for the given chunk coordinate.
-        /// New chunks are appended at _activeCount (contiguous packing).
-        /// Grows the slot infrastructure if capacity is exceeded.
+        ///     Ensures a shared slot ID exists for the given chunk coordinate.
+        ///     New chunks are appended at _activeCount (contiguous packing).
+        ///     Grows the slot infrastructure if capacity is exceeded.
         /// </summary>
         private int EnsureSlotId(int3 coord)
         {
@@ -252,34 +249,34 @@ namespace Lithforge.Runtime.Rendering
                 return slotId;
             }
 
-            if (_activeCount >= _maxChunkSlots)
+            if (RendererCount >= _maxChunkSlots)
             {
                 GrowSlotCapacity();
             }
 
-            slotId = _activeCount;
-            _slotToCoord[_activeCount] = coord;
-            _activeCount++;
+            slotId = RendererCount;
+            _slotToCoord[RendererCount] = coord;
+            RendererCount++;
             _coordToSlotId[coord] = slotId;
             return slotId;
         }
 
         /// <summary>
-        /// Doubles the slot capacity for per-chunk indirect draw. Grows the shared
-        /// bounds buffer and per-chunk args in all three MegaMeshBuffers via GPU
-        /// compute copy (no blocking GetData readback). Old buffers are retired for
-        /// deferred disposal. Called when render distance increases at runtime and the
-        /// original slot count is exceeded.
+        ///     Doubles the slot capacity for per-chunk indirect draw. Grows the shared
+        ///     bounds buffer and per-chunk args in all three MegaMeshBuffers via GPU
+        ///     compute copy (no blocking GetData readback). Old buffers are retired for
+        ///     deferred disposal. Called when render distance increases at runtime and the
+        ///     original slot count is exceeded.
         /// </summary>
         private void GrowSlotCapacity()
         {
             int oldMax = _maxChunkSlots;
-            int newMax = ((oldMax * 2 + 63) / 64) * 64;
+            int newMax = (oldMax * 2 + 63) / 64 * 64;
 
             // Grow per-chunk args in all 3 MegaMeshBuffers (each delegates to _resizer)
-            _opaqueBuffer.GrowSlots(newMax);
-            _cutoutBuffer.GrowSlots(newMax);
-            _translucentBuffer.GrowSlots(newMax);
+            OpaqueBuffer.GrowSlots(newMax);
+            CutoutBuffer.GrowSlots(newMax);
+            TranslucentBuffer.GrowSlots(newMax);
 
             // Grow chunk bounds buffer via compute copy (no GetData blocking readback)
             _chunkBoundsBuffer = _resizer.Resize(
@@ -300,7 +297,7 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Updates the shared chunk bounds buffer for GPU culling at the given slot.
+        ///     Updates the shared chunk bounds buffer for GPU culling at the given slot.
         /// </summary>
         private void UpdateChunkBounds(int3 coord, int slotId)
         {
@@ -309,7 +306,7 @@ namespace Lithforge.Runtime.Rendering
                 return;
             }
 
-            float3 worldMin = new float3(
+            float3 worldMin = new(
                 coord.x * ChunkConstants.Size,
                 coord.y * ChunkConstants.Size,
                 coord.z * ChunkConstants.Size);
@@ -317,36 +314,35 @@ namespace Lithforge.Runtime.Rendering
 
             _boundsUpload[0] = new ChunkBoundsGPU
             {
-                WorldMin = worldMin,
-                WorldMax = worldMax,
+                WorldMin = worldMin, WorldMax = worldMax,
             };
             _chunkBoundsBuffer.SetData(_boundsUpload, 0, slotId, 1);
         }
 
         /// <summary>
-        /// Submits 3 procedural indexed draw calls (opaque, cutout, translucent) using
-        /// per-chunk indirect args with GPU frustum culling. Each chunk has its own
-        /// DrawIndexedIndirectArgs entry. A compute shader tests AABB vs frustum and
-        /// sets instanceCount=0 for culled chunks. Chunks with instanceCount=0 produce
-        /// zero GPU work. Must be called from LateUpdate.
+        ///     Submits 3 procedural indexed draw calls (opaque, cutout, translucent) using
+        ///     per-chunk indirect args with GPU frustum culling. Each chunk has its own
+        ///     DrawIndexedIndirectArgs entry. A compute shader tests AABB vs frustum and
+        ///     sets instanceCount=0 for culled chunks. Chunks with instanceCount=0 produce
+        ///     zero GPU work. Must be called from LateUpdate.
         /// </summary>
         public void RenderAll(Camera camera)
         {
             // Batch-upload all dirty ranges (one Lock/Unlock per buffer, not per chunk)
             Profiler.BeginSample("CMS.Flush");
-            _opaqueBuffer.FlushDirtyToGpu();
-            _cutoutBuffer.FlushDirtyToGpu();
-            _translucentBuffer.FlushDirtyToGpu();
+            OpaqueBuffer.FlushDirtyToGpu();
+            CutoutBuffer.FlushDirtyToGpu();
+            TranslucentBuffer.FlushDirtyToGpu();
 
-            _opaqueBuffer.FlushArgs();
-            _cutoutBuffer.FlushArgs();
-            _translucentBuffer.FlushArgs();
+            OpaqueBuffer.FlushArgs();
+            CutoutBuffer.FlushArgs();
+            TranslucentBuffer.FlushArgs();
             Profiler.EndSample();
 
             // GPU culling: frustum + optional Hi-Z occlusion
             // Swap-and-pop keeps active slots contiguous in 0.._activeCount-1,
             // so commandCount is always exact — no wasted GPU work on empty gaps.
-            int activeSlotCount = _activeCount;
+            int activeSlotCount = RendererCount;
 
             if (_frustumCullShader != null && activeSlotCount > 0)
             {
@@ -391,30 +387,30 @@ namespace Lithforge.Runtime.Rendering
                     _frustumCullShader.SetTexture(
                         _occlusionCullKernel, s_hiZTextureId, _hiZPyramid.CombinedTexture);
 
-                    DispatchResetAndOcclusionCull(_opaqueBuffer, threadGroups);
-                    DispatchResetAndOcclusionCull(_cutoutBuffer, threadGroups);
-                    DispatchResetAndOcclusionCull(_translucentBuffer, threadGroups);
+                    DispatchResetAndOcclusionCull(OpaqueBuffer, threadGroups);
+                    DispatchResetAndOcclusionCull(CutoutBuffer, threadGroups);
+                    DispatchResetAndOcclusionCull(TranslucentBuffer, threadGroups);
                 }
                 else
                 {
                     _frustumCullShader.SetBuffer(
                         _frustumCullKernel, s_chunkBoundsBufferId, _chunkBoundsBuffer);
 
-                    DispatchResetAndCull(_opaqueBuffer, threadGroups);
-                    DispatchResetAndCull(_cutoutBuffer, threadGroups);
-                    DispatchResetAndCull(_translucentBuffer, threadGroups);
+                    DispatchResetAndCull(OpaqueBuffer, threadGroups);
+                    DispatchResetAndCull(CutoutBuffer, threadGroups);
+                    DispatchResetAndCull(TranslucentBuffer, threadGroups);
                 }
             }
 
             Profiler.BeginSample("CMS.Draw");
-            DrawLayer(_opaqueBuffer, _opaqueParams, activeSlotCount);
-            DrawLayer(_cutoutBuffer, _cutoutParams, activeSlotCount);
-            DrawLayer(_translucentBuffer, _translucentParams, activeSlotCount);
+            DrawLayer(OpaqueBuffer, _opaqueParams, activeSlotCount);
+            DrawLayer(CutoutBuffer, _cutoutParams, activeSlotCount);
+            DrawLayer(TranslucentBuffer, _translucentParams, activeSlotCount);
             Profiler.EndSample();
         }
 
         /// <summary>
-        /// Dispatches the reset-cull and frustum-cull compute kernels for one render layer.
+        ///     Dispatches the reset-cull and frustum-cull compute kernels for one render layer.
         /// </summary>
         private void DispatchResetAndCull(MegaMeshBuffer buffer, int threadGroups)
         {
@@ -433,7 +429,7 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Dispatches the reset-cull and combined frustum+occlusion compute kernels for one layer.
+        ///     Dispatches the reset-cull and combined frustum+occlusion compute kernels for one layer.
         /// </summary>
         private void DispatchResetAndOcclusionCull(MegaMeshBuffer buffer, int threadGroups)
         {
@@ -452,7 +448,7 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Issues one RenderPrimitivesIndexedIndirect draw with per-chunk multi-draw.
+        ///     Issues one RenderPrimitivesIndexedIndirect draw with per-chunk multi-draw.
         /// </summary>
         private void DrawLayer(MegaMeshBuffer buffer, RenderParams rp, int commandCount)
         {
@@ -467,49 +463,36 @@ namespace Lithforge.Runtime.Rendering
                 MeshTopology.Triangles,
                 buffer.IndexBuffer,
                 buffer.PerChunkArgsBuffer,
-                commandCount,
-                0);
+                commandCount);
         }
 
         public void DestroyRenderer(int3 coord)
         {
-            _opaqueBuffer.Free(coord);
-            _cutoutBuffer.Free(coord);
-            _translucentBuffer.Free(coord);
+            OpaqueBuffer.Free(coord);
+            CutoutBuffer.Free(coord);
+            TranslucentBuffer.Free(coord);
 
             if (_coordToSlotId.TryGetValue(coord, out int slotId))
             {
-                int lastSlot = _activeCount - 1;
+                int lastSlot = RendererCount - 1;
 
                 if (slotId != lastSlot)
                 {
                     // Swap: move the last active chunk's draw data into the freed slot
                     int3 lastCoord = _slotToCoord[lastSlot];
 
-                    _opaqueBuffer.UpdatePerChunkArgs(slotId, lastCoord);
-                    _cutoutBuffer.UpdatePerChunkArgs(slotId, lastCoord);
-                    _translucentBuffer.UpdatePerChunkArgs(slotId, lastCoord);
+                    OpaqueBuffer.UpdatePerChunkArgs(slotId, lastCoord);
+                    CutoutBuffer.UpdatePerChunkArgs(slotId, lastCoord);
+                    TranslucentBuffer.UpdatePerChunkArgs(slotId, lastCoord);
                     UpdateChunkBounds(lastCoord, slotId);
 
                     _coordToSlotId[lastCoord] = slotId;
                     _slotToCoord[slotId] = lastCoord;
                 }
 
-                _activeCount--;
+                RendererCount--;
                 _coordToSlotId.Remove(coord);
             }
-        }
-
-        public void Dispose()
-        {
-            _hiZPyramid?.Dispose();
-            _coordToSlotId.Clear();
-            _slotToCoord = null;
-            _activeCount = 0;
-            _opaqueBuffer.Dispose();
-            _cutoutBuffer.Dispose();
-            _translucentBuffer.Dispose();
-            _chunkBoundsBuffer?.Dispose();
         }
     }
 }

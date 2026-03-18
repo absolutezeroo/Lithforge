@@ -1,25 +1,26 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Applies a low-pass filter when the player's head is submerged in a fluid block.
-    /// Ticked at 30 TPS to check submersion; filter cutoff interpolated at frame rate.
+    ///     Applies a low-pass filter when the player's head is submerged in a fluid block.
+    ///     Ticked at 30 TPS to check submersion; filter cutoff interpolated at frame rate.
     /// </summary>
     public sealed class UnderwaterAudioFilter
     {
-        private readonly ChunkManager _chunkManager;
-        private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly AudioLowPassFilter _filter;
         private readonly Transform _cameraTransform;
-        private readonly float _underwaterCutoff;
-        private readonly float _surfaceCutoff;
+        private readonly ChunkManager _chunkManager;
+        private readonly AudioLowPassFilter _filter;
         private readonly float _lerpSpeed;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+        private readonly float _surfaceCutoff;
+        private readonly float _underwaterCutoff;
 
-        private bool _isUnderwater;
         private float _targetCutoff;
 
         public UnderwaterAudioFilter(
@@ -47,8 +48,10 @@ namespace Lithforge.Runtime.Audio
             }
         }
 
+        public bool IsUnderwater { get; private set; }
+
         /// <summary>
-        /// Called at 30 TPS. Checks if the camera position is inside a fluid block.
+        ///     Called at 30 TPS. Checks if the camera position is inside a fluid block.
         /// </summary>
         public void Tick()
         {
@@ -58,7 +61,7 @@ namespace Lithforge.Runtime.Audio
             }
 
             Vector3 headPos = _cameraTransform.position;
-            int3 headBlock = new int3(
+            int3 headBlock = new(
                 (int)math.floor(headPos.x),
                 (int)math.floor(headPos.y),
                 (int)math.floor(headPos.z));
@@ -73,12 +76,12 @@ namespace Lithforge.Runtime.Audio
                 underwater = (compact.Flags & BlockStateCompact.FlagFluid) != 0;
             }
 
-            _isUnderwater = underwater;
+            IsUnderwater = underwater;
             _targetCutoff = underwater ? _underwaterCutoff : _surfaceCutoff;
         }
 
         /// <summary>
-        /// Called each frame. Smoothly interpolates the low-pass filter cutoff.
+        ///     Called each frame. Smoothly interpolates the low-pass filter cutoff.
         /// </summary>
         public void UpdateFrame(float deltaTime)
         {
@@ -89,12 +92,7 @@ namespace Lithforge.Runtime.Audio
 
             _filter.cutoffFrequency = Mathf.Lerp(
                 _filter.cutoffFrequency, _targetCutoff, _lerpSpeed * deltaTime);
-            _filter.lowpassResonanceQ = _isUnderwater ? 1.5f : 1.0f;
-        }
-
-        public bool IsUnderwater
-        {
-            get { return _isUnderwater; }
+            _filter.lowpassResonanceQ = IsUnderwater ? 1.5f : 1.0f;
         }
     }
 }

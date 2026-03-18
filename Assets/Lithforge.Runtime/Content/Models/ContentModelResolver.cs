@@ -1,18 +1,18 @@
 using System.Collections.Generic;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Models
 {
     /// <summary>
-    /// Walks BlockModel.Parent chains via direct references,
-    /// merges textures/elements, resolves #variable chains, and
-    /// detects circular parents via HashSet.
+    ///     Walks BlockModel.Parent chains via direct references,
+    ///     merges textures/elements, resolves #variable chains, and
+    ///     detects circular parents via HashSet.
     /// </summary>
     public sealed class ContentModelResolver
     {
         private const int MaxParentDepth = 16;
-        private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache =
-            new Dictionary<BlockModel, ResolvedFaceTextures2D>();
+        private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache = new();
 
         public ResolvedFaceTextures2D Resolve(BlockModel model)
         {
@@ -26,8 +26,8 @@ namespace Lithforge.Runtime.Content.Models
                 return cached;
             }
 
-            List<BlockModel> chain = new List<BlockModel>();
-            HashSet<BlockModel> visited = new HashSet<BlockModel>();
+            List<BlockModel> chain = new();
+            HashSet<BlockModel> visited = new();
             BuiltInParentType terminalType = BuiltInParentType.None;
 
             BlockModel current = model;
@@ -57,7 +57,7 @@ namespace Lithforge.Runtime.Content.Models
             }
 
             // Merge textures from root to leaf (parent first, child overrides)
-            Dictionary<string, TextureVariable> mergedTextures = new Dictionary<string, TextureVariable>();
+            Dictionary<string, TextureVariable> mergedTextures = new();
 
             for (int i = chain.Count - 1; i >= 0; i--)
             {
@@ -70,7 +70,7 @@ namespace Lithforge.Runtime.Content.Models
             }
 
             // Merge elements: child elements override parent entirely if present
-            List<ModelElement> mergedElements = new List<ModelElement>();
+            List<ModelElement> mergedElements = new();
 
             for (int i = 0; i < chain.Count; i++)
             {
@@ -86,7 +86,7 @@ namespace Lithforge.Runtime.Content.Models
             }
 
             // Resolve #variable references to Texture2D
-            Dictionary<string, Texture2D> resolvedTextures = new Dictionary<string, Texture2D>();
+            Dictionary<string, Texture2D> resolvedTextures = new();
 
             foreach (KeyValuePair<string, TextureVariable> kvp in mergedTextures)
             {
@@ -94,7 +94,7 @@ namespace Lithforge.Runtime.Content.Models
                 resolvedTextures[kvp.Key] = resolved;
             }
 
-            ResolvedModel result = new ResolvedModel();
+            ResolvedModel result = new();
             result.Textures = ResolveWithBuiltIn(terminalType, resolvedTextures);
             result.Elements = mergedElements;
 
@@ -104,7 +104,7 @@ namespace Lithforge.Runtime.Content.Models
         }
 
         /// <summary>
-        /// Resolves a block model to both face textures and merged element list.
+        ///     Resolves a block model to both face textures and merged element list.
         /// </summary>
         public ResolvedModel ResolveFull(BlockModel model)
         {
@@ -112,13 +112,12 @@ namespace Lithforge.Runtime.Content.Models
             {
                 return new ResolvedModel
                 {
-                    Textures = CreateMissing(),
-                    Elements = new List<ModelElement>(),
+                    Textures = CreateMissing(), Elements = new List<ModelElement>(),
                 };
             }
 
-            List<BlockModel> chain = new List<BlockModel>();
-            HashSet<BlockModel> visited = new HashSet<BlockModel>();
+            List<BlockModel> chain = new();
+            HashSet<BlockModel> visited = new();
             BuiltInParentType terminalType = BuiltInParentType.None;
 
             BlockModel current = model;
@@ -147,7 +146,7 @@ namespace Lithforge.Runtime.Content.Models
                 current = current.Parent;
             }
 
-            Dictionary<string, TextureVariable> mergedTextures = new Dictionary<string, TextureVariable>();
+            Dictionary<string, TextureVariable> mergedTextures = new();
 
             for (int i = chain.Count - 1; i >= 0; i--)
             {
@@ -159,7 +158,7 @@ namespace Lithforge.Runtime.Content.Models
                 }
             }
 
-            List<ModelElement> mergedElements = new List<ModelElement>();
+            List<ModelElement> mergedElements = new();
 
             for (int i = 0; i < chain.Count; i++)
             {
@@ -174,7 +173,7 @@ namespace Lithforge.Runtime.Content.Models
                 }
             }
 
-            Dictionary<string, Texture2D> resolvedTextures = new Dictionary<string, Texture2D>();
+            Dictionary<string, Texture2D> resolvedTextures = new();
 
             foreach (KeyValuePair<string, TextureVariable> kvp in mergedTextures)
             {
@@ -184,9 +183,7 @@ namespace Lithforge.Runtime.Content.Models
 
             return new ResolvedModel
             {
-                Textures = ResolveWithBuiltIn(terminalType, resolvedTextures),
-                Elements = mergedElements,
-                ResolvedTextureDictionary = resolvedTextures,
+                Textures = ResolveWithBuiltIn(terminalType, resolvedTextures), Elements = mergedElements, ResolvedTextureDictionary = resolvedTextures,
             };
         }
 
@@ -201,7 +198,7 @@ namespace Lithforge.Runtime.Content.Models
             }
 
             // Walk #variable chain
-            HashSet<string> visitedVars = new HashSet<string>();
+            HashSet<string> visitedVars = new();
             string currentRef = texVar.VariableReference;
 
             while (currentRef != null && currentRef.StartsWith("#"))
@@ -368,9 +365,9 @@ namespace Lithforge.Runtime.Content.Models
         }
 
         /// <summary>
-        /// Resolves the first-person right hand display transform by walking the parent chain.
-        /// Returns the first ModelDisplayTransform with HasValue=true (leaf wins over root).
-        /// Returns null if no display transform is found in the chain.
+        ///     Resolves the first-person right hand display transform by walking the parent chain.
+        ///     Returns the first ModelDisplayTransform with HasValue=true (leaf wins over root).
+        ///     Returns null if no display transform is found in the chain.
         /// </summary>
         public ModelDisplayTransform ResolveFirstPersonRightHand(BlockModel model)
         {
@@ -379,7 +376,7 @@ namespace Lithforge.Runtime.Content.Models
                 return null;
             }
 
-            HashSet<BlockModel> visited = new HashSet<BlockModel>();
+            HashSet<BlockModel> visited = new();
             BlockModel current = model;
 
             for (int depth = 0; depth <= MaxParentDepth; depth++)

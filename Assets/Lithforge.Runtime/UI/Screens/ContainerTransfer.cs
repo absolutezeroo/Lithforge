@@ -5,16 +5,16 @@ using Lithforge.Voxel.Item;
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
-    /// Static utility for shift-click item transfer between containers.
-    /// Extracted from the per-screen duplicated implementations to a single
-    /// shared location. Pure logic — no Unity dependencies.
+    ///     Static utility for shift-click item transfer between containers.
+    ///     Extracted from the per-screen duplicated implementations to a single
+    ///     shared location. Pure logic — no Unity dependencies.
     /// </summary>
     public static class ContainerTransfer
     {
         /// <summary>
-        /// Transfers an item stack from <paramref name="source"/> at <paramref name="slotIndex"/>
-        /// into <paramref name="primaryTarget"/>, then <paramref name="secondaryTarget"/> if any
-        /// items remain. Updates the source slot with leftover count.
+        ///     Transfers an item stack from <paramref name="source" /> at <paramref name="slotIndex" />
+        ///     into <paramref name="primaryTarget" />, then <paramref name="secondaryTarget" /> if any
+        ///     items remain. Updates the source slot with leftover count.
         /// </summary>
         public static void TransferItem(
             ISlotContainer source,
@@ -54,10 +54,10 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Attempts to fill <paramref name="target"/> container slots with the given item.
-        /// Merges into existing stacks first, then fills empty slots.
-        /// Preserves Durability and Components from the source stack.
-        /// Returns the count that could not be placed.
+        ///     Attempts to fill <paramref name="target" /> container slots with the given item.
+        ///     Merges into existing stacks first, then fills empty slots.
+        ///     Preserves Durability and Components from the source stack.
+        ///     Returns the count that could not be placed.
         /// </summary>
         public static int TryFillContainer(
             ItemStack source,
@@ -90,7 +90,7 @@ namespace Lithforge.Runtime.UI.Screens
                 if (target.GetSlot(i).IsEmpty)
                 {
                     int toAdd = remaining < maxStack ? remaining : maxStack;
-                    ItemStack newSlot = new ItemStack(itemId, toAdd, source.Durability);
+                    ItemStack newSlot = new(itemId, toAdd, source.Durability);
                     newSlot.Components = source.Components;
                     target.SetSlot(i, newSlot);
                     remaining -= toAdd;

@@ -1,38 +1,44 @@
+using System;
 using System.Collections.Generic;
+
 using Lithforge.WorldGen.Climate;
+
 using Unity.Collections;
 using Unity.Mathematics;
+
 using UnityEngine;
+
+using Object = UnityEngine.Object;
 
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Manages a global GPU texture storing biome climate parameters (temperature, humidity,
-    /// biomeId) for shader-side colormap lookup. Uses toroidal addressing — the texture wraps
-    /// and new data overwrites stale regions as the player moves.
-    /// Owner: LithforgeBootstrap. Lifetime: application session.
+    ///     Manages a global GPU texture storing biome climate parameters (temperature, humidity,
+    ///     biomeId) for shader-side colormap lookup. Uses toroidal addressing — the texture wraps
+    ///     and new data overwrites stale regions as the player moves.
+    ///     Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
-    public sealed class BiomeTintManager : System.IDisposable
+    public sealed class BiomeTintManager : IDisposable
     {
         private static readonly int s_biomeParamMapId = Shader.PropertyToID("_BiomeParamMap");
         private static readonly int s_biomeMapScaleId = Shader.PropertyToID("_BiomeMapScale");
         private static readonly int s_grassColormapId = Shader.PropertyToID("_GrassColormap");
         private static readonly int s_foliageColormapId = Shader.PropertyToID("_FoliageColormap");
         private static readonly int s_waterColorLutId = Shader.PropertyToID("_WaterColorLUT");
-
-        private readonly int _mapSize;
         private readonly int _chunkSize;
         private readonly Texture2D _globalMap;
+
+        private readonly int _mapSize;
         private readonly Texture2D _staging;
         private readonly Texture2D _waterColorLut;
 
         /// <summary>
-        /// Tracks which chunk columns have been written to avoid redundant uploads.
-        /// Key: (chunkX, chunkZ). Bounded by the number of simultaneously loaded chunk columns
-        /// (approximately renderDistance^2); entries are removed on chunk unload.
-        /// Owner: BiomeTintManager. Lifetime: application session.
+        ///     Tracks which chunk columns have been written to avoid redundant uploads.
+        ///     Key: (chunkX, chunkZ). Bounded by the number of simultaneously loaded chunk columns
+        ///     (approximately renderDistance^2); entries are removed on chunk unload.
+        ///     Owner: BiomeTintManager. Lifetime: application session.
         /// </summary>
-        private readonly HashSet<int2> _writtenChunks = new HashSet<int2>();
+        private readonly HashSet<int2> _writtenChunks = new();
 
         public BiomeTintManager(
             int mapSize,
@@ -120,16 +126,36 @@ namespace Lithforge.Runtime.Rendering
             Shader.SetGlobalTexture(s_waterColorLutId, _waterColorLut);
         }
 
+        public void Dispose()
+        {
+            if (_globalMap != null)
+            {
+                Object.Destroy(_globalMap);
+            }
+
+            if (_staging != null)
+            {
+                Object.Destroy(_staging);
+            }
+
+            if (_waterColorLut != null)
+            {
+                Object.Destroy(_waterColorLut);
+            }
+
+            _writtenChunks.Clear();
+        }
+
         /// <summary>
-        /// Writes a chunk's climate data (temperature, humidity, biomeId per column) into
-        /// the global texture. Must be called on main thread (uses Graphics.CopyTexture).
+        ///     Writes a chunk's climate data (temperature, humidity, biomeId per column) into
+        ///     the global texture. Must be called on main thread (uses Graphics.CopyTexture).
         /// </summary>
         public void WriteChunkClimate(
             int3 chunkCoord,
             NativeArray<ClimateData> climateMap,
             NativeArray<byte> biomeMap)
         {
-            int2 key = new int2(chunkCoord.x, chunkCoord.z);
+            int2 key = new(chunkCoord.x, chunkCoord.z);
 
             if (_writtenChunks.Contains(key))
             {
@@ -169,31 +195,11 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Called when a chunk column is unloaded. Allows re-writing if the player returns.
+        ///     Called when a chunk column is unloaded. Allows re-writing if the player returns.
         /// </summary>
         public void OnChunkUnloaded(int3 chunkCoord)
         {
             _writtenChunks.Remove(new int2(chunkCoord.x, chunkCoord.z));
-        }
-
-        public void Dispose()
-        {
-            if (_globalMap != null)
-            {
-                Object.Destroy(_globalMap);
-            }
-
-            if (_staging != null)
-            {
-                Object.Destroy(_staging);
-            }
-
-            if (_waterColorLut != null)
-            {
-                Object.Destroy(_waterColorLut);
-            }
-
-            _writtenChunks.Clear();
         }
 
         private static int Mod(int x, int m)

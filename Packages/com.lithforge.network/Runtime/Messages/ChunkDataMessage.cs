@@ -1,13 +1,14 @@
 using System;
+
 using Lithforge.Network.Message;
 
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client full chunk data. Sent on fragmented reliable pipeline.
-    /// Contains chunk coordinate and the serialized chunk payload from
-    /// <see cref="Lithforge.Voxel.Network.ChunkNetSerializer.SerializeFullChunk"/>.
-    /// Wire format: [ChunkX:4][ChunkY:4][ChunkZ:4][PayloadLength:4][Payload:N] = 16 + N bytes.
+    ///     Server→Client full chunk data. Sent on fragmented reliable pipeline.
+    ///     Contains chunk coordinate and the serialized chunk payload from
+    ///     <see cref="Lithforge.Voxel.Network.ChunkNetSerializer.SerializeFullChunk" />.
+    ///     Wire format: [ChunkX:4][ChunkY:4][ChunkZ:4][PayloadLength:4][Payload:N] = 16 + N bytes.
     /// </summary>
     public struct ChunkDataMessage : INetworkMessage
     {
@@ -18,7 +19,7 @@ namespace Lithforge.Network.Messages
         public int ChunkZ;
 
         /// <summary>
-        /// Serialized chunk data from ChunkNetSerializer.SerializeFullChunk.
+        ///     Serialized chunk data from ChunkNetSerializer.SerializeFullChunk.
         /// </summary>
         public byte[] Payload;
 
@@ -58,7 +59,7 @@ namespace Lithforge.Network.Messages
 
         public static ChunkDataMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            ChunkDataMessage msg = new ChunkDataMessage();
+            ChunkDataMessage msg = new();
 
             if (length < HeaderSize)
             {

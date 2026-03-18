@@ -1,38 +1,28 @@
 using System;
 using System.Collections.Generic;
-using Lithforge.Core.Data;
+using System.Globalization;
+
 using Unity.Collections;
 
 namespace Lithforge.Voxel.Block
 {
     /// <summary>
-    /// Managed state registry that assigns StateId ranges to blocks.
-    /// Accepts BlockRegistrationData with pre-computed state counts.
-    /// StateId(0) is always AIR — this is enforced at construction.
-    ///
-    /// After all blocks are registered, call BakeNative() to produce the
-    /// Burst-compatible NativeStateRegistry.
+    ///     Managed state registry that assigns StateId ranges to blocks.
+    ///     Accepts BlockRegistrationData with pre-computed state counts.
+    ///     StateId(0) is always AIR — this is enforced at construction.
+    ///     After all blocks are registered, call BakeNative() to produce the
+    ///     Burst-compatible NativeStateRegistry.
     /// </summary>
     public sealed class StateRegistry
     {
-        private readonly List<StateRegistryEntry> _entries = new List<StateRegistryEntry>();
-        private readonly List<BlockStateCompact> _states = new List<BlockStateCompact>();
+        private readonly List<StateRegistryEntry> _entries = new();
+        private readonly List<BlockStateCompact> _states = new();
         private bool _frozen;
-
-        public int TotalStateCount
-        {
-            get { return _states.Count; }
-        }
-
-        public IReadOnlyList<StateRegistryEntry> Entries
-        {
-            get { return _entries; }
-        }
 
         public StateRegistry()
         {
             // StateId(0) = AIR, hardcoded invariant
-            BlockStateCompact airState = new BlockStateCompact
+            BlockStateCompact airState = new()
             {
                 BlockId = 0,
                 Flags = BlockStateCompact.FlagAir,
@@ -46,9 +36,19 @@ namespace Lithforge.Voxel.Block
             _states.Add(airState);
         }
 
+        public int TotalStateCount
+        {
+            get { return _states.Count; }
+        }
+
+        public IReadOnlyList<StateRegistryEntry> Entries
+        {
+            get { return _entries; }
+        }
+
         /// <summary>
-        /// Registers a block via BlockRegistrationData and computes its state range.
-        /// Returns the base StateId assigned.
+        ///     Registers a block via BlockRegistrationData and computes its state range.
+        ///     Returns the base StateId assigned.
         /// </summary>
         public ushort Register(BlockRegistrationData data)
         {
@@ -78,7 +78,7 @@ namespace Lithforge.Voxel.Block
 
             for (int i = 0; i < stateCount; i++)
             {
-                BlockStateCompact state = new BlockStateCompact
+                BlockStateCompact state = new()
                 {
                     BlockId = blockOrdinal,
                     Flags = flags,
@@ -98,7 +98,7 @@ namespace Lithforge.Voxel.Block
                 _states.Add(state);
             }
 
-            StateRegistryEntry entry = new StateRegistryEntry(
+            StateRegistryEntry entry = new(
                 data.Id, baseId, stateCount, blockOrdinal, data.LootTable,
                 data.Hardness, data.BlastResistance, data.RequiresTool,
                 data.MaterialType, data.RequiredToolLevel, data.SoundGroup);
@@ -108,23 +108,22 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Freezes the registry and bakes to a NativeStateRegistry for Burst job access.
-        /// The caller is responsible for disposing the returned NativeStateRegistry.
+        ///     Freezes the registry and bakes to a NativeStateRegistry for Burst job access.
+        ///     The caller is responsible for disposing the returned NativeStateRegistry.
         /// </summary>
         public NativeStateRegistry BakeNative(Allocator allocator)
         {
             _frozen = true;
 
             BlockStateCompact[] tempArray = _states.ToArray();
-            NativeArray<BlockStateCompact> nativeStates =
-                new NativeArray<BlockStateCompact>(tempArray.Length, allocator, NativeArrayOptions.UninitializedMemory);
+            NativeArray<BlockStateCompact> nativeStates = new(tempArray.Length, allocator, NativeArrayOptions.UninitializedMemory);
             nativeStates.CopyFrom(tempArray);
 
             return new NativeStateRegistry(nativeStates);
         }
 
         /// <summary>
-        /// Gets a managed BlockStateCompact by StateId value.
+        ///     Gets a managed BlockStateCompact by StateId value.
         /// </summary>
         public BlockStateCompact GetState(StateId id)
         {
@@ -132,9 +131,9 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Finds the StateRegistryEntry that owns the given StateId.
-        /// Returns null for StateId.Air or if no matching entry is found.
-        /// O(n) scan over entries — call infrequently (e.g., on block break), not per-frame.
+        ///     Finds the StateRegistryEntry that owns the given StateId.
+        ///     Returns null for StateId.Air or if no matching entry is found.
+        ///     O(n) scan over entries — call infrequently (e.g., on block break), not per-frame.
         /// </summary>
         public StateRegistryEntry GetEntryForState(StateId id)
         {
@@ -157,8 +156,8 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Patches the block entity type on a block's states, setting FlagHasBlockEntity
-        /// and storing the type ID on the entry. Must be called before BakeNative().
+        ///     Patches the block entity type on a block's states, setting FlagHasBlockEntity
+        ///     and storing the type ID on the entry. Must be called before BakeNative().
         /// </summary>
         public void PatchBlockEntityType(string blockIdString, string blockEntityTypeId)
         {
@@ -190,8 +189,8 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Patches the per-face texture indices on a state before BakeNative().
-        /// Must be called after Register() and before BakeNative().
+        ///     Patches the per-face texture indices on a state before BakeNative().
+        ///     Must be called after Register() and before BakeNative().
         /// </summary>
         public void PatchTextures(
             StateId id,
@@ -282,8 +281,8 @@ namespace Lithforge.Voxel.Block
         }
 
         /// <summary>
-        /// Parses a hex color string (#RRGGBB or #RRGGBBAA) to packed RGBA8 uint.
-        /// Returns default gray (0x808080FF) if the string is null or invalid.
+        ///     Parses a hex color string (#RRGGBB or #RRGGBBAA) to packed RGBA8 uint.
+        ///     Returns default gray (0x808080FF) if the string is null or invalid.
         /// </summary>
         public static uint ParseMapColor(string hex)
         {
@@ -302,15 +301,15 @@ namespace Lithforge.Voxel.Block
             if (raw.Length == 6)
             {
 
-                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+                if (uint.TryParse(raw, NumberStyles.HexNumber, null, out uint rgb))
                 {
-                    return (rgb << 8) | 0xFF;
+                    return rgb << 8 | 0xFF;
                 }
             }
             else if (raw.Length == 8)
             {
 
-                if (uint.TryParse(raw, System.Globalization.NumberStyles.HexNumber, null, out uint rgba))
+                if (uint.TryParse(raw, NumberStyles.HexNumber, null, out uint rgba))
                 {
                     return rgba;
                 }

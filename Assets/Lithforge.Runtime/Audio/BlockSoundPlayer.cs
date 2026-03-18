@@ -1,26 +1,30 @@
 using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
+
 using Unity.Mathematics;
+
 using UnityEngine;
+
+using Random = System.Random;
 
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Plays positional block sounds (break, place, hit) by looking up the
-    /// block's sound group in the registry. Applies pitch/volume randomization
-    /// and enforces a per-group+event cooldown to prevent voice pile-up.
-    /// Zero per-frame allocation.
+    ///     Plays positional block sounds (break, place, hit) by looking up the
+    ///     block's sound group in the registry. Applies pitch/volume randomization
+    ///     and enforces a per-group+event cooldown to prevent voice pile-up.
+    ///     Zero per-frame allocation.
     /// </summary>
     public sealed class BlockSoundPlayer
     {
-        private readonly SoundGroupRegistry _registry;
-        private readonly StateRegistry _stateRegistry;
-        private readonly SfxSourcePool _pool;
-        private readonly System.Random _rng;
-        private readonly float _cooldownSeconds;
-
         // Compound key: soundGroup hashcode ^ eventType — maps to last play time
-        private readonly Dictionary<long, float> _cooldowns = new Dictionary<long, float>();
+        private readonly Dictionary<long, float> _cooldowns = new();
+        private readonly float _cooldownSeconds;
+        private readonly SfxSourcePool _pool;
+        private readonly SoundGroupRegistry _registry;
+        private readonly Random _rng;
+        private readonly StateRegistry _stateRegistry;
 
         public BlockSoundPlayer(
             SoundGroupRegistry registry,
@@ -31,13 +35,13 @@ namespace Lithforge.Runtime.Audio
             _registry = registry;
             _stateRegistry = stateRegistry;
             _pool = pool;
-            _rng = new System.Random();
+            _rng = new Random();
             _cooldownSeconds = cooldownMs / 1000f;
         }
 
         /// <summary>
-        /// Plays a sound for the given event type at the block's world position.
-        /// Looks up the block's sound group via StateRegistryEntry.
+        ///     Plays a sound for the given event type at the block's world position.
+        ///     Looks up the block's sound group via StateRegistryEntry.
         /// </summary>
         public void PlayBlockSound(StateId stateId, SoundEventType eventType, int3 blockCoord)
         {
@@ -52,7 +56,7 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Plays a sound from a named sound group at the given world position.
+        ///     Plays a sound from a named sound group at the given world position.
         /// </summary>
         public void PlayGroupSound(string soundGroup, SoundEventType eventType, Vector3 position)
         {
@@ -96,7 +100,7 @@ namespace Lithforge.Runtime.Audio
 
         private static long ComputeKey(string group, SoundEventType eventType)
         {
-            return ((long)group.GetHashCode() << 8) | (long)eventType;
+            return (long)group.GetHashCode() << 8 | (long)eventType;
         }
     }
 }

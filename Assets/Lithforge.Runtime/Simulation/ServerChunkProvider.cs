@@ -1,14 +1,15 @@
 using Lithforge.Network.Server;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Network;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    /// Tier 3 implementation of <see cref="IServerChunkProvider"/>. Bridges the network
-    /// package's <see cref="ServerGameLoop"/> to the runtime's <see cref="ChunkManager"/>
-    /// for chunk readiness queries and serialization.
+    ///     Tier 3 implementation of <see cref="IServerChunkProvider" />. Bridges the network
+    ///     package's <see cref="ServerGameLoop" /> to the runtime's <see cref="ChunkManager" />
+    ///     for chunk readiness queries and serialization.
     /// </summary>
     public sealed class ServerChunkProvider : IServerChunkProvider
     {
@@ -50,7 +51,7 @@ namespace Lithforge.Runtime.Simulation
                 {
                     for (int y = yMin; y <= yMax; y++)
                     {
-                        int3 coord = new int3(center.x + x, y, center.z + z);
+                        int3 coord = new(center.x + x, y, center.z + z);
 
                         if (!IsChunkReady(coord))
                         {

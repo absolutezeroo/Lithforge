@@ -1,28 +1,30 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Builds vertex and index data for held items in first-person view.
-    /// Block items are rendered as a 6-face cube with atlas textures.
-    /// Flat items are rendered as a 2-face quad with the item sprite.
-    /// Display transforms are read from BlockModel assets via ItemDisplayTransformLookup.
+    ///     Builds vertex and index data for held items in first-person view.
+    ///     Block items are rendered as a 6-face cube with atlas textures.
+    ///     Flat items are rendered as a 2-face quad with the item sprite.
+    ///     Display transforms are read from BlockModel assets via ItemDisplayTransformLookup.
     /// </summary>
     public static class HeldItemMeshBuilder
     {
         /// <summary>
-        /// Main hand attachment point in pivot-relative space.
-        /// (0, -7, 1)/16 = centered on arm width, 7 model units below pivot, 1 unit forward.
+        ///     Main hand attachment point in pivot-relative space.
+        ///     (0, -7, 1)/16 = centered on arm width, 7 model units below pivot, 1 unit forward.
         /// </summary>
         private static readonly float3 s_mainHandLocator = new float3(0f, -7f, 1f) / 16f;
 
         /// <summary>
-        /// Builds a 6-face cube for a held block item.
-        /// The displayMatrix comes from the item's BlockModel parent chain
-        /// (resolved via ItemDisplayTransformLookup during the content pipeline).
+        ///     Builds a 6-face cube for a held block item.
+        ///     The displayMatrix comes from the item's BlockModel parent chain
+        ///     (resolved via ItemDisplayTransformLookup during the content pipeline).
         /// </summary>
         public static void BuildBlockItem(
             StateRegistry stateRegistry,
@@ -50,7 +52,7 @@ namespace Lithforge.Runtime.Player
             float3 handOffset = s_mainHandLocator;
 
             float4x4 displayMat = displayMatrix;
-            float3x3 displayRot = new float3x3(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
+            float3x3 displayRot = new(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
 
             // Unit cube: 1x1x1 centered at origin (Minecraft blocks are 16x16x16 = 1 block)
             float h = 0.5f;
@@ -81,50 +83,50 @@ namespace Lithforge.Runtime.Player
             // +X face
             faceVerts[0] = new float3[]
             {
-                new float3(h, h, -h),
-                new float3(h, h, h),
-                new float3(h, -h, h),
-                new float3(h, -h, -h),
+                new(h, h, -h),
+                new(h, h, h),
+                new(h, -h, h),
+                new(h, -h, -h),
             };
             // -X face
             faceVerts[1] = new float3[]
             {
-                new float3(-h, h, h),
-                new float3(-h, h, -h),
-                new float3(-h, -h, -h),
-                new float3(-h, -h, h),
+                new(-h, h, h),
+                new(-h, h, -h),
+                new(-h, -h, -h),
+                new(-h, -h, h),
             };
             // +Y face
             faceVerts[2] = new float3[]
             {
-                new float3(-h, h, -h),
-                new float3(-h, h, h),
-                new float3(h, h, h),
-                new float3(h, h, -h),
+                new(-h, h, -h),
+                new(-h, h, h),
+                new(h, h, h),
+                new(h, h, -h),
             };
             // -Y face
             faceVerts[3] = new float3[]
             {
-                new float3(-h, -h, h),
-                new float3(-h, -h, -h),
-                new float3(h, -h, -h),
-                new float3(h, -h, h),
+                new(-h, -h, h),
+                new(-h, -h, -h),
+                new(h, -h, -h),
+                new(h, -h, h),
             };
             // +Z face
             faceVerts[4] = new float3[]
             {
-                new float3(h, h, h),
-                new float3(-h, h, h),
-                new float3(-h, -h, h),
-                new float3(h, -h, h),
+                new(h, h, h),
+                new(-h, h, h),
+                new(-h, -h, h),
+                new(h, -h, h),
             };
             // -Z face
             faceVerts[5] = new float3[]
             {
-                new float3(-h, h, -h),
-                new float3(h, h, -h),
-                new float3(h, -h, -h),
-                new float3(-h, -h, -h),
+                new(-h, h, -h),
+                new(h, h, -h),
+                new(h, -h, -h),
+                new(-h, -h, -h),
             };
 
             for (int face = 0; face < 6; face++)
@@ -160,10 +162,10 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Builds a 2-face quad for a flat held item (tools, sticks, etc.).
-        /// The quad faces forward from the hand with both sides visible.
-        /// The displayMatrix comes from the item's BlockModel parent chain
-        /// (resolved via ItemDisplayTransformLookup during the content pipeline).
+        ///     Builds a 2-face quad for a flat held item (tools, sticks, etc.).
+        ///     The quad faces forward from the hand with both sides visible.
+        ///     The displayMatrix comes from the item's BlockModel parent chain
+        ///     (resolved via ItemDisplayTransformLookup during the content pipeline).
         /// </summary>
         public static void BuildFlatItem(
             float4x4 displayMatrix,
@@ -180,15 +182,15 @@ namespace Lithforge.Runtime.Player
 
             // Unit quad: 1x1 block centered at origin, bottom at y=0
             // (Minecraft item sprites are 16x16 pixels = 1x1 block)
-            float3[] quadVerts = new float3[]
+            float3[] quadVerts =
             {
-                new float3(-0.5f, 1f, 0f),
-                new float3(0.5f, 1f, 0f),
-                new float3(0.5f, 0f, 0f),
-                new float3(-0.5f, 0f, 0f),
+                new(-0.5f, 1f, 0f),
+                new(0.5f, 1f, 0f),
+                new(0.5f, 0f, 0f),
+                new(-0.5f, 0f, 0f),
             };
 
-            float3 frontNormal = new float3(0, 0, 1);
+            float3 frontNormal = new(0, 0, 1);
             float3 rotFrontNormal = math.normalize(
                 math.mul((float3x3)displayMat, frontNormal));
             float3 rotBackNormal = -rotFrontNormal;
@@ -217,23 +219,36 @@ namespace Lithforge.Runtime.Player
             }
 
             // Front face indices
-            indices[0] = 0; indices[1] = 1; indices[2] = 2;
-            indices[3] = 0; indices[4] = 2; indices[5] = 3;
+            indices[0] = 0;
+            indices[1] = 1;
+            indices[2] = 2;
+            indices[3] = 0;
+            indices[4] = 2;
+            indices[5] = 3;
 
             // Back face indices (reversed winding)
-            indices[6] = 4; indices[7] = 6; indices[8] = 5;
-            indices[9] = 4; indices[10] = 7; indices[11] = 6;
+            indices[6] = 4;
+            indices[7] = 6;
+            indices[8] = 5;
+            indices[9] = 4;
+            indices[10] = 7;
+            indices[11] = 6;
         }
 
         private static float2 GetBlockFaceUV(int vertexIndex)
         {
             switch (vertexIndex)
             {
-                case 0: return new float2(0f, 0f);
-                case 1: return new float2(1f, 0f);
-                case 2: return new float2(1f, 1f);
-                case 3: return new float2(0f, 1f);
-                default: return float2.zero;
+                case 0:
+                    return new float2(0f, 0f);
+                case 1:
+                    return new float2(1f, 0f);
+                case 2:
+                    return new float2(1f, 1f);
+                case 3:
+                    return new float2(0f, 1f);
+                default:
+                    return float2.zero;
             }
         }
 
@@ -241,16 +256,21 @@ namespace Lithforge.Runtime.Player
         {
             switch (vertexIndex)
             {
-                case 0: return new float2(0f, 1f);
-                case 1: return new float2(1f, 1f);
-                case 2: return new float2(1f, 0f);
-                case 3: return new float2(0f, 0f);
-                default: return float2.zero;
+                case 0:
+                    return new float2(0f, 1f);
+                case 1:
+                    return new float2(1f, 1f);
+                case 2:
+                    return new float2(1f, 0f);
+                case 3:
+                    return new float2(0f, 0f);
+                default:
+                    return float2.zero;
             }
         }
 
         /// <summary>
-        /// Finds a StateRegistryEntry by block ResourceId. O(n) scan, called infrequently.
+        ///     Finds a StateRegistryEntry by block ResourceId. O(n) scan, called infrequently.
         /// </summary>
         private static StateRegistryEntry FindEntryByBlockId(
             IReadOnlyList<StateRegistryEntry> entries, ResourceId blockId)

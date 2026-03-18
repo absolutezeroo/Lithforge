@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
+
 using Lithforge.Meshing.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -10,11 +12,11 @@ using Unity.Mathematics;
 namespace Lithforge.Meshing
 {
     /// <summary>
-    /// Burst-compiled greedy meshing job for LOD chunks.
-    /// Simplified version of GreedyMeshJob: no AO, no neighbor borders, no light data,
-    /// opaque-only output. Uses binary greedy merge for large surface reduction.
-    /// Variable grid size (16 for LOD1, 8 for LOD2, 4 for LOD3).
-    /// Emits PackedMeshVertex with full brightness (AO=3, light=15/15).
+    ///     Burst-compiled greedy meshing job for LOD chunks.
+    ///     Simplified version of GreedyMeshJob: no AO, no neighbor borders, no light data,
+    ///     opaque-only output. Uses binary greedy merge for large surface reduction.
+    ///     Variable grid size (16 for LOD1, 8 for LOD2, 4 for LOD3).
+    ///     Emits PackedMeshVertex with full brightness (AO=3, light=15/15).
     /// </summary>
     [BurstCompile]
     public struct LODGreedyMeshJob : IJob
@@ -45,8 +47,8 @@ namespace Lithforge.Meshing
 
         private void ProcessFaceDirection(int face)
         {
-            NativeArray<uint> rowMask = new NativeArray<uint>(GridSize, Allocator.Temp);
-            NativeArray<ushort> faceStateId = new NativeArray<ushort>(GridSize * GridSize, Allocator.Temp);
+            NativeArray<uint> rowMask = new(GridSize, Allocator.Temp);
+            NativeArray<ushort> faceStateId = new(GridSize * GridSize, Allocator.Temp);
 
             for (int slice = 0; slice < GridSize; slice++)
             {
@@ -95,7 +97,7 @@ namespace Lithforge.Meshing
                     }
 
                     int idx = v * GridSize + u;
-                    rowMask[v] = rowMask[v] | (1u << u);
+                    rowMask[v] = rowMask[v] | 1u << u;
                     faceStateId[idx] = blockId.Value;
                 }
             }
@@ -121,7 +123,7 @@ namespace Lithforge.Meshing
 
                     while (u0 + width < GridSize)
                     {
-                        if ((mask & (1u << (u0 + width))) == 0)
+                        if ((mask & 1u << u0 + width) == 0)
                         {
                             break;
                         }
@@ -147,7 +149,7 @@ namespace Lithforge.Meshing
                         {
                             uint nextRowMask = rowMask[v + height];
 
-                            if ((nextRowMask & (1u << (u0 + wu))) == 0)
+                            if ((nextRowMask & 1u << u0 + wu) == 0)
                             {
                                 canExtend = false;
 
@@ -179,7 +181,7 @@ namespace Lithforge.Meshing
 
                     for (int wu = 0; wu < width; wu++)
                     {
-                        clearMask |= (1u << (u0 + wu));
+                        clearMask |= 1u << u0 + wu;
                     }
 
                     for (int hh = 0; hh < height; hh++)
@@ -216,7 +218,7 @@ namespace Lithforge.Meshing
 
             // Compute integer positions for each corner based on face direction
             // sliceOffset = slice+1 for positive faces, slice for negative faces
-            int sliceOff = (face == 0 || face == 2 || face == 4) ? slice + 1 : slice;
+            int sliceOff = face == 0 || face == 2 || face == 4 ? slice + 1 : slice;
 
             int px00;
             int py00;
@@ -234,40 +236,88 @@ namespace Lithforge.Meshing
             switch (face)
             {
                 case 0: // +X
-                    px00 = sliceOff; py00 = v0;          pz00 = u0;
-                    px10 = sliceOff; py10 = v0;          pz10 = u0 + width;
-                    px11 = sliceOff; py11 = v0 + height; pz11 = u0 + width;
-                    px01 = sliceOff; py01 = v0 + height; pz01 = u0;
+                    px00 = sliceOff;
+                    py00 = v0;
+                    pz00 = u0;
+                    px10 = sliceOff;
+                    py10 = v0;
+                    pz10 = u0 + width;
+                    px11 = sliceOff;
+                    py11 = v0 + height;
+                    pz11 = u0 + width;
+                    px01 = sliceOff;
+                    py01 = v0 + height;
+                    pz01 = u0;
                     break;
                 case 1: // -X
-                    px00 = sliceOff; py00 = v0;          pz00 = u0 + width;
-                    px10 = sliceOff; py10 = v0;          pz10 = u0;
-                    px11 = sliceOff; py11 = v0 + height; pz11 = u0;
-                    px01 = sliceOff; py01 = v0 + height; pz01 = u0 + width;
+                    px00 = sliceOff;
+                    py00 = v0;
+                    pz00 = u0 + width;
+                    px10 = sliceOff;
+                    py10 = v0;
+                    pz10 = u0;
+                    px11 = sliceOff;
+                    py11 = v0 + height;
+                    pz11 = u0;
+                    px01 = sliceOff;
+                    py01 = v0 + height;
+                    pz01 = u0 + width;
                     break;
                 case 2: // +Y
-                    px00 = u0;         py00 = sliceOff; pz00 = v0;
-                    px10 = u0 + width; py10 = sliceOff; pz10 = v0;
-                    px11 = u0 + width; py11 = sliceOff; pz11 = v0 + height;
-                    px01 = u0;         py01 = sliceOff; pz01 = v0 + height;
+                    px00 = u0;
+                    py00 = sliceOff;
+                    pz00 = v0;
+                    px10 = u0 + width;
+                    py10 = sliceOff;
+                    pz10 = v0;
+                    px11 = u0 + width;
+                    py11 = sliceOff;
+                    pz11 = v0 + height;
+                    px01 = u0;
+                    py01 = sliceOff;
+                    pz01 = v0 + height;
                     break;
                 case 3: // -Y
-                    px00 = u0;         py00 = sliceOff; pz00 = v0 + height;
-                    px10 = u0 + width; py10 = sliceOff; pz10 = v0 + height;
-                    px11 = u0 + width; py11 = sliceOff; pz11 = v0;
-                    px01 = u0;         py01 = sliceOff; pz01 = v0;
+                    px00 = u0;
+                    py00 = sliceOff;
+                    pz00 = v0 + height;
+                    px10 = u0 + width;
+                    py10 = sliceOff;
+                    pz10 = v0 + height;
+                    px11 = u0 + width;
+                    py11 = sliceOff;
+                    pz11 = v0;
+                    px01 = u0;
+                    py01 = sliceOff;
+                    pz01 = v0;
                     break;
                 case 4: // +Z
-                    px00 = u0 + width; py00 = v0;          pz00 = sliceOff;
-                    px10 = u0;         py10 = v0;          pz10 = sliceOff;
-                    px11 = u0;         py11 = v0 + height; pz11 = sliceOff;
-                    px01 = u0 + width; py01 = v0 + height; pz01 = sliceOff;
+                    px00 = u0 + width;
+                    py00 = v0;
+                    pz00 = sliceOff;
+                    px10 = u0;
+                    py10 = v0;
+                    pz10 = sliceOff;
+                    px11 = u0;
+                    py11 = v0 + height;
+                    pz11 = sliceOff;
+                    px01 = u0 + width;
+                    py01 = v0 + height;
+                    pz01 = sliceOff;
                     break;
                 default: // -Z
-                    px00 = u0;         py00 = v0;          pz00 = sliceOff;
-                    px10 = u0 + width; py10 = v0;          pz10 = sliceOff;
-                    px11 = u0 + width; py11 = v0 + height; pz11 = sliceOff;
-                    px01 = u0;         py01 = v0 + height; pz01 = sliceOff;
+                    px00 = u0;
+                    py00 = v0;
+                    pz00 = sliceOff;
+                    px10 = u0 + width;
+                    py10 = v0;
+                    pz10 = sliceOff;
+                    px11 = u0 + width;
+                    py11 = v0 + height;
+                    pz11 = sliceOff;
+                    px01 = u0;
+                    py01 = v0 + height;
+                    pz01 = sliceOff;
                     break;
             }
 

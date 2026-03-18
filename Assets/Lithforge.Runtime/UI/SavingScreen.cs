@@ -1,27 +1,58 @@
+using System;
+
+using Lithforge.Runtime.UI.Navigation;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI
 {
     /// <summary>
-    /// Full-screen overlay displayed while the game saves before returning to title.
-    /// Matches the LoadingScreen visual style (dirt-brown background, progress bar, status text).
-    /// Progress is pushed via SetProgress from the QuitToTitleCoroutine — not polled.
+    ///     Full-screen overlay displayed while the game saves before returning to title.
+    ///     Matches the LoadingScreen visual style (dirt-brown background, progress bar, status text).
+    ///     Progress is pushed via SetProgress from the QuitToTitleCoroutine — not polled.
     /// </summary>
-    public sealed class SavingScreen : MonoBehaviour
+    public sealed class SavingScreen : MonoBehaviour, IScreen
     {
-        private static readonly Color s_backgroundColor = new Color(0.10f, 0.06f, 0.04f, 1.0f);
-        private static readonly Color s_progressTrackColor = new Color(0.20f, 0.20f, 0.20f, 1.0f);
-        private static readonly Color s_progressFillColor = new Color(0.55f, 0.45f, 0.25f, 1.0f);
-        private static readonly Color s_logoColor = new Color(1.0f, 0.95f, 0.80f, 1.0f);
-        private static readonly Color s_statusColor = new Color(0.70f, 0.70f, 0.65f, 1.0f);
-
         private const int BarWidth = 400;
         private const int BarHeight = 20;
+        private static readonly Color s_backgroundColor = new(0.10f, 0.06f, 0.04f, 1.0f);
+        private static readonly Color s_progressTrackColor = new(0.20f, 0.20f, 0.20f, 1.0f);
+        private static readonly Color s_progressFillColor = new(0.55f, 0.45f, 0.25f, 1.0f);
+        private static readonly Color s_logoColor = new(1.0f, 0.95f, 0.80f, 1.0f);
+        private static readonly Color s_statusColor = new(0.70f, 0.70f, 0.65f, 1.0f);
 
         private UIDocument _document;
         private VisualElement _progressFill;
         private Label _statusLabel;
+
+        public string ScreenName { get { return ScreenNames.Saving; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.Flex;
+            }
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.None;
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // Saving screen does not respond to Escape
+            return true;
+        }
 
         public void Initialize(PanelSettings panelSettings)
         {
@@ -33,7 +64,7 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Updates the displayed progress. Called by the coroutine each yield.
+        ///     Updates the displayed progress. Called by the coroutine each yield.
         /// </summary>
         public void SetProgress(SaveProgress progress)
         {
@@ -105,7 +136,7 @@ namespace Lithforge.Runtime.UI
         private void BuildUI(VisualElement root)
         {
             // Full-screen dirt background
-            VisualElement background = new VisualElement();
+            VisualElement background = new();
             background.name = "saving-background";
             background.pickingMode = PickingMode.Ignore;
             background.style.position = Position.Absolute;
@@ -120,7 +151,7 @@ namespace Lithforge.Runtime.UI
             root.Add(background);
 
             // Logo label
-            Label logo = new Label("LITHFORGE");
+            Label logo = new("LITHFORGE");
             logo.name = "saving-logo";
             logo.pickingMode = PickingMode.Ignore;
             logo.style.fontSize = 64;
@@ -132,7 +163,7 @@ namespace Lithforge.Runtime.UI
             background.Add(logo);
 
             // Subtitle
-            Label subtitle = new Label("Saving World...");
+            Label subtitle = new("Saving World...");
             subtitle.name = "saving-subtitle";
             subtitle.pickingMode = PickingMode.Ignore;
             subtitle.style.fontSize = 18;
@@ -142,7 +173,7 @@ namespace Lithforge.Runtime.UI
             background.Add(subtitle);
 
             // Progress bar track
-            VisualElement progressTrack = new VisualElement();
+            VisualElement progressTrack = new();
             progressTrack.name = "progress-track";
             progressTrack.pickingMode = PickingMode.Ignore;
             progressTrack.style.width = BarWidth;

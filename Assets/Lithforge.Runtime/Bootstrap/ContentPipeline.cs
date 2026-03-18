@@ -660,7 +660,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Create tool template registry (empty for now — tool templates are populated
             // by mod/content packs in a future pipeline phase)
-            ToolTemplateRegistry toolTemplateRegistry = new ToolTemplateRegistry(null);
+            ToolTemplateRegistry toolTemplateRegistry = new(null);
 
             Result = new ContentPipelineResult(
                 stateRegistry,

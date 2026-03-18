@@ -3,8 +3,8 @@ using System.IO;
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Defines built-in component type IDs and registers them with
-    /// <see cref="DataComponentRegistry"/>. Called once from ContentPipeline.
+    ///     Defines built-in component type IDs and registers them with
+    ///     <see cref="DataComponentRegistry" />. Called once from ContentPipeline.
     /// </summary>
     public static class DataComponentTypes
     {
@@ -15,12 +15,12 @@ namespace Lithforge.Voxel.Item
         {
             DataComponentRegistry.Register(new DataComponentType<ToolInstanceComponent>(
                 ToolInstanceId,
-                (BinaryWriter w, ToolInstanceComponent c) =>
+                (w, c) =>
                 {
                     byte[] data = ToolInstanceSerializer.Serialize(c.Tool);
                     w.Write(data);
                 },
-                (BinaryReader r) =>
+                r =>
                 {
                     // Read remaining bytes from this component's data segment
                     byte[] data = ReadRemainingBytes(r);
@@ -30,12 +30,12 @@ namespace Lithforge.Voxel.Item
 
             DataComponentRegistry.Register(new DataComponentType<ToolPartDataComponent>(
                 ToolPartDataId,
-                (BinaryWriter w, ToolPartDataComponent c) =>
+                (w, c) =>
                 {
                     byte[] data = ToolPartDataSerializer.Serialize(c.PartData);
                     w.Write(data);
                 },
-                (BinaryReader r) =>
+                r =>
                 {
                     byte[] data = ReadRemainingBytes(r);
                     ToolPartData partData = ToolPartDataSerializer.Deserialize(data);
@@ -54,7 +54,7 @@ namespace Lithforge.Voxel.Item
             }
 
             // Fallback: read into a list
-            using (MemoryStream buffer = new MemoryStream())
+            using (MemoryStream buffer = new())
             {
                 reader.BaseStream.CopyTo(buffer);
                 return buffer.ToArray();

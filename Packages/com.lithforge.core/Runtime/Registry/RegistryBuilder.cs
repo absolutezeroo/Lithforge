@@ -1,17 +1,23 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Core.Registry
 {
     /// <summary>
-    /// Mutable builder for content registries. Used during content loading.
-    /// Call Build() to freeze into an immutable Registry.
+    ///     Mutable builder for content registries. Used during content loading.
+    ///     Call Build() to freeze into an immutable Registry.
     /// </summary>
     public sealed class RegistryBuilder<T>
     {
-        private readonly Dictionary<ResourceId, T> _entries = new Dictionary<ResourceId, T>();
+        private readonly Dictionary<ResourceId, T> _entries = new();
         private bool _frozen;
+
+        public int Count
+        {
+            get { return _entries.Count; }
+        }
 
         public void Register(ResourceId id, T value)
         {
@@ -33,11 +39,6 @@ namespace Lithforge.Core.Registry
         public bool Contains(ResourceId id)
         {
             return _entries.ContainsKey(id);
-        }
-
-        public int Count
-        {
-            get { return _entries.Count; }
         }
 
         public Registry<T> Build()

@@ -1,26 +1,26 @@
 using System.Collections.Generic;
+
 using Lithforge.Runtime.Content.Behaviors;
+
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.Blocks
 {
     /// <summary>
-    /// Pairs a trigger event with a list of actions that fire when that event occurs on a block.
-    /// Attach to a <see cref="BlockDefinition"/> to give blocks interactive or reactive behavior.
+    ///     Pairs a trigger event with a list of actions that fire when that event occurs on a block.
+    ///     Attach to a <see cref="BlockDefinition" /> to give blocks interactive or reactive behavior.
     /// </summary>
     [CreateAssetMenu(fileName = "NewBlockBehavior", menuName = "Lithforge/Content/Block Behavior", order = 9)]
     public sealed class BlockBehavior : ScriptableObject
     {
         /// <summary>Event that causes the attached actions to execute.</summary>
-        [FormerlySerializedAs("_trigger"),Header("Trigger")]
-        [Tooltip("When this behavior is triggered")]
-        [SerializeField] private BlockBehaviorTrigger trigger;
+        [FormerlySerializedAs("_trigger"), Header("Trigger"), Tooltip("When this behavior is triggered"), SerializeField]
+         private BlockBehaviorTrigger trigger;
 
         /// <summary>Ordered list of actions to run when the trigger fires. Executed sequentially.</summary>
-        [FormerlySerializedAs("_actions"),Header("Actions")]
-        [Tooltip("Actions to execute when triggered")]
-        [SerializeField] private List<BehaviorAction> actions = new List<BehaviorAction>();
+        [FormerlySerializedAs("_actions"), Header("Actions"), Tooltip("Actions to execute when triggered"), SerializeField]
+         private List<BehaviorAction> actions = new();
 
         /// <summary>Event that causes the attached actions to execute.</summary>
         public BlockBehaviorTrigger Trigger
@@ -36,7 +36,7 @@ namespace Lithforge.Runtime.Content.Blocks
     }
 
     /// <summary>
-    /// Events that can activate a <see cref="BlockBehavior"/>.
+    ///     Events that can activate a <see cref="BlockBehavior" />.
     /// </summary>
     public enum BlockBehaviorTrigger
     {

@@ -1,6 +1,8 @@
 using System.Text;
+
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Voxel.Chunk;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -8,81 +10,17 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.Debug
 {
     /// <summary>
-    /// F3-style debug overlay built with UI Toolkit. Replaces the old IMGUI DebugOverlayHUD.
-    /// Three-state cycle: Off → Minimal (FPS only) → Full (all panels + graph + minimap).
-    /// All labels use picking-mode: ignore. Most labels throttled to 4 Hz; FPS updates every frame.
+    ///     F3-style debug overlay built with UI Toolkit. Replaces the old IMGUI DebugOverlayHUD.
+    ///     Three-state cycle: Off → Minimal (FPS only) → Full (all panels + graph + minimap).
+    ///     All labels use picking-mode: ignore. Most labels throttled to 4 Hz; FPS updates every frame.
     /// </summary>
     public sealed class F3DebugOverlay : MonoBehaviour
     {
-        private UIDocument _document;
-        private VisualElement _root;
-        private MetricsRegistry _metrics;
-        private ChunkBorderRenderer _borderRenderer;
-        private IFrameProfiler _frameProfiler;
-        private IPipelineStats _pipelineStats;
-
-        // Three-state cycle
-        private OverlayState _state = OverlayState.Off;
-
-        // Panels
-        private VisualElement _minimalPanel;
-        private VisualElement _leftColumn;
-        private VisualElement _rightColumn;
-        private VisualElement _perfPanel;
-        private VisualElement _worldPanel;
-        private VisualElement _pipelinePanel;
-        private VisualElement _gpuPanel;
-
-        // Labels — pre-created, mutated in-place
-        private Label _fpsLabel;
-        private Label _frameMsLabel;
-        private Label[] _sectionLabels;
-        private Label _updateTotalLabel;
-        private Label _headroomLabel;
-        private Label _gcLabel;
-        private Label _tickCountLabel;
-        private Label _posLabel;
-        private Label _chunkLabel;
-        private Label _chunksLoadedLabel;
-        private Label _renderersLabel;
-        private Label _cullModeLabel;
-        private Label _flyLabel;
-        private Label _genQueueLabel;
-        private Label _meshQueueLabel;
-        private Label _genThroughputLabel;
-        private Label _meshThroughputLabel;
-        private Label _lodThroughputLabel;
-        private Label _decorateLabel;
-        private Label _stateHistLabel;
-        private Label _needsRemeshLabel;
-        private Label _needsLightLabel;
-        private Label _poolLabel;
-        private Label _vramLabel;
-        private Label _buffersOpaqueLabel;
-        private Label _buffersCutoutLabel;
-        private Label _buffersTransLabel;
-        private Label _gpuUploadLabel;
-        private Label _growLabel;
-        private Label _graphStatsLabel;
-        private Label _minimapLabel;
-
-        // Custom elements
-        private FrameTimeGraphElement _frameGraph;
-        private MinimapElement _minimap;
-
         // Throttle
         private const float ThrottleInterval = 0.25f;
-        private float _throttleTimer;
-        private bool _firstUpdate = true;
-
-        // F3+G sub-toggle
-        private bool _showChunkBorders;
-
-        // Reusable StringBuilder
-        private readonly StringBuilder _sb = new StringBuilder(256);
 
         // Display section indices (excludes UpdateTotal and Frame which are shown separately)
-        private static readonly int[] s_displaySections = new int[]
+        private static readonly int[] s_displaySections =
         {
             FrameProfilerSections.TickLoop,
             FrameProfilerSections.PollGen,
@@ -99,7 +37,7 @@ namespace Lithforge.Runtime.Debug
             FrameProfilerSections.Render,
         };
 
-        private static readonly string[] s_paddedNames = new string[]
+        private static readonly string[] s_paddedNames =
         {
             "TickLoop:   ",
             "PollGen:    ",
@@ -116,9 +54,112 @@ namespace Lithforge.Runtime.Debug
             "Render:     ",
         };
 
-        public OverlayState State
+        // Reusable StringBuilder
+        private readonly StringBuilder _sb = new(256);
+        private ChunkBorderRenderer _borderRenderer;
+        private Label _buffersCutoutLabel;
+        private Label _buffersOpaqueLabel;
+        private Label _buffersTransLabel;
+        private Label _chunkLabel;
+        private Label _chunksLoadedLabel;
+        private Label _cullModeLabel;
+        private Label _decorateLabel;
+        private UIDocument _document;
+        private bool _firstUpdate = true;
+        private Label _flyLabel;
+
+        // Labels — pre-created, mutated in-place
+        private Label _fpsLabel;
+
+        // Custom elements
+        private FrameTimeGraphElement _frameGraph;
+        private Label _frameMsLabel;
+        private IFrameProfiler _frameProfiler;
+        private Label _gcLabel;
+        private Label _genQueueLabel;
+        private Label _genThroughputLabel;
+        private VisualElement _gpuPanel;
+        private Label _gpuUploadLabel;
+        private Label _graphStatsLabel;
+        private Label _growLabel;
+        private Label _headroomLabel;
+        private VisualElement _leftColumn;
+        private Label _lodThroughputLabel;
+        private Label _meshQueueLabel;
+        private Label _meshThroughputLabel;
+        private MetricsRegistry _metrics;
+
+        // Panels
+        private VisualElement _minimalPanel;
+        private MinimapElement _minimap;
+        private Label _minimapLabel;
+        private Label _needsLightLabel;
+        private Label _needsRemeshLabel;
+        private VisualElement _perfPanel;
+        private VisualElement _pipelinePanel;
+        private IPipelineStats _pipelineStats;
+        private Label _poolLabel;
+        private Label _posLabel;
+        private Label _renderersLabel;
+        private VisualElement _rightColumn;
+        private VisualElement _root;
+        private Label[] _sectionLabels;
+
+        // F3+G sub-toggle
+        private bool _showChunkBorders;
+
+        // Three-state cycle
+        private Label _stateHistLabel;
+        private float _throttleTimer;
+        private Label _tickCountLabel;
+        private Label _updateTotalLabel;
+        private Label _vramLabel;
+        private VisualElement _worldPanel;
+
+        public OverlayState State { get; private set; } = OverlayState.Off;
+
+        private void Update()
         {
-            get { return _state; }
+            HandleKeyInput();
+
+            if (State == OverlayState.Off)
+            {
+                return;
+            }
+
+            MetricSnapshot snap = _metrics.CurrentSnapshot;
+
+            // FPS updates every frame (not throttled)
+            _sb.Clear();
+            _sb.Append("FPS: ");
+            DebugTextUtil.AppendInt(_sb, (int)(snap.FpsSmoothed + 0.5f));
+            _fpsLabel.text = _sb.ToString();
+
+            // All other labels throttled to 4 Hz
+            _throttleTimer += Time.unscaledDeltaTime;
+
+            if (_throttleTimer >= ThrottleInterval || _firstUpdate)
+            {
+                _throttleTimer = 0f;
+                _firstUpdate = false;
+
+                if (State == OverlayState.Full)
+                {
+                    UpdateAllPanels(snap);
+                }
+            }
+
+            // Frame-time graph and minimap update every frame
+            if (State == OverlayState.Full)
+            {
+                _frameGraph.SetData(
+                    _metrics.FrameTimeHistory,
+                    _metrics.HistoryHead,
+                    _metrics.HistoryFilled);
+                _frameGraph.MarkDirtyRepaint();
+
+                _minimap.MarkDirtyRepaint();
+            }
         }
 
         public void SetVisible(bool visible)
@@ -151,7 +192,7 @@ namespace Lithforge.Runtime.Debug
 
             if (settings.ShowDebugOverlay)
             {
-                _state = OverlayState.Full;
+                State = OverlayState.Full;
             }
 
             BuildUI();
@@ -203,7 +244,7 @@ namespace Lithforge.Runtime.Debug
             BuildGpuPanel();
 
             // Frame-time graph — bottom-left
-            VisualElement graphContainer = new VisualElement();
+            VisualElement graphContainer = new();
             graphContainer.pickingMode = PickingMode.Ignore;
             graphContainer.style.position = Position.Absolute;
             graphContainer.style.left = 8;
@@ -221,7 +262,7 @@ namespace Lithforge.Runtime.Debug
             _root.Add(graphContainer);
 
             // Minimap — bottom-right
-            VisualElement minimapContainer = new VisualElement();
+            VisualElement minimapContainer = new();
             minimapContainer.pickingMode = PickingMode.Ignore;
             minimapContainer.style.position = Position.Absolute;
             minimapContainer.style.right = 8;
@@ -371,50 +412,6 @@ namespace Lithforge.Runtime.Debug
             _rightColumn.Add(_gpuPanel);
         }
 
-        private void Update()
-        {
-            HandleKeyInput();
-
-            if (_state == OverlayState.Off)
-            {
-                return;
-            }
-
-            MetricSnapshot snap = _metrics.CurrentSnapshot;
-
-            // FPS updates every frame (not throttled)
-            _sb.Clear();
-            _sb.Append("FPS: ");
-            DebugTextUtil.AppendInt(_sb, (int)(snap.FpsSmoothed + 0.5f));
-            _fpsLabel.text = _sb.ToString();
-
-            // All other labels throttled to 4 Hz
-            _throttleTimer += Time.unscaledDeltaTime;
-
-            if (_throttleTimer >= ThrottleInterval || _firstUpdate)
-            {
-                _throttleTimer = 0f;
-                _firstUpdate = false;
-
-                if (_state == OverlayState.Full)
-                {
-                    UpdateAllPanels(snap);
-                }
-            }
-
-            // Frame-time graph and minimap update every frame
-            if (_state == OverlayState.Full)
-            {
-                _frameGraph.SetData(
-                    _metrics.FrameTimeHistory,
-                    _metrics.HistoryHead,
-                    _metrics.HistoryFilled);
-                _frameGraph.MarkDirtyRepaint();
-
-                _minimap.MarkDirtyRepaint();
-            }
-        }
-
         private void HandleKeyInput()
         {
             Keyboard kb = Keyboard.current;
@@ -440,11 +437,11 @@ namespace Lithforge.Runtime.Debug
             // Plain F3: cycle state
             if (kb.f3Key.wasPressedThisFrame)
             {
-                _state = (OverlayState)(((int)_state + 1) % 3);
+                State = (OverlayState)(((int)State + 1) % 3);
                 ApplyState();
 
                 // Enable profiling when entering any visible state
-                if (_state != OverlayState.Off)
+                if (State != OverlayState.Off)
                 {
                     _frameProfiler.Enabled = true;
                     _pipelineStats.Enabled = true;
@@ -454,8 +451,8 @@ namespace Lithforge.Runtime.Debug
 
         private void ApplyState()
         {
-            bool anyVisible = _state != OverlayState.Off;
-            bool full = _state == OverlayState.Full;
+            bool anyVisible = State != OverlayState.Off;
+            bool full = State == OverlayState.Full;
 
             _minimalPanel.style.display = anyVisible ? DisplayStyle.Flex : DisplayStyle.None;
             _leftColumn.style.display = full ? DisplayStyle.Flex : DisplayStyle.None;
@@ -765,7 +762,7 @@ namespace Lithforge.Runtime.Debug
 
         private static VisualElement CreatePanel()
         {
-            VisualElement panel = new VisualElement();
+            VisualElement panel = new();
             panel.pickingMode = PickingMode.Ignore;
             panel.style.backgroundColor = new Color(0f, 0f, 0f, 0.65f);
             panel.style.paddingLeft = 6;
@@ -781,7 +778,7 @@ namespace Lithforge.Runtime.Debug
 
         private static Label CreateLabel(string text)
         {
-            Label label = new Label(text);
+            Label label = new(text);
             label.pickingMode = PickingMode.Ignore;
             label.style.fontSize = 13;
             label.style.color = new Color(0.86f, 0.86f, 0.86f);

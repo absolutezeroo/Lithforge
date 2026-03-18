@@ -1,5 +1,7 @@
 using System;
+
 using Lithforge.Core.Data;
+
 using NUnit.Framework;
 
 namespace Lithforge.Core.Tests
@@ -10,7 +12,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Constructor_ValidNamespaceAndName_CreatesResourceId()
         {
-            ResourceId id = new ResourceId("lithforge", "stone");
+            ResourceId id = new("lithforge", "stone");
 
             Assert.AreEqual("lithforge", id.Namespace);
             Assert.AreEqual("stone", id.Name);
@@ -91,7 +93,7 @@ namespace Lithforge.Core.Tests
         [Test]
         public void ToString_ReturnsNamespaceColonName()
         {
-            ResourceId id = new ResourceId("lithforge", "stone");
+            ResourceId id = new("lithforge", "stone");
 
             Assert.AreEqual("lithforge:stone", id.ToString());
         }
@@ -99,8 +101,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Equals_SameValues_ReturnsTrue()
         {
-            ResourceId a = new ResourceId("lithforge", "stone");
-            ResourceId b = new ResourceId("lithforge", "stone");
+            ResourceId a = new("lithforge", "stone");
+            ResourceId b = new("lithforge", "stone");
 
             Assert.IsTrue(a.Equals(b));
             Assert.IsTrue(a == b);
@@ -109,8 +111,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Equals_DifferentValues_ReturnsFalse()
         {
-            ResourceId a = new ResourceId("lithforge", "stone");
-            ResourceId b = new ResourceId("lithforge", "dirt");
+            ResourceId a = new("lithforge", "stone");
+            ResourceId b = new("lithforge", "dirt");
 
             Assert.IsFalse(a.Equals(b));
             Assert.IsTrue(a != b);
@@ -119,8 +121,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void GetHashCode_SameValues_SameHash()
         {
-            ResourceId a = new ResourceId("lithforge", "stone");
-            ResourceId b = new ResourceId("lithforge", "stone");
+            ResourceId a = new("lithforge", "stone");
+            ResourceId b = new("lithforge", "stone");
 
             Assert.AreEqual(a.GetHashCode(), b.GetHashCode());
         }

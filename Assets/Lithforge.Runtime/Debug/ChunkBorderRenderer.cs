@@ -1,52 +1,37 @@
 using Lithforge.Voxel.Chunk;
+
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Debug
 {
     /// <summary>
-    /// Renders chunk border wireframes via GL.Lines in world space.
-    /// Activated by F3+G sub-toggle in F3DebugOverlay.
-    /// Draws 12 edges per chunk box within a configurable radius around the camera.
+    ///     Renders chunk border wireframes via GL.Lines in world space.
+    ///     Activated by F3+G sub-toggle in F3DebugOverlay.
+    ///     Draws 12 edges per chunk box within a configurable radius around the camera.
     /// </summary>
     public sealed class ChunkBorderRenderer : MonoBehaviour
     {
-        private MetricsRegistry _metrics;
-        private Camera _mainCamera;
-        private Material _lineMaterial;
-        private bool _visible;
+        private static readonly Color s_chunkColor = new(1f, 1f, 0f, 0.4f);
+        private static readonly Color s_regionColor = new(0f, 1f, 1f, 0.6f);
         private int _drawRadius = 3;
+        private Material _lineMaterial;
+        private Camera _mainCamera;
+        private MetricsRegistry _metrics;
 
-        private static readonly Color s_chunkColor = new Color(1f, 1f, 0f, 0.4f);
-        private static readonly Color s_regionColor = new Color(0f, 1f, 1f, 0.6f);
+        public bool IsVisible { get; private set; }
 
-        public void Initialize(MetricsRegistry metrics, Camera mainCamera, int drawRadius)
+        private void OnDestroy()
         {
-            _metrics = metrics;
-            _mainCamera = mainCamera;
-            _drawRadius = drawRadius;
-
-            Shader lineShader = Shader.Find("Hidden/Internal-Colored");
-            _lineMaterial = new Material(lineShader);
-            _lineMaterial.hideFlags = HideFlags.HideAndDontSave;
-            _lineMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _lineMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _lineMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-            _lineMaterial.SetInt("_ZWrite", 0);
-        }
-
-        public void SetVisible(bool visible)
-        {
-            _visible = visible;
-        }
-
-        public bool IsVisible
-        {
-            get { return _visible; }
+            if (_lineMaterial != null)
+            {
+                DestroyImmediate(_lineMaterial);
+            }
         }
 
         private void OnRenderObject()
         {
-            if (!_visible || _metrics == null || _mainCamera == null)
+            if (!IsVisible || _metrics == null || _mainCamera == null)
             {
                 return;
             }
@@ -77,7 +62,7 @@ namespace Lithforge.Runtime.Debug
                         float bz = wz * size;
 
                         // Use region color for chunks on 32-chunk boundaries (region edges)
-                        bool isRegionEdge = (wx % 32 == 0) || (wz % 32 == 0);
+                        bool isRegionEdge = wx % 32 == 0 || wz % 32 == 0;
                         Color color = isRegionEdge ? s_regionColor : s_chunkColor;
                         GL.Color(color);
 
@@ -90,33 +75,57 @@ namespace Lithforge.Runtime.Debug
             GL.PopMatrix();
         }
 
+        public void Initialize(MetricsRegistry metrics, Camera mainCamera, int drawRadius)
+        {
+            _metrics = metrics;
+            _mainCamera = mainCamera;
+            _drawRadius = drawRadius;
+
+            Shader lineShader = Shader.Find("Hidden/Internal-Colored");
+            _lineMaterial = new Material(lineShader);
+            _lineMaterial.hideFlags = HideFlags.HideAndDontSave;
+            _lineMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            _lineMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            _lineMaterial.SetInt("_Cull", (int)CullMode.Off);
+            _lineMaterial.SetInt("_ZWrite", 0);
+        }
+
+        public void SetVisible(bool visible)
+        {
+            IsVisible = visible;
+        }
+
         private static void DrawWireBox(float x0, float y0, float z0, float x1, float y1, float z1)
         {
             // Bottom face (4 edges)
-            GL.Vertex3(x0, y0, z0); GL.Vertex3(x1, y0, z0);
-            GL.Vertex3(x1, y0, z0); GL.Vertex3(x1, y0, z1);
-            GL.Vertex3(x1, y0, z1); GL.Vertex3(x0, y0, z1);
-            GL.Vertex3(x0, y0, z1); GL.Vertex3(x0, y0, z0);
+            GL.Vertex3(x0, y0, z0);
+            GL.Vertex3(x1, y0, z0);
+            GL.Vertex3(x1, y0, z0);
+            GL.Vertex3(x1, y0, z1);
+            GL.Vertex3(x1, y0, z1);
+            GL.Vertex3(x0, y0, z1);
+            GL.Vertex3(x0, y0, z1);
+            GL.Vertex3(x0, y0, z0);
 
             // Top face (4 edges)
-            GL.Vertex3(x0, y1, z0); GL.Vertex3(x1, y1, z0);
-            GL.Vertex3(x1, y1, z0); GL.Vertex3(x1, y1, z1);
-            GL.Vertex3(x1, y1, z1); GL.Vertex3(x0, y1, z1);
-            GL.Vertex3(x0, y1, z1); GL.Vertex3(x0, y1, z0);
+            GL.Vertex3(x0, y1, z0);
+            GL.Vertex3(x1, y1, z0);
+            GL.Vertex3(x1, y1, z0);
+            GL.Vertex3(x1, y1, z1);
+            GL.Vertex3(x1, y1, z1);
+            GL.Vertex3(x0, y1, z1);
+            GL.Vertex3(x0, y1, z1);
+            GL.Vertex3(x0, y1, z0);
 
             // Vertical edges (4 edges)
-            GL.Vertex3(x0, y0, z0); GL.Vertex3(x0, y1, z0);
-            GL.Vertex3(x1, y0, z0); GL.Vertex3(x1, y1, z0);
-            GL.Vertex3(x1, y0, z1); GL.Vertex3(x1, y1, z1);
-            GL.Vertex3(x0, y0, z1); GL.Vertex3(x0, y1, z1);
-        }
-
-        private void OnDestroy()
-        {
-            if (_lineMaterial != null)
-            {
-                DestroyImmediate(_lineMaterial);
-            }
+            GL.Vertex3(x0, y0, z0);
+            GL.Vertex3(x0, y1, z0);
+            GL.Vertex3(x1, y0, z0);
+            GL.Vertex3(x1, y1, z0);
+            GL.Vertex3(x1, y0, z1);
+            GL.Vertex3(x1, y1, z1);
+            GL.Vertex3(x0, y0, z1);
+            GL.Vertex3(x0, y1, z1);
         }
     }
 }

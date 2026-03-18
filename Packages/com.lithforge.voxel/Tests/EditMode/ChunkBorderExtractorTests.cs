@@ -1,6 +1,8 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 
 namespace Lithforge.Voxel.Tests
@@ -8,16 +10,13 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class ChunkBorderExtractorTests
     {
-        private NativeArray<StateId> _chunkData;
-        private NativeArray<StateId> _output;
-
         [SetUp]
         public void SetUp()
         {
             _chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             _output = new NativeArray<StateId>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
         }
 
         [TearDown]
@@ -26,11 +25,13 @@ namespace Lithforge.Voxel.Tests
             if (_chunkData.IsCreated) { _chunkData.Dispose(); }
             if (_output.IsCreated) { _output.Dispose(); }
         }
+        private NativeArray<StateId> _chunkData;
+        private NativeArray<StateId> _output;
 
         [Test]
         public void ExtractPosX_ReturnsX31Plane()
         {
-            StateId stone = new StateId(1);
+            StateId stone = new(1);
 
             // Fill entire x=31 plane with stone
             for (int y = 0; y < ChunkConstants.Size; y++)
@@ -54,7 +55,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void ExtractNegX_ReturnsX0Plane()
         {
-            StateId stone = new StateId(1);
+            StateId stone = new(1);
 
             // Fill only x=0, y=0, z=0
             _chunkData[ChunkData.GetIndex(0, 0, 0)] = stone;
@@ -75,7 +76,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void ExtractPosY_ReturnsY31Plane()
         {
-            StateId stone = new StateId(1);
+            StateId stone = new(1);
 
             // Place stone at x=5, y=31, z=10
             _chunkData[ChunkData.GetIndex(5, 31, 10)] = stone;

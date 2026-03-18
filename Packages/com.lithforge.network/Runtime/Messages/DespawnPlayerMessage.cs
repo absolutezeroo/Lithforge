@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client despawn notification for a remote player leaving the observer's
-    /// interest range or disconnecting. Sent on reliable sequenced pipeline.
-    /// Wire format: [PlayerId:2] = 2 bytes.
+    ///     Server→Client despawn notification for a remote player leaving the observer's
+    ///     interest range or disconnecting. Sent on reliable sequenced pipeline.
+    ///     Wire format: [PlayerId:2] = 2 bytes.
     /// </summary>
     public struct DespawnPlayerMessage : INetworkMessage
     {
@@ -31,7 +31,7 @@ namespace Lithforge.Network.Messages
 
         public static DespawnPlayerMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            DespawnPlayerMessage msg = new DespawnPlayerMessage();
+            DespawnPlayerMessage msg = new();
 
             if (length < Size)
             {

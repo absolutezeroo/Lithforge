@@ -4,17 +4,21 @@ using System.Collections.Generic;
 namespace Lithforge.Voxel.BlockEntity
 {
     /// <summary>
-    /// Registry of block entity types. Maps type ID strings to factories.
-    /// Supports freeze to prevent late registration.
+    ///     Registry of block entity types. Maps type ID strings to factories.
+    ///     Supports freeze to prevent late registration.
     /// </summary>
     public sealed class BlockEntityRegistry
     {
-        private readonly Dictionary<string, BlockEntityType> _types =
-            new Dictionary<string, BlockEntityType>();
+        private readonly Dictionary<string, BlockEntityType> _types = new();
         private bool _frozen;
 
+        public int Count
+        {
+            get { return _types.Count; }
+        }
+
         /// <summary>
-        /// Registers a block entity type. Must be called before Freeze().
+        ///     Registers a block entity type. Must be called before Freeze().
         /// </summary>
         public void Register(BlockEntityType type)
         {
@@ -34,7 +38,7 @@ namespace Lithforge.Voxel.BlockEntity
         }
 
         /// <summary>
-        /// Freezes the registry, preventing further registration.
+        ///     Freezes the registry, preventing further registration.
         /// </summary>
         public void Freeze()
         {
@@ -42,8 +46,8 @@ namespace Lithforge.Voxel.BlockEntity
         }
 
         /// <summary>
-        /// Creates a new block entity instance by type ID.
-        /// Returns null if the type is not registered.
+        ///     Creates a new block entity instance by type ID.
+        ///     Returns null if the type is not registered.
         /// </summary>
         public IBlockEntity CreateEntity(string typeId)
         {
@@ -56,16 +60,11 @@ namespace Lithforge.Voxel.BlockEntity
         }
 
         /// <summary>
-        /// Returns true if a type with the given ID is registered.
+        ///     Returns true if a type with the given ID is registered.
         /// </summary>
         public bool HasType(string typeId)
         {
             return _types.ContainsKey(typeId);
-        }
-
-        public int Count
-        {
-            get { return _types.Count; }
         }
     }
 }

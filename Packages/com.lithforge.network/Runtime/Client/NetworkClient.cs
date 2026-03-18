@@ -1,4 +1,3 @@
-using System;
 using Lithforge.Core.Logging;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
@@ -9,23 +8,29 @@ using Lithforge.Network.Transport;
 namespace Lithforge.Network.Client
 {
     /// <summary>
-    /// Production network client implementation.
-    /// Owns a single transport connection to the server, manages handshake and ping/pong.
+    ///     Production network client implementation.
+    ///     Owns a single transport connection to the server, manages handshake and ping/pong.
     /// </summary>
     public sealed class NetworkClient : INetworkClient
     {
-        private readonly ILogger _logger;
         private readonly ContentHash _contentHash;
+        private readonly ILogger _logger;
         private readonly string _playerName;
-
-        private INetworkTransport _transport;
-        private MessageDispatcher _dispatcher;
-        private ConnectionStateMachine _stateMachine;
-        private ReliableSendQueue _sendQueue;
-        private ConnectionId _serverConnectionId;
+        private bool _disposed;
         private float _lastPingTime;
         private float _lastUpdateTime;
-        private bool _disposed;
+        private ReliableSendQueue _sendQueue;
+        private ConnectionId _serverConnectionId;
+        private ConnectionStateMachine _stateMachine;
+
+        private INetworkTransport _transport;
+
+        public NetworkClient(ILogger logger, ContentHash contentHash, string playerName)
+        {
+            _logger = logger;
+            _contentHash = contentHash;
+            _playerName = playerName ?? "";
+        }
 
         public ConnectionState State
         {
@@ -37,17 +42,7 @@ namespace Lithforge.Network.Client
         public ulong WorldSeed { get; private set; }
         public float RoundTripTime { get; private set; }
 
-        public MessageDispatcher Dispatcher
-        {
-            get { return _dispatcher; }
-        }
-
-        public NetworkClient(ILogger logger, ContentHash contentHash, string playerName)
-        {
-            _logger = logger;
-            _contentHash = contentHash;
-            _playerName = playerName ?? "";
-        }
+        public MessageDispatcher Dispatcher { get; private set; }
 
         public void Connect(string address, ushort port)
         {
@@ -58,15 +53,15 @@ namespace Lithforge.Network.Client
             }
 
             _transport = new NetworkDriverWrapper(_logger);
-            _dispatcher = new MessageDispatcher(_logger);
+            Dispatcher = new MessageDispatcher(_logger);
             _stateMachine = new ConnectionStateMachine();
             _sendQueue = new ReliableSendQueue(_logger);
 
-            _dispatcher.OnConnect(OnConnected);
-            _dispatcher.OnDisconnect(OnDisconnected);
-            _dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
-            _dispatcher.RegisterHandler(MessageType.Pong, OnPong);
-            _dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
+            Dispatcher.OnConnect(OnConnected);
+            Dispatcher.OnDisconnect(OnDisconnected);
+            Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
+            Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
+            Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
 
             _stateMachine.Transition(ConnectionState.Connecting, 0f);
             _serverConnectionId = _transport.Connect(address, port);
@@ -83,7 +78,7 @@ namespace Lithforge.Network.Client
 
             _lastUpdateTime = currentTime;
             _transport.Update();
-            _dispatcher.ProcessEvents(_transport);
+            Dispatcher.ProcessEvents(_transport);
             CheckTimeout(currentTime);
             SchedulePing(currentTime);
             _sendQueue.Flush(_transport);
@@ -114,7 +109,10 @@ namespace Lithforge.Network.Client
 
             if (_stateMachine.Current != ConnectionState.Disconnected)
             {
-                DisconnectMessage msg = new DisconnectMessage { Reason = DisconnectReason.Graceful };
+                DisconnectMessage msg = new()
+                {
+                    Reason = DisconnectReason.Graceful,
+                };
                 Send(msg, PipelineId.ReliableSequenced);
                 _stateMachine.Transition(ConnectionState.Disconnecting, 0f);
             }
@@ -139,11 +137,9 @@ namespace Lithforge.Network.Client
             _stateMachine.Transition(ConnectionState.Handshaking, 0f);
 
             // Send handshake request immediately
-            HandshakeRequestMessage request = new HandshakeRequestMessage
+            HandshakeRequestMessage request = new()
             {
-                ProtocolVersion = NetworkConstants.ProtocolVersion,
-                ContentHash = _contentHash,
-                PlayerName = _playerName
+                ProtocolVersion = NetworkConstants.ProtocolVersion, ContentHash = _contentHash, PlayerName = _playerName,
             };
 
             Send(request, PipelineId.ReliableSequenced);
@@ -224,7 +220,10 @@ namespace Lithforge.Network.Client
             if (currentTime - _lastPingTime >= NetworkConstants.PingIntervalSeconds)
             {
                 _lastPingTime = currentTime;
-                PingMessage ping = new PingMessage { Timestamp = currentTime };
+                PingMessage ping = new()
+                {
+                    Timestamp = currentTime,
+                };
                 Send(ping, PipelineId.UnreliableSequenced);
             }
         }

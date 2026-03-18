@@ -1,32 +1,31 @@
 using System;
 using System.Collections.Generic;
+
 using UnityEngine;
+
 using BlockEntityBase = Lithforge.Runtime.BlockEntity.BlockEntity;
 
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
-    /// Manages all block entity container screens. Maintains one cached screen
-    /// instance per entity type ID. Provides data-driven dispatch from a
-    /// block entity instance to its screen without hardcoded type checks.
-    ///
-    /// Registration: call <see cref="Register"/> at bootstrap for each screen type.
-    /// Dispatch: BlockInteraction calls <see cref="TryOpenForEntity"/> on right-click.
-    ///
-    /// Adding a new block entity GUI requires no changes to this class — only a new
-    /// <see cref="ContainerScreen"/> subclass and one <see cref="Register"/> call
-    /// in LithforgeBootstrap.
+    ///     Manages all block entity container screens. Maintains one cached screen
+    ///     instance per entity type ID. Provides data-driven dispatch from a
+    ///     block entity instance to its screen without hardcoded type checks.
+    ///     Registration: call <see cref="Register" /> at bootstrap for each screen type.
+    ///     Dispatch: BlockInteraction calls <see cref="TryOpenForEntity" /> on right-click.
+    ///     Adding a new block entity GUI requires no changes to this class — only a new
+    ///     <see cref="ContainerScreen" /> subclass and one <see cref="Register" /> call
+    ///     in LithforgeBootstrap.
     /// </summary>
     public sealed class ContainerScreenManager : MonoBehaviour
     {
-        private readonly List<BlockEntityScreenBinding> _bindings =
-            new List<BlockEntityScreenBinding>();
+        private readonly List<BlockEntityScreenBinding> _bindings = new();
 
         private ContainerScreen _activeScreen;
         private int _lastCloseFrame = -1;
 
         /// <summary>
-        /// Returns true if a block entity screen is currently open.
+        ///     Returns true if a block entity screen is currently open.
         /// </summary>
         public bool HasActiveScreen
         {
@@ -34,9 +33,9 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Returns true if a block entity screen was closed during the current frame.
-        /// Used to prevent the E key from both closing a block entity screen
-        /// and opening the player inventory in the same frame.
+        ///     Returns true if a block entity screen was closed during the current frame.
+        ///     Used to prevent the E key from both closing a block entity screen
+        ///     and opening the player inventory in the same frame.
         /// </summary>
         public bool WasClosedThisFrame
         {
@@ -44,9 +43,9 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Records that a screen was closed this frame. Called from
-        /// <see cref="ContainerScreen.Close"/> to handle script execution
-        /// order races between block entity screens and PlayerInventoryScreen.
+        ///     Records that a screen was closed this frame. Called from
+        ///     <see cref="ContainerScreen.Close" /> to handle script execution
+        ///     order races between block entity screens and PlayerInventoryScreen.
         /// </summary>
         public void NotifyScreenClosed()
         {
@@ -54,9 +53,9 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Registers a screen factory and open action for the given entity type ID.
-        /// The factory is invoked lazily on first open. The open action casts the
-        /// entity to the concrete type and calls the screen's typed OpenForEntity method.
+        ///     Registers a screen factory and open action for the given entity type ID.
+        ///     The factory is invoked lazily on first open. The open action casts the
+        ///     entity to the concrete type and calls the screen's typed OpenForEntity method.
         /// </summary>
         public void Register(
             string entityTypeId,
@@ -67,9 +66,9 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Opens the appropriate screen for the given block entity.
-        /// Returns true if a registered screen was found and opened.
-        /// Returns false if no dispatch is registered for this entity type.
+        ///     Opens the appropriate screen for the given block entity.
+        ///     Returns true if a registered screen was found and opened.
+        ///     Returns false if no dispatch is registered for this entity type.
         /// </summary>
         public bool TryOpenForEntity(BlockEntityBase entity)
         {
@@ -103,7 +102,7 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Closes whatever screen is currently open.
+        ///     Closes whatever screen is currently open.
         /// </summary>
         public void CloseActive()
         {
@@ -114,8 +113,8 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
-        /// Sets visibility on all instantiated block entity screens.
-        /// Used by HudVisibilityController during spawn loading.
+        ///     Sets visibility on all instantiated block entity screens.
+        ///     Used by HudVisibilityController during spawn loading.
         /// </summary>
         public void SetAllVisible(bool visible)
         {

@@ -1,23 +1,23 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Logging;
 using Lithforge.Network.Server;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    /// Tier 3 implementation of <see cref="IServerBlockProcessor"/>. Validates all 8
-    /// server-side block command checks and calls <see cref="ChunkManager.SetBlock"/>
-    /// on accepted commands. Owns per-player rate limiting and digging state.
-    ///
-    /// Validation order for break: rate limit → reach → chunk loaded → block type →
-    /// sequence (StartDigging match) → break time → player position → execute.
-    ///
-    /// Validation order for place: rate limit → reach → chunk loaded → block type
-    /// (target air/fluid) → player position → placement face → execute.
+    ///     Tier 3 implementation of <see cref="IServerBlockProcessor" />. Validates all 8
+    ///     server-side block command checks and calls <see cref="ChunkManager.SetBlock" />
+    ///     on accepted commands. Owns per-player rate limiting and digging state.
+    ///     Validation order for break: rate limit → reach → chunk loaded → block type →
+    ///     sequence (StartDigging match) → break time → player position → execute.
+    ///     Validation order for place: rate limit → reach → chunk loaded → block type
+    ///     (target air/fluid) → player position → placement face → execute.
     /// </summary>
     public sealed class ServerBlockProcessor : IServerBlockProcessor
     {
@@ -30,23 +30,20 @@ namespace Lithforge.Runtime.Simulation
         private const float TickDt = 1f / 30f;
 
         private readonly ChunkManager _chunkManager;
-        private readonly StateRegistry _stateRegistry;
-        private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly float _handMiningMultiplier;
-        private readonly ILogger _logger;
 
         // Per-player state
-        private readonly Dictionary<ushort, PlayerDiggingState> _diggingStates =
-            new Dictionary<ushort, PlayerDiggingState>();
-
-        private readonly Dictionary<ushort, float> _rateLimitTokens =
-            new Dictionary<ushort, float>();
-
-        private readonly Dictionary<ushort, float> _rateLimitLastRefill =
-            new Dictionary<ushort, float>();
+        private readonly Dictionary<ushort, PlayerDiggingState> _diggingStates = new();
 
         // Reusable list for SetBlock dirtied chunks (fill pattern)
-        private readonly List<int3> _dirtiedChunksCache = new List<int3>();
+        private readonly List<int3> _dirtiedChunksCache = new();
+        private readonly float _handMiningMultiplier;
+        private readonly ILogger _logger;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+
+        private readonly Dictionary<ushort, float> _rateLimitLastRefill = new();
+
+        private readonly Dictionary<ushort, float> _rateLimitTokens = new();
+        private readonly StateRegistry _stateRegistry;
 
         public ServerBlockProcessor(
             ChunkManager chunkManager,
@@ -103,7 +100,7 @@ namespace Lithforge.Runtime.Simulation
             uint serverTick)
         {
             // Reach check
-            float3 blockCenter = new float3(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
+            float3 blockCenter = new(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
             float distance = math.distance(playerPosition, blockCenter);
 
             if (distance > MaxReachDistance + PositionTolerance)
@@ -142,12 +139,9 @@ namespace Lithforge.Runtime.Simulation
                 expectedBreakTime = entry.Hardness * _handMiningMultiplier;
             }
 
-            PlayerDiggingState digState = new PlayerDiggingState
+            PlayerDiggingState digState = new()
             {
-                IsDigging = true,
-                DigPosition = position,
-                DigStartTick = serverTick,
-                ExpectedBreakTime = expectedBreakTime,
+                IsDigging = true, DigPosition = position, DigStartTick = serverTick, ExpectedBreakTime = expectedBreakTime,
             };
 
             _diggingStates[playerId] = digState;
@@ -158,7 +152,7 @@ namespace Lithforge.Runtime.Simulation
         {
             if (_diggingStates.ContainsKey(playerId))
             {
-                PlayerDiggingState cleared = new PlayerDiggingState();
+                PlayerDiggingState cleared = new();
                 _diggingStates[playerId] = cleared;
             }
         }
@@ -178,7 +172,7 @@ namespace Lithforge.Runtime.Simulation
             }
 
             // 2. Reach check
-            float3 blockCenter = new float3(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
+            float3 blockCenter = new(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
             float distance = math.distance(playerPosition, blockCenter);
 
             if (distance > MaxReachDistance)
@@ -236,7 +230,7 @@ namespace Lithforge.Runtime.Simulation
             _chunkManager.SetBlock(position, StateId.Air, _dirtiedChunksCache);
 
             // Clear digging state
-            PlayerDiggingState cleared = new PlayerDiggingState();
+            PlayerDiggingState cleared = new();
             _diggingStates[playerId] = cleared;
 
             return BlockProcessResult.Accept(currentState, StateId.Air);
@@ -258,7 +252,7 @@ namespace Lithforge.Runtime.Simulation
             }
 
             // 2. Reach check
-            float3 blockCenter = new float3(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
+            float3 blockCenter = new(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
             float distance = math.distance(playerPosition, blockCenter);
 
             if (distance > MaxReachDistance)
@@ -310,7 +304,7 @@ namespace Lithforge.Runtime.Simulation
                 if ((placedCompact.Flags & BlockStateCompact.FlagFullCube) != 0)
                 {
                     // Simple AABB check: player is ~0.6 wide, 1.8 tall
-                    float3 blockMin = new float3(position.x, position.y, position.z);
+                    float3 blockMin = new(position.x, position.y, position.z);
                     float3 blockMax = blockMin + new float3(1f, 1f, 1f);
                     float3 playerMin = playerPosition - new float3(0.3f, 0f, 0.3f);
                     float3 playerMax = playerPosition + new float3(0.3f, 1.8f, 0.3f);

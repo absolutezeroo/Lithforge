@@ -1,29 +1,33 @@
+using System;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Detects landing after a fall and plays the appropriate fall sound
-    /// from the block the player lands on. Volume scales with fall height.
+    ///     Detects landing after a fall and plays the appropriate fall sound
+    ///     from the block the player lands on. Volume scales with fall height.
     /// </summary>
     public sealed class FallSoundDetector
     {
         private readonly BlockSoundPlayer _blockSoundPlayer;
         private readonly ChunkManager _chunkManager;
-        private readonly Transform _playerTransform;
-        private readonly float _fallThreshold;
-        private readonly float _fallMaxVolume;
         private readonly float _fallMaxHeight;
+        private readonly float _fallMaxVolume;
+        private readonly float _fallThreshold;
+        private readonly Func<bool> _isFlying;
 
-        private readonly System.Func<bool> _isOnGround;
-        private readonly System.Func<bool> _isFlying;
-
-        private bool _wasOnGround;
+        private readonly Func<bool> _isOnGround;
+        private readonly Transform _playerTransform;
         private float _highestY;
         private bool _tracking;
+
+        private bool _wasOnGround;
 
         public FallSoundDetector(
             BlockSoundPlayer blockSoundPlayer,
@@ -32,8 +36,8 @@ namespace Lithforge.Runtime.Audio
             float fallThreshold,
             float fallMaxVolume,
             float fallMaxHeight,
-            System.Func<bool> isOnGround,
-            System.Func<bool> isFlying)
+            Func<bool> isOnGround,
+            Func<bool> isFlying)
         {
             _blockSoundPlayer = blockSoundPlayer;
             _chunkManager = chunkManager;
@@ -47,7 +51,7 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Call each frame from LateUpdate after player position is interpolated.
+        ///     Call each frame from LateUpdate after player position is interpolated.
         /// </summary>
         public void Update()
         {
@@ -91,7 +95,7 @@ namespace Lithforge.Runtime.Audio
                 if (fallHeight >= _fallThreshold)
                 {
                     // Query block at feet
-                    int3 feetBlock = new int3(
+                    int3 feetBlock = new(
                         (int)math.floor(_playerTransform.position.x),
                         (int)math.floor(_playerTransform.position.y) - 1,
                         (int)math.floor(_playerTransform.position.z));

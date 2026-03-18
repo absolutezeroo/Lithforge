@@ -1,31 +1,33 @@
 using System.Collections.Generic;
+
 using Lithforge.Physics;
 using Lithforge.Runtime.Simulation;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Input
 {
     /// <summary>
-    /// Singleplayer command processor that validates and executes commands
-    /// directly against local world state. Handles block placement validation
-    /// (air check, player overlap) and block break validation (non-air check).
-    ///
-    /// Inventory side effects (item consumption, loot drops, durability) remain
-    /// in <see cref="BlockInteraction"/> for now and will be migrated when
-    /// MiningService is extracted (P2.3).
+    ///     Singleplayer command processor that validates and executes commands
+    ///     directly against local world state. Handles block placement validation
+    ///     (air check, player overlap) and block break validation (non-air check).
+    ///     Inventory side effects (item consumption, loot drops, durability) remain
+    ///     in <see cref="BlockInteraction" /> for now and will be migrated when
+    ///     MiningService is extracted (P2.3).
     /// </summary>
     public sealed class LocalCommandProcessor : ICommandProcessor
     {
         private readonly ChunkManager _chunkManager;
+        private readonly IInventoryCommandProcessor _inventoryProcessor;
         private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly Transform _playerTransform;
         private readonly float _playerHalfWidth;
         private readonly float _playerHeight;
-        private readonly IInventoryCommandProcessor _inventoryProcessor;
+        private readonly Transform _playerTransform;
 
         public LocalCommandProcessor(
             ChunkManager chunkManager,
@@ -54,8 +56,8 @@ namespace Lithforge.Runtime.Input
             if (existing != StateId.Air)
             {
                 bool isFluid = _nativeStateRegistry.States.IsCreated &&
-                    existing.Value < _nativeStateRegistry.States.Length &&
-                    _nativeStateRegistry.States[existing.Value].IsFluid;
+                               existing.Value < _nativeStateRegistry.States.Length &&
+                               _nativeStateRegistry.States[existing.Value].IsFluid;
 
                 if (!isFluid)
                 {
@@ -66,12 +68,12 @@ namespace Lithforge.Runtime.Input
             // Check that the placed block does not overlap the player AABB
             if (_playerTransform != null)
             {
-                float3 feetPos = new float3(
+                float3 feetPos = new(
                     _playerTransform.position.x,
                     _playerTransform.position.y,
                     _playerTransform.position.z);
 
-                Aabb playerBox = new Aabb(
+                Aabb playerBox = new(
                     new float3(
                         feetPos.x - _playerHalfWidth,
                         feetPos.y,

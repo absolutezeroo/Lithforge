@@ -1,4 +1,5 @@
 using System.IO;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Voxel.Item
@@ -9,8 +10,8 @@ namespace Lithforge.Voxel.Item
 
         public static byte[] Serialize(ToolInstance tool)
         {
-            using (MemoryStream ms = new MemoryStream())
-            using (BinaryWriter w = new BinaryWriter(ms))
+            using (MemoryStream ms = new())
+            using (BinaryWriter w = new(ms))
             {
                 w.Write(Version);
                 w.Write((byte)tool.ToolType);
@@ -57,11 +58,11 @@ namespace Lithforge.Voxel.Item
 
         public static ToolInstance Deserialize(byte[] data)
         {
-            using (MemoryStream ms = new MemoryStream(data))
-            using (BinaryReader r = new BinaryReader(ms))
+            using (MemoryStream ms = new(data))
+            using (BinaryReader r = new(ms))
             {
                 ushort ver = r.ReadUInt16();
-                ToolInstance tool = new ToolInstance();
+                ToolInstance tool = new();
                 tool.ToolType = (ToolType)r.ReadByte();
                 int partCount = r.ReadByte();
                 tool.Parts = new ToolPart[partCount];
@@ -99,9 +100,7 @@ namespace Lithforge.Voxel.Item
                     {
                         tool.Slots[i] = new ModifierSlot
                         {
-                            IsOccupied = true,
-                            ModifierId = ResourceId.Parse(r.ReadString()),
-                            Level = r.ReadInt32(),
+                            IsOccupied = true, ModifierId = ResourceId.Parse(r.ReadString()), Level = r.ReadInt32(),
                         };
                     }
                 }

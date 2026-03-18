@@ -4,7 +4,7 @@ namespace Lithforge.Network
 {
     public readonly struct ConnectionId : IEquatable<ConnectionId>
     {
-        public static readonly ConnectionId Invalid = new ConnectionId(-1);
+        public static readonly ConnectionId Invalid = new(-1);
 
         public readonly int Value;
 

@@ -1,10 +1,13 @@
+using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Manages camera frustum planes and performs per-chunk AABB visibility tests.
+    ///     Manages camera frustum planes and performs per-chunk AABB visibility tests.
     /// </summary>
     public sealed class ChunkCulling
     {
@@ -12,8 +15,8 @@ namespace Lithforge.Runtime.Rendering
         private bool _frustumValid;
 
         /// <summary>
-        /// Recalculates frustum planes from the given camera.
-        /// Call once per frame before any IsInFrustum queries.
+        ///     Recalculates frustum planes from the given camera.
+        ///     Call once per frame before any IsInFrustum queries.
         /// </summary>
         public void UpdateFrustum(Camera camera)
         {
@@ -27,8 +30,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Returns true if the chunk AABB intersects the current frustum.
-        /// Returns true if no camera was available when frustum was last updated.
+        ///     Returns true if the chunk AABB intersects the current frustum.
+        ///     Returns true if no camera was available when frustum was last updated.
         /// </summary>
         public bool IsInFrustum(int3 chunkCoord)
         {
@@ -37,16 +40,16 @@ namespace Lithforge.Runtime.Rendering
                 return true;
             }
 
-            float3 min = new float3(
-                chunkCoord.x * Lithforge.Voxel.Chunk.ChunkConstants.Size,
-                chunkCoord.y * Lithforge.Voxel.Chunk.ChunkConstants.Size,
-                chunkCoord.z * Lithforge.Voxel.Chunk.ChunkConstants.Size);
+            float3 min = new(
+                chunkCoord.x * ChunkConstants.Size,
+                chunkCoord.y * ChunkConstants.Size,
+                chunkCoord.z * ChunkConstants.Size);
             float3 max = min + new float3(
-                Lithforge.Voxel.Chunk.ChunkConstants.Size,
-                Lithforge.Voxel.Chunk.ChunkConstants.Size,
-                Lithforge.Voxel.Chunk.ChunkConstants.Size);
+                ChunkConstants.Size,
+                ChunkConstants.Size,
+                ChunkConstants.Size);
 
-            Bounds bounds = new Bounds();
+            Bounds bounds = new();
             bounds.SetMinMax(
                 new Vector3(min.x, min.y, min.z),
                 new Vector3(max.x, max.y, max.z));

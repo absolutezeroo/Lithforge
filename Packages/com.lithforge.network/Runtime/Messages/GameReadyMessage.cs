@@ -3,11 +3,11 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client game ready signal. Sent on reliable sequenced pipeline.
-    /// Tells the client that enough initial chunks have been streamed and the player
-    /// should transition from Loading to Playing state. Contains the authoritative
-    /// spawn position and current time of day.
-    /// Wire format: [SpawnX:4][SpawnY:4][SpawnZ:4][TimeOfDay:4][ServerTick:4] = 20 bytes.
+    ///     Server→Client game ready signal. Sent on reliable sequenced pipeline.
+    ///     Tells the client that enough initial chunks have been streamed and the player
+    ///     should transition from Loading to Playing state. Contains the authoritative
+    ///     spawn position and current time of day.
+    ///     Wire format: [SpawnX:4][SpawnY:4][SpawnZ:4][TimeOfDay:4][ServerTick:4] = 20 bytes.
     /// </summary>
     public struct GameReadyMessage : INetworkMessage
     {
@@ -47,7 +47,7 @@ namespace Lithforge.Network.Messages
 
         public static GameReadyMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            GameReadyMessage msg = new GameReadyMessage();
+            GameReadyMessage msg = new();
 
             if (length < Size)
             {

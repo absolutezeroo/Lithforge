@@ -1,23 +1,23 @@
 using System;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Physics
 {
     /// <summary>
-    /// AABB vs voxel grid collision resolution.
-    /// Uses swept axis-independent resolution (resolve Y first for ground detection,
-    /// then X, then Z) to prevent corner-clipping artifacts.
-    ///
-    /// Two overloads:
-    /// - Func&lt;int3, bool&gt;: main-thread only, managed delegate (legacy).
-    /// - SolidBlockQuery: Burst-compatible struct, ready for future jobification.
+    ///     AABB vs voxel grid collision resolution.
+    ///     Uses swept axis-independent resolution (resolve Y first for ground detection,
+    ///     then X, then Z) to prevent corner-clipping artifacts.
+    ///     Two overloads:
+    ///     - Func&lt;int3, bool&gt;: main-thread only, managed delegate (legacy).
+    ///     - SolidBlockQuery: Burst-compatible struct, ready for future jobification.
     /// </summary>
     public static class VoxelCollider
     {
         /// <summary>
-        /// Computes the conservative broad-phase AABB bounds for a collision resolve call.
-        /// Includes the step-up region. Use this to pre-fill a <see cref="SolidBlockQuery"/>
-        /// with solidity data before calling <see cref="Resolve(ref float3, ref float3, float, float, SolidBlockQuery)"/>.
+        ///     Computes the conservative broad-phase AABB bounds for a collision resolve call.
+        ///     Includes the step-up region. Use this to pre-fill a <see cref="SolidBlockQuery" />
+        ///     with solidity data before calling <see cref="Resolve(ref float3, ref float3, float, float, SolidBlockQuery)" />.
         /// </summary>
         public static void ComputeBroadPhaseBounds(
             float3 position,
@@ -46,9 +46,9 @@ namespace Lithforge.Physics
         }
 
         /// <summary>
-        /// Resolves collision between a moving entity AABB and the voxel grid.
-        /// Modifies position and velocity in-place, zeroing velocity components
-        /// on axes where collisions occur.
+        ///     Resolves collision between a moving entity AABB and the voxel grid.
+        ///     Modifies position and velocity in-place, zeroing velocity components
+        ///     on axes where collisions occur.
         /// </summary>
         /// <param name="position">Entity position (feet position). Modified in-place.</param>
         /// <param name="velocity">Entity velocity (blocks/frame-delta). Modified in-place.</param>
@@ -63,7 +63,7 @@ namespace Lithforge.Physics
             float height,
             Func<int3, bool> isSolid)
         {
-            CollisionResult result = new CollisionResult();
+            CollisionResult result = new();
 
             // Build the entity AABB from feet position
             Aabb entityBox = BuildEntityBox(position, halfWidth, height);
@@ -94,7 +94,7 @@ namespace Lithforge.Physics
                     {
                         for (int bz = minZ; bz <= maxZ; bz++)
                         {
-                            int3 blockCoord = new int3(bx, by, bz);
+                            int3 blockCoord = new(bx, by, bz);
 
                             if (!isSolid(blockCoord))
                             {
@@ -126,7 +126,7 @@ namespace Lithforge.Physics
                     {
                         for (int bz = minZ; bz <= maxZ; bz++)
                         {
-                            int3 blockCoord = new int3(bx, by, bz);
+                            int3 blockCoord = new(bx, by, bz);
 
                             if (!isSolid(blockCoord))
                             {
@@ -171,7 +171,7 @@ namespace Lithforge.Physics
                 {
                     for (int bz = minZ; bz <= maxZ; bz++)
                     {
-                        int3 blockCoord = new int3(bx, by, bz);
+                        int3 blockCoord = new(bx, by, bz);
 
                         if (!isSolid(blockCoord))
                         {
@@ -219,7 +219,7 @@ namespace Lithforge.Physics
                 {
                     for (int bz = bzStart; bz != bzEnd + bzStep; bz += bzStep)
                     {
-                        int3 blockCoord = new int3(bx, by, bz);
+                        int3 blockCoord = new(bx, by, bz);
 
                         if (!isSolid(blockCoord))
                         {
@@ -259,7 +259,7 @@ namespace Lithforge.Physics
             if (result.OnGround && (hitWallX || hitWallZ))
             {
                 float stepHeight = PhysicsConstants.StepHeight;
-                float3 testPos = new float3(
+                float3 testPos = new(
                     posAfterY.x + savedVelocityX,
                     posAfterY.y + stepHeight,
                     posAfterY.z + savedVelocityZ);
@@ -281,7 +281,7 @@ namespace Lithforge.Physics
                     {
                         for (int bz = stepMinZ; bz <= stepMaxZ && !blocked; bz++)
                         {
-                            int3 blockCoord = new int3(bx, by, bz);
+                            int3 blockCoord = new(bx, by, bz);
 
                             if (!isSolid(blockCoord))
                             {
@@ -303,7 +303,7 @@ namespace Lithforge.Physics
                     // Verify there is ground under the step-up position.
                     // Check the block directly under testPos feet to prevent
                     // stepping up over a void (cliff edge, chunk boundary).
-                    int3 underBlock = new int3(
+                    int3 underBlock = new(
                         (int)math.floor(testPos.x),
                         (int)math.floor(testPos.y - 0.01f),
                         (int)math.floor(testPos.z));
@@ -320,9 +320,9 @@ namespace Lithforge.Physics
         }
 
         /// <summary>
-        /// Resolves collision between a moving entity AABB and the voxel grid.
-        /// Burst-compatible overload using <see cref="SolidBlockQuery"/> instead of a managed delegate.
-        /// Behavior is identical to the Func&lt;int3, bool&gt; overload.
+        ///     Resolves collision between a moving entity AABB and the voxel grid.
+        ///     Burst-compatible overload using <see cref="SolidBlockQuery" /> instead of a managed delegate.
+        ///     Behavior is identical to the Func&lt;int3, bool&gt; overload.
         /// </summary>
         /// <param name="position">Entity position (feet position). Modified in-place.</param>
         /// <param name="velocity">Entity velocity (blocks/frame-delta). Modified in-place.</param>
@@ -337,7 +337,7 @@ namespace Lithforge.Physics
             float height,
             SolidBlockQuery query)
         {
-            CollisionResult result = new CollisionResult();
+            CollisionResult result = new();
 
             // Build the entity AABB from feet position
             Aabb entityBox = BuildEntityBox(position, halfWidth, height);
@@ -365,7 +365,7 @@ namespace Lithforge.Physics
                     {
                         for (int bz = minZ; bz <= maxZ; bz++)
                         {
-                            int3 blockCoord = new int3(bx, by, bz);
+                            int3 blockCoord = new(bx, by, bz);
 
                             if (!query.IsSolid(blockCoord))
                             {
@@ -396,7 +396,7 @@ namespace Lithforge.Physics
                     {
                         for (int bz = minZ; bz <= maxZ; bz++)
                         {
-                            int3 blockCoord = new int3(bx, by, bz);
+                            int3 blockCoord = new(bx, by, bz);
 
                             if (!query.IsSolid(blockCoord))
                             {
@@ -440,7 +440,7 @@ namespace Lithforge.Physics
                 {
                     for (int bz = minZ; bz <= maxZ; bz++)
                     {
-                        int3 blockCoord = new int3(bx, by, bz);
+                        int3 blockCoord = new(bx, by, bz);
 
                         if (!query.IsSolid(blockCoord))
                         {
@@ -488,7 +488,7 @@ namespace Lithforge.Physics
                 {
                     for (int bz = bzStart; bz != bzEnd + bzStep; bz += bzStep)
                     {
-                        int3 blockCoord = new int3(bx, by, bz);
+                        int3 blockCoord = new(bx, by, bz);
 
                         if (!query.IsSolid(blockCoord))
                         {
@@ -525,7 +525,7 @@ namespace Lithforge.Physics
             if (result.OnGround && (hitWallX || hitWallZ))
             {
                 float stepHeight = PhysicsConstants.StepHeight;
-                float3 testPos = new float3(
+                float3 testPos = new(
                     posAfterY.x + savedVelocityX,
                     posAfterY.y + stepHeight,
                     posAfterY.z + savedVelocityZ);
@@ -547,7 +547,7 @@ namespace Lithforge.Physics
                     {
                         for (int bz = stepMinZ; bz <= stepMaxZ && !blocked; bz++)
                         {
-                            int3 blockCoord = new int3(bx, by, bz);
+                            int3 blockCoord = new(bx, by, bz);
 
                             if (!query.IsSolid(blockCoord))
                             {
@@ -566,7 +566,7 @@ namespace Lithforge.Physics
 
                 if (!blocked)
                 {
-                    int3 underBlock = new int3(
+                    int3 underBlock = new(
                         (int)math.floor(testPos.x),
                         (int)math.floor(testPos.y - 0.01f),
                         (int)math.floor(testPos.z));
@@ -583,8 +583,8 @@ namespace Lithforge.Physics
         }
 
         /// <summary>
-        /// Builds an entity AABB from feet position, half-width, and height.
-        /// The position represents the bottom-center of the entity.
+        ///     Builds an entity AABB from feet position, half-width, and height.
+        ///     The position represents the bottom-center of the entity.
         /// </summary>
         private static Aabb BuildEntityBox(float3 feetPosition, float halfWidth, float height)
         {

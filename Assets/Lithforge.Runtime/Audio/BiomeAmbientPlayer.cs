@@ -4,15 +4,15 @@ using UnityEngine.Audio;
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Plays looping biome ambient audio using two AudioSources in an A/B
-    /// crossfade pattern. When the biome changes, the current source fades
-    /// out while the other fades in with the new clip.
+    ///     Plays looping biome ambient audio using two AudioSources in an A/B
+    ///     crossfade pattern. When the biome changes, the current source fades
+    ///     out while the other fades in with the new clip.
     /// </summary>
     public sealed class BiomeAmbientPlayer
     {
+        private readonly float _crossfadeTime;
         private readonly AudioSource _sourceA;
         private readonly AudioSource _sourceB;
-        private readonly float _crossfadeTime;
 
         private bool _aIsActive;
         private AudioClip _currentClip;
@@ -26,12 +26,12 @@ namespace Lithforge.Runtime.Audio
         {
             _crossfadeTime = crossfadeTime;
 
-            GameObject childA = new GameObject("AmbientSourceA");
+            GameObject childA = new("AmbientSourceA");
             childA.transform.SetParent(host.transform);
             _sourceA = childA.AddComponent<AudioSource>();
             ConfigureSource(_sourceA, ambientGroup);
 
-            GameObject childB = new GameObject("AmbientSourceB");
+            GameObject childB = new("AmbientSourceB");
             childB.transform.SetParent(host.transform);
             _sourceB = childB.AddComponent<AudioSource>();
             ConfigureSource(_sourceB, ambientGroup);
@@ -40,8 +40,8 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Sets the biome ambient clip. If different from current, starts a crossfade.
-        /// Pass null to fade out to silence.
+        ///     Sets the biome ambient clip. If different from current, starts a crossfade.
+        ///     Pass null to fade out to silence.
         /// </summary>
         public void SetBiomeClip(AudioClip clip)
         {
@@ -67,7 +67,7 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Called each frame. Drives the crossfade volumes.
+        ///     Called each frame. Drives the crossfade volumes.
         /// </summary>
         public void UpdateFrame(float deltaTime)
         {

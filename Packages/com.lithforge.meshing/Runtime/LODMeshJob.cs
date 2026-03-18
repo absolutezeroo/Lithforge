@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
+
 using Lithforge.Meshing.Atlas;
 using Lithforge.Voxel.Block;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -9,10 +11,10 @@ using Unity.Mathematics;
 namespace Lithforge.Meshing
 {
     /// <summary>
-    /// Simplified Burst-compiled mesh job for LOD chunks.
-    /// No AO, no neighbor borders, no light data, opaque-only.
-    /// Emits culled faces for downsampled voxel data.
-    /// Vertex positions are scaled by the LOD voxel size.
+    ///     Simplified Burst-compiled mesh job for LOD chunks.
+    ///     No AO, no neighbor borders, no light data, opaque-only.
+    ///     Emits culled faces for downsampled voxel data.
+    ///     Vertex positions are scaled by the LOD voxel size.
     /// </summary>
     [BurstCompile]
     public struct LODMeshJob : IJob
@@ -88,7 +90,7 @@ namespace Lithforge.Meshing
                 }
             }
 
-            EmitFace(x, y, z, state, face, (float3)normal);
+            EmitFace(x, y, z, state, face, normal);
         }
 
         private void EmitFace(int x, int y, int z, StateId state, int face, float3 normal)
@@ -102,7 +104,7 @@ namespace Lithforge.Meshing
             ushort texIndex = atlasEntry.GetTextureIndex(face);
 
             // LOD uses full brightness: AO=1, blockLight=1, sunLight=1, a=pure baseTexIndex
-            half4 color = new half4((half)1.0f, (half)1.0f, (half)1.0f, (half)texIndex);
+            half4 color = new((half)1.0f, (half)1.0f, (half)1.0f, (half)texIndex);
 
             // SHARED TINT OVERLAY PACKING — GreedyMeshJob, LODMeshJob
             byte baseTintType = atlasEntry.GetBaseTintType(face);
@@ -111,10 +113,10 @@ namespace Lithforge.Meshing
             bool hasOverlay = overlayTexIdx != 0xFFFF;
 
             uint tintOverlay =
-                ((uint)(baseTintType & 0x3)) |
-                ((uint)(overlayTintType & 0x3) << 2) |
-                ((uint)(hasOverlay ? 1 : 0) << 4) |
-                ((uint)(hasOverlay ? (overlayTexIdx & 0x3FF) : 0) << 5);
+                (uint)(baseTintType & 0x3) |
+                (uint)(overlayTintType & 0x3) << 2 |
+                (uint)(hasOverlay ? 1 : 0) << 4 |
+                (uint)(hasOverlay ? overlayTexIdx & 0x3FF : 0) << 5;
 
             float3 pos00;
             float3 pos10;

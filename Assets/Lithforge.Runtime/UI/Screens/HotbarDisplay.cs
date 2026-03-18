@@ -1,96 +1,31 @@
-using Lithforge.Runtime.Content.Tools;
+using System;
+
+using Lithforge.Runtime.UI.Navigation;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
-    /// Read-only hotbar display at the bottom center of the screen.
-    /// Shows 9 slots with item icons, selected slot highlight, and item name banner.
+    ///     Read-only hotbar display at the bottom center of the screen.
+    ///     Shows 9 slots with item icons, selected slot highlight, and item name banner.
     /// </summary>
-    public sealed class HotbarDisplay : MonoBehaviour
+    public sealed class HotbarDisplay : MonoBehaviour, IScreen
     {
         private UIDocument _document;
         private Inventory _inventory;
         private ItemRegistry _itemRegistry;
-        private ItemSpriteAtlas _spriteAtlas;
-        private ToolPartTextureDatabase _toolPartTexDb;
-
-        private SlotWidget[] _slotWidgets;
-        private ItemNameBanner _nameBanner;
 
         private int _lastSelectedSlot = -1;
+        private ItemNameBanner _nameBanner;
 
-        public void Initialize(
-            Inventory inventory,
-            PanelSettings panelSettings,
-            ItemRegistry itemRegistry,
-            ItemSpriteAtlas spriteAtlas,
-            ToolPartTextureDatabase toolPartTexDb = null)
-        {
-            _inventory = inventory;
-            _itemRegistry = itemRegistry;
-            _spriteAtlas = spriteAtlas;
-            _toolPartTexDb = toolPartTexDb;
-
-            _document = gameObject.AddComponent<UIDocument>();
-            _document.panelSettings = panelSettings;
-            _document.sortingOrder = 50;
-
-            VisualElement root = _document.rootVisualElement;
-            root.pickingMode = PickingMode.Ignore;
-
-            // Load USS themes
-            StyleSheet variables = Resources.Load<StyleSheet>("UI/Themes/LithforgeVariables");
-            StyleSheet theme = Resources.Load<StyleSheet>("UI/Themes/LithforgeDefault");
-
-            if (variables != null)
-            {
-                root.styleSheets.Add(variables);
-            }
-
-            if (theme != null)
-            {
-                root.styleSheets.Add(theme);
-            }
-
-            BuildHotbar(root);
-        }
-
-        private void BuildHotbar(VisualElement root)
-        {
-            _slotWidgets = new SlotWidget[Inventory.HotbarSize];
-
-            // Hotbar container at bottom center
-            VisualElement hotbar = new VisualElement();
-            hotbar.AddToClassList("lf-hotbar");
-            hotbar.pickingMode = PickingMode.Ignore;
-            int totalWidth = Inventory.HotbarSize * (60 + 6); // slot size + margins
-            hotbar.style.marginLeft = -(totalWidth / 2);
-            root.Add(hotbar);
-
-            for (int i = 0; i < Inventory.HotbarSize; i++)
-            {
-                SlotWidget widget = new SlotWidget();
-                widget.pickingMode = PickingMode.Ignore;
-
-                // Make all children ignore picks too
-                widget.Query().ForEach(child =>
-                {
-                    child.pickingMode = PickingMode.Ignore;
-                });
-
-                hotbar.Add(widget);
-                _slotWidgets[i] = widget;
-            }
-
-            // Item name banner above hotbar
-            _nameBanner = new ItemNameBanner();
-            root.Add(_nameBanner);
-        }
+        private SlotWidget[] _slotWidgets;
+        private ItemSpriteAtlas _spriteAtlas;
+        private ToolPartTextureDatabase _toolPartTexDb;
 
         private void Update()
         {
@@ -134,8 +69,96 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        public string ScreenName { get { return ScreenNames.Hotbar; } }
+        public bool IsInputOpaque { get { return false; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            SetVisible(true);
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            SetVisible(false);
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            return false;
+        }
+
+        public void Initialize(
+            Inventory inventory,
+            PanelSettings panelSettings,
+            ItemRegistry itemRegistry,
+            ItemSpriteAtlas spriteAtlas,
+            ToolPartTextureDatabase toolPartTexDb = null)
+        {
+            _inventory = inventory;
+            _itemRegistry = itemRegistry;
+            _spriteAtlas = spriteAtlas;
+            _toolPartTexDb = toolPartTexDb;
+
+            _document = gameObject.AddComponent<UIDocument>();
+            _document.panelSettings = panelSettings;
+            _document.sortingOrder = 50;
+
+            VisualElement root = _document.rootVisualElement;
+            root.pickingMode = PickingMode.Ignore;
+
+            // Load USS themes
+            StyleSheet variables = Resources.Load<StyleSheet>("UI/Themes/LithforgeVariables");
+            StyleSheet theme = Resources.Load<StyleSheet>("UI/Themes/LithforgeDefault");
+
+            if (variables != null)
+            {
+                root.styleSheets.Add(variables);
+            }
+
+            if (theme != null)
+            {
+                root.styleSheets.Add(theme);
+            }
+
+            BuildHotbar(root);
+        }
+
+        private void BuildHotbar(VisualElement root)
+        {
+            _slotWidgets = new SlotWidget[Inventory.HotbarSize];
+
+            // Hotbar container at bottom center
+            VisualElement hotbar = new();
+            hotbar.AddToClassList("lf-hotbar");
+            hotbar.pickingMode = PickingMode.Ignore;
+            int totalWidth = Inventory.HotbarSize * (60 + 6); // slot size + margins
+            hotbar.style.marginLeft = -(totalWidth / 2);
+            root.Add(hotbar);
+
+            for (int i = 0; i < Inventory.HotbarSize; i++)
+            {
+                SlotWidget widget = new();
+                widget.pickingMode = PickingMode.Ignore;
+
+                // Make all children ignore picks too
+                widget.Query().ForEach(child =>
+                {
+                    child.pickingMode = PickingMode.Ignore;
+                });
+
+                hotbar.Add(widget);
+                _slotWidgets[i] = widget;
+            }
+
+            // Item name banner above hotbar
+            _nameBanner = new ItemNameBanner();
+            root.Add(_nameBanner);
+        }
+
         /// <summary>
-        /// Shows or hides the hotbar by toggling the root document visibility.
+        ///     Shows or hides the hotbar by toggling the root document visibility.
         /// </summary>
         public void SetVisible(bool visible)
         {

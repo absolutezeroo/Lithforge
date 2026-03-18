@@ -2,7 +2,9 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -10,17 +12,12 @@ using Unity.Mathematics;
 namespace Lithforge.WorldGen.Tests
 {
     /// <summary>
-    /// Tests for ClimateNoiseJob which replaced BiomeAssignmentJob.
-    /// Verifies that climate noise sampling produces valid, deterministic results.
+    ///     Tests for ClimateNoiseJob which replaced BiomeAssignmentJob.
+    ///     Verifies that climate noise sampling produces valid, deterministic results.
     /// </summary>
     [TestFixture]
     public sealed class ClimateNoiseJobTests
     {
-        private NativeNoiseConfig _temperatureNoise;
-        private NativeNoiseConfig _humidityNoise;
-        private NativeNoiseConfig _continentalnessNoise;
-        private NativeNoiseConfig _erosionNoise;
-
         [SetUp]
         public void SetUp()
         {
@@ -64,16 +61,20 @@ namespace Lithforge.WorldGen.Tests
                 SeedOffset = 3999,
             };
         }
+        private NativeNoiseConfig _temperatureNoise;
+        private NativeNoiseConfig _humidityNoise;
+        private NativeNoiseConfig _continentalnessNoise;
+        private NativeNoiseConfig _erosionNoise;
 
         [Test]
         public void Execute_AllClimateValuesInRange()
         {
-            NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<ClimateData> climateMap = new(
+                ChunkConstants.SizeSquared, Allocator.TempJob);
 
             try
             {
-                ClimateNoiseJob job = new ClimateNoiseJob
+                ClimateNoiseJob job = new()
                 {
                     ClimateMap = climateMap,
                     Seed = 42L,
@@ -108,14 +109,14 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_Deterministic_SameSeedSameResult()
         {
-            NativeArray<ClimateData> climateMap1 = new NativeArray<ClimateData>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<ClimateData> climateMap2 = new NativeArray<ClimateData>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<ClimateData> climateMap1 = new(
+                ChunkConstants.SizeSquared, Allocator.TempJob);
+            NativeArray<ClimateData> climateMap2 = new(
+                ChunkConstants.SizeSquared, Allocator.TempJob);
 
             try
             {
-                ClimateNoiseJob job1 = new ClimateNoiseJob
+                ClimateNoiseJob job1 = new()
                 {
                     ClimateMap = climateMap1,
                     Seed = 42L,
@@ -126,7 +127,7 @@ namespace Lithforge.WorldGen.Tests
                     ErosionNoise = _erosionNoise,
                 };
 
-                ClimateNoiseJob job2 = new ClimateNoiseJob
+                ClimateNoiseJob job2 = new()
                 {
                     ClimateMap = climateMap2,
                     Seed = 42L,

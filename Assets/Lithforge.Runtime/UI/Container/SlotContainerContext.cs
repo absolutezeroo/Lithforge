@@ -3,13 +3,17 @@ using System.Collections.Generic;
 namespace Lithforge.Runtime.UI.Container
 {
     /// <summary>
-    /// Holds all named ISlotContainers for a screen session.
-    /// Keyed by name (e.g. "hotbar", "main", "craft", "output").
+    ///     Holds all named ISlotContainers for a screen session.
+    ///     Keyed by name (e.g. "hotbar", "main", "craft", "output").
     /// </summary>
     public sealed class SlotContainerContext
     {
-        private readonly Dictionary<string, ISlotContainer> _containers =
-            new Dictionary<string, ISlotContainer>();
+        private readonly Dictionary<string, ISlotContainer> _containers = new();
+
+        public IEnumerable<KeyValuePair<string, ISlotContainer>> All
+        {
+            get { return _containers; }
+        }
 
         public void Register(string name, ISlotContainer container)
         {
@@ -29,11 +33,6 @@ namespace Lithforge.Runtime.UI.Container
         public bool TryGet(string name, out ISlotContainer container)
         {
             return _containers.TryGetValue(name, out container);
-        }
-
-        public IEnumerable<KeyValuePair<string, ISlotContainer>> All
-        {
-            get { return _containers; }
         }
     }
 }

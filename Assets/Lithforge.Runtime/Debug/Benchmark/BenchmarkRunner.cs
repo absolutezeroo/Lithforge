@@ -1,8 +1,13 @@
 using System;
 using System.Collections;
 using System.Text;
+
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Tick;
+
+using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -10,99 +15,87 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.Debug.Benchmark
 {
     /// <summary>
-    /// Coroutine-based benchmark runner that executes BenchmarkScenario assets.
-    /// F5 opens a visual scenario picker. Arrow keys navigate, Enter runs, Escape closes.
-    /// During measurement, per-frame data is recorded into pre-allocated parallel arrays.
-    /// On completion, writes CSV + PNG reports and logs a summary.
+    ///     Coroutine-based benchmark runner that executes BenchmarkScenario assets.
+    ///     F5 opens a visual scenario picker. Arrow keys navigate, Enter runs, Escape closes.
+    ///     During measurement, per-frame data is recorded into pre-allocated parallel arrays.
+    ///     On completion, writes CSV + PNG reports and logs a summary.
     /// </summary>
     public sealed class BenchmarkRunner : MonoBehaviour
     {
-        private BenchmarkContext _context;
-        private DebugSettings _settings;
-        private MetricsRegistry _metrics;
-        private PlayerController _playerController;
-        private IFrameProfiler _frameProfiler;
-        private IPipelineStats _pipelineStats;
+        private const float StatusDuration = 3f;
+        private const float SummaryDisplayDuration = 15f;
 
-        private bool _running;
+        // Colors
+        private static readonly Color s_selectedBg = new(0.15f, 0.4f, 0.7f, 0.9f);
+        private static readonly Color s_normalBg = new(0f, 0f, 0f, 0f);
+        private static readonly Color s_selectedText = new(1f, 1f, 1f);
+        private static readonly Color s_normalText = new(0.78f, 0.78f, 0.78f);
+        private static readonly Color s_titleColor = new(0.4f, 0.8f, 1f);
+        private static readonly Color s_hintColor = new(0.5f, 0.5f, 0.5f);
+        private static readonly Color s_runningColor = new(1f, 0.8f, 0.2f);
+
+        // Pre-allocated StringBuilder for summary
+        private readonly StringBuilder _summaryBuilder = new(2048);
         private Coroutine _activeCoroutine;
 
         // Scenario selection
         private BenchmarkScenario[] _allScenarios;
-        private int _selectedIndex;
+
+        // Pre-allocated parallel arrays for per-frame recording
+        private int _capacity;
+        private BenchmarkContext _context;
+        private float[] _frameMs;
+        private IFrameProfiler _frameProfiler;
+        private int[] _gcGen0;
+        private int[] _gcGen1;
+        private int[] _gcGen2;
+        private int[] _genCompleted;
+        private float[] _genCompleteMaxMs;
+        private int[] _genCompleteStalls;
+        private int[] _generatedSetSize;
+        private int[] _genScheduled;
+        private long[] _gpuUploadBytes;
+        private int[] _gpuUploadCount;
+        private int[] _growEvents;
+        private Label _hintLabel;
+        private int[] _invalidateCount;
+
+        // Results display
+        private int[] _lodCompleted;
+        private int[] _lodScheduled;
         private bool _menuOpen;
+        private VisualElement _menuPanel;
+        private int[] _meshCompleted;
+        private float[] _meshCompleteMaxMs;
+        private int[] _meshCompleteStalls;
+        private int[] _meshScheduled;
+        private MetricsRegistry _metrics;
+        private IPipelineStats _pipelineStats;
+        private PlayerController _playerController;
+
+        private Label[] _scenarioLabels;
+        private float[] _schedMeshAllocMs;
+        private float[] _schedMeshFillMs;
+        private float[] _schedMeshFilterMs;
+        private float[] _schedMeshFlushMs;
+        private float[] _schedMeshScheduleMs;
+        private float[][] _sectionMs;
+        private int _selectedIndex;
+        private DebugSettings _settings;
+        private Label _statusLabel;
+        private VisualElement _statusPanel;
+        private float _statusTimer;
+        private Label _titleLabel;
 
         // UI
         private UIDocument _uiDocument;
         private VisualElement _uiRoot;
-        private VisualElement _menuPanel;
-        private Label _titleLabel;
-        private Label[] _scenarioLabels;
-        private Label _hintLabel;
-        private VisualElement _statusPanel;
-        private Label _statusLabel;
-        private float _statusTimer;
-        private const float StatusDuration = 3f;
 
-        // Colors
-        private static readonly Color s_selectedBg = new Color(0.15f, 0.4f, 0.7f, 0.9f);
-        private static readonly Color s_normalBg = new Color(0f, 0f, 0f, 0f);
-        private static readonly Color s_selectedText = new Color(1f, 1f, 1f);
-        private static readonly Color s_normalText = new Color(0.78f, 0.78f, 0.78f);
-        private static readonly Color s_titleColor = new Color(0.4f, 0.8f, 1f);
-        private static readonly Color s_hintColor = new Color(0.5f, 0.5f, 0.5f);
-        private static readonly Color s_runningColor = new Color(1f, 0.8f, 0.2f);
+        public bool IsRunning { get; private set; }
 
-        // Pre-allocated parallel arrays for per-frame recording
-        private int _capacity;
-        private float[] _frameMs;
-        private float[][] _sectionMs;
-        private int[] _genCompleted;
-        private int[] _meshCompleted;
-        private int[] _lodCompleted;
-        private long[] _gpuUploadBytes;
-        private int[] _gpuUploadCount;
-        private int[] _growEvents;
-        private int[] _gcGen0;
-        private int[] _gcGen1;
-        private int[] _gcGen2;
-        private int[] _genScheduled;
-        private int[] _meshScheduled;
-        private int[] _lodScheduled;
-        private int[] _invalidateCount;
-        private float[] _meshCompleteMaxMs;
-        private int[] _meshCompleteStalls;
-        private float[] _genCompleteMaxMs;
-        private int[] _genCompleteStalls;
-        private float[] _schedMeshFillMs;
-        private float[] _schedMeshFilterMs;
-        private float[] _schedMeshAllocMs;
-        private float[] _schedMeshScheduleMs;
-        private float[] _schedMeshFlushMs;
-        private int[] _generatedSetSize;
+        public string LastSummary { get; private set; }
 
-        // Results display
-        private string _lastSummary;
-        private float _summaryDisplayTimer;
-        private const float SummaryDisplayDuration = 15f;
-
-        // Pre-allocated StringBuilder for summary
-        private readonly StringBuilder _summaryBuilder = new StringBuilder(2048);
-
-        public bool IsRunning
-        {
-            get { return _running; }
-        }
-
-        public string LastSummary
-        {
-            get { return _lastSummary; }
-        }
-
-        public float SummaryDisplayTimer
-        {
-            get { return _summaryDisplayTimer; }
-        }
+        public float SummaryDisplayTimer { get; private set; }
 
         public BenchmarkScenario SelectedScenario
         {
@@ -114,6 +107,74 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
 
                 return _allScenarios[_selectedIndex];
+            }
+        }
+
+        private void Update()
+        {
+            // Countdown summary display timer
+            if (SummaryDisplayTimer > 0f)
+            {
+                SummaryDisplayTimer -= Time.unscaledDeltaTime;
+            }
+
+            // Countdown status timer
+            if (_statusTimer > 0f)
+            {
+                _statusTimer -= Time.unscaledDeltaTime;
+
+                if (_statusTimer <= 0f)
+                {
+                    _statusPanel.style.display = DisplayStyle.None;
+                }
+            }
+
+            Keyboard keyboard = Keyboard.current;
+
+            if (keyboard == null)
+            {
+                return;
+            }
+
+            if (_menuOpen)
+            {
+                HandleMenuInput(keyboard);
+                return;
+            }
+
+            if (IsRunning)
+            {
+                return;
+            }
+
+            // F5 to open menu
+            if (keyboard.f5Key.wasPressedThisFrame)
+            {
+                if (_context != null && _context.GameLoop != null && _context.GameLoop.SpawnReady)
+                {
+                    OpenMenu();
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Safety net: if the MonoBehaviour is disabled mid-benchmark (e.g. scene change),
+        ///     ensure ExternallyControlled is cleared so the player isn't permanently frozen.
+        /// </summary>
+        private void OnDisable()
+        {
+            if (IsRunning)
+            {
+                IsRunning = false;
+                _activeCoroutine = null;
+
+                PlayerPhysicsBody physicsBody = _playerController != null
+                    ? _playerController.PhysicsBody : null;
+
+                if (physicsBody != null)
+                {
+                    physicsBody.ExternallyControlled = false;
+                }
             }
         }
 
@@ -164,13 +225,13 @@ namespace Lithforge.Runtime.Debug.Benchmark
             if (_allScenarios.Length > 0)
             {
                 UnityEngine.Debug.Log("[Benchmark] Loaded " + _allScenarios.Length +
-                    " scenarios. Press F5 to open picker.");
+                                      " scenarios. Press F5 to open picker.");
             }
         }
 
         private void BuildUI(PanelSettings panelSettings)
         {
-            GameObject uiGo = new GameObject("BenchmarkUI");
+            GameObject uiGo = new("BenchmarkUI");
             uiGo.transform.SetParent(transform, false);
             _uiDocument = uiGo.AddComponent<UIDocument>();
             _uiDocument.panelSettings = panelSettings;
@@ -195,7 +256,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private void BuildMenuPanel()
         {
             // Centered container
-            VisualElement centerContainer = new VisualElement();
+            VisualElement centerContainer = new();
             centerContainer.pickingMode = PickingMode.Ignore;
             centerContainer.style.position = Position.Absolute;
             centerContainer.style.left = 0;
@@ -236,7 +297,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _menuPanel.Add(_titleLabel);
 
             // Separator
-            VisualElement sep = new VisualElement();
+            VisualElement sep = new();
             sep.pickingMode = PickingMode.Ignore;
             sep.style.height = 1;
             sep.style.backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
@@ -267,7 +328,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
 
             // Separator
-            VisualElement sep2 = new VisualElement();
+            VisualElement sep2 = new();
             sep2.pickingMode = PickingMode.Ignore;
             sep2.style.height = 1;
             sep2.style.backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
@@ -284,7 +345,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private void BuildStatusPanel()
         {
             // Status toast — top-center
-            VisualElement topContainer = new VisualElement();
+            VisualElement topContainer = new();
             topContainer.pickingMode = PickingMode.Ignore;
             topContainer.style.position = Position.Absolute;
             topContainer.style.left = 0;
@@ -355,7 +416,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         private static Label CreateLabel(string text, int fontSize, Color color)
         {
-            Label label = new Label(text);
+            Label label = new(text);
             label.pickingMode = PickingMode.Ignore;
             label.style.fontSize = fontSize;
             label.style.color = color;
@@ -400,53 +461,6 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _schedMeshScheduleMs = new float[capacity];
             _schedMeshFlushMs = new float[capacity];
             _generatedSetSize = new int[capacity];
-        }
-
-        private void Update()
-        {
-            // Countdown summary display timer
-            if (_summaryDisplayTimer > 0f)
-            {
-                _summaryDisplayTimer -= Time.unscaledDeltaTime;
-            }
-
-            // Countdown status timer
-            if (_statusTimer > 0f)
-            {
-                _statusTimer -= Time.unscaledDeltaTime;
-
-                if (_statusTimer <= 0f)
-                {
-                    _statusPanel.style.display = DisplayStyle.None;
-                }
-            }
-
-            Keyboard keyboard = Keyboard.current;
-
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            if (_menuOpen)
-            {
-                HandleMenuInput(keyboard);
-                return;
-            }
-
-            if (_running)
-            {
-                return;
-            }
-
-            // F5 to open menu
-            if (keyboard.f5Key.wasPressedThisFrame)
-            {
-                if (_context != null && _context.GameLoop != null && _context.GameLoop.SpawnReady)
-                {
-                    OpenMenu();
-                }
-            }
         }
 
         private void HandleMenuInput(Keyboard keyboard)
@@ -513,14 +527,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         public void StartScenario(BenchmarkScenario scenario)
         {
-            if (_running)
+            if (IsRunning)
             {
                 UnityEngine.Debug.LogWarning("[Benchmark] Already running.");
                 return;
             }
 
-            _running = true;
-            _lastSummary = null;
+            IsRunning = true;
+            LastSummary = null;
             _activeCoroutine = StartCoroutine(RunScenarioCoroutine(scenario));
         }
 
@@ -533,7 +547,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _pipelineStats.Enabled = true;
 
             // Disable tick-driven physics so benchmark commands can move the player directly.
-            Tick.PlayerPhysicsBody physicsBody = _playerController != null
+            PlayerPhysicsBody physicsBody = _playerController != null
                 ? _playerController.PhysicsBody : null;
 
             if (physicsBody != null)
@@ -555,7 +569,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             {
                 BenchmarkPhase phase = phases[p];
                 UnityEngine.Debug.Log("[Benchmark] Phase " + (p + 1) + "/" + phases.Length +
-                    ": " + phase.PhaseName);
+                                      ": " + phase.PhaseName);
 
                 ShowStatus("Phase " + (p + 1) + "/" + phases.Length + ": " + phase.PhaseName, s_runningColor);
 
@@ -639,7 +653,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             // Re-enable tick-driven physics and sync position back
             if (physicsBody != null)
             {
-                Unity.Mathematics.float3 finalPos = new Unity.Mathematics.float3(
+                float3 finalPos = new(
                     _context.PlayerTransform.position.x,
                     _context.PlayerTransform.position.y,
                     _context.PlayerTransform.position.z);
@@ -657,19 +671,19 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
             // Build and display summary
             string summary = BuildSummary(result);
-            _lastSummary = summary;
-            _summaryDisplayTimer = SummaryDisplayDuration;
+            LastSummary = summary;
+            SummaryDisplayTimer = SummaryDisplayDuration;
             UnityEngine.Debug.Log(summary);
 
             // Show completion status
             string passText = result.Passed ? "PASS" : "FAIL";
             Color passColor = result.Passed ? new Color(0.2f, 0.9f, 0.2f) : new Color(0.9f, 0.2f, 0.2f);
             ShowStatus(scenario.ScenarioName + " — " + passText +
-                "  (avg " + result.AvgFrameMs.ToString("F1") + "ms, " +
-                result.AvgFps.ToString("F0") + " FPS)", passColor);
+                       "  (avg " + result.AvgFrameMs.ToString("F1") + "ms, " +
+                       result.AvgFps.ToString("F0") + " FPS)", passColor);
             _statusTimer = 8f;
 
-            _running = false;
+            IsRunning = false;
             _activeCoroutine = null;
         }
 
@@ -783,7 +797,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         private BenchmarkResult BuildResult(BenchmarkScenario scenario, int totalFrames)
         {
-            BenchmarkResult result = new BenchmarkResult();
+            BenchmarkResult result = new();
             result.ScenarioName = scenario.ScenarioName;
             result.TotalFrames = totalFrames;
 
@@ -953,13 +967,13 @@ namespace Lithforge.Runtime.Debug.Benchmark
                     continue;
                 }
 
-                float pct = (sectionAvg[s] / budgetMs) * 100f;
+                float pct = sectionAvg[s] / budgetMs * 100f;
 
                 if (pct >= 15f)
                 {
                     result.BottleneckDescription = FrameProfilerSections.SectionNames[s] + " (" +
-                        sectionAvg[s].ToString("F1") + "ms, " +
-                        pct.ToString("F1") + "% of frame)";
+                                                   sectionAvg[s].ToString("F1") + "ms, " +
+                                                   pct.ToString("F1") + "% of frame)";
                     break;
                 }
             }
@@ -1019,7 +1033,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                     break;
                 }
 
-                float pct = (avg / result.AvgFrameMs) * 100f;
+                float pct = avg / result.AvgFrameMs * 100f;
                 _summaryBuilder.Append(FrameProfilerSections.SectionNames[s]);
                 _summaryBuilder.Append(":  ");
                 _summaryBuilder.Append(avg.ToString("F1"));
@@ -1066,33 +1080,12 @@ namespace Lithforge.Runtime.Debug.Benchmark
             return _summaryBuilder.ToString();
         }
 
-        /// <summary>
-        /// Safety net: if the MonoBehaviour is disabled mid-benchmark (e.g. scene change),
-        /// ensure ExternallyControlled is cleared so the player isn't permanently frozen.
-        /// </summary>
-        private void OnDisable()
-        {
-            if (_running)
-            {
-                _running = false;
-                _activeCoroutine = null;
-
-                Tick.PlayerPhysicsBody physicsBody = _playerController != null
-                    ? _playerController.PhysicsBody : null;
-
-                if (physicsBody != null)
-                {
-                    physicsBody.ExternallyControlled = false;
-                }
-            }
-        }
-
         private void FinishRun(BenchmarkResult result)
         {
-            _running = false;
+            IsRunning = false;
             _activeCoroutine = null;
 
-            Tick.PlayerPhysicsBody physicsBody = _playerController != null
+            PlayerPhysicsBody physicsBody = _playerController != null
                 ? _playerController.PhysicsBody : null;
 
             if (physicsBody != null)

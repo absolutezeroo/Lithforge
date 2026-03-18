@@ -1,13 +1,12 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
-using UnityEngine;
 
 namespace Lithforge.Runtime.Debug.Benchmark
 {
     /// <summary>
-    /// Writes benchmark per-frame data to CSV. Extracts the CSV writing concern
-    /// from the benchmark runner so it can be reused across different output strategies.
+    ///     Writes benchmark per-frame data to CSV. Extracts the CSV writing concern
+    ///     from the benchmark runner so it can be reused across different output strategies.
     /// </summary>
     public static class BenchmarkCsvWriter
     {
@@ -20,7 +19,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 return;
             }
 
-            StringBuilder csv = new StringBuilder(1024 * 64);
+            StringBuilder csv = new(1024 * 64);
 
             // Header
             csv.Append("frame_index,frame_ms");
@@ -106,14 +105,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
 
             string safeName = result.ScenarioName.Replace(' ', '_');
-            
+
             foreach (char c in Path.GetInvalidFileNameChars())
             {
                 safeName = safeName.Replace(c, '_');
             }
 
             string path = Path.Combine(outputDir, safeName + "_" + timestamp + ".csv");
-            
+
             Directory.CreateDirectory(outputDir);
             File.WriteAllText(path, csv.ToString());
             UnityEngine.Debug.Log("[Benchmark] CSV written to: " + path);

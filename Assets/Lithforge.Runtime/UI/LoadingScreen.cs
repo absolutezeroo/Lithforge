@@ -1,37 +1,93 @@
 using System;
 using System.Collections;
+
 using Lithforge.Runtime.Spawn;
+using Lithforge.Runtime.UI.Navigation;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI
 {
     /// <summary>
-    /// Full-screen Minecraft-style loading overlay displayed while spawn chunks load.
-    /// Shows a dirt-brown background, game title, progress bar, and status text.
-    /// Fades out and self-destructs once spawn is complete.
+    ///     Full-screen Minecraft-style loading overlay displayed while spawn chunks load.
+    ///     Shows a dirt-brown background, game title, progress bar, and status text.
+    ///     Fades out and self-destructs once spawn is complete.
     /// </summary>
-    public sealed class LoadingScreen : MonoBehaviour
+    public sealed class LoadingScreen : MonoBehaviour, IScreen
     {
-        private static readonly Color s_backgroundColor = new Color(0.10f, 0.06f, 0.04f, 1.0f);
-        private static readonly Color s_progressTrackColor = new Color(0.20f, 0.20f, 0.20f, 1.0f);
-        private static readonly Color s_progressFillColor = new Color(0.55f, 0.45f, 0.25f, 1.0f);
-        private static readonly Color s_logoColor = new Color(1.0f, 0.95f, 0.80f, 1.0f);
-        private static readonly Color s_statusColor = new Color(0.70f, 0.70f, 0.65f, 1.0f);
-
         private const float FadeOutDuration = 0.4f;
         private const int BarWidth = 400;
         private const int BarHeight = 20;
-
-        private UIDocument _document;
-        private SpawnManager _spawnManager;
-        private Action _onFadeComplete;
+        private static readonly Color s_backgroundColor = new(0.10f, 0.06f, 0.04f, 1.0f);
+        private static readonly Color s_progressTrackColor = new(0.20f, 0.20f, 0.20f, 1.0f);
+        private static readonly Color s_progressFillColor = new(0.55f, 0.45f, 0.25f, 1.0f);
+        private static readonly Color s_logoColor = new(1.0f, 0.95f, 0.80f, 1.0f);
+        private static readonly Color s_statusColor = new(0.70f, 0.70f, 0.65f, 1.0f);
 
         private VisualElement _background;
-        private VisualElement _progressFill;
-        private Label _statusLabel;
+
+        private UIDocument _document;
 
         private bool _fadingOut;
+        private Action _onFadeComplete;
+        private VisualElement _progressFill;
+        private SpawnManager _spawnManager;
+        private Label _statusLabel;
+
+        private void Update()
+        {
+            if (_spawnManager == null || _progressFill == null || _fadingOut)
+            {
+                return;
+            }
+
+            SpawnProgress progress = _spawnManager.GetProgress();
+
+            float fraction = progress.TotalChunks > 0
+                ? (float)progress.ReadyChunks / progress.TotalChunks
+                : 0f;
+
+            _progressFill.style.width = new StyleLength(
+                new Length(fraction * 100f, LengthUnit.Percent));
+
+            _statusLabel.text = BuildStatusText(progress);
+
+            if (progress.Phase == SpawnState.Done)
+            {
+                _fadingOut = true;
+                StartCoroutine(FadeOut());
+            }
+        }
+
+        public string ScreenName { get { return ScreenNames.Loading; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.Flex;
+                _document.rootVisualElement.style.opacity = 1f;
+            }
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.None;
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // Loading screen does not respond to Escape
+            return true;
+        }
 
         public void Initialize(SpawnManager spawnManager, PanelSettings panelSettings, Action onFadeComplete)
         {
@@ -46,8 +102,8 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Sets the SpawnManager after content loading is complete.
-        /// The loading screen transitions from content phase display to spawn progress display.
+        ///     Sets the SpawnManager after content loading is complete.
+        ///     The loading screen transitions from content phase display to spawn progress display.
         /// </summary>
         public void SetSpawnManager(SpawnManager spawnManager, Action onFadeComplete)
         {
@@ -56,8 +112,8 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Updates the status text to show the current content loading phase.
-        /// Used before SpawnManager is available.
+        ///     Updates the status text to show the current content loading phase.
+        ///     Used before SpawnManager is available.
         /// </summary>
         public void SetContentPhase(string phase)
         {
@@ -85,7 +141,7 @@ namespace Lithforge.Runtime.UI
             root.Add(_background);
 
             // Logo label
-            Label logo = new Label("LITHFORGE");
+            Label logo = new("LITHFORGE");
             logo.name = "loading-logo";
             logo.pickingMode = PickingMode.Ignore;
             logo.style.fontSize = 64;
@@ -97,7 +153,7 @@ namespace Lithforge.Runtime.UI
             _background.Add(logo);
 
             // Subtitle
-            Label subtitle = new Label("Loading World...");
+            Label subtitle = new("Loading World...");
             subtitle.name = "loading-subtitle";
             subtitle.pickingMode = PickingMode.Ignore;
             subtitle.style.fontSize = 18;
@@ -107,7 +163,7 @@ namespace Lithforge.Runtime.UI
             _background.Add(subtitle);
 
             // Progress bar track
-            VisualElement progressTrack = new VisualElement();
+            VisualElement progressTrack = new();
             progressTrack.name = "progress-track";
             progressTrack.pickingMode = PickingMode.Ignore;
             progressTrack.style.width = BarWidth;
@@ -141,31 +197,6 @@ namespace Lithforge.Runtime.UI
             _statusLabel.style.color = s_statusColor;
             _statusLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
             _background.Add(_statusLabel);
-        }
-
-        private void Update()
-        {
-            if (_spawnManager == null || _progressFill == null || _fadingOut)
-            {
-                return;
-            }
-
-            SpawnProgress progress = _spawnManager.GetProgress();
-
-            float fraction = progress.TotalChunks > 0
-                ? (float)progress.ReadyChunks / progress.TotalChunks
-                : 0f;
-
-            _progressFill.style.width = new StyleLength(
-                new Length(fraction * 100f, LengthUnit.Percent));
-
-            _statusLabel.text = BuildStatusText(progress);
-
-            if (progress.Phase == SpawnState.Done)
-            {
-                _fadingOut = true;
-                StartCoroutine(FadeOut());
-            }
         }
 
         private string BuildStatusText(SpawnProgress progress)

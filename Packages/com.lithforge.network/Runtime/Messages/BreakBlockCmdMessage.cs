@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Client→Server block break command. Sent on reliable sequenced pipeline.
-    /// PlayerId is NOT on the wire — the server derives it from the ConnectionId.
-    /// Wire format: [SequenceId:2][PositionX:4][PositionY:4][PositionZ:4] = 14 bytes.
+    ///     Client→Server block break command. Sent on reliable sequenced pipeline.
+    ///     PlayerId is NOT on the wire — the server derives it from the ConnectionId.
+    ///     Wire format: [SequenceId:2][PositionX:4][PositionY:4][PositionZ:4] = 14 bytes.
     /// </summary>
     public struct BreakBlockCmdMessage : INetworkMessage
     {
@@ -42,7 +42,7 @@ namespace Lithforge.Network.Messages
 
         public static BreakBlockCmdMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            BreakBlockCmdMessage msg = new BreakBlockCmdMessage();
+            BreakBlockCmdMessage msg = new();
 
             if (length < Size)
             {

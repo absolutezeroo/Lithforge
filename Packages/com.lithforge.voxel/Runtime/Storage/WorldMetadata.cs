@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -21,7 +22,7 @@ namespace Lithforge.Voxel.Storage
         {
             LastPlayed = DateTime.UtcNow;
 
-            JObject root = new JObject
+            JObject root = new()
             {
                 ["display_name"] = DisplayName,
                 ["seed"] = Seed,
@@ -34,7 +35,7 @@ namespace Lithforge.Voxel.Storage
 
             if (PlayerState != null)
             {
-                JObject player = new JObject
+                JObject player = new()
                 {
                     ["pos_x"] = PlayerState.PosX,
                     ["pos_y"] = PlayerState.PosY,
@@ -47,7 +48,7 @@ namespace Lithforge.Voxel.Storage
 
                 if (PlayerState.Slots != null && PlayerState.Slots.Length > 0)
                 {
-                    JArray slots = new JArray();
+                    JArray slots = new();
 
                     for (int i = 0; i < PlayerState.Slots.Length; i++)
                     {
@@ -55,7 +56,7 @@ namespace Lithforge.Voxel.Storage
 
                         if (stack != null && stack.Count > 0)
                         {
-                            JObject slot = new JObject
+                            JObject slot = new()
                             {
                                 ["slot"] = stack.Slot,
                                 ["ns"] = stack.Ns,
@@ -67,15 +68,14 @@ namespace Lithforge.Voxel.Storage
                             // New format: components array
                             if (stack.Components != null && stack.Components.Count > 0)
                             {
-                                JArray comps = new JArray();
+                                JArray comps = new();
 
                                 for (int c = 0; c < stack.Components.Count; c++)
                                 {
                                     SavedComponentEntry entry = stack.Components[c];
-                                    JObject comp = new JObject
+                                    JObject comp = new()
                                     {
-                                        ["type"] = entry.TypeId,
-                                        ["data"] = entry.DataBase64,
+                                        ["type"] = entry.TypeId, ["data"] = entry.DataBase64,
                                     };
                                     comps.Add(comp);
                                 }
@@ -151,7 +151,7 @@ namespace Lithforge.Voxel.Storage
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                WorldMetadata meta = new WorldMetadata();
+                WorldMetadata meta = new();
                 meta.Seed = root["seed"]?.Value<long>() ?? 0;
                 meta.DataVersion = root["data_version"]?.Value<int>() ?? root["version"]?.Value<int>() ?? 1;
                 meta.ContentHash = root["content_hash"]?.Value<string>() ?? "";
@@ -179,7 +179,7 @@ namespace Lithforge.Voxel.Storage
                 {
                     JObject playerObj = (JObject)playerToken;
 
-                    WorldPlayerState playerState = new WorldPlayerState();
+                    WorldPlayerState playerState = new();
                     playerState.PosX = playerObj["pos_x"]?.Value<float>() ?? 0f;
                     playerState.PosY = playerObj["pos_y"]?.Value<float>() ?? 0f;
                     playerState.PosZ = playerObj["pos_z"]?.Value<float>() ?? 0f;
@@ -200,7 +200,7 @@ namespace Lithforge.Voxel.Storage
 
                             if (slotObj != null)
                             {
-                                SavedItemStack saved = new SavedItemStack();
+                                SavedItemStack saved = new();
                                 saved.Slot = slotObj["slot"]?.Value<int>() ?? 0;
                                 saved.Ns = slotObj["ns"]?.Value<string>() ?? "";
                                 saved.Name = slotObj["name"]?.Value<string>() ?? "";
@@ -212,8 +212,7 @@ namespace Lithforge.Voxel.Storage
 
                                 if (compsArray != null && compsArray.Count > 0)
                                 {
-                                    List<SavedComponentEntry> components =
-                                        new List<SavedComponentEntry>(compsArray.Count);
+                                    List<SavedComponentEntry> components = new(compsArray.Count);
 
                                     for (int c = 0; c < compsArray.Count; c++)
                                     {

@@ -1,16 +1,18 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Logging;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Messages;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Network.Server
 {
     /// <summary>
-    /// Manages per-player chunk streaming: rate limiting, spiral priority ordering,
-    /// look-direction bias, boundary-crossing unloads, and Loading→Playing gating.
-    /// Stateless — all per-player state lives in <see cref="PlayerInterestState"/>.
+    ///     Manages per-player chunk streaming: rate limiting, spiral priority ordering,
+    ///     look-direction bias, boundary-crossing unloads, and Loading→Playing gating.
+    ///     Stateless — all per-player state lives in <see cref="PlayerInterestState" />.
     /// </summary>
     public sealed class ChunkStreamingManager
     {
@@ -22,17 +24,17 @@ namespace Lithforge.Network.Server
 
         /// <summary>Weight for look-direction bias when scoring chunk priority.</summary>
         private const float LookBiasWeight = 0.4f;
-
-        private readonly int _yLoadMin;
-        private readonly int _yLoadMax;
-        private readonly int _readyRadius;
+        private readonly List<int3> _candidateChunks = new();
+        private readonly List<float> _candidateScores = new();
         private readonly ILogger _logger;
+        private readonly HashSet<int3> _newInterestSet = new();
+        private readonly int _readyRadius;
 
         // Cached collections (reused per call, cleared before use)
-        private readonly List<int3> _unloadCandidates = new List<int3>();
-        private readonly HashSet<int3> _newInterestSet = new HashSet<int3>();
-        private readonly List<int3> _candidateChunks = new List<int3>();
-        private readonly List<float> _candidateScores = new List<float>();
+        private readonly List<int3> _unloadCandidates = new();
+        private readonly int _yLoadMax;
+
+        private readonly int _yLoadMin;
 
         public ChunkStreamingManager(int yLoadMin, int yLoadMax, int readyRadius, ILogger logger)
         {
@@ -43,9 +45,9 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Processes chunk streaming for a single peer. Called each tick from ServerGameLoop Phase 5.
-        /// Handles streaming queue rebuild on chunk boundary crossing, chunk unloads, and
-        /// rate-limited chunk data sends.
+        ///     Processes chunk streaming for a single peer. Called each tick from ServerGameLoop Phase 5.
+        ///     Handles streaming queue rebuild on chunk boundary crossing, chunk unloads, and
+        ///     rate-limited chunk data sends.
         /// </summary>
         public void ProcessForPeer(
             PeerInfo peer,
@@ -92,12 +94,9 @@ namespace Lithforge.Network.Server
                     continue;
                 }
 
-                ChunkDataMessage msg = new ChunkDataMessage
+                ChunkDataMessage msg = new()
                 {
-                    ChunkX = coord.x,
-                    ChunkY = coord.y,
-                    ChunkZ = coord.z,
-                    Payload = chunkData,
+                    ChunkX = coord.x, ChunkY = coord.y, ChunkZ = coord.z, Payload = chunkData,
                 };
 
                 server.SendTo(peer.ConnectionId, msg, PipelineId.FragmentedReliable);
@@ -116,9 +115,9 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Checks whether a peer in Loading state has received enough chunks
-        /// to transition to Playing. Returns true if all chunks within the
-        /// ready radius around the player's current chunk are loaded.
+        ///     Checks whether a peer in Loading state has received enough chunks
+        ///     to transition to Playing. Returns true if all chunks within the
+        ///     ready radius around the player's current chunk are loaded.
         /// </summary>
         public bool IsReadyForPlaying(PeerInfo peer, IServerChunkProvider chunkProvider)
         {
@@ -137,7 +136,7 @@ namespace Lithforge.Network.Server
                 {
                     for (int y = _yLoadMin; y <= _yLoadMax; y++)
                     {
-                        int3 coord = new int3(center.x + x, y, center.z + z);
+                        int3 coord = new(center.x + x, y, center.z + z);
 
                         if (!interest.LoadedChunks.Contains(coord))
                         {
@@ -151,8 +150,8 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Initializes the streaming queue for a newly connected player centered on their
-        /// spawn chunk. Called when a peer enters Loading state.
+        ///     Initializes the streaming queue for a newly connected player centered on their
+        ///     spawn chunk. Called when a peer enters Loading state.
         /// </summary>
         public void InitializeForPlayer(PlayerInterestState interest, float3 spawnPosition)
         {
@@ -163,9 +162,9 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Rebuilds the streaming queue using spiral ordering from the player's current chunk.
-        /// Excludes chunks already in LoadedChunks. Sorts by Chebyshev distance with
-        /// optional look-direction bias.
+        ///     Rebuilds the streaming queue using spiral ordering from the player's current chunk.
+        ///     Excludes chunks already in LoadedChunks. Sorts by Chebyshev distance with
+        ///     optional look-direction bias.
         /// </summary>
         private void RebuildStreamingQueue(PlayerInterestState interest)
         {
@@ -174,7 +173,7 @@ namespace Lithforge.Network.Server
 
             int3 center = interest.CurrentChunk;
             int radius = interest.ViewRadius;
-            float2 lookDir = new float2(
+            float2 lookDir = new(
                 math.sin(math.radians(interest.LastKnownLookDir.x)),
                 math.cos(math.radians(interest.LastKnownLookDir.x)));
             float lookLen = math.length(lookDir);
@@ -190,7 +189,7 @@ namespace Lithforge.Network.Server
                 {
                     for (int y = _yLoadMin; y <= _yLoadMax; y++)
                     {
-                        int3 coord = new int3(center.x + x, y, center.z + z);
+                        int3 coord = new(center.x + x, y, center.z + z);
 
                         if (interest.LoadedChunks.Contains(coord))
                         {
@@ -225,8 +224,8 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Computes chunks that should be unloaded (outside view radius) and sends
-        /// ChunkUnloadMessages. Only called on chunk boundary crossing.
+        ///     Computes chunks that should be unloaded (outside view radius) and sends
+        ///     ChunkUnloadMessages. Only called on chunk boundary crossing.
         /// </summary>
         private void ProcessUnloads(PeerInfo peer, PlayerInterestState interest, INetworkServer server)
         {
@@ -251,11 +250,9 @@ namespace Lithforge.Network.Server
                 int3 coord = _unloadCandidates[i];
                 interest.LoadedChunks.Remove(coord);
 
-                ChunkUnloadMessage msg = new ChunkUnloadMessage
+                ChunkUnloadMessage msg = new()
                 {
-                    ChunkX = coord.x,
-                    ChunkY = coord.y,
-                    ChunkZ = coord.z,
+                    ChunkX = coord.x, ChunkY = coord.y, ChunkZ = coord.z,
                 };
 
                 server.SendTo(peer.ConnectionId, msg, PipelineId.ReliableSequenced);
@@ -263,7 +260,7 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// In-place parallel-array sort by score (insertion sort, stable, no allocation).
+        ///     In-place parallel-array sort by score (insertion sort, stable, no allocation).
         /// </summary>
         private static void SortByScore(List<int3> coords, List<float> scores)
         {

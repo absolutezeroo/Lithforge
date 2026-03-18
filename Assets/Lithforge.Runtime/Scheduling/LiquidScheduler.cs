@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Liquid;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -10,34 +12,33 @@ using Unity.Mathematics;
 namespace Lithforge.Runtime.Scheduling
 {
     /// <summary>
-    /// Main-thread orchestrator for the liquid simulation system.
-    /// Collects candidate chunks, partitions into even/odd parity for checkerboard scheduling,
-    /// copies ghost slabs from neighbor LiquidData, schedules <see cref="LiquidSimJob"/> Burst jobs,
-    /// polls completion, and applies results via ChunkManager.SetBlock().
-    ///
-    /// Integration:
-    /// - <see cref="LiquidTickAdapter"/> calls <see cref="OnSimTick"/> every 8 game ticks.
-    /// - <see cref="PollCompleted"/> is called every frame from GameLoop.Update().
-    /// - Chunk unload handled via <see cref="OnChunkUnloaded"/>.
+    ///     Main-thread orchestrator for the liquid simulation system.
+    ///     Collects candidate chunks, partitions into even/odd parity for checkerboard scheduling,
+    ///     copies ghost slabs from neighbor LiquidData, schedules <see cref="LiquidSimJob" /> Burst jobs,
+    ///     polls completion, and applies results via ChunkManager.SetBlock().
+    ///     Integration:
+    ///     - <see cref="LiquidTickAdapter" /> calls <see cref="OnSimTick" /> every 8 game ticks.
+    ///     - <see cref="PollCompleted" /> is called every frame from GameLoop.Update().
+    ///     - Chunk unload handled via <see cref="OnChunkUnloaded" />.
     /// </summary>
     public sealed class LiquidScheduler : IDisposable
     {
+        private readonly List<ManagedChunk> _candidateCache;
         private readonly ChunkManager _chunkManager;
+        private readonly List<int3> _dirtiedChunksCache;
+        private readonly Dictionary<int3, JobHandle> _evenHandles;
+        private readonly HashSet<int3> _forceCompleteCache;
+        private readonly List<int> _fullScanCache;
+        private readonly HashSet<int3> _inFlightCoords;
+
+        private readonly List<PendingLiquidJob> _inFlightJobs;
         private readonly LiquidPool _liquidPool;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly LiquidJobConfig _waterConfig;
-
-        private readonly List<PendingLiquidJob> _inFlightJobs;
-        private readonly HashSet<int3> _inFlightCoords;
-        private readonly List<ManagedChunk> _candidateCache;
-        private readonly List<int3> _dirtiedChunksCache;
-        private readonly List<int> _fullScanCache;
-        private readonly Dictionary<int3, JobHandle> _evenHandles;
-        private readonly HashSet<int3> _forceCompleteCache;
-
-        private MeshScheduler _meshScheduler;
         private bool _applyingLiquidResults;
         private bool _disposed;
+
+        private MeshScheduler _meshScheduler;
 
         public LiquidScheduler(
             ChunkManager chunkManager,
@@ -59,10 +60,22 @@ namespace Lithforge.Runtime.Scheduling
             _forceCompleteCache = new HashSet<int3>();
         }
 
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            Shutdown();
+            _liquidPool.Dispose();
+        }
+
         /// <summary>
-        /// Wires the MeshScheduler so liquid result application can force-complete
-        /// in-flight mesh jobs that read target chunk data as neighbor borders.
-        /// Called by GameLoop.SetLiquidScheduler.
+        ///     Wires the MeshScheduler so liquid result application can force-complete
+        ///     in-flight mesh jobs that read target chunk data as neighbor borders.
+        ///     Called by GameLoop.SetLiquidScheduler.
         /// </summary>
         public void SetMeshScheduler(MeshScheduler meshScheduler)
         {
@@ -70,9 +83,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Initializes liquid data for a newly generated chunk that contains water.
-        /// Scans BlockData for fluid StateIds and sets corresponding source cells.
-        /// Called by GenerationScheduler after decoration completes.
+        ///     Initializes liquid data for a newly generated chunk that contains water.
+        ///     Scans BlockData for fluid StateIds and sets corresponding source cells.
+        ///     Called by GenerationScheduler after decoration completes.
         /// </summary>
         public void InitChunkLiquid(ManagedChunk chunk)
         {
@@ -120,8 +133,8 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Called every 8 game ticks by <see cref="LiquidTickAdapter"/>.
-        /// Schedules liquid sim jobs for eligible chunks using checkerboard partitioning.
+        ///     Called every 8 game ticks by <see cref="LiquidTickAdapter" />.
+        ///     Schedules liquid sim jobs for eligible chunks using checkerboard partitioning.
         /// </summary>
         public void OnSimTick()
         {
@@ -156,7 +169,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                int parity = (coord.x + coord.y + coord.z) & 1;
+                int parity = coord.x + coord.y + coord.z & 1;
 
                 if (parity != 0)
                 {
@@ -168,7 +181,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                PendingLiquidJob pending = ScheduleJob(chunk, default(JobHandle), 0);
+                PendingLiquidJob pending = ScheduleJob(chunk, default, 0);
                 chunk.LiquidJobHandle = pending.Handle;
                 _inFlightJobs.Add(pending);
                 _inFlightCoords.Add(coord);
@@ -189,7 +202,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                int parity = (coord.x + coord.y + coord.z) & 1;
+                int parity = coord.x + coord.y + coord.z & 1;
 
                 if (parity != 1)
                 {
@@ -202,7 +215,7 @@ namespace Lithforge.Runtime.Scheduling
                 }
 
                 // Build dependency on even-parity neighbors
-                JobHandle dependency = default(JobHandle);
+                JobHandle dependency = default;
                 int depCount = 0;
 
                 for (int face = 0; face < 6; face++)
@@ -242,19 +255,19 @@ namespace Lithforge.Runtime.Scheduling
             NativeArray<int> inputActiveSet = BuildInputActiveSet(chunk);
 
             // Allocate output containers
-            NativeList<LiquidChunkEdit> outputEdits = new NativeList<LiquidChunkEdit>(
+            NativeList<LiquidChunkEdit> outputEdits = new(
                 64, Allocator.TempJob);
-            NativeList<int> outputActiveSet = new NativeList<int>(
+            NativeList<int> outputActiveSet = new(
                 inputActiveSet.Length, Allocator.TempJob);
 
             // Copy ghost slabs from neighbors
             int slabSize = ChunkConstants.SizeSquared;
-            NativeArray<byte> ghostPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostPosY = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostNegY = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostNegZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostPosX = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostNegX = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostPosY = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostNegY = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostPosZ = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostNegZ = new(slabSize, Allocator.TempJob);
 
             CopyGhostSlab(chunk, 0, ghostPosX);
             CopyGhostSlab(chunk, 1, ghostNegX);
@@ -264,17 +277,17 @@ namespace Lithforge.Runtime.Scheduling
             CopyGhostSlab(chunk, 5, ghostNegZ);
 
             // Block-solidity ghost slabs for cross-boundary solid checks
-            NativeArray<byte> ghostBlockSolidPosX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostBlockSolidNegX = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostBlockSolidPosZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> ghostBlockSolidNegZ = new NativeArray<byte>(slabSize, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<byte> ghostBlockSolidPosX = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostBlockSolidNegX = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostBlockSolidPosZ = new(slabSize, Allocator.TempJob);
+            NativeArray<byte> ghostBlockSolidNegZ = new(slabSize, Allocator.TempJob);
 
             CopyBlockSolidGhostSlab(chunk, 0, ghostBlockSolidPosX);
             CopyBlockSolidGhostSlab(chunk, 1, ghostBlockSolidNegX);
             CopyBlockSolidGhostSlab(chunk, 4, ghostBlockSolidPosZ);
             CopyBlockSolidGhostSlab(chunk, 5, ghostBlockSolidNegZ);
 
-            LiquidSimJob job = new LiquidSimJob
+            LiquidSimJob job = new()
             {
                 LiquidData = chunk.LiquidData,
                 BlockData = chunk.Data,
@@ -336,7 +349,7 @@ namespace Lithforge.Runtime.Scheduling
                     }
                 }
 
-                NativeArray<int> result = new NativeArray<int>(
+                NativeArray<int> result = new(
                     _fullScanCache.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 for (int i = 0; i < _fullScanCache.Count; i++)
@@ -348,7 +361,7 @@ namespace Lithforge.Runtime.Scheduling
             }
             else
             {
-                NativeArray<int> result = new NativeArray<int>(
+                NativeArray<int> result = new(
                     chunk.LiquidActiveSet.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 for (int i = 0; i < chunk.LiquidActiveSet.Count; i++)
@@ -493,7 +506,7 @@ namespace Lithforge.Runtime.Scheduling
                             int srcIndex = ChunkData.GetIndex(0, v, u);
                             StateId sid = neighborBlocks[srcIndex];
                             BlockStateCompact c = stateTable[sid.Value];
-                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                            output[v * size + u] = (byte)(c.CollisionShape != 0 && !c.IsFluid ? 1 : 0);
                         }
                     }
 
@@ -507,7 +520,7 @@ namespace Lithforge.Runtime.Scheduling
                             int srcIndex = ChunkData.GetIndex(lastIdx, v, u);
                             StateId sid = neighborBlocks[srcIndex];
                             BlockStateCompact c = stateTable[sid.Value];
-                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                            output[v * size + u] = (byte)(c.CollisionShape != 0 && !c.IsFluid ? 1 : 0);
                         }
                     }
 
@@ -521,7 +534,7 @@ namespace Lithforge.Runtime.Scheduling
                             int srcIndex = ChunkData.GetIndex(u, v, 0);
                             StateId sid = neighborBlocks[srcIndex];
                             BlockStateCompact c = stateTable[sid.Value];
-                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                            output[v * size + u] = (byte)(c.CollisionShape != 0 && !c.IsFluid ? 1 : 0);
                         }
                     }
 
@@ -535,7 +548,7 @@ namespace Lithforge.Runtime.Scheduling
                             int srcIndex = ChunkData.GetIndex(u, v, lastIdx);
                             StateId sid = neighborBlocks[srcIndex];
                             BlockStateCompact c = stateTable[sid.Value];
-                            output[v * size + u] = (byte)((c.CollisionShape != 0 && !c.IsFluid) ? 1 : 0);
+                            output[v * size + u] = (byte)(c.CollisionShape != 0 && !c.IsFluid ? 1 : 0);
                         }
                     }
 
@@ -544,7 +557,7 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Polls and completes in-flight liquid jobs. Called every frame from GameLoop.
+        ///     Polls and completes in-flight liquid jobs. Called every frame from GameLoop.
         /// </summary>
         public void PollCompleted()
         {
@@ -685,9 +698,9 @@ namespace Lithforge.Runtime.Scheduling
                     // Same chunk: already written to LiquidData by the job.
                     // Just update the block StateId.
                     int y = edit.FlatIndex / ChunkConstants.SizeSquared;
-                    int remainder = edit.FlatIndex - (y * ChunkConstants.SizeSquared);
+                    int remainder = edit.FlatIndex - y * ChunkConstants.SizeSquared;
                     int z = remainder / ChunkConstants.Size;
-                    int x = remainder - (z * ChunkConstants.Size);
+                    int x = remainder - z * ChunkConstants.Size;
 
                     int3 worldCoord = chunk.Coord * ChunkConstants.Size + new int3(x, y, z);
                     _chunkManager.SetBlock(worldCoord, edit.NewStateId, _dirtiedChunksCache);
@@ -710,9 +723,9 @@ namespace Lithforge.Runtime.Scheduling
                         targetChunk.LiquidActiveSet = null; // force full scan next tick
 
                         int y = edit.FlatIndex / ChunkConstants.SizeSquared;
-                        int remainder = edit.FlatIndex - (y * ChunkConstants.SizeSquared);
+                        int remainder = edit.FlatIndex - y * ChunkConstants.SizeSquared;
                         int z = remainder / ChunkConstants.Size;
-                        int x = remainder - (z * ChunkConstants.Size);
+                        int x = remainder - z * ChunkConstants.Size;
 
                         int3 worldCoord = targetChunkCoord * ChunkConstants.Size + new int3(x, y, z);
                         _chunkManager.SetBlock(worldCoord, edit.NewStateId, _dirtiedChunksCache);
@@ -724,9 +737,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Called when a block is placed or broken by the player.
-        /// Updates LiquidData if the target voxel contained liquid, and wakes
-        /// settled liquid neighbors so flow can re-evaluate.
+        ///     Called when a block is placed or broken by the player.
+        ///     Updates LiquidData if the target voxel contained liquid, and wakes
+        ///     settled liquid neighbors so flow can re-evaluate.
         /// </summary>
         public void OnBlockChanged(int3 worldCoord, StateId newStateId)
         {
@@ -758,8 +771,8 @@ namespace Lithforge.Runtime.Scheduling
             if (!_inFlightCoords.Contains(chunkCoord))
             {
                 bool newIsFluid = _nativeStateRegistry.States.IsCreated &&
-                    newStateId.Value < _nativeStateRegistry.States.Length &&
-                    _nativeStateRegistry.States[newStateId.Value].IsFluid;
+                                  newStateId.Value < _nativeStateRegistry.States.Length &&
+                                  _nativeStateRegistry.States[newStateId.Value].IsFluid;
 
                 if (chunk.LiquidData.IsCreated)
                 {
@@ -867,8 +880,8 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Called when a chunk is unloaded. Force-completes any in-flight job for that
-        /// coord and returns liquid data to the pool.
+        ///     Called when a chunk is unloaded. Force-completes any in-flight job for that
+        ///     coord and returns liquid data to the pool.
         /// </summary>
         public void OnChunkUnloaded(int3 coord)
         {
@@ -900,7 +913,7 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Shuts down the scheduler: force-completes all in-flight jobs.
+        ///     Shuts down the scheduler: force-completes all in-flight jobs.
         /// </summary>
         public void Shutdown()
         {
@@ -913,18 +926,6 @@ namespace Lithforge.Runtime.Scheduling
 
             _inFlightJobs.Clear();
             _inFlightCoords.Clear();
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            Shutdown();
-            _liquidPool.Dispose();
         }
     }
 }

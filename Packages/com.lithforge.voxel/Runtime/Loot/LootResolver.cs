@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Voxel.Loot
 {
     /// <summary>
-    /// Resolves a loot table into concrete item drops.
-    /// Evaluates conditions, selects entries by weight, and applies functions.
+    ///     Resolves a loot table into concrete item drops.
+    ///     Evaluates conditions, selects entries by weight, and applies functions.
     /// </summary>
     public sealed class LootResolver
     {
+        private readonly List<LootDrop> _dropCache = new();
         private readonly Dictionary<ResourceId, LootTableDefinition> _tables;
-        private readonly List<LootEntry> _validEntries = new List<LootEntry>();
-        private readonly List<LootDrop> _dropCache = new List<LootDrop>();
+        private readonly List<LootEntry> _validEntries = new();
 
         public LootResolver(Dictionary<ResourceId, LootTableDefinition> tables)
         {
@@ -20,10 +21,10 @@ namespace Lithforge.Voxel.Loot
         }
 
         /// <summary>
-        /// Resolves a loot table by its resource id, returning a list of (itemId, count) drops.
-        /// WARNING: The returned list is reused between calls — the caller must NOT store
-        /// the reference. Copy the contents if needed beyond the current frame.
-        /// Returns an empty list if the table is not found.
+        ///     Resolves a loot table by its resource id, returning a list of (itemId, count) drops.
+        ///     WARNING: The returned list is reused between calls — the caller must NOT store
+        ///     the reference. Copy the contents if needed beyond the current frame.
+        ///     Returns an empty list if the table is not found.
         /// </summary>
         public List<LootDrop> Resolve(ResourceId tableId, Random random)
         {

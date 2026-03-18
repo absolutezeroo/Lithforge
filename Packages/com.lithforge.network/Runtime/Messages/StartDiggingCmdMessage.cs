@@ -3,11 +3,11 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Client→Server notification that the player began mining a block.
-    /// Sent on reliable sequenced pipeline. Paired with <see cref="BreakBlockCmdMessage"/>
-    /// which signals mining completion. The server uses the time between start and finish
-    /// to validate break speed.
-    /// Wire format: [SequenceId:2][PositionX:4][PositionY:4][PositionZ:4] = 14 bytes.
+    ///     Client→Server notification that the player began mining a block.
+    ///     Sent on reliable sequenced pipeline. Paired with <see cref="BreakBlockCmdMessage" />
+    ///     which signals mining completion. The server uses the time between start and finish
+    ///     to validate break speed.
+    ///     Wire format: [SequenceId:2][PositionX:4][PositionY:4][PositionZ:4] = 14 bytes.
     /// </summary>
     public struct StartDiggingCmdMessage : INetworkMessage
     {
@@ -44,7 +44,7 @@ namespace Lithforge.Network.Messages
 
         public static StartDiggingCmdMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            StartDiggingCmdMessage msg = new StartDiggingCmdMessage();
+            StartDiggingCmdMessage msg = new();
 
             if (length < Size)
             {

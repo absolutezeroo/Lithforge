@@ -1,34 +1,34 @@
 using System.IO;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.BlockEntity.Behaviors
 {
     /// <summary>
-    /// Behavior that provides item storage slots to a block entity.
-    /// Slot count is fixed at construction (27 for chest, 3 for furnace).
-    /// Serializes items as resourceId string + count + durability + components.
+    ///     Behavior that provides item storage slots to a block entity.
+    ///     Slot count is fixed at construction (27 for chest, 3 for furnace).
+    ///     Serializes items as resourceId string + count + durability + components.
     /// </summary>
     public sealed class InventoryBehavior : BlockEntityBehavior
     {
-        private readonly ItemStack[] _slots;
-
         /// <summary>
-        /// v1: small positive slotCount as first int (no sentinel).
-        /// v2: sentinel int.MinValue + 2, supports byte[] CustomData.
-        /// v3: sentinel int.MinValue + 3, supports typed DataComponentMap.
+        ///     v1: small positive slotCount as first int (no sentinel).
+        ///     v2: sentinel int.MinValue + 2, supports byte[] CustomData.
+        ///     v3: sentinel int.MinValue + 3, supports typed DataComponentMap.
         /// </summary>
         private const int V2Sentinel = int.MinValue + 2;
         private const int V3Sentinel = int.MinValue + 3;
-
-        public int SlotCount
-        {
-            get { return _slots.Length; }
-        }
+        private readonly ItemStack[] _slots;
 
         public InventoryBehavior(int slotCount)
         {
             _slots = new ItemStack[slotCount];
+        }
+
+        public int SlotCount
+        {
+            get { return _slots.Length; }
         }
 
         public ItemStack GetSlot(int index)
@@ -42,8 +42,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         }
 
         /// <summary>
-        /// Tries to add items to the first available slot with matching ID or empty slot.
-        /// Returns the number of items that could not be added.
+        ///     Tries to add items to the first available slot with matching ID or empty slot.
+        ///     Returns the number of items that could not be added.
         /// </summary>
         public int AddItem(ResourceId itemId, int count, int maxStack)
         {
@@ -53,7 +53,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             for (int i = 0; i < _slots.Length && remaining > 0; i++)
             {
                 if (!_slots[i].IsEmpty && _slots[i].ItemId == itemId
-                    && !_slots[i].HasComponents && _slots[i].Count < maxStack)
+                                       && !_slots[i].HasComponents && _slots[i].Count < maxStack)
                 {
                     int space = maxStack - _slots[i].Count;
                     int toAdd = remaining < space ? remaining : space;
@@ -79,7 +79,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         }
 
         /// <summary>
-        /// Returns true if any slot contains a non-empty item.
+        ///     Returns true if any slot contains a non-empty item.
         /// </summary>
         public bool HasItems()
         {
@@ -152,7 +152,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     int itemCount = reader.ReadInt32();
                     int durability = reader.ReadInt32();
                     ResourceId id = ResourceId.Parse(idStr);
-                    ItemStack stack = new ItemStack(id, itemCount, durability);
+                    ItemStack stack = new(id, itemCount, durability);
 
                     if (formatVersion == 3)
                     {

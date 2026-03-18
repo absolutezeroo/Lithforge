@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Bidirectional disconnect notification. Sent on reliable pipeline before
-    /// closing the transport connection. Contains a reason byte.
-    /// Wire format: [Reason:1]
+    ///     Bidirectional disconnect notification. Sent on reliable pipeline before
+    ///     closing the transport connection. Contains a reason byte.
+    ///     Wire format: [Reason:1]
     /// </summary>
     public struct DisconnectMessage : INetworkMessage
     {
@@ -31,7 +31,7 @@ namespace Lithforge.Network.Messages
 
         public static DisconnectMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            DisconnectMessage msg = new DisconnectMessage();
+            DisconnectMessage msg = new();
 
             if (length < Size)
             {

@@ -1,7 +1,9 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Jobs;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 
@@ -13,21 +15,18 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_FillsBelowHeightWithStone()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> chunkStates = new(
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
                 StateId air = StateId.Air;
                 int surfaceHeight = 16;
 
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
-                    ChunkStates = chunkStates,
-                    StoneState = stone,
-                    AirState = air,
-                    SurfaceHeight = surfaceHeight,
+                    ChunkStates = chunkStates, StoneState = stone, AirState = air, SurfaceHeight = surfaceHeight,
                 };
 
                 job.Schedule().Complete();
@@ -55,20 +54,17 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_AllColumnsFilledConsistently()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> chunkStates = new(
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
                 int surfaceHeight = 20;
 
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
-                    ChunkStates = chunkStates,
-                    StoneState = stone,
-                    AirState = StateId.Air,
-                    SurfaceHeight = surfaceHeight,
+                    ChunkStates = chunkStates, StoneState = stone, AirState = StateId.Air, SurfaceHeight = surfaceHeight,
                 };
 
                 job.Schedule().Complete();
@@ -97,17 +93,14 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_SurfaceHeightZero_AllAir()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> chunkStates = new(
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
-                    ChunkStates = chunkStates,
-                    StoneState = new StateId(1),
-                    AirState = StateId.Air,
-                    SurfaceHeight = 0,
+                    ChunkStates = chunkStates, StoneState = new StateId(1), AirState = StateId.Air, SurfaceHeight = 0,
                 };
 
                 job.Schedule().Complete();
@@ -126,19 +119,16 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_SurfaceHeight32_AllStone()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+            NativeArray<StateId> chunkStates = new(
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
 
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
-                    ChunkStates = chunkStates,
-                    StoneState = stone,
-                    AirState = StateId.Air,
-                    SurfaceHeight = ChunkConstants.Size,
+                    ChunkStates = chunkStates, StoneState = stone, AirState = StateId.Air, SurfaceHeight = ChunkConstants.Size,
                 };
 
                 job.Schedule().Complete();

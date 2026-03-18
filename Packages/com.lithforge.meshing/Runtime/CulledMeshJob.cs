@@ -1,5 +1,6 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -23,7 +24,7 @@ namespace Lithforge.Meshing
                 {
                     for (int x = 0; x < ChunkConstants.Size; x++)
                     {
-                        int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                        int index = Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                         StateId current = ChunkData[index];
                         BlockStateCompact state = StateTable[current.Value];
 
@@ -33,7 +34,7 @@ namespace Lithforge.Meshing
                         }
 
                         half4 color = UnpackColor(state.MapColor);
-                        float3 pos = new float3(x, y, z);
+                        float3 pos = new(x, y, z);
 
                         // +X (East)
                         if (IsFaceVisible(x + 1, y, z, 1, 0, 0))
@@ -84,7 +85,7 @@ namespace Lithforge.Meshing
                 return true; // Treat out-of-bounds as air
             }
 
-            int neighborIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
+            int neighborIndex = Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
             StateId neighborId = ChunkData[neighborIndex];
             BlockStateCompact neighborState = StateTable[neighborId.Value];
 
@@ -98,7 +99,7 @@ namespace Lithforge.Meshing
             float3 v0, v1, v2, v3;
             GetFaceVertices(pos, faceIndex, out v0, out v1, out v2, out v3);
 
-            MeshVertex vert0 = new MeshVertex
+            MeshVertex vert0 = new()
             {
                 Position = v0,
                 Normal = normal,
@@ -108,7 +109,7 @@ namespace Lithforge.Meshing
                 Pad = 0,
             };
 
-            MeshVertex vert1 = new MeshVertex
+            MeshVertex vert1 = new()
             {
                 Position = v1,
                 Normal = normal,
@@ -118,7 +119,7 @@ namespace Lithforge.Meshing
                 Pad = 0,
             };
 
-            MeshVertex vert2 = new MeshVertex
+            MeshVertex vert2 = new()
             {
                 Position = v2,
                 Normal = normal,
@@ -128,7 +129,7 @@ namespace Lithforge.Meshing
                 Pad = 0,
             };
 
-            MeshVertex vert3 = new MeshVertex
+            MeshVertex vert3 = new()
             {
                 Position = v3,
                 Normal = normal,
@@ -197,9 +198,9 @@ namespace Lithforge.Meshing
 
         private static half4 UnpackColor(uint packed)
         {
-            float r = ((packed >> 24) & 0xFF) / 255.0f;
-            float g = ((packed >> 16) & 0xFF) / 255.0f;
-            float b = ((packed >> 8) & 0xFF) / 255.0f;
+            float r = (packed >> 24 & 0xFF) / 255.0f;
+            float g = (packed >> 16 & 0xFF) / 255.0f;
+            float b = (packed >> 8 & 0xFF) / 255.0f;
             float a = (packed & 0xFF) / 255.0f;
 
             return new half4((half)r, (half)g, (half)b, (half)a);

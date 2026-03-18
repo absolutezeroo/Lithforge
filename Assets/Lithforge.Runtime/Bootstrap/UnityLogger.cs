@@ -1,19 +1,21 @@
+using Lithforge.Core.Logging;
+
 namespace Lithforge.Runtime.Bootstrap
 {
     /// <summary>
-    /// Bridges <see cref="Lithforge.Core.Logging.ILogger"/> to Unity's Debug.Log system,
-    /// applying level filtering and appropriate severity routing (Log vs LogWarning vs LogError).
+    ///     Bridges <see cref="Lithforge.Core.Logging.ILogger" /> to Unity's Debug.Log system,
+    ///     applying level filtering and appropriate severity routing (Log vs LogWarning vs LogError).
     /// </summary>
-    internal sealed class UnityLogger : Lithforge.Core.Logging.ILogger
+    internal sealed class UnityLogger : ILogger
     {
-        private readonly Lithforge.Core.Logging.LogLevel _minLevel;
+        private readonly LogLevel _minLevel;
 
-        public UnityLogger(Lithforge.Core.Logging.LogLevel minLevel = Lithforge.Core.Logging.LogLevel.Debug)
+        public UnityLogger(LogLevel minLevel = LogLevel.Debug)
         {
             _minLevel = minLevel;
         }
 
-        public void Log(Lithforge.Core.Logging.LogLevel level, string message)
+        public void Log(LogLevel level, string message)
         {
             if (level < _minLevel)
             {
@@ -22,16 +24,16 @@ namespace Lithforge.Runtime.Bootstrap
 
             switch (level)
             {
-                case Lithforge.Core.Logging.LogLevel.Debug:
+                case LogLevel.Debug:
                     UnityEngine.Debug.Log($"[DEBUG] {message}");
                     break;
-                case Lithforge.Core.Logging.LogLevel.Info:
+                case LogLevel.Info:
                     UnityEngine.Debug.Log($"[INFO] {message}");
                     break;
-                case Lithforge.Core.Logging.LogLevel.Warning:
+                case LogLevel.Warning:
                     UnityEngine.Debug.LogWarning(message);
                     break;
-                case Lithforge.Core.Logging.LogLevel.Error:
+                case LogLevel.Error:
                     UnityEngine.Debug.LogError(message);
                     break;
                 default:
@@ -42,7 +44,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         public void LogDebug(string message)
         {
-            if (_minLevel > Lithforge.Core.Logging.LogLevel.Debug)
+            if (_minLevel > LogLevel.Debug)
             {
                 return;
             }
@@ -52,7 +54,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         public void LogInfo(string message)
         {
-            if (_minLevel > Lithforge.Core.Logging.LogLevel.Info)
+            if (_minLevel > LogLevel.Info)
             {
                 return;
             }
@@ -62,7 +64,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         public void LogWarning(string message)
         {
-            if (_minLevel > Lithforge.Core.Logging.LogLevel.Warning)
+            if (_minLevel > LogLevel.Warning)
             {
                 return;
             }

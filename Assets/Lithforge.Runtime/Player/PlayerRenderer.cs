@@ -1,24 +1,27 @@
 using System;
 using System.Runtime.InteropServices;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Item;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.Rendering;
+
+using Object = UnityEngine.Object;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Renders the full player model (body, arms, legs, head) and held items using
-    /// GPU-driven indirect draw calls. In first-person mode the head is excluded by
-    /// reducing the index count (head indices are at the end of each layer).
-    ///
-    /// The model is rendered in world space: body anchored at playerTransform.position,
-    /// rotated by camera yaw. Shaders use UNITY_MATRIX_VP so the model renders correctly
-    /// in any camera (game, scene view, future multiplayer spectators).
-    ///
-    /// Owner: GameLoop (via LithforgeBootstrap). Lifetime: application session.
+    ///     Renders the full player model (body, arms, legs, head) and held items using
+    ///     GPU-driven indirect draw calls. In first-person mode the head is excluded by
+    ///     reducing the index count (head indices are at the end of each layer).
+    ///     The model is rendered in world space: body anchored at playerTransform.position,
+    ///     rotated by camera yaw. Shaders use UNITY_MATRIX_VP so the model renders correctly
+    ///     in any camera (game, scene view, future multiplayer spectators).
+    ///     Owner: GameLoop (via LithforgeBootstrap). Lifetime: application session.
     /// </summary>
     public sealed class PlayerRenderer : IDisposable
     {
@@ -28,42 +31,41 @@ namespace Lithforge.Runtime.Player
         private static readonly int s_partTransformsId = Shader.PropertyToID("_PartTransforms");
         private static readonly int s_skinTexId = Shader.PropertyToID("_SkinTex");
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
-        private static readonly Bounds s_worldBounds =
-            new Bounds(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
-
-        // GPU buffers — player model mesh (static)
-        private readonly GraphicsBuffer _playerVertexBuffer;
-        private readonly GraphicsBuffer _playerIndexBuffer;
-        private readonly GraphicsBuffer _playerArgsBuffer;
-
-        // GPU buffers — shared per-part transforms (updated per frame)
-        private readonly GraphicsBuffer _partTransformsBuffer;
-        private readonly Matrix4x4[] _partTransformUpload = new Matrix4x4[6];
-
-        // GPU buffers — held item mesh (rebuilt on item change)
-        private GraphicsBuffer _heldItemVertexBuffer;
-        private GraphicsBuffer _heldItemIndexBuffer;
-        private GraphicsBuffer _heldItemArgsBuffer;
-        private bool _hasHeldItemMesh;
-
-        // Render params
-        private RenderParams _baseModelParams;
-        private RenderParams _overlayModelParams;
-        private RenderParams _heldItemParams;
-
-        // Skin texture
-        private readonly Texture2D _skinTexture;
+        private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
         // Animation
         private readonly PlayerModelAnimator _animator;
 
+        // Render params
+        private readonly RenderParams _baseModelParams;
+        private readonly ItemDisplayTransformLookup _displayTransformLookup;
+        private readonly RenderParams _heldItemParams;
+
         // Held item tracking
         private readonly Inventory _inventory;
         private readonly ItemRegistry _itemRegistry;
+        private readonly RenderParams _overlayModelParams;
+
+        // GPU buffers — shared per-part transforms (updated per frame)
+        private readonly GraphicsBuffer _partTransformsBuffer;
+        private readonly Matrix4x4[] _partTransformUpload = new Matrix4x4[6];
+        private readonly GraphicsBuffer _playerArgsBuffer;
+        private readonly GraphicsBuffer _playerIndexBuffer;
+
+        // GPU buffers — player model mesh (static)
+        private readonly GraphicsBuffer _playerVertexBuffer;
+
+        // Skin texture
+        private readonly Texture2D _skinTexture;
         private readonly StateRegistry _stateRegistry;
-        private readonly ItemDisplayTransformLookup _displayTransformLookup;
-        private ResourceId _lastHeldItemId;
+        private bool _hasHeldItemMesh;
         private bool _hasLastHeldItem;
+        private GraphicsBuffer _heldItemArgsBuffer;
+        private GraphicsBuffer _heldItemIndexBuffer;
+
+        // GPU buffers — held item mesh (rebuilt on item change)
+        private GraphicsBuffer _heldItemVertexBuffer;
+        private ResourceId _lastHeldItemId;
         private int _lastSelectedSlot = -1;
 
         public PlayerRenderer(
@@ -114,7 +116,7 @@ namespace Lithforge.Runtime.Player
             // head spans y=[1.5, 2.0], so the camera sits inside the head box.
             modelArgs[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
+                indexCountPerInstance = PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 instanceCount = 1,
                 startIndex = 0,
                 baseVertexIndex = 0,
@@ -124,9 +126,9 @@ namespace Lithforge.Runtime.Player
             // Overlay layer: all 6 parts including hat (216 indices)
             modelArgs[1] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
+                indexCountPerInstance = PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 instanceCount = 1,
-                startIndex = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
+                startIndex = PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 baseVertexIndex = 0,
                 startInstance = 0,
             };
@@ -175,9 +177,23 @@ namespace Lithforge.Runtime.Player
             };
         }
 
+        public void Dispose()
+        {
+            _playerVertexBuffer?.Dispose();
+            _playerIndexBuffer?.Dispose();
+            _playerArgsBuffer?.Dispose();
+            _partTransformsBuffer?.Dispose();
+            DisposeHeldItemBuffers();
+
+            if (_skinTexture != null)
+            {
+                Object.Destroy(_skinTexture);
+            }
+        }
+
         /// <summary>
-        /// Main render call. Must be called from LateUpdate after ChunkMeshStore.RenderAll.
-        /// Updates animations and issues draw calls for player model + held item.
+        ///     Main render call. Must be called from LateUpdate after ChunkMeshStore.RenderAll.
+        ///     Updates animations and issues draw calls for player model + held item.
         /// </summary>
         public void Render(bool isOnGround, bool isFlying, bool isMining)
         {
@@ -205,9 +221,7 @@ namespace Lithforge.Runtime.Player
                 _baseModelParams,
                 MeshTopology.Triangles,
                 _playerIndexBuffer,
-                _playerArgsBuffer,
-                1,
-                0);
+                _playerArgsBuffer);
 
             // Draw model overlay layer
             _overlayModelParams.matProps.SetBuffer(s_playerVertexBufferId, _playerVertexBuffer);
@@ -232,14 +246,12 @@ namespace Lithforge.Runtime.Player
                     _heldItemParams,
                     MeshTopology.Triangles,
                     _heldItemIndexBuffer,
-                    _heldItemArgsBuffer,
-                    1,
-                    0);
+                    _heldItemArgsBuffer);
             }
         }
 
         /// <summary>
-        /// Checks if the held item changed and rebuilds the held item mesh if needed.
+        ///     Checks if the held item changed and rebuilds the held item mesh if needed.
         /// </summary>
         private void UpdateHeldItem()
         {
@@ -250,7 +262,7 @@ namespace Lithforge.Runtime.Player
 
             bool slotChanged = selectedSlot != _lastSelectedSlot;
             bool itemChanged = hasItem != _hasLastHeldItem ||
-                (hasItem && !currentId.Equals(_lastHeldItemId));
+                               hasItem && !currentId.Equals(_lastHeldItemId);
 
             if (!slotChanged && !itemChanged)
             {
@@ -269,7 +281,7 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Rebuilds the GPU buffers for the held item mesh.
+        ///     Rebuilds the GPU buffers for the held item mesh.
         /// </summary>
         private void RebuildHeldItemMesh(ResourceId itemId)
         {
@@ -355,20 +367,6 @@ namespace Lithforge.Runtime.Player
             _heldItemArgsBuffer?.Dispose();
             _heldItemArgsBuffer = null;
             _hasHeldItemMesh = false;
-        }
-
-        public void Dispose()
-        {
-            _playerVertexBuffer?.Dispose();
-            _playerIndexBuffer?.Dispose();
-            _playerArgsBuffer?.Dispose();
-            _partTransformsBuffer?.Dispose();
-            DisposeHeldItemBuffers();
-
-            if (_skinTexture != null)
-            {
-                UnityEngine.Object.Destroy(_skinTexture);
-            }
         }
     }
 }

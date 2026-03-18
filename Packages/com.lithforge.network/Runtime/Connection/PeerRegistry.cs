@@ -3,18 +3,17 @@ using System.Collections.Generic;
 namespace Lithforge.Network.Connection
 {
     /// <summary>
-    /// Manages connected peers indexed by both ConnectionId and PlayerId.
-    /// Allocates sequential player IDs starting at 1 (0 is reserved for host in listen-server mode).
+    ///     Manages connected peers indexed by both ConnectionId and PlayerId.
+    ///     Allocates sequential player IDs starting at 1 (0 is reserved for host in listen-server mode).
     /// </summary>
     public sealed class PeerRegistry
     {
-        private readonly Dictionary<int, PeerInfo> _byConnection = new Dictionary<int, PeerInfo>();
-        private readonly Dictionary<ushort, PeerInfo> _byPlayerId = new Dictionary<ushort, PeerInfo>();
-        private ushort _nextPlayerId = 1;
-
         // Cached list for iteration to avoid allocating during broadcast
-        private readonly List<PeerInfo> _allPeersCache = new List<PeerInfo>();
+        private readonly List<PeerInfo> _allPeersCache = new();
+        private readonly Dictionary<int, PeerInfo> _byConnection = new();
+        private readonly Dictionary<ushort, PeerInfo> _byPlayerId = new();
         private bool _cacheDirty = true;
+        private ushort _nextPlayerId = 1;
 
         public int Count
         {
@@ -22,8 +21,8 @@ namespace Lithforge.Network.Connection
         }
 
         /// <summary>
-        /// Returns a read-only snapshot of all connected peers.
-        /// The list is cached and rebuilt only when peers are added or removed.
+        ///     Returns a read-only snapshot of all connected peers.
+        ///     The list is cached and rebuilt only when peers are added or removed.
         /// </summary>
         public IReadOnlyList<PeerInfo> AllPeers
         {
@@ -41,18 +40,18 @@ namespace Lithforge.Network.Connection
         }
 
         /// <summary>
-        /// Adds a new peer for the given connection. Returns the new PeerInfo.
+        ///     Adds a new peer for the given connection. Returns the new PeerInfo.
         /// </summary>
         public PeerInfo Add(ConnectionId connectionId)
         {
-            PeerInfo peer = new PeerInfo(connectionId);
+            PeerInfo peer = new(connectionId);
             _byConnection[connectionId.Value] = peer;
             _cacheDirty = true;
             return peer;
         }
 
         /// <summary>
-        /// Removes a peer by connection ID. Returns true if the peer was found and removed.
+        ///     Removes a peer by connection ID. Returns true if the peer was found and removed.
         /// </summary>
         public bool Remove(ConnectionId connectionId)
         {
@@ -73,8 +72,8 @@ namespace Lithforge.Network.Connection
         }
 
         /// <summary>
-        /// Allocates the next available player ID and assigns it to the peer.
-        /// Returns the allocated ID.
+        ///     Allocates the next available player ID and assigns it to the peer.
+        ///     Returns the allocated ID.
         /// </summary>
         public ushort AllocatePlayerId(ConnectionId connectionId)
         {
@@ -91,7 +90,7 @@ namespace Lithforge.Network.Connection
         }
 
         /// <summary>
-        /// Looks up a peer by connection ID. Returns null if not found.
+        ///     Looks up a peer by connection ID. Returns null if not found.
         /// </summary>
         public PeerInfo GetByConnection(ConnectionId connectionId)
         {
@@ -100,7 +99,7 @@ namespace Lithforge.Network.Connection
         }
 
         /// <summary>
-        /// Looks up a peer by player ID. Returns null if not found.
+        ///     Looks up a peer by player ID. Returns null if not found.
         /// </summary>
         public PeerInfo GetByPlayerId(ushort playerId)
         {

@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client chunk unload notification. Sent on reliable sequenced pipeline.
-    /// Tells the client to release the specified chunk and stop expecting block updates for it.
-    /// Wire format: [ChunkX:4][ChunkY:4][ChunkZ:4] = 12 bytes.
+    ///     Server→Client chunk unload notification. Sent on reliable sequenced pipeline.
+    ///     Tells the client to release the specified chunk and stop expecting block updates for it.
+    ///     Wire format: [ChunkX:4][ChunkY:4][ChunkZ:4] = 12 bytes.
     /// </summary>
     public struct ChunkUnloadMessage : INetworkMessage
     {
@@ -39,7 +39,7 @@ namespace Lithforge.Network.Messages
 
         public static ChunkUnloadMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            ChunkUnloadMessage msg = new ChunkUnloadMessage();
+            ChunkUnloadMessage msg = new();
 
             if (length < Size)
             {

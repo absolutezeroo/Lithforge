@@ -1,20 +1,20 @@
 using System;
 using System.Runtime.CompilerServices;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Physics
 {
     /// <summary>
-    /// DDA (Digital Differential Analyzer) voxel raycast.
-    /// Traverses voxels along a ray and returns the first solid block hit.
-    ///
-    /// Called on the main thread only — uses managed delegates for block access.
-    /// Typically completes in 5-15 DDA steps at interaction range (5 blocks).
+    ///     DDA (Digital Differential Analyzer) voxel raycast.
+    ///     Traverses voxels along a ray and returns the first solid block hit.
+    ///     Called on the main thread only — uses managed delegates for block access.
+    ///     Typically completes in 5-15 DDA steps at interaction range (5 blocks).
     /// </summary>
     public static class VoxelRaycast
     {
         /// <summary>
-        /// Casts a ray through the voxel grid and returns the first solid block hit.
+        ///     Casts a ray through the voxel grid and returns the first solid block hit.
         /// </summary>
         /// <param name="origin">Ray origin in world space.</param>
         /// <param name="direction">Ray direction (does not need to be normalized).</param>
@@ -36,25 +36,25 @@ namespace Lithforge.Physics
             }
 
             // Step direction per axis: +1 or -1
-            int3 step = new int3(
+            int3 step = new(
                 dir.x >= 0f ? 1 : -1,
                 dir.y >= 0f ? 1 : -1,
                 dir.z >= 0f ? 1 : -1);
 
             // Current voxel coordinates
-            int3 blockCoord = new int3(
+            int3 blockCoord = new(
                 (int)math.floor(origin.x),
                 (int)math.floor(origin.y),
                 (int)math.floor(origin.z));
 
             // tMax: parametric distance to the next voxel boundary on each axis
-            float3 tMax = new float3(
+            float3 tMax = new(
                 ComputeInitialT(origin.x, dir.x, step.x),
                 ComputeInitialT(origin.y, dir.y, step.y),
                 ComputeInitialT(origin.z, dir.z, step.z));
 
             // tDelta: parametric distance to cross one full voxel on each axis
-            float3 tDelta = new float3(
+            float3 tDelta = new(
                 math.abs(dir.x) > 1e-6f ? math.abs(1.0f / dir.x) : float.MaxValue,
                 math.abs(dir.y) > 1e-6f ? math.abs(1.0f / dir.y) : float.MaxValue,
                 math.abs(dir.z) > 1e-6f ? math.abs(1.0f / dir.z) : float.MaxValue);
@@ -124,8 +124,8 @@ namespace Lithforge.Physics
         }
 
         /// <summary>
-        /// Computes the parametric distance from position to the next voxel boundary
-        /// along a single axis.
+        ///     Computes the parametric distance from position to the next voxel boundary
+        ///     along a single axis.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float ComputeInitialT(float pos, float dir, int step)

@@ -1,35 +1,38 @@
 using System.Collections.Generic;
-using Lithforge.Core.Logging;
+
 using Lithforge.Runtime.Content.Models;
 using Lithforge.Voxel.Block;
+
 using UnityEngine;
+
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Rendering.Atlas
 {
     /// <summary>
-    /// Builds a Texture2DArray from direct Texture2D references.
-    /// Discovers all unique textures referenced by resolved block states,
-    /// reads their pixels, and assigns sequential array indices.
-    /// Index 0 is always the missing texture (magenta checkerboard).
+    ///     Builds a Texture2DArray from direct Texture2D references.
+    ///     Discovers all unique textures referenced by resolved block states,
+    ///     reads their pixels, and assigns sequential array indices.
+    ///     Index 0 is always the missing texture (magenta checkerboard).
     /// </summary>
     public sealed class AtlasBuilder
     {
+        private readonly ILogger _logger;
         private readonly int _tileSize;
-        private readonly Core.Logging.ILogger _logger;
 
-        public AtlasBuilder(Core.Logging.ILogger logger, int tileSize = 16)
+        public AtlasBuilder(ILogger logger, int tileSize = 16)
         {
             _logger = logger;
             _tileSize = tileSize;
         }
 
         /// <summary>
-        /// Builds the texture atlas from resolved face textures.
+        ///     Builds the texture atlas from resolved face textures.
         /// </summary>
         public AtlasResult Build(Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
         {
             // Collect all unique Texture2D refs (null = missing)
-            HashSet<Texture2D> uniqueTextures = new HashSet<Texture2D>();
+            HashSet<Texture2D> uniqueTextures = new();
 
             foreach (KeyValuePair<StateId, ResolvedFaceTextures2D> kvp in resolvedFaces)
             {
@@ -53,8 +56,8 @@ namespace Lithforge.Runtime.Rendering.Atlas
             }
 
             // Build index mapping: 0 = missing, then each unique texture
-            Dictionary<Texture2D, int> indexByTexture = new Dictionary<Texture2D, int>();
-            List<Texture2D> orderedTextures = new List<Texture2D>();
+            Dictionary<Texture2D, int> indexByTexture = new();
+            List<Texture2D> orderedTextures = new();
 
             // Reserve index 0 for missing texture (null key not stored — handled by lookup miss)
             orderedTextures.Add(null);
@@ -71,12 +74,11 @@ namespace Lithforge.Runtime.Rendering.Atlas
             _logger.LogInfo($"Atlas: {sliceCount} texture slices ({sliceCount - 1} unique + 1 missing).");
 
             // Create Texture2DArray
-            Texture2DArray textureArray = new Texture2DArray(
+            Texture2DArray textureArray = new(
                 _tileSize, _tileSize, sliceCount,
                 TextureFormat.RGBA32, false, false)
             {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Repeat,
             };
 
             // Slice 0: magenta missing texture
@@ -87,7 +89,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
                 // Checkerboard magenta/black for visibility
                 int px = p % _tileSize;
                 int py = p / _tileSize;
-                bool checker = ((px / 4) + (py / 4)) % 2 == 0;
+                bool checker = (px / 4 + py / 4) % 2 == 0;
                 magentaPixels[p] = checker
                     ? new Color32(255, 0, 255, 255)
                     : new Color32(0, 0, 0, 255);
@@ -115,7 +117,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
 
                 // Blit through RenderTexture so we can read any texture,
                 // even compressed or non-readable ones.
-                Texture2D readable = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
+                Texture2D readable = new(_tileSize, _tileSize, TextureFormat.RGBA32, false);
                 RenderTexture rt = RenderTexture.GetTemporary(_tileSize, _tileSize, 0, RenderTextureFormat.ARGB32);
                 RenderTexture prev = RenderTexture.active;
                 Graphics.Blit(sourceTex, rt);

@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Client→Server block placement command. Sent on reliable sequenced pipeline.
-    /// PlayerId is NOT on the wire — the server derives it from the ConnectionId.
-    /// Wire format: [SequenceId:2][PositionX:4][PositionY:4][PositionZ:4][StateId:2][Face:1] = 17 bytes.
+    ///     Client→Server block placement command. Sent on reliable sequenced pipeline.
+    ///     PlayerId is NOT on the wire — the server derives it from the ConnectionId.
+    ///     Wire format: [SequenceId:2][PositionX:4][PositionY:4][PositionZ:4][StateId:2][Face:1] = 17 bytes.
     /// </summary>
     public struct PlaceBlockCmdMessage : INetworkMessage
     {
@@ -48,7 +48,7 @@ namespace Lithforge.Network.Messages
 
         public static PlaceBlockCmdMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            PlaceBlockCmdMessage msg = new PlaceBlockCmdMessage();
+            PlaceBlockCmdMessage msg = new();
 
             if (length < Size)
             {

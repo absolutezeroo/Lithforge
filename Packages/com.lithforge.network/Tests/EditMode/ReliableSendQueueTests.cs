@@ -1,7 +1,7 @@
-using System;
-using Lithforge.Network;
+using Lithforge.Core.Logging;
 using Lithforge.Network.SendQueue;
 using Lithforge.Network.Transport;
+
 using NUnit.Framework;
 
 namespace Lithforge.Network.Tests
@@ -11,8 +11,8 @@ namespace Lithforge.Network.Tests
     {
         private sealed class MockTransport : INetworkTransport
         {
-            public bool SendSucceeds = true;
             public int SendCallCount;
+            public bool SendSucceeds = true;
 
             public void Update() { }
             public bool Listen(ushort port) { return true; }
@@ -38,9 +38,9 @@ namespace Lithforge.Network.Tests
             public void Dispose() { }
         }
 
-        private sealed class TestLogger : Lithforge.Core.Logging.ILogger
+        private sealed class TestLogger : ILogger
         {
-            public void Log(Lithforge.Core.Logging.LogLevel level, string message) { }
+            public void Log(LogLevel level, string message) { }
             public void LogDebug(string message) { }
             public void LogInfo(string message) { }
             public void LogWarning(string message) { }
@@ -50,9 +50,14 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Enqueue_IncreasesCount()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1, 2, 3 };
+            ReliableSendQueue queue = new(new TestLogger());
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
 
@@ -62,10 +67,18 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Flush_SuccessfulSend_RemovesEntry()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            MockTransport transport = new MockTransport { SendSucceeds = true };
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1, 2, 3 };
+            ReliableSendQueue queue = new(new TestLogger());
+            MockTransport transport = new()
+            {
+                SendSucceeds = true,
+            };
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
             int dropped = queue.Flush(transport);
@@ -78,10 +91,18 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Flush_FailedSend_RetainsEntry()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            MockTransport transport = new MockTransport { SendSucceeds = false };
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1, 2, 3 };
+            ReliableSendQueue queue = new(new TestLogger());
+            MockTransport transport = new()
+            {
+                SendSucceeds = false,
+            };
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
             int dropped = queue.Flush(transport);
@@ -93,10 +114,18 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Flush_MaxRetries_DropsEntry()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            MockTransport transport = new MockTransport { SendSucceeds = false };
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1, 2, 3 };
+            ReliableSendQueue queue = new(new TestLogger());
+            MockTransport transport = new()
+            {
+                SendSucceeds = false,
+            };
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
 
@@ -112,10 +141,18 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Flush_ReturnsDroppedCount()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            MockTransport transport = new MockTransport { SendSucceeds = false };
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1, 2, 3 };
+            ReliableSendQueue queue = new(new TestLogger());
+            MockTransport transport = new()
+            {
+                SendSucceeds = false,
+            };
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
 
@@ -132,10 +169,13 @@ namespace Lithforge.Network.Tests
         [Test]
         public void RemoveForConnection_RemovesMatchingEntries()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            ConnectionId conn1 = new ConnectionId(1);
-            ConnectionId conn2 = new ConnectionId(2);
-            byte[] data = new byte[] { 1 };
+            ReliableSendQueue queue = new(new TestLogger());
+            ConnectionId conn1 = new(1);
+            ConnectionId conn2 = new(2);
+            byte[] data =
+            {
+                1,
+            };
 
             queue.Enqueue(conn1, PipelineId.ReliableSequenced, data, 0, data.Length);
             queue.Enqueue(conn2, PipelineId.ReliableSequenced, data, 0, data.Length);
@@ -149,9 +189,12 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Clear_RemovesAllEntries()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1 };
+            ReliableSendQueue queue = new(new TestLogger());
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
@@ -163,10 +206,18 @@ namespace Lithforge.Network.Tests
         [Test]
         public void Enqueue_CopiesData()
         {
-            ReliableSendQueue queue = new ReliableSendQueue(new TestLogger());
-            MockTransport transport = new MockTransport { SendSucceeds = true };
-            ConnectionId connId = new ConnectionId(1);
-            byte[] data = new byte[] { 1, 2, 3 };
+            ReliableSendQueue queue = new(new TestLogger());
+            MockTransport transport = new()
+            {
+                SendSucceeds = true,
+            };
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
 

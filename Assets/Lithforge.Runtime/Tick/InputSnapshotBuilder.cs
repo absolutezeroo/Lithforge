@@ -4,33 +4,38 @@ using UnityEngine.InputSystem;
 namespace Lithforge.Runtime.Tick
 {
     /// <summary>
-    /// Samples all keyboard, mouse, and transform state each frame and produces a
-    /// complete <see cref="InputSnapshot"/> per tick. Edge-triggered inputs are
-    /// OR-accumulated across frames between ticks. Continuous inputs are sampled
-    /// at tick time.
-    ///
-    /// Call <see cref="LatchFrame"/> once per frame before the tick loop.
-    /// Call <see cref="ConsumeTick"/> inside the tick loop to retrieve and clear edges.
+    ///     Samples all keyboard, mouse, and transform state each frame and produces a
+    ///     complete <see cref="InputSnapshot" /> per tick. Edge-triggered inputs are
+    ///     OR-accumulated across frames between ticks. Continuous inputs are sampled
+    ///     at tick time.
+    ///     Call <see cref="LatchFrame" /> once per frame before the tick loop.
+    ///     Call <see cref="ConsumeTick" /> inside the tick loop to retrieve and clear edges.
     /// </summary>
     public sealed class InputSnapshotBuilder
     {
-        private readonly Transform _playerTransform;
+        private static readonly Key[] s_digitKeys =
+        {
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
+        };
         private readonly Transform _cameraTransform;
+        private readonly Transform _playerTransform;
+        private bool _flyTogglePressed;
+        private sbyte _hotbarSlotPressed = -1;
 
         // Edge-triggered accumulators (OR-latched across frames between ticks)
         private bool _jumpPressed;
-        private bool _flyTogglePressed;
         private bool _noclipTogglePressed;
         private bool _primaryPressed;
-        private bool _secondaryPressed;
         private int _scrollDelta;
-        private sbyte _hotbarSlotPressed = -1;
-
-        private static readonly Key[] s_digitKeys =
-        {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
-        };
+        private bool _secondaryPressed;
 
         public InputSnapshotBuilder(Transform playerTransform, Transform cameraTransform)
         {
@@ -39,8 +44,8 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Called once per frame by GameLoop BEFORE the tick loop.
-        /// OR-accumulates edge-triggered events into internal latches.
+        ///     Called once per frame by GameLoop BEFORE the tick loop.
+        ///     OR-accumulates edge-triggered events into internal latches.
         /// </summary>
         public void LatchFrame()
         {
@@ -109,12 +114,12 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Returns a complete snapshot of all inputs and clears edge-triggered latches.
-        /// Continuous inputs (WASD, sprint, jump held, primary held) are sampled at
-        /// call time and gated on cursor lock — if the cursor is unlocked, all
-        /// continuous fields are false/zero. Edge-triggered inputs that were
-        /// accumulated while the cursor was locked are still returned.
-        /// Call once at the start of each tick.
+        ///     Returns a complete snapshot of all inputs and clears edge-triggered latches.
+        ///     Continuous inputs (WASD, sprint, jump held, primary held) are sampled at
+        ///     call time and gated on cursor lock — if the cursor is unlocked, all
+        ///     continuous fields are false/zero. Edge-triggered inputs that were
+        ///     accumulated while the cursor was locked are still returned.
+        ///     Call once at the start of each tick.
         /// </summary>
         public InputSnapshot ConsumeTick()
         {
@@ -122,7 +127,7 @@ namespace Lithforge.Runtime.Tick
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
 
-            InputSnapshot snapshot = new InputSnapshot
+            InputSnapshot snapshot = new()
             {
                 // Edge-triggered (accumulated since last tick)
                 JumpPressed = _jumpPressed,

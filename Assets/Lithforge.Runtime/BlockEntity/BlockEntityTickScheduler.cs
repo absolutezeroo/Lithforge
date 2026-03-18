@@ -1,36 +1,34 @@
 using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.BlockEntity
 {
     /// <summary>
-    /// 20-bucket round-robin tick scheduler for block entities.
-    /// Each frame, one bucket is ticked. Entities in the ticked bucket
-    /// receive deltaTime * BucketCount so their effective tick rate matches real time.
+    ///     20-bucket round-robin tick scheduler for block entities.
+    ///     Each frame, one bucket is ticked. Entities in the ticked bucket
+    ///     receive deltaTime * BucketCount so their effective tick rate matches real time.
     /// </summary>
     public sealed class BlockEntityTickScheduler
     {
         private const int BucketCount = 20;
 
+        private static readonly Stack<List<EntityKey>> s_listPool = new();
+
         private readonly List<EntityKey>[] _buckets;
-        private readonly Dictionary<EntityKey, BlockEntity> _entities =
-            new Dictionary<EntityKey, BlockEntity>();
-        private readonly Dictionary<int3, List<EntityKey>> _chunkIndex =
-            new Dictionary<int3, List<EntityKey>>();
-        private int _currentBucket;
+        private readonly Dictionary<int3, List<EntityKey>> _chunkIndex = new();
 
         private readonly ChunkManager _chunkManager;
+        private readonly Dictionary<EntityKey, BlockEntity> _entities = new();
         private readonly BlockEntityRegistry _registry;
         private readonly StateRegistry _stateRegistry;
-
-        public int EntityCount
-        {
-            get { return _entities.Count; }
-        }
+        private int _currentBucket;
 
         public BlockEntityTickScheduler(
             ChunkManager chunkManager,
@@ -53,8 +51,13 @@ namespace Lithforge.Runtime.BlockEntity
             _chunkManager.OnBlockEntityRemoved += OnBlockEntityRemoved;
         }
 
+        public int EntityCount
+        {
+            get { return _entities.Count; }
+        }
+
         /// <summary>
-        /// Ticks one bucket per frame. Called from GameLoop.Update().
+        ///     Ticks one bucket per frame. Called from GameLoop.Update().
         /// </summary>
         public void Tick(float deltaTime)
         {
@@ -84,8 +87,8 @@ namespace Lithforge.Runtime.BlockEntity
         }
 
         /// <summary>
-        /// Registers all block entities from a freshly loaded/deserialized chunk.
-        /// Called by GenerationScheduler after chunk reaches Generated state with entities.
+        ///     Registers all block entities from a freshly loaded/deserialized chunk.
+        ///     Called by GenerationScheduler after chunk reaches Generated state with entities.
         /// </summary>
         public void RegisterEntitiesForChunk(int3 chunkCoord, ManagedChunk chunk)
         {
@@ -98,7 +101,7 @@ namespace Lithforge.Runtime.BlockEntity
             {
                 if (kvp.Value is BlockEntity runtimeEntity)
                 {
-                    EntityKey key = new EntityKey(chunkCoord, kvp.Key);
+                    EntityKey key = new(chunkCoord, kvp.Key);
 
                     if (!_entities.ContainsKey(key))
                     {
@@ -118,9 +121,9 @@ namespace Lithforge.Runtime.BlockEntity
         }
 
         /// <summary>
-        /// Removes all entities for a chunk being unloaded.
-        /// Called from GameLoop unload loop. Accepts null chunk — uses
-        /// internal entity tracking for cleanup.
+        ///     Removes all entities for a chunk being unloaded.
+        ///     Called from GameLoop unload loop. Accepts null chunk — uses
+        ///     internal entity tracking for cleanup.
         /// </summary>
         public void OnChunkUnloaded(int3 chunkCoord)
         {
@@ -168,7 +171,7 @@ namespace Lithforge.Runtime.BlockEntity
 
             if (entity is BlockEntity runtimeEntity)
             {
-                EntityKey key = new EntityKey(chunkCoord, flatIndex);
+                EntityKey key = new(chunkCoord, flatIndex);
                 _entities[key] = runtimeEntity;
                 int bucketIndex = GetBucketIndex(key);
                 _buckets[bucketIndex].Add(key);
@@ -196,7 +199,7 @@ namespace Lithforge.Runtime.BlockEntity
                 entity.OnChunkUnload();
                 chunk.BlockEntities.Remove(flatIndex);
 
-                EntityKey key = new EntityKey(chunkCoord, flatIndex);
+                EntityKey key = new(chunkCoord, flatIndex);
                 _entities.Remove(key);
                 // Bucket entries cleaned up lazily in Tick()
 
@@ -213,18 +216,16 @@ namespace Lithforge.Runtime.BlockEntity
         }
 
         /// <summary>
-        /// Gets the block entity at the given position, or null.
-        /// Used by BlockInteraction for right-click dispatch.
+        ///     Gets the block entity at the given position, or null.
+        ///     Used by BlockInteraction for right-click dispatch.
         /// </summary>
         public BlockEntity GetEntity(int3 chunkCoord, int flatIndex)
         {
-            EntityKey key = new EntityKey(chunkCoord, flatIndex);
+            EntityKey key = new(chunkCoord, flatIndex);
             _entities.TryGetValue(key, out BlockEntity entity);
 
             return entity;
         }
-
-        private static readonly Stack<List<EntityKey>> s_listPool = new Stack<List<EntityKey>>();
 
         private static List<EntityKey> RentList()
         {
@@ -248,7 +249,7 @@ namespace Lithforge.Runtime.BlockEntity
             int hash = key.GetHashCode();
 
             // Ensure positive modulo
-            return ((hash % BucketCount) + BucketCount) % BucketCount;
+            return (hash % BucketCount + BucketCount) % BucketCount;
         }
     }
 }

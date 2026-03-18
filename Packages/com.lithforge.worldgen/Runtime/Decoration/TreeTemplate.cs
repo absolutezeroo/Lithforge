@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
+
 using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Decoration
@@ -18,21 +21,19 @@ namespace Lithforge.WorldGen.Decoration
             int topY = 6;
 
             // Count blocks
-            int count = trunkHeight; // trunk
+            int count = trunkHeight;  // trunk
             count += 3 * (5 * 5 - 1); // 3 layers of 5x5 minus trunk center
-            count += 3 * 3 - 1; // top 3x3 minus trunk would be gone but trunk is only 5 tall
+            count += 3 * 3 - 1;       // top 3x3 minus trunk would be gone but trunk is only 5 tall
 
             // Just build the list dynamically
-            System.Collections.Generic.List<TreeBlock> blocks =
-                new System.Collections.Generic.List<TreeBlock>();
+            List<TreeBlock> blocks = new();
 
             // Trunk
             for (int y = 0; y < trunkHeight; y++)
             {
                 blocks.Add(new TreeBlock
                 {
-                    Offset = new int3(0, y, 0),
-                    State = logId,
+                    Offset = new int3(0, y, 0), State = logId,
                 });
             }
 
@@ -50,8 +51,7 @@ namespace Lithforge.WorldGen.Decoration
 
                         blocks.Add(new TreeBlock
                         {
-                            Offset = new int3(x, y, z),
-                            State = leavesId,
+                            Offset = new int3(x, y, z), State = leavesId,
                         });
                     }
                 }
@@ -64,8 +64,7 @@ namespace Lithforge.WorldGen.Decoration
                 {
                     blocks.Add(new TreeBlock
                     {
-                        Offset = new int3(x, topY, z),
-                        State = leavesId,
+                        Offset = new int3(x, topY, z), State = leavesId,
                     });
                 }
             }
@@ -74,14 +73,13 @@ namespace Lithforge.WorldGen.Decoration
         }
 
         /// <summary>
-        /// Tall, narrow tree variant — 7-block trunk, 3x3x3 canopy + 1x1 top.
-        /// Uses the same log/leaves StateIds as oak but with a different shape.
-        /// TreeTemplateIndex = 1.
+        ///     Tall, narrow tree variant — 7-block trunk, 3x3x3 canopy + 1x1 top.
+        ///     Uses the same log/leaves StateIds as oak but with a different shape.
+        ///     TreeTemplateIndex = 1.
         /// </summary>
         public static TreeBlock[] BirchTree(StateId logId, StateId leavesId)
         {
-            System.Collections.Generic.List<TreeBlock> blocks =
-                new System.Collections.Generic.List<TreeBlock>();
+            List<TreeBlock> blocks = new();
 
             int trunkHeight = 7;
 
@@ -90,8 +88,7 @@ namespace Lithforge.WorldGen.Decoration
             {
                 blocks.Add(new TreeBlock
                 {
-                    Offset = new int3(0, y, 0),
-                    State = logId,
+                    Offset = new int3(0, y, 0), State = logId,
                 });
             }
 
@@ -109,8 +106,7 @@ namespace Lithforge.WorldGen.Decoration
 
                         blocks.Add(new TreeBlock
                         {
-                            Offset = new int3(x, y, z),
-                            State = leavesId,
+                            Offset = new int3(x, y, z), State = leavesId,
                         });
                     }
                 }
@@ -119,22 +115,20 @@ namespace Lithforge.WorldGen.Decoration
             // Top (single block)
             blocks.Add(new TreeBlock
             {
-                Offset = new int3(0, 8, 0),
-                State = leavesId,
+                Offset = new int3(0, 8, 0), State = leavesId,
             });
 
             return blocks.ToArray();
         }
 
         /// <summary>
-        /// Conical tree variant — 6-block trunk, tapering canopy (5x5 → 3x3 → 1x1).
-        /// Uses the same log/leaves StateIds as oak but with a different shape.
-        /// TreeTemplateIndex = 2.
+        ///     Conical tree variant — 6-block trunk, tapering canopy (5x5 → 3x3 → 1x1).
+        ///     Uses the same log/leaves StateIds as oak but with a different shape.
+        ///     TreeTemplateIndex = 2.
         /// </summary>
         public static TreeBlock[] SpruceTree(StateId logId, StateId leavesId)
         {
-            System.Collections.Generic.List<TreeBlock> blocks =
-                new System.Collections.Generic.List<TreeBlock>();
+            List<TreeBlock> blocks = new();
 
             int trunkHeight = 6;
 
@@ -143,8 +137,7 @@ namespace Lithforge.WorldGen.Decoration
             {
                 blocks.Add(new TreeBlock
                 {
-                    Offset = new int3(0, y, 0),
-                    State = logId,
+                    Offset = new int3(0, y, 0), State = logId,
                 });
             }
 
@@ -162,8 +155,7 @@ namespace Lithforge.WorldGen.Decoration
 
                         blocks.Add(new TreeBlock
                         {
-                            Offset = new int3(x, y, z),
-                            State = leavesId,
+                            Offset = new int3(x, y, z), State = leavesId,
                         });
                     }
                 }
@@ -183,8 +175,7 @@ namespace Lithforge.WorldGen.Decoration
 
                         blocks.Add(new TreeBlock
                         {
-                            Offset = new int3(x, y, z),
-                            State = leavesId,
+                            Offset = new int3(x, y, z), State = leavesId,
                         });
                     }
                 }
@@ -193,8 +184,7 @@ namespace Lithforge.WorldGen.Decoration
             // Top (single block at y=6)
             blocks.Add(new TreeBlock
             {
-                Offset = new int3(0, 6, 0),
-                State = leavesId,
+                Offset = new int3(0, 6, 0), State = leavesId,
             });
 
             return blocks.ToArray();

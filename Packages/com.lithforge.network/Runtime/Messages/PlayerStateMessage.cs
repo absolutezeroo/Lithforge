@@ -3,11 +3,11 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client authoritative player state. Sent every tick on unreliable sequenced pipeline.
-    /// Contains the server's authoritative position/velocity plus the last acknowledged
-    /// MoveInput sequence ID, enabling client-side prediction reconciliation.
-    /// Wire format: [PlayerId:2][ServerTick:4][LastProcessedSeqId:2][Position:12]
-    ///              [Velocity:12][Yaw:4][Pitch:4][Flags:1] = 41 bytes.
+    ///     Server→Client authoritative player state. Sent every tick on unreliable sequenced pipeline.
+    ///     Contains the server's authoritative position/velocity plus the last acknowledged
+    ///     MoveInput sequence ID, enabling client-side prediction reconciliation.
+    ///     Wire format: [PlayerId:2][ServerTick:4][LastProcessedSeqId:2][Position:12]
+    ///     [Velocity:12][Yaw:4][Pitch:4][Flags:1] = 41 bytes.
     /// </summary>
     public struct PlayerStateMessage : INetworkMessage
     {
@@ -68,7 +68,7 @@ namespace Lithforge.Network.Messages
 
         public static PlayerStateMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            PlayerStateMessage msg = new PlayerStateMessage();
+            PlayerStateMessage msg = new();
 
             if (length < Size)
             {

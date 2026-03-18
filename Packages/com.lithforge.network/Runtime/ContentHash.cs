@@ -4,7 +4,7 @@ namespace Lithforge.Network
 {
     public readonly struct ContentHash : IEquatable<ContentHash>
     {
-        public static readonly ContentHash Empty = new ContentHash(0, 0);
+        public static readonly ContentHash Empty = new(0, 0);
 
         public readonly ulong High;
         public readonly ulong Low;

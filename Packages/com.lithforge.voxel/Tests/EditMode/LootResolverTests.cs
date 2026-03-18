@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Loot;
+
 using NUnit.Framework;
 
 namespace Lithforge.Voxel.Tests
@@ -9,34 +11,37 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class LootResolverTests
     {
-        private static readonly ResourceId s_stoneTableId = new ResourceId("lithforge", "blocks/stone");
-        private static readonly ResourceId s_cobblestoneId = new ResourceId("lithforge", "cobblestone");
-        private static readonly ResourceId s_diamondId = new ResourceId("lithforge", "diamond");
-        private static readonly ResourceId s_gravelTableId = new ResourceId("lithforge", "blocks/gravel");
-        private static readonly ResourceId s_flintId = new ResourceId("lithforge", "flint");
-        private static readonly ResourceId s_gravelId = new ResourceId("lithforge", "gravel");
+        private static readonly ResourceId s_stoneTableId = new("lithforge", "blocks/stone");
+        private static readonly ResourceId s_cobblestoneId = new("lithforge", "cobblestone");
+        private static readonly ResourceId s_diamondId = new("lithforge", "diamond");
+        private static readonly ResourceId s_gravelTableId = new("lithforge", "blocks/gravel");
+        private static readonly ResourceId s_flintId = new("lithforge", "flint");
+        private static readonly ResourceId s_gravelId = new("lithforge", "gravel");
 
         [Test]
         public void Resolve_SimpleItemDrop_ReturnsSingleItem()
         {
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "item",
-                Name = "lithforge:cobblestone",
-                Weight = 1
+                Type = "item", Name = "lithforge:cobblestone", Weight = 1,
             };
 
-            LootPool pool = new LootPool();
+            LootPool pool = new();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
+            LootTableDefinition table = new(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
+                new()
+                {
+                    {
+                        s_stoneTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
@@ -48,13 +53,12 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_UnknownTable_ReturnsEmptyList()
         {
-            Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition>();
+            Dictionary<ResourceId, LootTableDefinition> tables = new();
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
-            ResourceId unknownId = new ResourceId("lithforge", "blocks/unknown");
+            ResourceId unknownId = new("lithforge", "blocks/unknown");
             List<LootDrop> drops = resolver.Resolve(unknownId, random);
 
             Assert.AreEqual(0, drops.Count);
@@ -63,23 +67,27 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_EmptyEntry_ProducesNoDrop()
         {
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "empty",
-                Weight = 1
+                Type = "empty", Weight = 1,
             };
 
-            LootPool pool = new LootPool();
+            LootPool pool = new();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
+            LootTableDefinition table = new(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
+                new()
+                {
+                    {
+                        s_stoneTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
@@ -89,33 +97,38 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_SetCountFunction_AppliesCount()
         {
-            LootFunction setCount = new LootFunction();
+            LootFunction setCount = new();
             setCount.Type = "set_count";
             setCount.Parameters = new Dictionary<string, string>
             {
-                { "count", "3" }
+                {
+                    "count", "3"
+                },
             };
             setCount.PreParseValues();
 
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "item",
-                Name = "lithforge:diamond",
-                Weight = 1
+                Type = "item", Name = "lithforge:diamond", Weight = 1,
             };
             entry.Functions.Add(setCount);
 
-            LootPool pool = new LootPool();
+            LootPool pool = new();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
+            LootTableDefinition table = new(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
+                new()
+                {
+                    {
+                        s_stoneTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
@@ -127,34 +140,41 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_SetCountRange_ReturnsWithinRange()
         {
-            LootFunction setCount = new LootFunction();
+            LootFunction setCount = new();
             setCount.Type = "set_count";
             setCount.Parameters = new Dictionary<string, string>
             {
-                { "min", "1" },
-                { "max", "4" }
+                {
+                    "min", "1"
+                },
+                {
+                    "max", "4"
+                },
             };
             setCount.PreParseValues();
 
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "item",
-                Name = "lithforge:flint",
-                Weight = 1
+                Type = "item", Name = "lithforge:flint", Weight = 1,
             };
             entry.Functions.Add(setCount);
 
-            LootPool pool = new LootPool();
+            LootPool pool = new();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_gravelTableId);
+            LootTableDefinition table = new(s_gravelTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_gravelTableId, table } };
+                new()
+                {
+                    {
+                        s_gravelTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> drops = resolver.Resolve(s_gravelTableId, random);
 
@@ -167,28 +187,30 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_MultipleRolls_ProducesMultipleDrops()
         {
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "item",
-                Name = "lithforge:cobblestone",
-                Weight = 1
+                Type = "item", Name = "lithforge:cobblestone", Weight = 1,
             };
 
-            LootPool pool = new LootPool
+            LootPool pool = new()
             {
-                RollsMin = 3,
-                RollsMax = 3
+                RollsMin = 3, RollsMax = 3,
             };
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
+            LootTableDefinition table = new(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
+                new()
+                {
+                    {
+                        s_stoneTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> drops = resolver.Resolve(s_stoneTableId, random);
 
@@ -203,36 +225,36 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_WeightedEntries_SelectsByWeight()
         {
-            LootEntry heavyEntry = new LootEntry
+            LootEntry heavyEntry = new()
             {
-                Type = "item",
-                Name = "lithforge:gravel",
-                Weight = 100
+                Type = "item", Name = "lithforge:gravel", Weight = 100,
             };
 
-            LootEntry lightEntry = new LootEntry
+            LootEntry lightEntry = new()
             {
-                Type = "item",
-                Name = "lithforge:flint",
-                Weight = 1
+                Type = "item", Name = "lithforge:flint", Weight = 1,
             };
 
-            LootPool pool = new LootPool
+            LootPool pool = new()
             {
-                RollsMin = 10,
-                RollsMax = 10
+                RollsMin = 10, RollsMax = 10,
             };
             pool.Entries.Add(heavyEntry);
             pool.Entries.Add(lightEntry);
 
-            LootTableDefinition table = new LootTableDefinition(s_gravelTableId);
+            LootTableDefinition table = new(s_gravelTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_gravelTableId, table } };
+                new()
+                {
+                    {
+                        s_gravelTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> drops = resolver.Resolve(s_gravelTableId, random);
 
@@ -255,24 +277,27 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Resolve_ReturnedList_ReusedBetweenCalls()
         {
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "item",
-                Name = "lithforge:cobblestone",
-                Weight = 1
+                Type = "item", Name = "lithforge:cobblestone", Weight = 1,
             };
 
-            LootPool pool = new LootPool();
+            LootPool pool = new();
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
+            LootTableDefinition table = new(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
+                new()
+                {
+                    {
+                        s_stoneTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
-            Random random = new Random(42);
+            LootResolver resolver = new(tables);
+            Random random = new(42);
 
             List<LootDrop> first = resolver.Resolve(s_stoneTableId, random);
             List<LootDrop> second = resolver.Resolve(s_stoneTableId, random);
@@ -282,37 +307,39 @@ namespace Lithforge.Voxel.Tests
         }
 
         /// <summary>
-        /// Same seed produces identical drops. This verifies LootResolver is deterministic:
-        /// given the same Random seed, Resolve returns the same sequence of drops.
-        /// Note: EvaluateConditions is always true (no condition evaluation implemented).
+        ///     Same seed produces identical drops. This verifies LootResolver is deterministic:
+        ///     given the same Random seed, Resolve returns the same sequence of drops.
+        ///     Note: EvaluateConditions is always true (no condition evaluation implemented).
         /// </summary>
         [Test]
         public void Resolve_SameSeed_ProducesSameDrops()
         {
-            LootEntry entry = new LootEntry
+            LootEntry entry = new()
             {
-                Type = "item",
-                Name = "lithforge:cobblestone",
-                Weight = 1
+                Type = "item", Name = "lithforge:cobblestone", Weight = 1,
             };
 
-            LootPool pool = new LootPool
+            LootPool pool = new()
             {
-                RollsMin = 3,
-                RollsMax = 3
+                RollsMin = 3, RollsMax = 3,
             };
             pool.Entries.Add(entry);
 
-            LootTableDefinition table = new LootTableDefinition(s_stoneTableId);
+            LootTableDefinition table = new(s_stoneTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_stoneTableId, table } };
+                new()
+                {
+                    {
+                        s_stoneTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
+            LootResolver resolver = new(tables);
 
             // First call with seed 12345
-            Random random1 = new Random(12345);
+            Random random1 = new(12345);
             List<LootDrop> drops1 = resolver.Resolve(s_stoneTableId, random1);
             int count1 = drops1.Count;
             ResourceId[] ids1 = new ResourceId[count1];
@@ -325,7 +352,7 @@ namespace Lithforge.Voxel.Tests
             }
 
             // Second call with same seed 12345
-            Random random2 = new Random(12345);
+            Random random2 = new(12345);
             List<LootDrop> drops2 = resolver.Resolve(s_stoneTableId, random2);
 
             Assert.AreEqual(count1, drops2.Count, "Same seed should produce same number of drops");
@@ -338,44 +365,44 @@ namespace Lithforge.Voxel.Tests
         }
 
         /// <summary>
-        /// Same seed determinism with weighted random selection across multiple entries.
-        /// Note: EvaluateConditions always returns true — no conditions are evaluated.
+        ///     Same seed determinism with weighted random selection across multiple entries.
+        ///     Note: EvaluateConditions always returns true — no conditions are evaluated.
         /// </summary>
         [Test]
         public void Resolve_SameSeed_WeightedEntries_Deterministic()
         {
-            LootEntry gravelEntry = new LootEntry
+            LootEntry gravelEntry = new()
             {
-                Type = "item",
-                Name = "lithforge:gravel",
-                Weight = 50
+                Type = "item", Name = "lithforge:gravel", Weight = 50,
             };
 
-            LootEntry flintEntry = new LootEntry
+            LootEntry flintEntry = new()
             {
-                Type = "item",
-                Name = "lithforge:flint",
-                Weight = 50
+                Type = "item", Name = "lithforge:flint", Weight = 50,
             };
 
-            LootPool pool = new LootPool
+            LootPool pool = new()
             {
-                RollsMin = 5,
-                RollsMax = 5
+                RollsMin = 5, RollsMax = 5,
             };
             pool.Entries.Add(gravelEntry);
             pool.Entries.Add(flintEntry);
 
-            LootTableDefinition table = new LootTableDefinition(s_gravelTableId);
+            LootTableDefinition table = new(s_gravelTableId);
             table.Pools.Add(pool);
 
             Dictionary<ResourceId, LootTableDefinition> tables =
-                new Dictionary<ResourceId, LootTableDefinition> { { s_gravelTableId, table } };
+                new()
+                {
+                    {
+                        s_gravelTableId, table
+                    },
+                };
 
-            LootResolver resolver = new LootResolver(tables);
+            LootResolver resolver = new(tables);
 
             // First resolve
-            Random random1 = new Random(99999);
+            Random random1 = new(99999);
             List<LootDrop> drops1 = resolver.Resolve(s_gravelTableId, random1);
             ResourceId[] ids1 = new ResourceId[drops1.Count];
 
@@ -385,7 +412,7 @@ namespace Lithforge.Voxel.Tests
             }
 
             // Second resolve with same seed
-            Random random2 = new Random(99999);
+            Random random2 = new(99999);
             List<LootDrop> drops2 = resolver.Resolve(s_gravelTableId, random2);
 
             Assert.AreEqual(ids1.Length, drops2.Count);
@@ -400,12 +427,18 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void LootFunction_PreParseValues_ParsesAllFields()
         {
-            LootFunction func = new LootFunction();
+            LootFunction func = new();
             func.Parameters = new Dictionary<string, string>
             {
-                { "min", "2" },
-                { "max", "5" },
-                { "count", "10" }
+                {
+                    "min", "2"
+                },
+                {
+                    "max", "5"
+                },
+                {
+                    "count", "10"
+                },
             };
             func.PreParseValues();
 
@@ -417,11 +450,15 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void LootFunction_PreParseValues_InvalidStrings_KeepDefaults()
         {
-            LootFunction func = new LootFunction();
+            LootFunction func = new();
             func.Parameters = new Dictionary<string, string>
             {
-                { "min", "not_a_number" },
-                { "max", "" }
+                {
+                    "min", "not_a_number"
+                },
+                {
+                    "max", ""
+                },
             };
             func.PreParseValues();
 

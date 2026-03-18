@@ -1,28 +1,24 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Logging;
 using Lithforge.Network.Transport;
 
 namespace Lithforge.Network.SendQueue
 {
     /// <summary>
-    /// Buffers sends that failed with error -5 (send queue full) for retry next frame.
-    /// Each entry is retried up to MaxSendRetries times before being dropped.
-    /// Called once per frame in server/client Update after transport.Update().
+    ///     Buffers sends that failed with error -5 (send queue full) for retry next frame.
+    ///     Each entry is retried up to MaxSendRetries times before being dropped.
+    ///     Called once per frame in server/client Update after transport.Update().
     /// </summary>
     public sealed class ReliableSendQueue
     {
         private readonly ILogger _logger;
-        private readonly List<PendingSend> _pending = new List<PendingSend>();
+        private readonly List<PendingSend> _pending = new();
 
-        private struct PendingSend
+        public ReliableSendQueue(ILogger logger)
         {
-            public ConnectionId ConnectionId;
-            public int PipelineId;
-            public byte[] Data;
-            public int Offset;
-            public int Length;
-            public int RetryCount;
+            _logger = logger;
         }
 
         public int Count
@@ -30,14 +26,9 @@ namespace Lithforge.Network.SendQueue
             get { return _pending.Count; }
         }
 
-        public ReliableSendQueue(ILogger logger)
-        {
-            _logger = logger;
-        }
-
         /// <summary>
-        /// Enqueues a failed send for retry. The data is copied into a new buffer
-        /// so the caller's buffer can be reused immediately.
+        ///     Enqueues a failed send for retry. The data is copied into a new buffer
+        ///     so the caller's buffer can be reused immediately.
         /// </summary>
         public void Enqueue(ConnectionId connectionId, int pipelineId, byte[] data, int offset, int length)
         {
@@ -51,13 +42,13 @@ namespace Lithforge.Network.SendQueue
                 Data = copy,
                 Offset = 0,
                 Length = length,
-                RetryCount = 0
+                RetryCount = 0,
             });
         }
 
         /// <summary>
-        /// Retries all buffered sends. Removes entries that succeed or exceed MaxSendRetries.
-        /// Returns the number of entries that were permanently dropped.
+        ///     Retries all buffered sends. Removes entries that succeed or exceed MaxSendRetries.
+        ///     Returns the number of entries that were permanently dropped.
         /// </summary>
         public int Flush(INetworkTransport transport)
         {
@@ -96,7 +87,7 @@ namespace Lithforge.Network.SendQueue
         }
 
         /// <summary>
-        /// Removes all buffered sends for the given connection.
+        ///     Removes all buffered sends for the given connection.
         /// </summary>
         public void RemoveForConnection(ConnectionId connectionId)
         {
@@ -110,11 +101,21 @@ namespace Lithforge.Network.SendQueue
         }
 
         /// <summary>
-        /// Clears all buffered sends.
+        ///     Clears all buffered sends.
         /// </summary>
         public void Clear()
         {
             _pending.Clear();
+        }
+
+        private struct PendingSend
+        {
+            public ConnectionId ConnectionId;
+            public int PipelineId;
+            public byte[] Data;
+            public int Offset;
+            public int Length;
+            public int RetryCount;
         }
     }
 }

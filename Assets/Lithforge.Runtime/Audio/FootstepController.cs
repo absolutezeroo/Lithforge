@@ -1,35 +1,39 @@
+using System;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Plays footstep sounds based on horizontal distance traveled.
-    /// Queries the block under the player's feet to determine sound group.
-    /// Supports material layering: if the surface block is non-full-cube
-    /// (e.g. a carpet), the underlying block's step sound plays at reduced volume.
+    ///     Plays footstep sounds based on horizontal distance traveled.
+    ///     Queries the block under the player's feet to determine sound group.
+    ///     Supports material layering: if the surface block is non-full-cube
+    ///     (e.g. a carpet), the underlying block's step sound plays at reduced volume.
     /// </summary>
     public sealed class FootstepController
     {
         private readonly BlockSoundPlayer _blockSoundPlayer;
         private readonly ChunkManager _chunkManager;
-        private readonly StateRegistry _stateRegistry;
-        private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly Transform _playerTransform;
-        private readonly float _walkThreshold;
-        private readonly float _sprintThreshold;
-
-        private float _accumulatedDistance;
-        private float _previousX;
-        private float _previousZ;
-        private bool _initialized;
+        private readonly Func<bool> _isFlying;
 
         // External state references
-        private readonly System.Func<bool> _isOnGround;
-        private readonly System.Func<bool> _isFlying;
-        private readonly System.Func<bool> _isSprinting;
+        private readonly Func<bool> _isOnGround;
+        private readonly Func<bool> _isSprinting;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+        private readonly Transform _playerTransform;
+        private readonly float _sprintThreshold;
+        private readonly StateRegistry _stateRegistry;
+        private readonly float _walkThreshold;
+
+        private float _accumulatedDistance;
+        private bool _initialized;
+        private float _previousX;
+        private float _previousZ;
 
         public FootstepController(
             BlockSoundPlayer blockSoundPlayer,
@@ -39,9 +43,9 @@ namespace Lithforge.Runtime.Audio
             Transform playerTransform,
             float walkThreshold,
             float sprintThreshold,
-            System.Func<bool> isOnGround,
-            System.Func<bool> isFlying,
-            System.Func<bool> isSprinting)
+            Func<bool> isOnGround,
+            Func<bool> isFlying,
+            Func<bool> isSprinting)
         {
             _blockSoundPlayer = blockSoundPlayer;
             _chunkManager = chunkManager;
@@ -56,7 +60,7 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Call each frame from LateUpdate after player position is interpolated.
+        ///     Call each frame from LateUpdate after player position is interpolated.
         /// </summary>
         public void Update()
         {
@@ -106,7 +110,7 @@ namespace Lithforge.Runtime.Audio
                 _accumulatedDistance -= threshold;
 
                 // Query block directly below feet
-                int3 feetBlock = new int3(
+                int3 feetBlock = new(
                     (int)math.floor(_playerTransform.position.x),
                     (int)math.floor(_playerTransform.position.y) - 1,
                     (int)math.floor(_playerTransform.position.z));
@@ -125,7 +129,7 @@ namespace Lithforge.Runtime.Audio
 
                         if ((compact.Flags & BlockStateCompact.FlagFullCube) == 0)
                         {
-                            int3 belowBlock = new int3(feetBlock.x, feetBlock.y - 1, feetBlock.z);
+                            int3 belowBlock = new(feetBlock.x, feetBlock.y - 1, feetBlock.z);
                             StateId belowState = _chunkManager.GetBlock(belowBlock);
 
                             if (belowState.Value != 0)
@@ -134,7 +138,7 @@ namespace Lithforge.Runtime.Audio
 
                                 if (belowEntry != null)
                                 {
-                                    Vector3 pos = new Vector3(
+                                    Vector3 pos = new(
                                         feetBlock.x + 0.5f, feetBlock.y + 0.5f, feetBlock.z + 0.5f);
                                     _blockSoundPlayer.PlayGroupSound(
                                         belowEntry.SoundGroup, SoundEventType.Step, pos);

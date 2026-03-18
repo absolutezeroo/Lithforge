@@ -1,6 +1,8 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 
@@ -9,8 +11,6 @@ namespace Lithforge.Meshing.Tests
     [TestFixture]
     public sealed class CulledMeshJobTests
     {
-        private NativeArray<BlockStateCompact> _stateTable;
-
         [SetUp]
         public void SetUp()
         {
@@ -18,13 +18,11 @@ namespace Lithforge.Meshing.Tests
             _stateTable = new NativeArray<BlockStateCompact>(2, Allocator.TempJob);
             _stateTable[0] = new BlockStateCompact
             {
-                Flags = BlockStateCompact.FlagAir,
-                MapColor = 0x00000000,
+                Flags = BlockStateCompact.FlagAir, MapColor = 0x00000000,
             };
             _stateTable[1] = new BlockStateCompact
             {
-                Flags = BlockStateCompact.FlagOpaque | BlockStateCompact.FlagFullCube,
-                MapColor = 0x7F7F7FFF,
+                Flags = BlockStateCompact.FlagOpaque | BlockStateCompact.FlagFullCube, MapColor = 0x7F7F7FFF,
             };
         }
 
@@ -36,14 +34,15 @@ namespace Lithforge.Meshing.Tests
                 _stateTable.Dispose();
             }
         }
+        private NativeArray<BlockStateCompact> _stateTable;
 
         [Test]
         public void SingleStoneBlock_SixFaces()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeList<MeshVertex> vertices = new NativeList<MeshVertex>(256, Allocator.TempJob);
-            NativeList<int> indices = new NativeList<int>(256, Allocator.TempJob);
+            NativeArray<StateId> chunkData = new(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeList<MeshVertex> vertices = new(256, Allocator.TempJob);
+            NativeList<int> indices = new(256, Allocator.TempJob);
 
             try
             {
@@ -51,12 +50,9 @@ namespace Lithforge.Meshing.Tests
                 int centerIndex = ChunkData.GetIndex(16, 16, 16);
                 chunkData[centerIndex] = new StateId(1);
 
-                CulledMeshJob job = new CulledMeshJob
+                CulledMeshJob job = new()
                 {
-                    ChunkData = chunkData,
-                    StateTable = _stateTable,
-                    Vertices = vertices,
-                    Indices = indices,
+                    ChunkData = chunkData, StateTable = _stateTable, Vertices = vertices, Indices = indices,
                 };
 
                 job.Schedule().Complete();
@@ -75,26 +71,23 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void FullStoneChunk_OnlyBorderFaces()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeList<MeshVertex> vertices = new NativeList<MeshVertex>(65536, Allocator.TempJob);
-            NativeList<int> indices = new NativeList<int>(65536, Allocator.TempJob);
+            NativeArray<StateId> chunkData = new(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeList<MeshVertex> vertices = new(65536, Allocator.TempJob);
+            NativeList<int> indices = new(65536, Allocator.TempJob);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
 
                 for (int i = 0; i < ChunkConstants.Volume; i++)
                 {
                     chunkData[i] = stone;
                 }
 
-                CulledMeshJob job = new CulledMeshJob
+                CulledMeshJob job = new()
                 {
-                    ChunkData = chunkData,
-                    StateTable = _stateTable,
-                    Vertices = vertices,
-                    Indices = indices,
+                    ChunkData = chunkData, StateTable = _stateTable, Vertices = vertices, Indices = indices,
                 };
 
                 job.Schedule().Complete();
@@ -117,19 +110,16 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void AirChunk_ZeroVertices()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeList<MeshVertex> vertices = new NativeList<MeshVertex>(64, Allocator.TempJob);
-            NativeList<int> indices = new NativeList<int>(64, Allocator.TempJob);
+            NativeArray<StateId> chunkData = new(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeList<MeshVertex> vertices = new(64, Allocator.TempJob);
+            NativeList<int> indices = new(64, Allocator.TempJob);
 
             try
             {
-                CulledMeshJob job = new CulledMeshJob
+                CulledMeshJob job = new()
                 {
-                    ChunkData = chunkData,
-                    StateTable = _stateTable,
-                    Vertices = vertices,
-                    Indices = indices,
+                    ChunkData = chunkData, StateTable = _stateTable, Vertices = vertices, Indices = indices,
                 };
 
                 job.Schedule().Complete();
@@ -148,10 +138,10 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void TwoAdjacentStoneBlocks_SharedFaceCulled()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeList<MeshVertex> vertices = new NativeList<MeshVertex>(256, Allocator.TempJob);
-            NativeList<int> indices = new NativeList<int>(256, Allocator.TempJob);
+            NativeArray<StateId> chunkData = new(
+                ChunkConstants.Volume, Allocator.TempJob);
+            NativeList<MeshVertex> vertices = new(256, Allocator.TempJob);
+            NativeList<int> indices = new(256, Allocator.TempJob);
 
             try
             {
@@ -159,12 +149,9 @@ namespace Lithforge.Meshing.Tests
                 chunkData[ChunkData.GetIndex(16, 16, 16)] = new StateId(1);
                 chunkData[ChunkData.GetIndex(17, 16, 16)] = new StateId(1);
 
-                CulledMeshJob job = new CulledMeshJob
+                CulledMeshJob job = new()
                 {
-                    ChunkData = chunkData,
-                    StateTable = _stateTable,
-                    Vertices = vertices,
-                    Indices = indices,
+                    ChunkData = chunkData, StateTable = _stateTable, Vertices = vertices, Indices = indices,
                 };
 
                 job.Schedule().Complete();

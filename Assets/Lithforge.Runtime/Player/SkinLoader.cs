@@ -1,20 +1,21 @@
 using System.IO;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Loads 64x64 Minecraft-compatible skin textures from StreamingAssets/skins/.
-    /// Supports both modern 64x64 and legacy 64x32 formats (auto-converts legacy
-    /// by mirroring right limbs to left limb positions).
+    ///     Loads 64x64 Minecraft-compatible skin textures from StreamingAssets/skins/.
+    ///     Supports both modern 64x64 and legacy 64x32 formats (auto-converts legacy
+    ///     by mirroring right limbs to left limb positions).
     /// </summary>
     public sealed class SkinLoader
     {
         private const string SkinsFolder = "Skins";
 
         /// <summary>
-        /// Loads a skin PNG from StreamingAssets/skins/{filename}.
-        /// Returns null if the file is not found or has invalid dimensions.
+        ///     Loads a skin PNG from StreamingAssets/skins/{filename}.
+        ///     Returns null if the file is not found or has invalid dimensions.
         /// </summary>
         public Texture2D LoadSkin(string filename)
         {
@@ -27,7 +28,7 @@ namespace Lithforge.Runtime.Player
             }
 
             byte[] pngBytes = File.ReadAllBytes(path);
-            Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            Texture2D tex = new(2, 2, TextureFormat.RGBA32, false);
 
             if (!tex.LoadImage(pngBytes))
             {
@@ -36,7 +37,7 @@ namespace Lithforge.Runtime.Player
                 return null;
             }
 
-            if (tex.width != 64 || (tex.height != 64 && tex.height != 32))
+            if (tex.width != 64 || tex.height != 64 && tex.height != 32)
             {
                 UnityEngine.Debug.LogWarning(
                     $"[SkinLoader] Invalid skin dimensions: {tex.width}x{tex.height} (expected 64x64 or 64x32)");
@@ -56,12 +57,12 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Generates a default Steve skin texture (solid colored regions).
-        /// Used as a fallback when no skin file is available.
+        ///     Generates a default Steve skin texture (solid colored regions).
+        ///     Used as a fallback when no skin file is available.
         /// </summary>
         public Texture2D CreateDefaultSkin()
         {
-            Texture2D tex = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            Texture2D tex = new(64, 64, TextureFormat.RGBA32, false);
             Color[] pixels = new Color[64 * 64];
 
             // Fill with transparent
@@ -70,34 +71,34 @@ namespace Lithforge.Runtime.Player
                 pixels[i] = new Color(0f, 0f, 0f, 0f);
             }
 
-            Color skinColor = new Color(0.73f, 0.56f, 0.42f, 1f);
-            Color shirtColor = new Color(0.22f, 0.68f, 0.68f, 1f);
-            Color pantsColor = new Color(0.27f, 0.27f, 0.75f, 1f);
-            Color hairColor = new Color(0.35f, 0.22f, 0.12f, 1f);
+            Color skinColor = new(0.73f, 0.56f, 0.42f, 1f);
+            Color shirtColor = new(0.22f, 0.68f, 0.68f, 1f);
+            Color pantsColor = new(0.27f, 0.27f, 0.75f, 1f);
+            Color hairColor = new(0.35f, 0.22f, 0.12f, 1f);
 
             // Head base (u=0, v=0, 8w 8h 8d → strip 32x16)
-            FillRegion(pixels, 8, 0, 8, 8, skinColor);   // top face
-            FillRegion(pixels, 16, 0, 8, 8, skinColor);  // bottom face
-            FillRegion(pixels, 0, 8, 8, 8, hairColor);   // right face
-            FillRegion(pixels, 8, 8, 8, 8, skinColor);   // front face
-            FillRegion(pixels, 16, 8, 8, 8, hairColor);  // left face
-            FillRegion(pixels, 24, 8, 8, 8, hairColor);  // back face
+            FillRegion(pixels, 8, 0, 8, 8, skinColor);  // top face
+            FillRegion(pixels, 16, 0, 8, 8, skinColor); // bottom face
+            FillRegion(pixels, 0, 8, 8, 8, hairColor);  // right face
+            FillRegion(pixels, 8, 8, 8, 8, skinColor);  // front face
+            FillRegion(pixels, 16, 8, 8, 8, hairColor); // left face
+            FillRegion(pixels, 24, 8, 8, 8, hairColor); // back face
 
             // Body base (u=16, v=16, 8w 12h 4d → strip 24x16)
             FillRegion(pixels, 20, 16, 8, 4, shirtColor);  // top
             FillRegion(pixels, 28, 16, 8, 4, shirtColor);  // bottom
-            FillRegion(pixels, 16, 20, 4, 12, shirtColor);  // right
-            FillRegion(pixels, 20, 20, 8, 12, shirtColor);  // front
-            FillRegion(pixels, 28, 20, 4, 12, shirtColor);  // left
-            FillRegion(pixels, 32, 20, 8, 12, shirtColor);  // back
+            FillRegion(pixels, 16, 20, 4, 12, shirtColor); // right
+            FillRegion(pixels, 20, 20, 8, 12, shirtColor); // front
+            FillRegion(pixels, 28, 20, 4, 12, shirtColor); // left
+            FillRegion(pixels, 32, 20, 8, 12, shirtColor); // back
 
             // Right arm base (u=40, v=16, 4w 12h 4d → strip 16x16)
             FillRegion(pixels, 44, 16, 4, 4, skinColor);   // top
             FillRegion(pixels, 48, 16, 4, 4, skinColor);   // bottom
-            FillRegion(pixels, 40, 20, 4, 12, shirtColor);  // right
-            FillRegion(pixels, 44, 20, 4, 12, shirtColor);  // front
-            FillRegion(pixels, 48, 20, 4, 12, shirtColor);  // left
-            FillRegion(pixels, 52, 20, 4, 12, shirtColor);  // back
+            FillRegion(pixels, 40, 20, 4, 12, shirtColor); // right
+            FillRegion(pixels, 44, 20, 4, 12, shirtColor); // front
+            FillRegion(pixels, 48, 20, 4, 12, shirtColor); // left
+            FillRegion(pixels, 52, 20, 4, 12, shirtColor); // back
 
             // Left arm base (u=32, v=48, 4w 12h 4d → strip 16x16)
             FillRegion(pixels, 36, 48, 4, 4, skinColor);
@@ -132,12 +133,12 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Converts a legacy 64x32 skin to 64x64 by mirroring right limbs to left positions.
-        /// Unity loads PNGs with Y=0 at bottom, so row 0 in skin coords is row 63 in pixel coords.
+        ///     Converts a legacy 64x32 skin to 64x64 by mirroring right limbs to left positions.
+        ///     Unity loads PNGs with Y=0 at bottom, so row 0 in skin coords is row 63 in pixel coords.
         /// </summary>
         private Texture2D ConvertLegacySkin(Texture2D legacy)
         {
-            Texture2D full = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            Texture2D full = new(64, 64, TextureFormat.RGBA32, false);
             Color[] clear = new Color[64 * 64];
             full.SetPixels(clear);
 
@@ -160,9 +161,9 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Mirrors a limb's T-shaped UV region from src coords to dst coords
-        /// with horizontal flip for Front/Back faces and Left/Right swap.
-        /// All coordinates use skin-space (top-left origin).
+        ///     Mirrors a limb's T-shaped UV region from src coords to dst coords
+        ///     with horizontal flip for Front/Back faces and Left/Right swap.
+        ///     All coordinates use skin-space (top-left origin).
         /// </summary>
         private void MirrorLimbRegion(
             Texture2D dst, Texture2D src,
@@ -193,9 +194,9 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Copies a rectangular region from src to dst with horizontal flip.
-        /// All coordinates use skin-space (top-left origin, Y increases downward).
-        /// Converts to Unity pixel-space internally (Y=0 at bottom).
+        ///     Copies a rectangular region from src to dst with horizontal flip.
+        ///     All coordinates use skin-space (top-left origin, Y increases downward).
+        ///     Converts to Unity pixel-space internally (Y=0 at bottom).
         /// </summary>
         private void CopyRegionFlippedH(
             Texture2D dst, Texture2D src,
@@ -223,7 +224,7 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Fills a rectangular region in pixel array using skin-space coordinates.
+        ///     Fills a rectangular region in pixel array using skin-space coordinates.
         /// </summary>
         private static void FillRegion(Color[] pixels, int skinX, int skinY, int width, int height, Color color)
         {

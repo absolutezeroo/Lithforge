@@ -1,8 +1,12 @@
+using System;
+
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
+using Lithforge.Runtime.UI.Navigation;
 using Lithforge.Voxel.Chunk;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -11,44 +15,73 @@ using Cursor = UnityEngine.Cursor;
 namespace Lithforge.Runtime.UI
 {
     /// <summary>
-    /// In-game settings screen built with UI Toolkit.
-    /// Opened with Escape key (when cursor is locked) or via pause menu.
-    /// All settings apply live as sliders are dragged.
+    ///     In-game settings screen built with UI Toolkit.
+    ///     Opened via pause menu or main menu. All settings apply live as sliders are dragged.
     /// </summary>
-    public sealed class SettingsScreen : MonoBehaviour
+    public sealed class SettingsScreen : MonoBehaviour, IScreen
     {
-        private UIDocument _document;
-        private VisualElement _overlay;
-        private VisualElement _panel;
-        private bool _isOpen;
-        private bool _openedFromPause;
-        private System.Action _onCloseCallback;
-
-        // References to systems we can tweak at runtime
-        private ChunkManager _chunkManager;
-        private CameraController _cameraController;
-        private TimeOfDayController _timeOfDayController;
-        private ChunkMeshStore _chunkMeshStore;
-        private Camera _mainCamera;
-        private System.Action<int> _onRenderDistanceChanged;
+        private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
+        private float _ambientVolume;
+        private float _aoStrength;
 
         // Audio mixer
         private AudioMixerController _audioMixerController;
+        private CameraController _cameraController;
+
+        // References to systems we can tweak at runtime
+        private ChunkManager _chunkManager;
+        private ChunkMeshStore _chunkMeshStore;
+        private float _dayLength;
+        private UIDocument _document;
+        private float _fov;
+        private Camera _mainCamera;
+        private float _masterVolume;
+        private float _mouseSensitivity;
+        private float _musicVolume;
+        private Action _onCloseCallback;
+        private Action<int> _onRenderDistanceChanged;
+        private VisualElement _overlay;
+        private VisualElement _panel;
+
+        private UserPreferences _preferences;
 
         // Current values
         private int _renderDistance;
-        private float _fov;
-        private float _mouseSensitivity;
-        private float _aoStrength;
-        private float _dayLength;
-        private float _masterVolume;
         private float _sfxVolume;
-        private float _musicVolume;
-        private float _ambientVolume;
+        private TimeOfDayController _timeOfDayController;
 
-        private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
+        public bool IsOpen { get; private set; }
 
-        private UserPreferences _preferences;
+        /// <summary>
+        ///     When true, the Close button will return to the pause menu
+        ///     instead of re-locking the cursor directly.
+        /// </summary>
+        public bool OpenedFromPause { get; set; }
+
+        public string ScreenName { get { return ScreenNames.Settings; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return true; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            Open();
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // Close settings — let ScreenManager pop this screen
+            return false;
+        }
 
         public void Initialize(
             ChunkManager chunkManager,
@@ -57,7 +90,7 @@ namespace Lithforge.Runtime.UI
             ChunkMeshStore chunkMeshStore,
             PanelSettings panelSettings,
             UserPreferences preferences,
-            System.Action<int> onRenderDistanceChanged = null)
+            Action<int> onRenderDistanceChanged = null)
         {
             _chunkManager = chunkManager;
             _cameraController = cameraController;
@@ -130,7 +163,7 @@ namespace Lithforge.Runtime.UI
             _overlay.Add(_panel);
 
             // Title
-            Label title = new Label("Settings");
+            Label title = new("Settings");
             title.style.fontSize = 28;
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             title.style.color = Color.white;
@@ -139,13 +172,13 @@ namespace Lithforge.Runtime.UI
             _panel.Add(title);
 
             // Scrollable content
-            ScrollView scrollView = new ScrollView(ScrollViewMode.Vertical);
+            ScrollView scrollView = new(ScrollViewMode.Vertical);
             scrollView.style.flexGrow = 1;
             _panel.Add(scrollView);
 
             // --- Graphics Section ---
             AddSectionHeader(scrollView, "Graphics");
-            AddSliderInt(scrollView, "Render Distance", _renderDistance, 1, 32, (int value) =>
+            AddSliderInt(scrollView, "Render Distance", _renderDistance, 1, 32, value =>
             {
                 _renderDistance = value;
 
@@ -158,7 +191,7 @@ namespace Lithforge.Runtime.UI
                 _preferences.RenderDistance = value;
             });
 
-            AddSliderFloat(scrollView, "Field of View", _fov, 60f, 120f, (float value) =>
+            AddSliderFloat(scrollView, "Field of View", _fov, 60f, 120f, value =>
             {
                 _fov = value;
 
@@ -170,7 +203,7 @@ namespace Lithforge.Runtime.UI
                 _preferences.FieldOfView = value;
             });
 
-            AddSliderFloat(scrollView, "AO Strength", _aoStrength, 0f, 1f, (float value) =>
+            AddSliderFloat(scrollView, "AO Strength", _aoStrength, 0f, 1f, value =>
             {
                 _aoStrength = value;
 
@@ -197,7 +230,7 @@ namespace Lithforge.Runtime.UI
 
             // --- Gameplay Section ---
             AddSectionHeader(scrollView, "Gameplay");
-            AddSliderFloat(scrollView, "Mouse Sensitivity", _mouseSensitivity, 0.01f, 1.0f, (float value) =>
+            AddSliderFloat(scrollView, "Mouse Sensitivity", _mouseSensitivity, 0.01f, 1.0f, value =>
             {
                 _mouseSensitivity = value;
 
@@ -209,7 +242,7 @@ namespace Lithforge.Runtime.UI
                 _preferences.MouseSensitivity = value;
             });
 
-            AddSliderFloat(scrollView, "Day Length (seconds)", _dayLength, 60f, 3600f, (float value) =>
+            AddSliderFloat(scrollView, "Day Length (seconds)", _dayLength, 60f, 3600f, value =>
             {
                 _dayLength = value;
 
@@ -221,7 +254,7 @@ namespace Lithforge.Runtime.UI
 
             // --- Audio Section ---
             AddSectionHeader(scrollView, "Audio");
-            AddSliderFloat(scrollView, "Master Volume", _masterVolume, 0f, 1f, (float value) =>
+            AddSliderFloat(scrollView, "Master Volume", _masterVolume, 0f, 1f, value =>
             {
                 _masterVolume = value;
 
@@ -237,7 +270,7 @@ namespace Lithforge.Runtime.UI
                 _preferences.MasterVolume = value;
             });
 
-            AddSliderFloat(scrollView, "SFX Volume", _sfxVolume, 0f, 1f, (float value) =>
+            AddSliderFloat(scrollView, "SFX Volume", _sfxVolume, 0f, 1f, value =>
             {
                 _sfxVolume = value;
 
@@ -249,7 +282,7 @@ namespace Lithforge.Runtime.UI
                 _preferences.SfxVolume = value;
             });
 
-            AddSliderFloat(scrollView, "Music Volume", _musicVolume, 0f, 1f, (float value) =>
+            AddSliderFloat(scrollView, "Music Volume", _musicVolume, 0f, 1f, value =>
             {
                 _musicVolume = value;
 
@@ -261,7 +294,7 @@ namespace Lithforge.Runtime.UI
                 _preferences.MusicVolume = value;
             });
 
-            AddSliderFloat(scrollView, "Ambient Volume", _ambientVolume, 0f, 1f, (float value) =>
+            AddSliderFloat(scrollView, "Ambient Volume", _ambientVolume, 0f, 1f, value =>
             {
                 _ambientVolume = value;
 
@@ -288,7 +321,7 @@ namespace Lithforge.Runtime.UI
             AddKeybindRow(scrollView, "Noclip (while flying)", "N");
 
             // Close button — calls Close with returnToPause if opened from pause menu
-            Button closeButton = new Button(() => { Close(_openedFromPause); });
+            Button closeButton = new(() => { Close(OpenedFromPause); });
             closeButton.text = "Close";
             closeButton.style.height = 40;
             closeButton.style.marginTop = 15;
@@ -304,7 +337,7 @@ namespace Lithforge.Runtime.UI
 
         private void AddSectionHeader(ScrollView parent, string text)
         {
-            Label header = new Label(text);
+            Label header = new(text);
             header.style.fontSize = 20;
             header.style.unityFontStyleAndWeight = FontStyle.Bold;
             header.style.color = new Color(0.8f, 0.8f, 0.85f, 1f);
@@ -314,33 +347,33 @@ namespace Lithforge.Runtime.UI
         }
 
         private void AddSliderFloat(ScrollView parent, string label, float initialValue,
-            float min, float max, System.Action<float> onChange)
+            float min, float max, Action<float> onChange)
         {
-            VisualElement row = new VisualElement();
+            VisualElement row = new();
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
             row.style.marginBottom = 6;
             row.style.height = 30;
 
-            Label nameLabel = new Label(label);
+            Label nameLabel = new(label);
             nameLabel.style.width = new Length(40, LengthUnit.Percent);
             nameLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f);
             nameLabel.style.fontSize = 14;
             row.Add(nameLabel);
 
-            Slider slider = new Slider(min, max);
+            Slider slider = new(min, max);
             slider.value = initialValue;
             slider.style.flexGrow = 1;
             row.Add(slider);
 
-            Label valueLabel = new Label(initialValue.ToString("F2"));
+            Label valueLabel = new(initialValue.ToString("F2"));
             valueLabel.style.width = 60;
             valueLabel.style.color = Color.white;
             valueLabel.style.fontSize = 14;
             valueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
             row.Add(valueLabel);
 
-            slider.RegisterValueChangedCallback((ChangeEvent<float> evt) =>
+            slider.RegisterValueChangedCallback(evt =>
             {
                 valueLabel.text = evt.newValue.ToString("F2");
                 onChange(evt.newValue);
@@ -350,33 +383,33 @@ namespace Lithforge.Runtime.UI
         }
 
         private void AddSliderInt(ScrollView parent, string label, int initialValue,
-            int min, int max, System.Action<int> onChange)
+            int min, int max, Action<int> onChange)
         {
-            VisualElement row = new VisualElement();
+            VisualElement row = new();
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
             row.style.marginBottom = 6;
             row.style.height = 30;
 
-            Label nameLabel = new Label(label);
+            Label nameLabel = new(label);
             nameLabel.style.width = new Length(40, LengthUnit.Percent);
             nameLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f);
             nameLabel.style.fontSize = 14;
             row.Add(nameLabel);
 
-            SliderInt slider = new SliderInt(min, max);
+            SliderInt slider = new(min, max);
             slider.value = initialValue;
             slider.style.flexGrow = 1;
             row.Add(slider);
 
-            Label valueLabel = new Label(initialValue.ToString());
+            Label valueLabel = new(initialValue.ToString());
             valueLabel.style.width = 60;
             valueLabel.style.color = Color.white;
             valueLabel.style.fontSize = 14;
             valueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
             row.Add(valueLabel);
 
-            slider.RegisterValueChangedCallback((ChangeEvent<int> evt) =>
+            slider.RegisterValueChangedCallback(evt =>
             {
                 valueLabel.text = evt.newValue.ToString();
                 onChange(evt.newValue);
@@ -387,19 +420,19 @@ namespace Lithforge.Runtime.UI
 
         private void AddKeybindRow(ScrollView parent, string action, string key)
         {
-            VisualElement row = new VisualElement();
+            VisualElement row = new();
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
             row.style.marginBottom = 4;
             row.style.height = 26;
 
-            Label actionLabel = new Label(action);
+            Label actionLabel = new(action);
             actionLabel.style.width = new Length(40, LengthUnit.Percent);
             actionLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f);
             actionLabel.style.fontSize = 14;
             row.Add(actionLabel);
 
-            Label keyLabel = new Label("[" + key + "]");
+            Label keyLabel = new("[" + key + "]");
             keyLabel.style.color = new Color(0.6f, 0.6f, 0.7f, 1f);
             keyLabel.style.fontSize = 14;
             row.Add(keyLabel);
@@ -409,30 +442,30 @@ namespace Lithforge.Runtime.UI
 
         public void Open()
         {
-            _isOpen = true;
-            _openedFromPause = false;
+            IsOpen = true;
+            OpenedFromPause = false;
             _overlay.style.display = DisplayStyle.Flex;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
         /// <summary>
-        /// Sets a callback invoked when the settings panel closes back to pause menu.
+        ///     Sets a callback invoked when the settings panel closes back to pause menu.
         /// </summary>
-        public void SetOnCloseCallback(System.Action callback)
+        public void SetOnCloseCallback(Action callback)
         {
             _onCloseCallback = callback;
         }
 
         /// <summary>
-        /// Closes the settings panel. When returnToPause is true, the cursor is
-        /// left unlocked so the pause menu can manage cursor state.
-        /// Fires the onCloseCallback if set and returning to pause.
+        ///     Closes the settings panel. When returnToPause is true, the cursor is
+        ///     left unlocked so the pause menu can manage cursor state.
+        ///     Fires the onCloseCallback if set and returning to pause.
         /// </summary>
         public void Close(bool returnToPause = false)
         {
-            _isOpen = false;
-            _openedFromPause = false;
+            IsOpen = false;
+            OpenedFromPause = false;
             _overlay.style.display = DisplayStyle.None;
 
             if (!returnToPause)
@@ -449,24 +482,9 @@ namespace Lithforge.Runtime.UI
             }
         }
 
-        public bool IsOpen
-        {
-            get { return _isOpen; }
-        }
-
         /// <summary>
-        /// When true, the Close button will return to the pause menu
-        /// instead of re-locking the cursor directly.
-        /// </summary>
-        public bool OpenedFromPause
-        {
-            get { return _openedFromPause; }
-            set { _openedFromPause = value; }
-        }
-
-        /// <summary>
-        /// Sets the audio mixer controller for volume persistence through the mixer.
-        /// Call after Initialize.
+        ///     Sets the audio mixer controller for volume persistence through the mixer.
+        ///     Call after Initialize.
         /// </summary>
         public void SetAudioMixerController(AudioMixerController controller)
         {
@@ -474,7 +492,7 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Controls the root document visibility (used by HudVisibilityController).
+        ///     Controls the root document visibility (used by HudVisibilityController).
         /// </summary>
         public void SetVisible(bool visible)
         {
@@ -485,8 +503,8 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Loads persisted settings from PlayerPrefs and applies them to the live systems.
-        /// Called once during Initialize after reading default values.
+        ///     Loads persisted settings from PlayerPrefs and applies them to the live systems.
+        ///     Called once during Initialize after reading default values.
         /// </summary>
         private void LoadPersistedSettings()
         {
@@ -567,8 +585,8 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>
-        /// Applies persisted volume values to the mixer. Must be called after
-        /// SetAudioMixerController so the mixer reference is available.
+        ///     Applies persisted volume values to the mixer. Must be called after
+        ///     SetAudioMixerController so the mixer reference is available.
         /// </summary>
         public void ApplyPersistedVolumes()
         {

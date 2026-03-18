@@ -1,8 +1,10 @@
 using System.Runtime.CompilerServices;
+
 using Lithforge.Meshing.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Liquid;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -11,12 +13,11 @@ using Unity.Mathematics;
 namespace Lithforge.Meshing
 {
     /// <summary>
-    /// Burst-compiled binary greedy meshing job with ambient occlusion.
-    /// Processes 6 face directions, each with 32 slices. For each slice,
-    /// builds a face visibility mask, computes per-vertex AO, and performs
-    /// greedy merging of identical adjacent faces.
-    ///
-    /// Neighbor border slices enable correct cross-chunk face culling.
+    ///     Burst-compiled binary greedy meshing job with ambient occlusion.
+    ///     Processes 6 face directions, each with 32 slices. For each slice,
+    ///     builds a face visibility mask, computes per-vertex AO, and performs
+    ///     greedy merging of identical adjacent faces.
+    ///     Neighbor border slices enable correct cross-chunk face culling.
     /// </summary>
     [BurstCompile]
     public struct GreedyMeshJob : IJob
@@ -34,16 +35,16 @@ namespace Lithforge.Meshing
         [ReadOnly] public NativeArray<byte> LiquidData;
 
         /// <summary>
-        /// True when LiquidData contains real per-voxel liquid state (32768 bytes).
-        /// False when LiquidData is a dummy sentinel — skip all liquid-level reads.
+        ///     True when LiquidData contains real per-voxel liquid state (32768 bytes).
+        ///     False when LiquidData is a dummy sentinel — skip all liquid-level reads.
         /// </summary>
         public bool HasLiquidData;
 
         /// <summary>
-        /// Neighbor liquid ghost slabs for corner level interpolation (Luanti-style).
-        /// Each slab is Size*Size (1024 bytes), indexed [y * Size + edgeCoord].
-        /// Contains raw LiquidCell bytes from the boundary slice of each neighbor chunk.
-        /// When a neighbor has no liquid data, the slab is all zeros (empty).
+        ///     Neighbor liquid ghost slabs for corner level interpolation (Luanti-style).
+        ///     Each slab is Size*Size (1024 bytes), indexed [y * Size + edgeCoord].
+        ///     Contains raw LiquidCell bytes from the boundary slice of each neighbor chunk.
+        ///     When a neighbor has no liquid data, the slab is all zeros (empty).
         /// </summary>
         [ReadOnly] public NativeArray<byte> LiquidNeighborPosX;
         [ReadOnly] public NativeArray<byte> LiquidNeighborNegX;
@@ -77,15 +78,15 @@ namespace Lithforge.Meshing
 
         private void ProcessFaceDirection(int face)
         {
-            NativeArray<uint> rowMask = new NativeArray<uint>(ChunkConstants.Size, Allocator.Temp);
-            NativeArray<ushort> faceStateId = new NativeArray<ushort>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceRenderLayer = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO00 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO10 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO01 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO11 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceLight = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceFluidLevel = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<uint> rowMask = new(ChunkConstants.Size, Allocator.Temp);
+            NativeArray<ushort> faceStateId = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceRenderLayer = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO00 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO10 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO01 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO11 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceLight = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceFluidLevel = new(ChunkConstants.SizeSquared, Allocator.Temp);
 
             for (int slice = 0; slice < ChunkConstants.Size; slice++)
             {
@@ -164,7 +165,7 @@ namespace Lithforge.Meshing
                     if (shouldRender)
                     {
                         int idx = v * ChunkConstants.Size + u;
-                        rowMask[v] = rowMask[v] | (1u << u);
+                        rowMask[v] = rowMask[v] | 1u << u;
                         faceStateId[idx] = blockId.Value;
                         faceRenderLayer[idx] = blockState.RenderLayer;
 
@@ -185,7 +186,7 @@ namespace Lithforge.Meshing
 
                         if (face == 2 && blockState.IsFluid && HasLiquidData)
                         {
-                            int flatIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(
+                            int flatIndex = Voxel.Chunk.ChunkData.GetIndex(
                                 blockPos.x, blockPos.y, blockPos.z);
 
                             // Bounds check guards against stale Burst cache where
@@ -235,7 +236,7 @@ namespace Lithforge.Meshing
 
                     while (u0 + width < ChunkConstants.Size)
                     {
-                        if ((mask & (1u << (u0 + width))) == 0)
+                        if ((mask & 1u << u0 + width) == 0)
                         {
                             break;
                         }
@@ -246,7 +247,7 @@ namespace Lithforge.Meshing
                             faceRenderLayer[idxW] != renderLayer ||
                             faceAO00[idxW] != ao00 || faceAO10[idxW] != ao10 ||
                             faceAO01[idxW] != ao01 || faceAO11[idxW] != ao11 ||
-                            (faceLight[idxW] >> 2) != (light >> 2) ||
+                            faceLight[idxW] >> 2 != light >> 2 ||
                             faceFluidLevel[idxW] != fluidLevel)
                         {
                             break;
@@ -266,7 +267,7 @@ namespace Lithforge.Meshing
                         {
                             uint nextRowMask = rowMask[v + height];
 
-                            if ((nextRowMask & (1u << (u0 + wu))) == 0)
+                            if ((nextRowMask & 1u << u0 + wu) == 0)
                             {
                                 canExtend = false;
 
@@ -279,7 +280,7 @@ namespace Lithforge.Meshing
                                 faceRenderLayer[idxH] != renderLayer ||
                                 faceAO00[idxH] != ao00 || faceAO10[idxH] != ao10 ||
                                 faceAO01[idxH] != ao01 || faceAO11[idxH] != ao11 ||
-                                (faceLight[idxH] >> 2) != (light >> 2) ||
+                                faceLight[idxH] >> 2 != light >> 2 ||
                                 faceFluidLevel[idxH] != fluidLevel)
                             {
                                 canExtend = false;
@@ -305,7 +306,7 @@ namespace Lithforge.Meshing
 
                     for (int wu = 0; wu < width; wu++)
                     {
-                        clearMask |= (1u << (u0 + wu));
+                        clearMask |= 1u << u0 + wu;
                     }
 
                     for (int hh = 0; hh < height; hh++)
@@ -357,7 +358,7 @@ namespace Lithforge.Meshing
             int cwz = ChunkCoord.z * ChunkConstants.Size;
 
             // Compute integer positions for each corner based on face direction
-            int sliceOff = (face == 0 || face == 2 || face == 4) ? slice + 1 : slice;
+            int sliceOff = face == 0 || face == 2 || face == 4 ? slice + 1 : slice;
 
             int px00;
             int py00;
@@ -375,40 +376,88 @@ namespace Lithforge.Meshing
             switch (face)
             {
                 case 0: // +X
-                    px00 = sliceOff; py00 = v0;          pz00 = u0;
-                    px10 = sliceOff; py10 = v0;          pz10 = u0 + width;
-                    px11 = sliceOff; py11 = v0 + height; pz11 = u0 + width;
-                    px01 = sliceOff; py01 = v0 + height; pz01 = u0;
+                    px00 = sliceOff;
+                    py00 = v0;
+                    pz00 = u0;
+                    px10 = sliceOff;
+                    py10 = v0;
+                    pz10 = u0 + width;
+                    px11 = sliceOff;
+                    py11 = v0 + height;
+                    pz11 = u0 + width;
+                    px01 = sliceOff;
+                    py01 = v0 + height;
+                    pz01 = u0;
                     break;
                 case 1: // -X
-                    px00 = sliceOff; py00 = v0;          pz00 = u0 + width;
-                    px10 = sliceOff; py10 = v0;          pz10 = u0;
-                    px11 = sliceOff; py11 = v0 + height; pz11 = u0;
-                    px01 = sliceOff; py01 = v0 + height; pz01 = u0 + width;
+                    px00 = sliceOff;
+                    py00 = v0;
+                    pz00 = u0 + width;
+                    px10 = sliceOff;
+                    py10 = v0;
+                    pz10 = u0;
+                    px11 = sliceOff;
+                    py11 = v0 + height;
+                    pz11 = u0;
+                    px01 = sliceOff;
+                    py01 = v0 + height;
+                    pz01 = u0 + width;
                     break;
                 case 2: // +Y
-                    px00 = u0;         py00 = sliceOff; pz00 = v0;
-                    px10 = u0 + width; py10 = sliceOff; pz10 = v0;
-                    px11 = u0 + width; py11 = sliceOff; pz11 = v0 + height;
-                    px01 = u0;         py01 = sliceOff; pz01 = v0 + height;
+                    px00 = u0;
+                    py00 = sliceOff;
+                    pz00 = v0;
+                    px10 = u0 + width;
+                    py10 = sliceOff;
+                    pz10 = v0;
+                    px11 = u0 + width;
+                    py11 = sliceOff;
+                    pz11 = v0 + height;
+                    px01 = u0;
+                    py01 = sliceOff;
+                    pz01 = v0 + height;
                     break;
                 case 3: // -Y
-                    px00 = u0;         py00 = sliceOff; pz00 = v0 + height;
-                    px10 = u0 + width; py10 = sliceOff; pz10 = v0 + height;
-                    px11 = u0 + width; py11 = sliceOff; pz11 = v0;
-                    px01 = u0;         py01 = sliceOff; pz01 = v0;
+                    px00 = u0;
+                    py00 = sliceOff;
+                    pz00 = v0 + height;
+                    px10 = u0 + width;
+                    py10 = sliceOff;
+                    pz10 = v0 + height;
+                    px11 = u0 + width;
+                    py11 = sliceOff;
+                    pz11 = v0;
+                    px01 = u0;
+                    py01 = sliceOff;
+                    pz01 = v0;
                     break;
                 case 4: // +Z
-                    px00 = u0 + width; py00 = v0;          pz00 = sliceOff;
-                    px10 = u0;         py10 = v0;          pz10 = sliceOff;
-                    px11 = u0;         py11 = v0 + height; pz11 = sliceOff;
-                    px01 = u0 + width; py01 = v0 + height; pz01 = sliceOff;
+                    px00 = u0 + width;
+                    py00 = v0;
+                    pz00 = sliceOff;
+                    px10 = u0;
+                    py10 = v0;
+                    pz10 = sliceOff;
+                    px11 = u0;
+                    py11 = v0 + height;
+                    pz11 = sliceOff;
+                    px01 = u0 + width;
+                    py01 = v0 + height;
+                    pz01 = sliceOff;
                     break;
                 default: // -Z
-                    px00 = u0;         py00 = v0;          pz00 = sliceOff;
-                    px10 = u0 + width; py10 = v0;          pz10 = sliceOff;
-                    px11 = u0 + width; py11 = v0 + height; pz11 = sliceOff;
-                    px01 = u0;         py01 = v0 + height; pz01 = sliceOff;
+                    px00 = u0;
+                    py00 = v0;
+                    pz00 = sliceOff;
+                    px10 = u0 + width;
+                    py10 = v0;
+                    pz10 = sliceOff;
+                    px11 = u0 + width;
+                    py11 = v0 + height;
+                    pz11 = sliceOff;
+                    px01 = u0;
+                    py01 = v0 + height;
+                    pz01 = sliceOff;
                     break;
             }
 
@@ -547,10 +596,10 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Computes the corner Y height for a liquid block at (x,y,z).
-        /// cornerX: 0=left edge, 1=right edge (in X).
-        /// cornerZ: 0=back edge, 1=front edge (in Z).
-        /// Returns a value in [0.0, 1.0] where 1.0 = top of block, 0.0 = bottom.
+        ///     Computes the corner Y height for a liquid block at (x,y,z).
+        ///     cornerX: 0=left edge, 1=right edge (in X).
+        ///     cornerZ: 0=back edge, 1=front edge (in Z).
+        ///     Returns a value in [0.0, 1.0] where 1.0 = top of block, 0.0 = bottom.
         /// </summary>
         private float GetCornerLevel(int x, int y, int z, int cornerX, int cornerZ)
         {
@@ -611,8 +660,8 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Returns liquid level as [0, 1] for a position (can be outside chunk via ghost slabs).
-        /// 0 = empty/air, 1.0 = source, 7/8..1/8 = flowing levels.
+        ///     Returns liquid level as [0, 1] for a position (can be outside chunk via ghost slabs).
+        ///     0 = empty/air, 1.0 = source, 7/8..1/8 = flowing levels.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private float SampleLiquidLevel(int x, int y, int z)
@@ -640,7 +689,7 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Reads a liquid cell at (x, y, z), using ghost slabs for out-of-bounds x/z.
+        ///     Reads a liquid cell at (x, y, z), using ghost slabs for out-of-bounds x/z.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte SampleLiquidCell(int x, int y, int z)
@@ -682,8 +731,8 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Checks if the block at (x, y, z) is a fluid block using the block state table.
-        /// Uses SampleBlock for cross-chunk reads.
+        ///     Checks if the block at (x, y, z) is a fluid block using the block state table.
+        ///     Uses SampleBlock for cross-chunk reads.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool LiquidSampleIsFluid(int x, int y, int z)
@@ -694,7 +743,7 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Checks if the block at (x, y, z) is a solid non-fluid block.
+        ///     Checks if the block at (x, y, z) is a solid non-fluid block.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool LiquidSampleIsSolid(int x, int y, int z)
@@ -806,9 +855,9 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Emits one side face of a liquid block.
-        /// dx/dz: face normal direction (exactly one nonzero).
-        /// nearCornerA/B: corner levels for the two top-edge vertices on this face.
+        ///     Emits one side face of a liquid block.
+        ///     dx/dz: face normal direction (exactly one nonzero).
+        ///     nearCornerA/B: corner levels for the two top-edge vertices on this face.
         /// </summary>
         private void EmitLiquidSideFace(int x, int y, int z,
             int dx, int dz,
@@ -856,10 +905,10 @@ namespace Lithforge.Meshing
             // Determine face index for atlas lookup
             int face;
 
-            if (dx > 0) { face = 0; }       // +X
-            else if (dx < 0) { face = 1; }   // -X
-            else if (dz > 0) { face = 4; }   // +Z
-            else { face = 5; }                // -Z
+            if (dx > 0) { face = 0; }      // +X
+            else if (dx < 0) { face = 1; } // -X
+            else if (dz > 0) { face = 4; } // +Z
+            else { face = 5; }             // -Z
 
             ushort texIndex = atlas.GetTextureIndex(face);
             byte baseTintType = atlas.GetBaseTintType(face);
@@ -1007,7 +1056,7 @@ namespace Lithforge.Meshing
                 pos.y >= 0 && pos.y < ChunkConstants.Size &&
                 pos.z >= 0 && pos.z < ChunkConstants.Size)
             {
-                return ChunkData[Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
+                return ChunkData[Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
             }
 
             // Multi-axis out-of-bounds (diagonal/corner) — treat as air
@@ -1084,7 +1133,7 @@ namespace Lithforge.Meshing
                 pos.y >= 0 && pos.y < ChunkConstants.Size &&
                 pos.z >= 0 && pos.z < ChunkConstants.Size)
             {
-                return LightData[Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
+                return LightData[Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
             }
 
             // 0xF0 = sun=15, block=0 (full sunlight, no block light)
@@ -1092,7 +1141,7 @@ namespace Lithforge.Meshing
         }
 
         /// <summary>
-        /// Converts face direction + slice + (u,v) to block-local (x,y,z).
+        ///     Converts face direction + slice + (u,v) to block-local (x,y,z).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int3 FaceToBlockPos(int face, int slice, int u, int v)
@@ -1166,6 +1215,5 @@ namespace Lithforge.Meshing
                 _ => new int3(0, 1, 0),
             };
         }
-
     }
 }

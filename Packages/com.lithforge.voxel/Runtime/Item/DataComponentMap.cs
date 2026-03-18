@@ -4,16 +4,41 @@ using System.Collections.Generic;
 namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Per-stack container for typed data components. Null on most items (zero allocation).
-    /// Keyed by int type ID.
+    ///     Per-stack container for typed data components. Null on most items (zero allocation).
+    ///     Keyed by int type ID.
     /// </summary>
     public sealed class DataComponentMap : IEnumerable<KeyValuePair<int, IDataComponent>>
     {
-        private readonly Dictionary<int, IDataComponent> _components =
-            new Dictionary<int, IDataComponent>();
+        private readonly Dictionary<int, IDataComponent> _components = new();
 
         /// <summary>
-        /// Gets a typed component by type ID, or null if not present.
+        ///     Returns true if the map is empty (no components).
+        /// </summary>
+        public bool IsEmpty
+        {
+            get { return _components.Count == 0; }
+        }
+
+        /// <summary>
+        ///     Returns the number of components in the map.
+        /// </summary>
+        public int Count
+        {
+            get { return _components.Count; }
+        }
+
+        public IEnumerator<KeyValuePair<int, IDataComponent>> GetEnumerator()
+        {
+            return _components.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        /// <summary>
+        ///     Gets a typed component by type ID, or null if not present.
         /// </summary>
         public T Get<T>(int typeId) where T : class, IDataComponent
         {
@@ -26,7 +51,7 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Adds or replaces a component by type ID.
+        ///     Adds or replaces a component by type ID.
         /// </summary>
         public void Set(int typeId, IDataComponent component)
         {
@@ -34,7 +59,7 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Returns true if a component with the given type ID exists.
+        ///     Returns true if a component with the given type ID exists.
         /// </summary>
         public bool Has(int typeId)
         {
@@ -42,7 +67,7 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Removes a component by type ID. Returns true if it was present.
+        ///     Removes a component by type ID. Returns true if it was present.
         /// </summary>
         public bool Remove(int typeId)
         {
@@ -50,23 +75,7 @@ namespace Lithforge.Voxel.Item
         }
 
         /// <summary>
-        /// Returns true if the map is empty (no components).
-        /// </summary>
-        public bool IsEmpty
-        {
-            get { return _components.Count == 0; }
-        }
-
-        /// <summary>
-        /// Returns the number of components in the map.
-        /// </summary>
-        public int Count
-        {
-            get { return _components.Count; }
-        }
-
-        /// <summary>
-        /// Structural equality: same keys, and each component's Equals returns true.
+        ///     Structural equality: same keys, and each component's Equals returns true.
         /// </summary>
         public bool ContentEquals(DataComponentMap other)
         {
@@ -94,16 +103,6 @@ namespace Lithforge.Voxel.Item
             }
 
             return true;
-        }
-
-        public IEnumerator<KeyValuePair<int, IDataComponent>> GetEnumerator()
-        {
-            return _components.GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
     }
 }

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -9,9 +10,9 @@ namespace Lithforge.Physics.Tests
     public sealed class VoxelColliderJobTests
     {
         /// <summary>
-        /// Builds a SolidBlockQuery with a solid floor at the given Y level.
-        /// All blocks at floorY are solid; all others are air.
-        /// Covers the broad-phase region for the given entity state.
+        ///     Builds a SolidBlockQuery with a solid floor at the given Y level.
+        ///     All blocks at floorY are solid; all others are air.
+        ///     Covers the broad-phase region for the given entity state.
         /// </summary>
         private static SolidBlockQuery BuildFloorQuery(
             float3 position,
@@ -29,8 +30,7 @@ namespace Lithforge.Physics.Tests
             int sizeZ = bpMax.z - bpMin.z + 1;
             int volume = sizeX * sizeY * sizeZ;
 
-            NativeHashMap<int3, bool> solidMap =
-                new NativeHashMap<int3, bool>(volume, Allocator.TempJob);
+            NativeHashMap<int3, bool> solidMap = new(volume, Allocator.TempJob);
 
             for (int x = bpMin.x; x <= bpMax.x; x++)
             {
@@ -38,13 +38,16 @@ namespace Lithforge.Physics.Tests
                 {
                     for (int z = bpMin.z; z <= bpMax.z; z++)
                     {
-                        int3 coord = new int3(x, y, z);
+                        int3 coord = new(x, y, z);
                         solidMap.TryAdd(coord, y == floorY);
                     }
                 }
             }
 
-            return new SolidBlockQuery { SolidMap = solidMap };
+            return new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
         }
 
         [Test]
@@ -53,35 +56,29 @@ namespace Lithforge.Physics.Tests
             // Arrange: 4 entities at different XZ positions, all slightly above y=1
             // with downward velocity. Floor is solid at y=0.
             int entityCount = 4;
-            NativeArray<EntityPhysicsState> states =
-                new NativeArray<EntityPhysicsState>(entityCount, Allocator.TempJob);
-            NativeArray<SolidBlockQuery> queries =
-                new NativeArray<SolidBlockQuery>(entityCount, Allocator.TempJob);
+            NativeArray<EntityPhysicsState> states = new(entityCount, Allocator.TempJob);
+            NativeArray<SolidBlockQuery> queries = new(entityCount, Allocator.TempJob);
 
             float halfWidth = 0.3f;
             float height = 1.8f;
 
             for (int i = 0; i < entityCount; i++)
             {
-                float3 position = new float3(i * 5f + 0.5f, 1.05f, 0.5f);
-                float3 velocity = new float3(0f, -0.5f, 0f);
+                float3 position = new(i * 5f + 0.5f, 1.05f, 0.5f);
+                float3 velocity = new(0f, -0.5f, 0f);
 
                 states[i] = new EntityPhysicsState
                 {
-                    Position = position,
-                    Velocity = velocity,
-                    HalfWidth = halfWidth,
-                    Height = height,
+                    Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
                 };
 
                 queries[i] = BuildFloorQuery(position, velocity, halfWidth, height, 0);
             }
 
             // Act
-            VoxelColliderJob job = new VoxelColliderJob
+            VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             job.Run(entityCount);
 
@@ -111,22 +108,17 @@ namespace Lithforge.Physics.Tests
         public void Entity_InOpenAir_NotOnGround()
         {
             // Arrange: entity in open air with no solid blocks nearby
-            NativeArray<EntityPhysicsState> states =
-                new NativeArray<EntityPhysicsState>(1, Allocator.TempJob);
-            NativeArray<SolidBlockQuery> queries =
-                new NativeArray<SolidBlockQuery>(1, Allocator.TempJob);
+            NativeArray<EntityPhysicsState> states = new(1, Allocator.TempJob);
+            NativeArray<SolidBlockQuery> queries = new(1, Allocator.TempJob);
 
             float halfWidth = 0.3f;
             float height = 1.8f;
-            float3 position = new float3(0.5f, 10f, 0.5f);
-            float3 velocity = new float3(0f, -0.5f, 0f);
+            float3 position = new(0.5f, 10f, 0.5f);
+            float3 velocity = new(0f, -0.5f, 0f);
 
             states[0] = new EntityPhysicsState
             {
-                Position = position,
-                Velocity = velocity,
-                HalfWidth = halfWidth,
-                Height = height,
+                Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
             };
 
             // Build query with no solid blocks (floor at y=-100, outside broad-phase)
@@ -139,8 +131,7 @@ namespace Lithforge.Physics.Tests
             int sizeZ = bpMax.z - bpMin.z + 1;
             int volume = sizeX * sizeY * sizeZ;
 
-            NativeHashMap<int3, bool> solidMap =
-                new NativeHashMap<int3, bool>(volume, Allocator.TempJob);
+            NativeHashMap<int3, bool> solidMap = new(volume, Allocator.TempJob);
 
             for (int x = bpMin.x; x <= bpMax.x; x++)
             {
@@ -153,13 +144,15 @@ namespace Lithforge.Physics.Tests
                 }
             }
 
-            queries[0] = new SolidBlockQuery { SolidMap = solidMap };
+            queries[0] = new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
 
             // Act
-            VoxelColliderJob job = new VoxelColliderJob
+            VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             job.Run(1);
 
@@ -179,22 +172,17 @@ namespace Lithforge.Physics.Tests
         public void Entity_HitsWall_VelocityZeroed()
         {
             // Arrange: entity moving +X into a solid wall at x=3
-            NativeArray<EntityPhysicsState> states =
-                new NativeArray<EntityPhysicsState>(1, Allocator.TempJob);
-            NativeArray<SolidBlockQuery> queries =
-                new NativeArray<SolidBlockQuery>(1, Allocator.TempJob);
+            NativeArray<EntityPhysicsState> states = new(1, Allocator.TempJob);
+            NativeArray<SolidBlockQuery> queries = new(1, Allocator.TempJob);
 
             float halfWidth = 0.3f;
             float height = 1.8f;
-            float3 position = new float3(2.5f, 1f, 0.5f);
-            float3 velocity = new float3(0.5f, 0f, 0f);
+            float3 position = new(2.5f, 1f, 0.5f);
+            float3 velocity = new(0.5f, 0f, 0f);
 
             states[0] = new EntityPhysicsState
             {
-                Position = position,
-                Velocity = velocity,
-                HalfWidth = halfWidth,
-                Height = height,
+                Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
             };
 
             // Build query: floor at y=0, wall at x=3 (all y levels in broad-phase)
@@ -207,8 +195,7 @@ namespace Lithforge.Physics.Tests
             int sizeZ = bpMax.z - bpMin.z + 1;
             int volume = sizeX * sizeY * sizeZ;
 
-            NativeHashMap<int3, bool> solidMap =
-                new NativeHashMap<int3, bool>(volume, Allocator.TempJob);
+            NativeHashMap<int3, bool> solidMap = new(volume, Allocator.TempJob);
 
             for (int x = bpMin.x; x <= bpMax.x; x++)
             {
@@ -216,20 +203,22 @@ namespace Lithforge.Physics.Tests
                 {
                     for (int z = bpMin.z; z <= bpMax.z; z++)
                     {
-                        int3 coord = new int3(x, y, z);
-                        bool solid = (y == 0) || (x == 3);
+                        int3 coord = new(x, y, z);
+                        bool solid = y == 0 || x == 3;
                         solidMap.TryAdd(coord, solid);
                     }
                 }
             }
 
-            queries[0] = new SolidBlockQuery { SolidMap = solidMap };
+            queries[0] = new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
 
             // Act
-            VoxelColliderJob job = new VoxelColliderJob
+            VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             job.Run(1);
 
@@ -252,35 +241,29 @@ namespace Lithforge.Physics.Tests
         {
             // Arrange: 8 entities, schedule with innerloopBatchCount=1
             int entityCount = 8;
-            NativeArray<EntityPhysicsState> states =
-                new NativeArray<EntityPhysicsState>(entityCount, Allocator.TempJob);
-            NativeArray<SolidBlockQuery> queries =
-                new NativeArray<SolidBlockQuery>(entityCount, Allocator.TempJob);
+            NativeArray<EntityPhysicsState> states = new(entityCount, Allocator.TempJob);
+            NativeArray<SolidBlockQuery> queries = new(entityCount, Allocator.TempJob);
 
             float halfWidth = 0.3f;
             float height = 1.8f;
 
             for (int i = 0; i < entityCount; i++)
             {
-                float3 position = new float3(i * 10f + 0.5f, 1.1f, 0.5f);
-                float3 velocity = new float3(0f, -0.3f, 0f);
+                float3 position = new(i * 10f + 0.5f, 1.1f, 0.5f);
+                float3 velocity = new(0f, -0.3f, 0f);
 
                 states[i] = new EntityPhysicsState
                 {
-                    Position = position,
-                    Velocity = velocity,
-                    HalfWidth = halfWidth,
-                    Height = height,
+                    Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
                 };
 
                 queries[i] = BuildFloorQuery(position, velocity, halfWidth, height, 0);
             }
 
             // Act: schedule on worker threads
-            VoxelColliderJob job = new VoxelColliderJob
+            VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             JobHandle handle = job.Schedule(entityCount, 1);
             handle.Complete();

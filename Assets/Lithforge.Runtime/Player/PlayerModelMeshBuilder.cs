@@ -1,20 +1,19 @@
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Generates static vertex and index arrays for the full player model mesh.
-    /// Builds 12 boxes: 6 base parts + 6 overlay parts (hat, jacket, sleeves, pants).
-    /// Head indices are placed at the END of each layer so first-person mode can
-    /// simply reduce indexCount to exclude them.
-    ///
-    /// Index layout (36 indices per box):
-    /// Base:    [body(0-35), rArm(36-71), lArm(72-107), rLeg(108-143), lLeg(144-179), head(180-215)]
-    /// Overlay: [jacket(216-251), rSleeve(252-287), lSleeve(288-323), rPants(324-359), lPants(360-395), hat(396-431)]
-    ///
-    /// First-person draws 180 indices per layer (head/hat excluded).
-    /// Third-person draws 216 indices per layer (all parts).
+    ///     Generates static vertex and index arrays for the full player model mesh.
+    ///     Builds 12 boxes: 6 base parts + 6 overlay parts (hat, jacket, sleeves, pants).
+    ///     Head indices are placed at the END of each layer so first-person mode can
+    ///     simply reduce indexCount to exclude them.
+    ///     Index layout (36 indices per box):
+    ///     Base:    [body(0-35), rArm(36-71), lArm(72-107), rLeg(108-143), lLeg(144-179), head(180-215)]
+    ///     Overlay: [jacket(216-251), rSleeve(252-287), lSleeve(288-323), rPants(324-359), lPants(360-395), hat(396-431)]
+    ///     First-person draws 180 indices per layer (head/hat excluded).
+    ///     Third-person draws 216 indices per layer (all parts).
     /// </summary>
     public static class PlayerModelMeshBuilder
     {
@@ -40,8 +39,8 @@ namespace Lithforge.Runtime.Player
         public const int ThirdPersonLayerIndexCount = IndicesPerBox * 6;
 
         /// <summary>
-        /// Builds all player model vertices and indices.
-        /// Parts are ordered body-first with head last in each layer for easy FP exclusion.
+        ///     Builds all player model vertices and indices.
+        ///     Parts are ordered body-first with head last in each layer for easy FP exclusion.
         /// </summary>
         public static void Build(bool isSlim, out PlayerModelVertex[] vertices, out int[] indices)
         {
@@ -54,40 +53,40 @@ namespace Lithforge.Runtime.Player
             // Pivots are the rotation center for each part
 
             // Body: 8w x 12h x 4d, pivot at (0, 24, 0) — top of body
-            float3 bodyMin = new float3(-4f, 12f, -2f);
-            float3 bodySize = new float3(8f, 12f, 4f);
-            float3 bodyPivot = new float3(0f, 24f, 0f);
+            float3 bodyMin = new(-4f, 12f, -2f);
+            float3 bodySize = new(8f, 12f, 4f);
+            float3 bodyPivot = new(0f, 24f, 0f);
 
             // Right Arm: (armWidth)w x 12h x 4d
             float3 rightArmMin = isSlim
                 ? new float3(-4f - 3f, 12f, -2f)
                 : new float3(-4f - 4f, 12f, -2f);
-            float3 rightArmSize = new float3(armWidth, 12f, 4f);
+            float3 rightArmSize = new(armWidth, 12f, 4f);
             float3 rightArmPivot = isSlim
                 ? new float3(-5.5f, 22f, 0f)
                 : new float3(-6f, 22f, 0f);
 
             // Left Arm: (armWidth)w x 12h x 4d
-            float3 leftArmMin = new float3(4f, 12f, -2f);
-            float3 leftArmSize = new float3(armWidth, 12f, 4f);
+            float3 leftArmMin = new(4f, 12f, -2f);
+            float3 leftArmSize = new(armWidth, 12f, 4f);
             float3 leftArmPivot = isSlim
                 ? new float3(5.5f, 22f, 0f)
                 : new float3(6f, 22f, 0f);
 
             // Right Leg: 4w x 12h x 4d
-            float3 rightLegMin = new float3(-4f, 0f, -2f);
-            float3 rightLegSize = new float3(4f, 12f, 4f);
-            float3 rightLegPivot = new float3(-2f, 12f, 0f);
+            float3 rightLegMin = new(-4f, 0f, -2f);
+            float3 rightLegSize = new(4f, 12f, 4f);
+            float3 rightLegPivot = new(-2f, 12f, 0f);
 
             // Left Leg: 4w x 12h x 4d
-            float3 leftLegMin = new float3(0f, 0f, -2f);
-            float3 leftLegSize = new float3(4f, 12f, 4f);
-            float3 leftLegPivot = new float3(2f, 12f, 0f);
+            float3 leftLegMin = new(0f, 0f, -2f);
+            float3 leftLegSize = new(4f, 12f, 4f);
+            float3 leftLegPivot = new(2f, 12f, 0f);
 
             // Head: 8w x 8h x 8d
-            float3 headMin = new float3(-4f, 24f, -4f);
-            float3 headSize = new float3(8f, 8f, 8f);
-            float3 headPivot = new float3(0f, 24f, 0f);
+            float3 headMin = new(-4f, 24f, -4f);
+            float3 headSize = new(8f, 8f, 8f);
+            float3 headPivot = new(0f, 24f, 0f);
 
             // UV part definitions
             SkinPartDefinition rightArmBase = isSlim ? SkinUVMapper.RightArmBase3 : SkinUVMapper.RightArmBase4;
@@ -152,8 +151,8 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Builds a single box (24 vertices, 36 indices) and writes into the arrays
-        /// at the current offsets.
+        ///     Builds a single box (24 vertices, 36 indices) and writes into the arrays
+        ///     at the current offsets.
         /// </summary>
         private static void BuildBox(
             PlayerModelVertex[] vertices, int[] indices,
@@ -243,27 +242,35 @@ namespace Lithforge.Runtime.Player
                 // Write 4 vertices
                 vertices[vertOffset + 0] = new PlayerModelVertex
                 {
-                    Position = v0, Normal = normal,
+                    Position = v0,
+                    Normal = normal,
                     UV = new float2(uMin, vMin),
-                    PartID = partID, Flags = overlayFlag,
+                    PartID = partID,
+                    Flags = overlayFlag,
                 };
                 vertices[vertOffset + 1] = new PlayerModelVertex
                 {
-                    Position = v1, Normal = normal,
+                    Position = v1,
+                    Normal = normal,
                     UV = new float2(uMax, vMin),
-                    PartID = partID, Flags = overlayFlag,
+                    PartID = partID,
+                    Flags = overlayFlag,
                 };
                 vertices[vertOffset + 2] = new PlayerModelVertex
                 {
-                    Position = v2, Normal = normal,
+                    Position = v2,
+                    Normal = normal,
                     UV = new float2(uMax, vMax),
-                    PartID = partID, Flags = overlayFlag,
+                    PartID = partID,
+                    Flags = overlayFlag,
                 };
                 vertices[vertOffset + 3] = new PlayerModelVertex
                 {
-                    Position = v3, Normal = normal,
+                    Position = v3,
+                    Normal = normal,
                     UV = new float2(uMin, vMax),
-                    PartID = partID, Flags = overlayFlag,
+                    PartID = partID,
+                    Flags = overlayFlag,
                 };
 
                 // Write 6 indices (two triangles: 0-1-2, 0-2-3)

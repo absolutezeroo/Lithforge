@@ -1,66 +1,35 @@
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Voxel.Chunk;
+
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Drives the procedural skybox material, fog color, and ambient lighting
-    /// based on the current time of day. Reads TimeOfDayController each frame
-    /// and evaluates RenderingSettings gradients to produce smooth day/night transitions.
+    ///     Drives the procedural skybox material, fog color, and ambient lighting
+    ///     based on the current time of day. Reads TimeOfDayController each frame
+    ///     and evaluates RenderingSettings gradients to produce smooth day/night transitions.
     /// </summary>
     public sealed class SkyController : MonoBehaviour
     {
-        private TimeOfDayController _timeOfDayController;
-        private Light _directionalLight;
-        private Material _skyboxMaterial;
-        private Gradient _skyGradient;
-        private Gradient _skyZenithGradient;
-        private Gradient _fogGradient;
-        private Gradient _ambientGradient;
-        private Gradient _sunColorGradient;
-        private float _baseFogDensity;
-        private ChunkManager _chunkManager;
-
-        private float _dynamicGITimer;
         private const float DynamicGIInterval = 2.0f;
 
         private static readonly int s_horizonColorId = Shader.PropertyToID("_HorizonColor");
         private static readonly int s_zenithColorId = Shader.PropertyToID("_ZenithColor");
         private static readonly int s_sunDirectionId = Shader.PropertyToID("_SunDirection");
         private static readonly int s_starVisibilityId = Shader.PropertyToID("_StarVisibility");
+        private Gradient _ambientGradient;
+        private float _baseFogDensity;
+        private ChunkManager _chunkManager;
+        private Light _directionalLight;
 
-        public void Initialize(
-            TimeOfDayController timeOfDayController,
-            Light directionalLight,
-            RenderingSettings settings,
-            ChunkManager chunkManager = null)
-        {
-            _timeOfDayController = timeOfDayController;
-            _directionalLight = directionalLight;
-            _chunkManager = chunkManager;
-            _skyGradient = settings.SkyGradient;
-            _skyZenithGradient = settings.SkyZenithGradient;
-            _fogGradient = settings.FogGradient;
-            _ambientGradient = settings.AmbientGradient;
-            _sunColorGradient = settings.SunColorGradient;
-            _baseFogDensity = settings.FogDensity;
-
-            Shader skyShader = Shader.Find("Lithforge/ProceduralSky");
-
-            if (skyShader == null)
-            {
-                UnityEngine.Debug.LogError("[Lithforge] ProceduralSky shader not found.");
-                return;
-            }
-
-            _skyboxMaterial = new Material(skyShader);
-            RenderSettings.skybox = _skyboxMaterial;
-            RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = _baseFogDensity;
-            RenderSettings.fog = true;
-        }
+        private float _dynamicGITimer;
+        private Gradient _fogGradient;
+        private Material _skyboxMaterial;
+        private Gradient _skyGradient;
+        private Gradient _skyZenithGradient;
+        private Gradient _sunColorGradient;
+        private TimeOfDayController _timeOfDayController;
 
         private void Update()
         {
@@ -95,7 +64,7 @@ namespace Lithforge.Runtime.Rendering
                 // Warm fog tint when sun is near horizon (sunrise/sunset)
                 float sunElevation = _directionalLight.transform.forward.y;
                 float horizonFactor = 1f - Mathf.Clamp01(Mathf.Abs(sunElevation) * 3f);
-                Color warmTint = new Color(1f, 0.65f, 0.35f);
+                Color warmTint = new(1f, 0.65f, 0.35f);
                 fogColor = Color.Lerp(fogColor, warmTint, horizonFactor * 0.4f * sunFactor);
             }
 
@@ -128,6 +97,37 @@ namespace Lithforge.Runtime.Rendering
             {
                 Destroy(_skyboxMaterial);
             }
+        }
+
+        public void Initialize(
+            TimeOfDayController timeOfDayController,
+            Light directionalLight,
+            RenderingSettings settings,
+            ChunkManager chunkManager = null)
+        {
+            _timeOfDayController = timeOfDayController;
+            _directionalLight = directionalLight;
+            _chunkManager = chunkManager;
+            _skyGradient = settings.SkyGradient;
+            _skyZenithGradient = settings.SkyZenithGradient;
+            _fogGradient = settings.FogGradient;
+            _ambientGradient = settings.AmbientGradient;
+            _sunColorGradient = settings.SunColorGradient;
+            _baseFogDensity = settings.FogDensity;
+
+            Shader skyShader = Shader.Find("Lithforge/ProceduralSky");
+
+            if (skyShader == null)
+            {
+                UnityEngine.Debug.LogError("[Lithforge] ProceduralSky shader not found.");
+                return;
+            }
+
+            _skyboxMaterial = new Material(skyShader);
+            RenderSettings.skybox = _skyboxMaterial;
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogDensity = _baseFogDensity;
+            RenderSettings.fog = true;
         }
     }
 }

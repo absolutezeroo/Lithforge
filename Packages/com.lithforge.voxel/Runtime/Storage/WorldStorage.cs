@@ -1,40 +1,56 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Lithforge.Core.Logging;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
-using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Mathematics;
+
 using UnityEngine.Profiling;
 
 namespace Lithforge.Voxel.Storage
 {
     public sealed class WorldStorage : IDisposable
     {
-        private readonly string _worldDir;
-        private readonly string _regionDir;
-        private readonly Dictionary<int3, RegionFile> _regionFiles = new Dictionary<int3, RegionFile>();
-        private readonly object _regionFilesLock = new object();
-        private readonly List<RegionFile> _flushCache = new List<RegionFile>();
+        private readonly List<RegionFile> _flushCache = new();
         private readonly ILogger _logger;
+        private readonly string _regionDir;
+        private readonly Dictionary<int3, RegionFile> _regionFiles = new();
+        private readonly object _regionFilesLock = new();
         private bool _disposed;
-
-        public string WorldDir
-        {
-            get { return _worldDir; }
-        }
 
         public WorldStorage(string worldDir, ILogger logger = null)
         {
-            _worldDir = worldDir;
+            WorldDir = worldDir;
             _regionDir = Path.Combine(worldDir, "region");
             _logger = logger;
 
             if (!Directory.Exists(_regionDir))
             {
                 Directory.CreateDirectory(_regionDir);
+            }
+        }
+
+        public string WorldDir { get; }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+
+                lock (_regionFilesLock)
+                {
+                    foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
+                    {
+                        kvp.Value.Dispose();
+                    }
+
+                    _regionFiles.Clear();
+                }
             }
         }
 
@@ -91,14 +107,14 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        /// Backward-compatible overload without block entity support.
+        ///     Backward-compatible overload without block entity support.
         /// </summary>
         public bool LoadChunk(
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData)
         {
-            return LoadChunk(chunkCoord, chunkData, lightData, out Dictionary<int, IBlockEntity> _, null);
+            return LoadChunk(chunkCoord, chunkData, lightData, out Dictionary<int, IBlockEntity> _);
         }
 
         public void SaveChunk(
@@ -127,8 +143,8 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        /// Saves pre-serialized chunk data to the region file cache.
-        /// Used by AsyncChunkSaver worker thread — thread-safe via region file lock.
+        ///     Saves pre-serialized chunk data to the region file cache.
+        ///     Used by AsyncChunkSaver worker thread — thread-safe via region file lock.
         /// </summary>
         public void SaveChunkRaw(int3 chunkCoord, byte[] serializedData)
         {
@@ -145,8 +161,8 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        /// Fills the provided list with region files that have unsaved data.
-        /// Clears the list before filling. Caller uses fill pattern.
+        ///     Fills the provided list with region files that have unsaved data.
+        ///     Clears the list before filling. Caller uses fill pattern.
         /// </summary>
         public void CollectDirtyRegions(List<RegionFile> result)
         {
@@ -165,8 +181,8 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        /// Flushes a single region file to disk with error handling.
-        /// Used by incremental save coroutine for per-region progress reporting.
+        ///     Flushes a single region file to disk with error handling.
+        ///     Used by incremental save coroutine for per-region progress reporting.
         /// </summary>
         public void FlushRegion(RegionFile region)
         {
@@ -214,10 +230,10 @@ namespace Lithforge.Voxel.Storage
 
         public void SaveMetadata(long seed, string contentHash)
         {
-            WorldMetadata meta = new WorldMetadata();
+            WorldMetadata meta = new();
             meta.Seed = seed;
             meta.ContentHash = contentHash;
-            meta.Save(Path.Combine(_worldDir, "world.json"));
+            meta.Save(Path.Combine(WorldDir, "world.json"));
         }
 
         public void SaveMetadataFull(WorldMetadata metadata)
@@ -227,12 +243,12 @@ namespace Lithforge.Voxel.Storage
                 return;
             }
 
-            metadata.Save(Path.Combine(_worldDir, "world.json"));
+            metadata.Save(Path.Combine(WorldDir, "world.json"));
         }
 
         public WorldMetadata LoadMetadata()
         {
-            return WorldMetadata.Load(Path.Combine(_worldDir, "world.json"));
+            return WorldMetadata.Load(Path.Combine(WorldDir, "world.json"));
         }
 
         private RegionFile GetOrOpenRegion(int3 regionCoord)
@@ -258,31 +274,13 @@ namespace Lithforge.Voxel.Storage
                 chunkCoord.y,
                 FloorDiv(chunkCoord.z, RegionFile.RegionSize));
 
-            localX = ((chunkCoord.x % RegionFile.RegionSize) + RegionFile.RegionSize) % RegionFile.RegionSize;
-            localZ = ((chunkCoord.z % RegionFile.RegionSize) + RegionFile.RegionSize) % RegionFile.RegionSize;
+            localX = (chunkCoord.x % RegionFile.RegionSize + RegionFile.RegionSize) % RegionFile.RegionSize;
+            localZ = (chunkCoord.z % RegionFile.RegionSize + RegionFile.RegionSize) % RegionFile.RegionSize;
         }
 
         private static int FloorDiv(int a, int b)
         {
             return a >= 0 ? a / b : (a - b + 1) / b;
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-
-                lock (_regionFilesLock)
-                {
-                    foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
-                    {
-                        kvp.Value.Dispose();
-                    }
-
-                    _regionFiles.Clear();
-                }
-            }
         }
     }
 }

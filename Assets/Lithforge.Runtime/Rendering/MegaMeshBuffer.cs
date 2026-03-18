@@ -1,32 +1,42 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+
 using Lithforge.Meshing;
 using Lithforge.Runtime.Debug;
-using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.Profiling;
-using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Owns persistent GPU buffers (vertex + index + indirect args) for one render layer
-    /// (opaque, cutout, or translucent). Freed slots are recycled via a coalescing
-    /// free-list so the buffer stays bounded during player movement. When a chunk is
-    /// re-meshed and the new data fits in the existing slot, it is rewritten in-place
-    /// with no free-list interaction. Indices of freed regions are zeroed (batched per
-    /// frame) to produce degenerate triangles until the slot is reclaimed.
-    /// CPU-side NativeArray mirrors avoid GPU readback. Dirty sub-ranges are tracked
-    /// as disjoint intervals and uploaded via SetData(NativeArray) to VRAM-resident buffers.
-    /// Owner: ChunkMeshStore. Lifetime: application session.
+    ///     Owns persistent GPU buffers (vertex + index + indirect args) for one render layer
+    ///     (opaque, cutout, or translucent). Freed slots are recycled via a coalescing
+    ///     free-list so the buffer stays bounded during player movement. When a chunk is
+    ///     re-meshed and the new data fits in the existing slot, it is rewritten in-place
+    ///     with no free-list interaction. Indices of freed regions are zeroed (batched per
+    ///     frame) to produce degenerate triangles until the slot is reclaimed.
+    ///     CPU-side NativeArray mirrors avoid GPU readback. Dirty sub-ranges are tracked
+    ///     as disjoint intervals and uploaded via SetData(NativeArray) to VRAM-resident buffers.
+    ///     Owner: ChunkMeshStore. Lifetime: application session.
     /// </summary>
     public sealed class MegaMeshBuffer : IDisposable
     {
         private static readonly int s_vertexStride = Marshal.SizeOf<PackedMeshVertex>();
+
+        /// <summary>
+        ///     Cached single-element array for indirect args upload, avoiding per-frame allocation.
+        /// </summary>
+        private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _argsUploadBuffer =
+            new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+
+        /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
+        private readonly List<FreeRegion> _freeRegions = new();
 
         /// <summary>Debug/log label identifying this layer (e.g. "Opaque", "Cutout").</summary>
         private readonly string _name;
@@ -36,128 +46,56 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>GPU buffer resize service — dispatches compute copy and defers disposal.</summary>
         private readonly GpuBufferResizer _resizer;
 
+        /// <summary>
+        ///     Cached single-element array for per-slot args upload, avoiding per-call allocation.
+        /// </summary>
+        private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _slotArgsUpload =
+            new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+
         /// <summary>Maps chunk coord to its vertex/index region in the shared buffers.</summary>
-        private readonly Dictionary<int3, SlotInfo> _slots = new Dictionary<int3, SlotInfo>();
-
-        /// <summary>Free regions sorted by VertexOffset for coalescing and first-fit search.</summary>
-        private readonly List<FreeRegion> _freeRegions = new List<FreeRegion>();
-
-        /// <summary>CPU-side mirror of GPU vertex data, enabling sub-range uploads without GPU readback.</summary>
-        private NativeArray<PackedMeshVertex> _vertexMirror;
-
-        /// <summary>CPU-side mirror of GPU index data, with global vertex offsets already applied.</summary>
-        private NativeArray<int> _indexMirror;
-
-        private int _vertexCapacity;
-        private int _indexCapacity;
-
-        /// <summary>High-water mark in vertex space -- next append goes here.</summary>
-        private int _usedVertices;
-
-        /// <summary>High-water mark in index space -- next append goes here.</summary>
-        private int _usedIndices;
-
-        /// <summary>Set when any slot changes; cleared after FlushArgs uploads the indirect args.</summary>
-        private bool _argsDirty;
-
-        /// <summary>Disjoint dirty intervals in the vertex mirror awaiting GPU upload.</summary>
-        private DirtyRangeList _dirtyVertexRanges;
-
-        /// <summary>Disjoint dirty intervals in the index mirror awaiting GPU upload.</summary>
-        private DirtyRangeList _dirtyIndexRanges;
-
-        /// <summary>VRAM-resident structured buffer holding PackedMeshVertex data.</summary>
-        private GraphicsBuffer _vertexBuffer;
-
-        /// <summary>VRAM-resident index buffer (also Raw-flagged for compute access).</summary>
-        private GraphicsBuffer _indexBuffer;
+        private readonly Dictionary<int3, SlotInfo> _slots = new();
 
         /// <summary>Single-element indirect args buffer for the whole-layer draw call.</summary>
         private GraphicsBuffer _argsBuffer;
 
-        /// <summary>
-        /// Cached single-element array for indirect args upload, avoiding per-frame allocation.
-        /// </summary>
-        private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _argsUploadBuffer =
-            new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+        /// <summary>Set when any slot changes; cleared after FlushArgs uploads the indirect args.</summary>
+        private bool _argsDirty;
+
+        /// <summary>Disjoint dirty intervals in the index mirror awaiting GPU upload.</summary>
+        private DirtyRangeList _dirtyIndexRanges;
+
+        /// <summary>Disjoint dirty intervals in the vertex mirror awaiting GPU upload.</summary>
+        private DirtyRangeList _dirtyVertexRanges;
+
+        /// <summary>VRAM-resident index buffer (also Raw-flagged for compute access).</summary>
+        private GraphicsBuffer _indexBuffer;
+
+        /// <summary>CPU-side mirror of GPU index data, with global vertex offsets already applied.</summary>
+        private NativeArray<int> _indexMirror;
+
+        /// <summary>Current capacity of the per-chunk args buffer, grown by GrowSlots.</summary>
+        private int _maxChunkSlots;
 
         // --- Per-chunk indirect draw support ---
 
         /// <summary>One IndirectDrawIndexedArgs per chunk slot, written by the compute culling shader.</summary>
         private GraphicsBuffer _perChunkArgsBuffer;
 
-        /// <summary>Current capacity of the per-chunk args buffer, grown by GrowSlots.</summary>
-        private int _maxChunkSlots;
+        /// <summary>High-water mark in index space -- next append goes here.</summary>
+        private int _usedIndices;
+
+        /// <summary>High-water mark in vertex space -- next append goes here.</summary>
+        private int _usedVertices;
+
+        /// <summary>VRAM-resident structured buffer holding PackedMeshVertex data.</summary>
+        private GraphicsBuffer _vertexBuffer;
+
+        /// <summary>CPU-side mirror of GPU vertex data, enabling sub-range uploads without GPU readback.</summary>
+        private NativeArray<PackedMeshVertex> _vertexMirror;
 
         /// <summary>
-        /// Cached single-element array for per-slot args upload, avoiding per-call allocation.
-        /// </summary>
-        private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _slotArgsUpload =
-            new GraphicsBuffer.IndirectDrawIndexedArgs[1];
-
-        /// <summary>GPU structured buffer bound as the vertex source for indirect draws.</summary>
-        public GraphicsBuffer VertexBuffer
-        {
-            get { return _vertexBuffer; }
-        }
-
-        /// <summary>GPU index buffer bound for RenderPrimitivesIndexedIndirect calls.</summary>
-        public GraphicsBuffer IndexBuffer
-        {
-            get { return _indexBuffer; }
-        }
-
-        /// <summary>Whole-layer indirect args buffer (single draw covering all slots).</summary>
-        public GraphicsBuffer ArgsBuffer
-        {
-            get { return _argsBuffer; }
-        }
-
-        /// <summary>True when at least one chunk slot is allocated, meaning there is something to draw.</summary>
-        public bool HasGeometry
-        {
-            get { return _slots.Count > 0; }
-        }
-
-        /// <summary>Number of vertex entries currently occupied (active slots + freed-but-not-reclaimed).</summary>
-        public int UsedVertices
-        {
-            get { return _usedVertices; }
-        }
-
-        /// <summary>Total vertex capacity of the backing buffers before a grow is required.</summary>
-        public int VertexCapacity
-        {
-            get { return _vertexCapacity; }
-        }
-
-        /// <summary>Total index capacity of the backing buffers before a grow is required.</summary>
-        public int IndexCapacity
-        {
-            get { return _indexCapacity; }
-        }
-
-        /// <summary>Number of disjoint free regions in the coalescing free-list, useful for fragmentation diagnostics.</summary>
-        public int FreeRegionCount
-        {
-            get { return _freeRegions.Count; }
-        }
-
-        /// <summary>Per-chunk indirect args buffer for GPU-driven drawing.</summary>
-        public GraphicsBuffer PerChunkArgsBuffer
-        {
-            get { return _perChunkArgsBuffer; }
-        }
-
-        /// <summary>Maximum number of per-chunk draw slots.</summary>
-        public int MaxChunkSlots
-        {
-            get { return _maxChunkSlots; }
-        }
-
-        /// <summary>
-        /// Creates a MegaMeshBuffer with the given initial capacities.
-        /// The buffer grows automatically by doubling when capacity is exceeded.
+        ///     Creates a MegaMeshBuffer with the given initial capacities.
+        ///     The buffer grows automatically by doubling when capacity is exceeded.
         /// </summary>
         public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity,
             int maxChunkSlots, GpuBufferResizer resizer, IPipelineStats pipelineStats)
@@ -166,8 +104,8 @@ namespace Lithforge.Runtime.Rendering
             _pipelineStats = pipelineStats;
             _resizer = resizer;
             _maxChunkSlots = maxChunkSlots;
-            _vertexCapacity = initialVertexCapacity;
-            _indexCapacity = initialIndexCapacity;
+            VertexCapacity = initialVertexCapacity;
+            IndexCapacity = initialIndexCapacity;
             _vertexMirror = new NativeArray<PackedMeshVertex>(initialVertexCapacity, Allocator.Persistent);
             _indexMirror = new NativeArray<int>(initialIndexCapacity, Allocator.Persistent);
 
@@ -214,8 +152,62 @@ namespace Lithforge.Runtime.Rendering
             _argsDirty = false;
         }
 
+        /// <summary>GPU structured buffer bound as the vertex source for indirect draws.</summary>
+        public GraphicsBuffer VertexBuffer
+        {
+            get { return _vertexBuffer; }
+        }
+
+        /// <summary>GPU index buffer bound for RenderPrimitivesIndexedIndirect calls.</summary>
+        public GraphicsBuffer IndexBuffer
+        {
+            get { return _indexBuffer; }
+        }
+
+        /// <summary>Whole-layer indirect args buffer (single draw covering all slots).</summary>
+        public GraphicsBuffer ArgsBuffer
+        {
+            get { return _argsBuffer; }
+        }
+
+        /// <summary>True when at least one chunk slot is allocated, meaning there is something to draw.</summary>
+        public bool HasGeometry
+        {
+            get { return _slots.Count > 0; }
+        }
+
+        /// <summary>Number of vertex entries currently occupied (active slots + freed-but-not-reclaimed).</summary>
+        public int UsedVertices
+        {
+            get { return _usedVertices; }
+        }
+
+        /// <summary>Total vertex capacity of the backing buffers before a grow is required.</summary>
+        public int VertexCapacity { get; private set; }
+
+        /// <summary>Total index capacity of the backing buffers before a grow is required.</summary>
+        public int IndexCapacity { get; private set; }
+
+        /// <summary>Number of disjoint free regions in the coalescing free-list, useful for fragmentation diagnostics.</summary>
+        public int FreeRegionCount
+        {
+            get { return _freeRegions.Count; }
+        }
+
+        /// <summary>Per-chunk indirect args buffer for GPU-driven drawing.</summary>
+        public GraphicsBuffer PerChunkArgsBuffer
+        {
+            get { return _perChunkArgsBuffer; }
+        }
+
+        /// <summary>Maximum number of per-chunk draw slots.</summary>
+        public int MaxChunkSlots
+        {
+            get { return _maxChunkSlots; }
+        }
+
         /// <summary>
-        /// Releases all GPU buffers and CPU-side NativeArrays. Safe to call multiple times.
+        ///     Releases all GPU buffers and CPU-side NativeArrays. Safe to call multiple times.
         /// </summary>
         public void Dispose()
         {
@@ -244,12 +236,12 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Allocates a new slot or updates an existing one for the given chunk coordinate.
-        /// Three allocation paths in priority order:
-        /// 1. In-place reuse — if the chunk already has a slot and the new data fits, overwrite it.
-        /// 2. Free-list first-fit — search the coalescing free-list for a region that fits.
-        /// 3. Append — add at the end, growing the buffer if necessary.
-        /// Empty meshes (zero vertices) free any existing slot and return immediately.
+        ///     Allocates a new slot or updates an existing one for the given chunk coordinate.
+        ///     Three allocation paths in priority order:
+        ///     1. In-place reuse — if the chunk already has a slot and the new data fits, overwrite it.
+        ///     2. Free-list first-fit — search the coalescing free-list for a region that fits.
+        ///     3. Append — add at the end, growing the buffer if necessary.
+        ///     Empty meshes (zero vertices) free any existing slot and return immediately.
         /// </summary>
         public void AllocateOrUpdate(
             int3 coord,
@@ -283,7 +275,7 @@ namespace Lithforge.Runtime.Rendering
 
                         unsafe
                         {
-                            int* ptr = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(_indexMirror) + tailOffset;
+                            int* ptr = (int*)_indexMirror.GetUnsafePtr() + tailOffset;
                             UnsafeUtility.MemClear(ptr, (long)tailCount * sizeof(int));
                         }
 
@@ -327,12 +319,9 @@ namespace Lithforge.Runtime.Rendering
 
                 if (leftoverVerts > 0 && leftoverIdx > 0)
                 {
-                    FreeRegion remainder = new FreeRegion
+                    FreeRegion remainder = new()
                     {
-                        VertexOffset = region.VertexOffset + vertCount,
-                        VertexCapacity = leftoverVerts,
-                        IndexOffset = region.IndexOffset + idxCount,
-                        IndexCapacity = leftoverIdx,
+                        VertexOffset = region.VertexOffset + vertCount, VertexCapacity = leftoverVerts, IndexOffset = region.IndexOffset + idxCount, IndexCapacity = leftoverIdx,
                     };
 
                     // Insert sorted by VertexOffset
@@ -389,8 +378,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Frees the slot for the given chunk coordinate, returning it to the free-list.
-        /// No-op if the chunk has no slot.
+        ///     Frees the slot for the given chunk coordinate, returning it to the free-list.
+        ///     No-op if the chunk has no slot.
         /// </summary>
         public void Free(int3 coord)
         {
@@ -402,9 +391,9 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Updates the indirect args buffer if dirty. Pending index zeros are now handled
-        /// by FlushDirtyToGpu() via the dirty range system. Call once per frame after
-        /// FlushDirtyToGpu() and before issuing draw calls.
+        ///     Updates the indirect args buffer if dirty. Pending index zeros are now handled
+        ///     by FlushDirtyToGpu() via the dirty range system. Call once per frame after
+        ///     FlushDirtyToGpu() and before issuing draw calls.
         /// </summary>
         public void FlushArgs()
         {
@@ -424,9 +413,9 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Writes vertex + index data to the CPU mirror only (no GPU upload).
-        /// Adds dirty sub-ranges so FlushDirtyToGpu() uploads only the modified
-        /// regions via SetData(NativeArray) at the end of the frame.
+        ///     Writes vertex + index data to the CPU mirror only (no GPU upload).
+        ///     Adds dirty sub-ranges so FlushDirtyToGpu() uploads only the modified
+        ///     regions via SetData(NativeArray) at the end of the frame.
         /// </summary>
         private void WriteDataToMirror(
             int vOff, int iOff,
@@ -440,12 +429,12 @@ namespace Lithforge.Runtime.Rendering
                 // Vertices: bulk memcpy to CPU mirror (world offset encoded in packed vertex)
                 void* vertSrc = vertices.GetUnsafeReadOnlyPtr();
                 PackedMeshVertex* vertDst =
-                    (PackedMeshVertex*)NativeArrayUnsafeUtility.GetUnsafePtr(_vertexMirror) + vOff;
+                    (PackedMeshVertex*)_vertexMirror.GetUnsafePtr() + vOff;
                 UnsafeUtility.MemCpy(vertDst, vertSrc, (long)vertCount * s_vertexStride);
 
                 // Indices: apply global vertex offset, write to CPU mirror
-                int* idxDst = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(_indexMirror) + iOff;
-                int* idxSrc = (int*)indices.GetUnsafeReadOnlyPtr();
+                int* idxDst = (int*)_indexMirror.GetUnsafePtr() + iOff;
+                int* idxSrc = indices.GetUnsafeReadOnlyPtr();
 
                 for (int i = 0; i < idxCount; i++)
                 {
@@ -461,10 +450,10 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Uploads dirty vertex/index sub-ranges to the GPU via SetData(NativeArray).
-        /// Each disjoint dirty interval produces one SetData call, avoiding upload of
-        /// untouched gaps between distant dirty chunks. Call once per frame after all
-        /// AllocateOrUpdate calls are done, but before FlushArgs().
+        ///     Uploads dirty vertex/index sub-ranges to the GPU via SetData(NativeArray).
+        ///     Each disjoint dirty interval produces one SetData call, avoiding upload of
+        ///     untouched gaps between distant dirty chunks. Call once per frame after all
+        ///     AllocateOrUpdate calls are done, but before FlushArgs().
         /// </summary>
         public void FlushDirtyToGpu()
         {
@@ -492,8 +481,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Removes a slot from the active dictionary, zeroes its indices in the CPU mirror,
-        /// and returns the region to the free-list with coalescing and tail reclaim.
+        ///     Removes a slot from the active dictionary, zeroes its indices in the CPU mirror,
+        ///     and returns the region to the free-list with coalescing and tail reclaim.
         /// </summary>
         private void FreeSlot(int3 coord, SlotInfo slot)
         {
@@ -502,7 +491,7 @@ namespace Lithforge.Runtime.Rendering
             // Zero indices in CPU mirror, track dirty range for GPU upload
             unsafe
             {
-                int* ptr = (int*)NativeArrayUnsafeUtility.GetUnsafePtr(_indexMirror) + slot.IndexOffset;
+                int* ptr = (int*)_indexMirror.GetUnsafePtr() + slot.IndexOffset;
                 UnsafeUtility.MemClear(ptr, (long)slot.IndexCount * sizeof(int));
             }
 
@@ -511,12 +500,9 @@ namespace Lithforge.Runtime.Rendering
             _slots.Remove(coord);
 
             // Insert into free-list sorted by VertexOffset
-            FreeRegion region = new FreeRegion
+            FreeRegion region = new()
             {
-                VertexOffset = slot.VertexOffset,
-                VertexCapacity = slot.VertexCapacity,
-                IndexOffset = slot.IndexOffset,
-                IndexCapacity = slot.IndexCapacity,
+                VertexOffset = slot.VertexOffset, VertexCapacity = slot.VertexCapacity, IndexOffset = slot.IndexOffset, IndexCapacity = slot.IndexCapacity,
             };
 
             int insertIdx = 0;
@@ -554,8 +540,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Merges the free region at the given index with its immediate neighbors
-        /// if they are contiguous in both vertex and index space.
+        ///     Merges the free region at the given index with its immediate neighbors
+        ///     if they are contiguous in both vertex and index space.
         /// </summary>
         private void CoalesceAt(int idx)
         {
@@ -569,10 +555,7 @@ namespace Lithforge.Runtime.Rendering
                 {
                     _freeRegions[idx] = new FreeRegion
                     {
-                        VertexOffset = current.VertexOffset,
-                        VertexCapacity = current.VertexCapacity + next.VertexCapacity,
-                        IndexOffset = current.IndexOffset,
-                        IndexCapacity = current.IndexCapacity + next.IndexCapacity,
+                        VertexOffset = current.VertexOffset, VertexCapacity = current.VertexCapacity + next.VertexCapacity, IndexOffset = current.IndexOffset, IndexCapacity = current.IndexCapacity + next.IndexCapacity,
                     };
                     _freeRegions.RemoveAt(idx + 1);
                 }
@@ -588,10 +571,7 @@ namespace Lithforge.Runtime.Rendering
                 {
                     _freeRegions[idx - 1] = new FreeRegion
                     {
-                        VertexOffset = prev.VertexOffset,
-                        VertexCapacity = prev.VertexCapacity + current.VertexCapacity,
-                        IndexOffset = prev.IndexOffset,
-                        IndexCapacity = prev.IndexCapacity + current.IndexCapacity,
+                        VertexOffset = prev.VertexOffset, VertexCapacity = prev.VertexCapacity + current.VertexCapacity, IndexOffset = prev.IndexOffset, IndexCapacity = prev.IndexCapacity + current.IndexCapacity,
                     };
                     _freeRegions.RemoveAt(idx);
                 }
@@ -599,8 +579,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Searches the free-list for the first region that can hold the requested
-        /// vertex and index counts. Returns the index into _freeRegions, or -1.
+        ///     Searches the free-list for the first region that can hold the requested
+        ///     vertex and index counts. Returns the index into _freeRegions, or -1.
         /// </summary>
         private int FindFreeRegion(int vertCount, int idxCount)
         {
@@ -618,13 +598,13 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Ensures the buffer has room for the given number of additional vertices and indices
-        /// at the append position. Grows by doubling if capacity is exceeded.
+        ///     Ensures the buffer has room for the given number of additional vertices and indices
+        ///     at the append position. Grows by doubling if capacity is exceeded.
         /// </summary>
         private void EnsureCapacity(int extraVertices, int extraIndices)
         {
-            bool vertsFit = _usedVertices + extraVertices <= _vertexCapacity;
-            bool idxFit = _usedIndices + extraIndices <= _indexCapacity;
+            bool vertsFit = _usedVertices + extraVertices <= VertexCapacity;
+            bool idxFit = _usedIndices + extraIndices <= IndexCapacity;
 
             if (vertsFit && idxFit)
             {
@@ -635,21 +615,21 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Grows the buffer capacity by doubling (or more if the required extra exceeds a double).
-        /// GPU buffers are resized via compute-shader copy (no CPU re-upload stall). Old GPU
-        /// buffers are retired for deferred disposal to avoid use-after-free on the GPU.
-        /// Dirty ranges are NOT cleared — they may contain data written to the CPU mirror
-        /// this frame that has not yet been flushed to the old GPU buffer, so the compute
-        /// copy did not transfer it. FlushDirtyToGpu must still upload those ranges.
+        ///     Grows the buffer capacity by doubling (or more if the required extra exceeds a double).
+        ///     GPU buffers are resized via compute-shader copy (no CPU re-upload stall). Old GPU
+        ///     buffers are retired for deferred disposal to avoid use-after-free on the GPU.
+        ///     Dirty ranges are NOT cleared — they may contain data written to the CPU mirror
+        ///     this frame that has not yet been flushed to the old GPU buffer, so the compute
+        ///     copy did not transfer it. FlushDirtyToGpu must still upload those ranges.
         /// </summary>
         private void Grow(int extraVertices, int extraIndices)
         {
-            int newVertCap = math.max(_vertexCapacity * 2, _usedVertices + extraVertices);
-            int newIdxCap = math.max(_indexCapacity * 2, _usedIndices + extraIndices);
+            int newVertCap = math.max(VertexCapacity * 2, _usedVertices + extraVertices);
+            int newIdxCap = math.max(IndexCapacity * 2, _usedIndices + extraIndices);
 
             // Resize vertex mirror: allocate new, copy used portion, dispose old
             NativeArray<PackedMeshVertex> newVertexMirror =
-                new NativeArray<PackedMeshVertex>(newVertCap, Allocator.Persistent,
+                new(newVertCap, Allocator.Persistent,
                     NativeArrayOptions.UninitializedMemory);
 
             if (_usedVertices > 0)
@@ -657,8 +637,8 @@ namespace Lithforge.Runtime.Rendering
                 unsafe
                 {
                     UnsafeUtility.MemCpy(
-                        NativeArrayUnsafeUtility.GetUnsafePtr(newVertexMirror),
-                        NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(_vertexMirror),
+                        newVertexMirror.GetUnsafePtr(),
+                        _vertexMirror.GetUnsafeReadOnlyPtr(),
                         (long)_usedVertices * s_vertexStride);
                 }
             }
@@ -668,7 +648,7 @@ namespace Lithforge.Runtime.Rendering
 
             // Resize index mirror: allocate new, copy used portion, dispose old
             NativeArray<int> newIndexMirror =
-                new NativeArray<int>(newIdxCap, Allocator.Persistent,
+                new(newIdxCap, Allocator.Persistent,
                     NativeArrayOptions.UninitializedMemory);
 
             if (_usedIndices > 0)
@@ -676,8 +656,8 @@ namespace Lithforge.Runtime.Rendering
                 unsafe
                 {
                     UnsafeUtility.MemCpy(
-                        NativeArrayUnsafeUtility.GetUnsafePtr(newIndexMirror),
-                        NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(_indexMirror),
+                        newIndexMirror.GetUnsafePtr(),
+                        _indexMirror.GetUnsafeReadOnlyPtr(),
                         (long)_usedIndices * sizeof(int));
                 }
             }
@@ -702,8 +682,8 @@ namespace Lithforge.Runtime.Rendering
                 GraphicsBuffer.Target.Index | GraphicsBuffer.Target.Raw,
                 sizeof(int));
 
-            _vertexCapacity = newVertCap;
-            _indexCapacity = newIdxCap;
+            VertexCapacity = newVertCap;
+            IndexCapacity = newIdxCap;
             _argsDirty = true;
 
             _pipelineStats.IncrGrow();
@@ -716,9 +696,9 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Updates the per-chunk indirect args entry at the given slot index.
-        /// Called by ChunkMeshStore after AllocateOrUpdate to sync the per-chunk draw.
-        /// The slot ID is managed externally by ChunkMeshStore (shared across all 3 layers).
+        ///     Updates the per-chunk indirect args entry at the given slot index.
+        ///     Called by ChunkMeshStore after AllocateOrUpdate to sync the per-chunk draw.
+        ///     The slot ID is managed externally by ChunkMeshStore (shared across all 3 layers).
         /// </summary>
         public void UpdatePerChunkArgs(int slotId, int3 coord)
         {
@@ -748,10 +728,10 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Grows the per-chunk args buffer to accommodate more chunk slots.
-        /// Existing args data is copied via GPU compute dispatch (no blocking readback).
-        /// Old buffer is retired for deferred disposal. Called by ChunkMeshStore
-        /// when the slot pool is exhausted due to render distance increase.
+        ///     Grows the per-chunk args buffer to accommodate more chunk slots.
+        ///     Existing args data is copied via GPU compute dispatch (no blocking readback).
+        ///     Old buffer is retired for deferred disposal. Called by ChunkMeshStore
+        ///     when the slot pool is exhausted due to render distance increase.
         /// </summary>
         public void GrowSlots(int newMaxSlots)
         {
@@ -771,8 +751,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Zeroes the per-chunk indirect args entry at the given slot index.
-        /// Called when a chunk is being destroyed.
+        ///     Zeroes the per-chunk indirect args entry at the given slot index.
+        ///     Called when a chunk is being destroyed.
         /// </summary>
         public void ZeroPerChunkArgs(int slotId)
         {
@@ -786,8 +766,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Tracks the vertex/index region owned by a single chunk in the shared buffers.
-        /// Capacity may exceed Count when in-place reuse keeps the larger original allocation.
+        ///     Tracks the vertex/index region owned by a single chunk in the shared buffers.
+        ///     Capacity may exceed Count when in-place reuse keeps the larger original allocation.
         /// </summary>
         private struct SlotInfo
         {
@@ -800,8 +780,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// A recycled region in the free-list, sorted by VertexOffset for coalescing.
-        /// Paired vertex/index ranges stay together to simplify first-fit allocation.
+        ///     A recycled region in the free-list, sorted by VertexOffset for coalescing.
+        ///     Paired vertex/index ranges stay together to simplify first-fit allocation.
         /// </summary>
         private struct FreeRegion
         {
@@ -819,23 +799,19 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Tracks up to 16 disjoint dirty [Start, End) intervals, sorted by Start.
-        /// Overlapping or adjacent ranges are merged on insertion. If the number of
-        /// ranges would exceed the capacity, all ranges collapse into a single
-        /// bounding interval (graceful degradation). Typical frame produces 1–10 ranges.
+        ///     Tracks up to 16 disjoint dirty [Start, End) intervals, sorted by Start.
+        ///     Overlapping or adjacent ranges are merged on insertion. If the number of
+        ///     ranges would exceed the capacity, all ranges collapse into a single
+        ///     bounding interval (graceful degradation). Typical frame produces 1–10 ranges.
         /// </summary>
         private struct DirtyRangeList
         {
             private const int MaxRanges = 16;
 
             private DirtyRange[] _ranges;
-            private int _count;
 
             /// <summary>Number of disjoint dirty intervals currently tracked.</summary>
-            public int Count
-            {
-                get { return _count; }
-            }
+            public int Count { get; private set; }
 
             /// <summary>Returns the dirty interval at the given position in the sorted list.</summary>
             public DirtyRange this[int index]
@@ -844,8 +820,8 @@ namespace Lithforge.Runtime.Rendering
             }
 
             /// <summary>
-            /// Adds a dirty interval [start, end). Merges with any overlapping or
-            /// adjacent existing ranges. Collapses to one bounding range on overflow.
+            ///     Adds a dirty interval [start, end). Merges with any overlapping or
+            ///     adjacent existing ranges. Collapses to one bounding range on overflow.
             /// </summary>
             public void Add(int start, int end)
             {
@@ -864,7 +840,7 @@ namespace Lithforge.Runtime.Rendering
                 int writeIdx = 0;
 
                 // Compact: keep non-overlapping ranges, merge overlapping ones
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < Count; i++)
                 {
                     DirtyRange r = _ranges[i];
 
@@ -899,8 +875,11 @@ namespace Lithforge.Runtime.Rendering
                         _ranges[i] = _ranges[i - 1];
                     }
 
-                    _ranges[insertAt] = new DirtyRange { Start = mergedStart, End = mergedEnd };
-                    _count = writeIdx + 1;
+                    _ranges[insertAt] = new DirtyRange
+                    {
+                        Start = mergedStart, End = mergedEnd,
+                    };
+                    Count = writeIdx + 1;
                 }
                 else
                 {
@@ -911,17 +890,19 @@ namespace Lithforge.Runtime.Rendering
                         mergedEnd = math.max(mergedEnd, _ranges[i].End);
                     }
 
-                    _ranges[0] = new DirtyRange { Start = mergedStart, End = mergedEnd };
-                    _count = 1;
+                    _ranges[0] = new DirtyRange
+                    {
+                        Start = mergedStart, End = mergedEnd,
+                    };
+                    Count = 1;
                 }
             }
 
             /// <summary>Resets the list to empty without releasing the backing array.</summary>
             public void Clear()
             {
-                _count = 0;
+                Count = 0;
             }
         }
-
     }
 }

@@ -1,4 +1,5 @@
 using Lithforge.Voxel.Block;
+
 using NUnit.Framework;
 
 namespace Lithforge.Voxel.Tests
@@ -15,7 +16,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Constructor_SetsValue()
         {
-            StateId id = new StateId(42);
+            StateId id = new(42);
 
             Assert.AreEqual(42, id.Value);
         }
@@ -23,8 +24,8 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Equals_SameValue_ReturnsTrue()
         {
-            StateId a = new StateId(5);
-            StateId b = new StateId(5);
+            StateId a = new(5);
+            StateId b = new(5);
 
             Assert.IsTrue(a.Equals(b));
             Assert.IsTrue(a == b);
@@ -33,8 +34,8 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Equals_DifferentValue_ReturnsFalse()
         {
-            StateId a = new StateId(5);
-            StateId b = new StateId(6);
+            StateId a = new(5);
+            StateId b = new(6);
 
             Assert.IsFalse(a.Equals(b));
             Assert.IsTrue(a != b);
@@ -43,8 +44,8 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void GetHashCode_SameValue_SameHash()
         {
-            StateId a = new StateId(10);
-            StateId b = new StateId(10);
+            StateId a = new(10);
+            StateId b = new(10);
 
             Assert.AreEqual(a.GetHashCode(), b.GetHashCode());
         }
@@ -52,7 +53,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void ToString_ReturnsExpectedFormat()
         {
-            StateId id = new StateId(7);
+            StateId id = new(7);
 
             Assert.AreEqual("StateId(7)", id.ToString());
         }

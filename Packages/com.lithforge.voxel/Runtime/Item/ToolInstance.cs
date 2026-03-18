@@ -59,7 +59,7 @@ namespace Lithforge.Voxel.Item
             }
             else
             {
-                CurrentDurability = System.Math.Min(durability, MaxDurability);
+                CurrentDurability = Math.Min(durability, MaxDurability);
                 IsBroken = false;
             }
         }
@@ -169,7 +169,7 @@ namespace Lithforge.Voxel.Item
         /// </summary>
         public ToolInstance Clone()
         {
-            ToolInstance copy = new ToolInstance();
+            ToolInstance copy = new();
             copy.ToolType = ToolType;
             copy.BaseDamage = BaseDamage;
             copy.BaseSpeed = BaseSpeed;
