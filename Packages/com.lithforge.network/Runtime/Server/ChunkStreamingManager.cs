@@ -77,6 +77,7 @@ namespace Lithforge.Network.Server
             {
                 RebuildStreamingQueue(interest);
                 ProcessUnloads(peer, interest, server);
+
                 interest.PreviousChunk = interest.CurrentChunk;
             }
 
@@ -99,9 +100,7 @@ namespace Lithforge.Network.Server
 
                 if (chunkData == null)
                 {
-                    // Chunk not ready on server — skip, will retry next tick
-                    interest.StreamingQueueIndex++;
-                    continue;
+                    break;
                 }
 
                 ChunkDataMessage msg = new()
@@ -115,7 +114,7 @@ namespace Lithforge.Network.Server
                 sent++;
             }
 
-            // Reset queue cursor when exhausted
+            // Only clear when ALL chunks have been sent (none skipped)
             if (interest.StreamingQueueIndex >= interest.StreamingQueue.Count)
             {
                 interest.StreamingQueue.Clear();

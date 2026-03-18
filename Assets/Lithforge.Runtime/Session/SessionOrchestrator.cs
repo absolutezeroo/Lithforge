@@ -36,6 +36,8 @@ namespace Lithforge.Runtime.Session
         {
             GameSession session = null;
 
+            Application.runInBackground = true;
+
             // Create loading screen
             PanelSettings panelSettings =
                 Resources.Load<PanelSettings>("DefaultPanelSettings");
@@ -307,11 +309,11 @@ namespace Lithforge.Runtime.Session
         /// </summary>
         private static void DestroySessionComponents(GameObject host)
         {
-            DestroyComponent<Rendering.TimeOfDayController>(host);
-            DestroyComponent<Rendering.SkyController>(host);
-            DestroyComponent<Debug.ChunkBorderRenderer>(host);
-            DestroyComponent<Debug.F3DebugOverlay>(host);
-            DestroyComponent<Debug.Benchmark.BenchmarkRunner>(host);
+            DestroyComponent<TimeOfDayController>(host);
+            DestroyComponent<SkyController>(host);
+            DestroyComponent<ChunkBorderRenderer>(host);
+            DestroyComponent<F3DebugOverlay>(host);
+            DestroyComponent<BenchmarkRunner>(host);
         }
 
         private static void DestroyComponent<T>(GameObject host) where T : Component
