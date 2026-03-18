@@ -74,7 +74,7 @@ namespace Lithforge.Network.Client
             if (_transport != null)
             {
                 _logger.LogWarning("NetworkClient.Connect called while already connected");
- return;
+                return;
             }
 
             _lastUpdateTime = currentTime;
@@ -123,6 +123,7 @@ namespace Lithforge.Network.Client
 
             if (!success)
             {
+                _logger.LogWarning($"Send failed for {message.Type}, queuing for retry");
                 _sendQueue.Enqueue(_serverConnectionId, pipelineId, buffer, 0, totalBytes);
             }
         }
@@ -172,7 +173,8 @@ namespace Lithforge.Network.Client
             };
 
             Send(request, PipelineId.ReliableSequenced);
-            _logger.LogDebug("Connected to server, sending handshake");
+
+            _logger.LogInfo($"Connected to server, sending handshake (contentHash={_contentHash})");
         }
 
         private void OnDisconnected(ConnectionId connectionId)

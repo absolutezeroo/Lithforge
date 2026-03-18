@@ -453,6 +453,7 @@ namespace Lithforge.Runtime.UI.Screens
             {
                 _addressField.value = address;
                 _portField.value = port.ToString();
+                OnConnectClicked();
 
                 if (!string.IsNullOrEmpty(playerName))
                 {
@@ -592,10 +593,13 @@ namespace Lithforge.Runtime.UI.Screens
             // Click to fill fields
             string address = entry.Address;
             ushort gamePort = entry.Info.gamePort;
+
             row.RegisterCallback((ClickEvent evt) =>
             {
                 _addressField.value = address;
                 _portField.value = gamePort.ToString();
+
+                OnConnectClicked();
             });
 
             // Server info
