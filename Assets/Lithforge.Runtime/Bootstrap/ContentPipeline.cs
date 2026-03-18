@@ -4,31 +4,14 @@ using System.Text;
 
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
-using Lithforge.Meshing.Atlas;
-using Lithforge.Runtime.Audio;
+using Lithforge.Item;
 using Lithforge.Runtime.BlockEntity;
-using Lithforge.Runtime.BlockEntity.Factories;
+using Lithforge.Runtime.Bootstrap.Phases;
 using Lithforge.Runtime.Content.Blocks;
-using Lithforge.Runtime.Content.Items;
-using Lithforge.Runtime.Content.Loot;
 using Lithforge.Runtime.Content.Models;
 using Lithforge.Runtime.Content.Mods;
-using Lithforge.Runtime.Content.Recipes;
-using Lithforge.Runtime.Content.Tags;
-using Lithforge.Runtime.Content.Tools;
-using Lithforge.Runtime.Content.WorldGen;
-using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering.Atlas;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.BlockEntity;
-using Lithforge.Item.Crafting;
-using Lithforge.Item;
-using Lithforge.Item.Loot;
-using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Tag;
-
-using Unity.Collections;
 
 using UnityEngine;
 
@@ -37,21 +20,10 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 namespace Lithforge.Runtime.Bootstrap
 {
     /// <summary>
-    ///     Orchestrates the full content loading pipeline using ScriptableObjects:
-    ///     Phase 1:  Load block definitions via Resources.LoadAll
-    ///     Phase 2:  Register blocks in StateRegistry
-    ///     Phase 3:  Resolve block models via ContentModelResolver
-    ///     Phase 4:  Resolve blockstate variants to per-face textures
-    ///     Phase 5:  Build texture atlas
-    ///     Phase 6:  Patch texture indices into StateRegistry
-    ///     Phase 7:  Load biome and ore definitions
-    ///     Phase 8:  Load item definitions
-    ///     Phase 9:  Load loot tables
-    ///     Phase 10: Load tags and build TagRegistry
-    ///     Phase 11: Load recipes and build CraftingEngine
-    ///     Phase 12: Build ItemRegistry
-    ///     Phase 13: Load mods
-    ///     Phase 14: BakeNative (freeze) + build NativeAtlasLookup
+    ///     Orchestrates the full content loading pipeline using ScriptableObjects.
+    ///     Phases 1-6.5 (blocks, models, textures, atlas) run inline as tightly-coupled code.
+    ///     Phases 7+ are modular: each implements <see cref="IContentPhase" /> and reads/writes
+    ///     a shared <see cref="ContentPhaseContext" />.
     /// </summary>
     public sealed class ContentPipeline
     {
@@ -78,9 +50,15 @@ namespace Lithforge.Runtime.Bootstrap
         /// </summary>
         public IEnumerable<string> Build()
         {
+            ContentPhaseContext ctx = new()
+            {
+                Logger = _logger, Validator = _validator, AtlasTileSize = _atlasTileSize,
+            };
+
             // Phase 1: Load block definitions
             yield return "Loading blocks...";
             BlockDefinition[] blocks = Resources.LoadAll<BlockDefinition>("Content/Blocks");
+            ctx.BlockDefinitions = blocks;
             _logger.LogInfo($"Loaded {blocks.Length} block definitions.");
 
             // Phase 2: Register blocks in StateRegistry
@@ -121,6 +99,8 @@ namespace Lithforge.Runtime.Bootstrap
                 blockLookup[id.ToString()] = block;
             }
 
+            ctx.StateRegistry = stateRegistry;
+            ctx.BlockLookup = blockLookup;
             _logger.LogInfo(
                 $"Registered {blocks.Length} blocks, {stateRegistry.TotalStateCount} states.");
 
@@ -140,6 +120,7 @@ namespace Lithforge.Runtime.Bootstrap
             // Phase 3: Resolve block models via ContentModelResolver
             yield return "Resolving models...";
             ContentModelResolver modelResolver = new();
+            ctx.ModelResolver = modelResolver;
             Dictionary<BlockModel, ResolvedFaceTextures2D> resolvedModelCache = new();
 
             // Phase 4: Resolve blockstate variants to per-face textures
@@ -206,6 +187,7 @@ namespace Lithforge.Runtime.Bootstrap
             yield return "Building texture atlas...";
             AtlasBuilder atlasBuilder = new(_logger, _atlasTileSize);
             AtlasResult atlasResult = atlasBuilder.Build(resolvedFaces);
+            ctx.AtlasResult = atlasResult;
 
             // Phase 6.5: Patch texture indices into StateRegistry
             yield return "Patching texture indices...";
@@ -224,251 +206,31 @@ namespace Lithforge.Runtime.Bootstrap
                 stateRegistry.PatchTextures(id, texNorth, texSouth, texEast, texWest, texUp, texDown);
             }
 
+            ctx.ResolvedFaces = resolvedFaces;
+
             // Initialize data component type registry (before item loading, so deserialization works)
             DataComponentTypes.Initialize();
 
-            // Phase 7: Load biome and ore definitions
-            yield return "Loading biomes and ores...";
-            BiomeDefinition[] biomes = Resources.LoadAll<BiomeDefinition>("Content/Biomes");
-            _logger.LogInfo($"Loaded {biomes.Length} biome definitions.");
-
-            OreDefinition[] ores = Resources.LoadAll<OreDefinition>("Content/Ores");
-            _logger.LogInfo($"Loaded {ores.Length} ore definitions.");
-
-            // Phase 8: Load item definitions
-            yield return "Loading items...";
-            ItemDefinition[] items = Resources.LoadAll<ItemDefinition>("Content/Items");
-            _logger.LogInfo($"Loaded {items.Length} item definitions.");
-
-            // Phase 8.5: Load tool material definitions
-            yield return "Loading tool materials...";
-            ToolMaterialDefinition[] toolMaterials =
-                Resources.LoadAll<ToolMaterialDefinition>("Content/ToolMaterials");
-            ToolMaterialRegistry toolMaterialRegistry = new();
-
-            for (int i = 0; i < toolMaterials.Length; i++)
+            IContentPhase[] preModPhases =
             {
-                ToolMaterialDefinition mat = toolMaterials[i];
+                new LoadBiomesAndOresPhase(),
+                new LoadItemsPhase(),
+                new LoadToolMaterialsPhase(),
+                new LoadToolDefinitionsPhase(),
+                new LoadToolTraitsPhase(),
+                new LoadPartBuilderRecipesPhase(),
+                new LoadLootTablesPhase(),
+                new LoadTagsPhase(),
+                new LoadCraftingRecipesPhase(),
+                new BuildItemRegistryPhase(),
+            };
 
-                if (string.IsNullOrEmpty(mat.materialId))
-                {
-                    continue;
-                }
-
-                if (!ResourceId.TryParse(mat.materialId, out ResourceId matId))
-                {
-                    _logger.LogWarning($"Invalid tool material id: {mat.materialId}");
-                    continue;
-                }
-
-                ToolMaterialData matData = new(
-                    matId,
-                    mat.compatibleParts ?? Array.Empty<ToolPartType>(),
-                    mat.headMiningSpeed,
-                    mat.headDurability,
-                    mat.headAttackDamage,
-                    mat.handleDurabilityMultiplier,
-                    mat.handleSpeedMultiplier,
-                    mat.bindingDurabilityBonus,
-                    mat.traitIds ?? Array.Empty<string>(),
-                    mat.toolLevel,
-                    mat.isCraftable,
-                    mat.partBuilderCost);
-
-                toolMaterialRegistry.Register(matData);
+            for (int i = 0; i < preModPhases.Length; i++)
+            {
+                yield return preModPhases[i].Description;
+                preModPhases[i].Execute(ctx);
             }
 
-            _logger.LogInfo($"Loaded {toolMaterialRegistry.Count} tool materials.");
-
-            // Build MaterialInputRegistry (TiC-style value/needed/leftover per item)
-            MaterialInputRegistry materialInputRegistry = new();
-
-            for (int i = 0; i < toolMaterials.Length; i++)
-            {
-                ToolMaterialDefinition def = toolMaterials[i];
-
-                if (!def.isCraftable)
-                {
-                    continue;
-                }
-
-                if (def.materialInputs == null || def.materialInputs.Length == 0)
-                {
-                    continue;
-                }
-
-                if (!ResourceId.TryParse(def.materialId, out ResourceId materialId))
-                {
-                    continue;
-                }
-
-                for (int j = 0; j < def.materialInputs.Length; j++)
-                {
-                    MaterialInputEntry entry = def.materialInputs[j];
-
-                    if (string.IsNullOrEmpty(entry.itemId))
-                    {
-                        continue;
-                    }
-
-                    if (!ResourceId.TryParse(entry.itemId, out ResourceId itemId))
-                    {
-                        _logger.LogWarning(
-                            $"Invalid material input item id: {entry.itemId} on {def.materialId}");
-                        continue;
-                    }
-
-                    ResourceId leftoverId = default;
-
-                    if (!string.IsNullOrEmpty(entry.leftoverItemId))
-                    {
-                        if (!ResourceId.TryParse(entry.leftoverItemId, out leftoverId))
-                        {
-                            _logger.LogWarning(
-                                $"Invalid leftover item id: {entry.leftoverItemId} on {def.materialId}");
-                            leftoverId = default;
-                        }
-                    }
-
-                    int value = entry.value > 0 ? entry.value : 1;
-                    int needed = entry.needed > 0 ? entry.needed : 1;
-
-                    materialInputRegistry.Register(new MaterialInputData(
-                        itemId, materialId, value, needed, leftoverId));
-                }
-            }
-
-            _logger.LogInfo(
-                $"MaterialInputRegistry: {materialInputRegistry.Count} item->material mappings.");
-
-            // Phase 8.55: Load tool definitions (sprite compositing config)
-            yield return "Loading tool definitions...";
-            ToolDefinition[] toolDefinitions =
-                Resources.LoadAll<ToolDefinition>("Content/ToolDefinitions");
-
-            if (toolDefinitions.Length == 0)
-            {
-                _logger.LogWarning("No ToolDefinition assets found in Content/ToolDefinitions/. Tool sprite compositing disabled.");
-            }
-            else
-            {
-                _logger.LogInfo($"Loaded {toolDefinitions.Length} tool definitions.");
-            }
-
-            // Phase 8.6: Load tool trait definitions
-            yield return "Loading tool traits...";
-            ToolTraitDefinition[] toolTraits =
-                Resources.LoadAll<ToolTraitDefinition>("Content/ToolTraits");
-            ToolTraitRegistry toolTraitRegistry = new();
-
-            for (int i = 0; i < toolTraits.Length; i++)
-            {
-                ToolTraitDefinition traitDef = toolTraits[i];
-
-                if (string.IsNullOrEmpty(traitDef.traitId))
-                {
-                    continue;
-                }
-
-                ToolTraitData traitData = traitDef.ToTier2();
-                toolTraitRegistry.Register(traitData);
-            }
-
-            _logger.LogInfo($"Loaded {toolTraitRegistry.Count} tool traits.");
-
-            // Phase 8.7: Load part builder recipes
-            yield return "Loading part builder recipes...";
-            PartBuilderRecipeDefinition[] pbRecipeDefs =
-                Resources.LoadAll<PartBuilderRecipeDefinition>("Content/Recipes/PartBuilder");
-            PartBuilderRecipeRegistry partBuilderRecipeRegistry = new();
-
-            for (int i = 0; i < pbRecipeDefs.Length; i++)
-            {
-                PartBuilderRecipeDefinition def = pbRecipeDefs[i];
-                int cost = def.costOverride > 0 ? def.costOverride : 0;
-                string tag = string.IsNullOrEmpty(def.requiredPatternTag)
-                    ? "pattern"
-                    : def.requiredPatternTag;
-
-                partBuilderRecipeRegistry.Register(new PartBuilderRecipe(
-                    def.resultPartType, def.displayName, cost,
-                    ResourceId.Parse(def.resultItemId), def.resultCount, tag));
-            }
-
-            _logger.LogInfo($"Loaded {partBuilderRecipeRegistry.Count} part builder recipes.");
-
-            // Phase 9: Load loot tables and build lookup
-            yield return "Loading loot tables...";
-            LootTable[] lootTableAssets = Resources.LoadAll<LootTable>("Content/LootTables");
-            Dictionary<ResourceId, LootTableDefinition> lootTables = new();
-
-            for (int i = 0; i < lootTableAssets.Length; i++)
-            {
-                LootTable lt = lootTableAssets[i];
-                ResourceId ltId = new(lt.Namespace, lt.TableName);
-                LootTableDefinition ltDef = ConvertLootTable(lt, ltId);
-                lootTables[ltId] = ltDef;
-            }
-
-            _logger.LogInfo($"Loaded {lootTables.Count} loot tables.");
-
-            // Phase 10: Load tags and build TagRegistry
-            yield return "Loading tags...";
-            Tag[] tagAssets = Resources.LoadAll<Tag>("Content/Tags");
-            TagRegistry tagRegistry = new();
-
-            for (int i = 0; i < tagAssets.Length; i++)
-            {
-                Tag tag = tagAssets[i];
-                ResourceId tagId = new(tag.Namespace, tag.TagName);
-                TagDefinition tagDef = new(tagId)
-                {
-                    Replace = tag.Replace,
-                };
-
-                IReadOnlyList<string> entryIds = tag.EntryIds;
-
-                for (int e = 0; e < entryIds.Count; e++)
-                {
-                    tagDef.Values.Add(entryIds[e]);
-                }
-
-                tagRegistry.Register(tagDef);
-            }
-
-            _logger.LogInfo($"Loaded {tagAssets.Length} tags, {tagRegistry.TagCount} unique.");
-
-            // Phase 11: Load recipes and build CraftingEngine
-            yield return "Loading recipes...";
-            RecipeDefinition[] recipeAssets =
-                Resources.LoadAll<RecipeDefinition>("Content/Recipes");
-            List<RecipeEntry> recipes = new();
-
-            for (int i = 0; i < recipeAssets.Length; i++)
-            {
-                RecipeEntry recipeDef = ConvertRecipe(recipeAssets[i]);
-                recipes.Add(recipeDef);
-            }
-
-            CraftingEngine craftingEngine = new(recipes);
-            _logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
-
-            // Phase 12: Build ItemRegistry
-            yield return "Building item registry...";
-            List<ItemEntry> itemEntries = new();
-
-            for (int i = 0; i < items.Length; i++)
-            {
-                ItemEntry itemDef = ConvertItem(items[i]);
-                itemEntries.Add(itemDef);
-            }
-
-            ItemRegistry itemRegistry = new();
-            itemRegistry.RegisterBlockItems(stateRegistry.Entries);
-            itemRegistry.RegisterItems(itemEntries);
-            _logger.LogInfo($"ItemRegistry: {itemRegistry.Count} items total.");
-
-            // Phase 13: Load mods
             yield return "Loading mods...";
             ModLoader modLoader = new();
             modLoader.LoadAllMods();
@@ -512,183 +274,49 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.Debug.Assert(texCount <= 1024,
                 $"Texture array has {texCount} layers, exceeding the 1024 limit for overlay texture indices in PackedMeshVertex.");
 
-            // Phase 14: BakeNative + build NativeAtlasLookup
-            yield return "Baking native data...";
-            NativeStateRegistry nativeStateRegistry = stateRegistry.BakeNative(Allocator.Persistent);
-            NativeAtlasLookup nativeAtlasLookup = BakeAtlasLookup(stateRegistry, atlasResult, resolvedFaces);
-
-            // Phase 15: Build item sprite atlas for UI
-            yield return "Building item sprites...";
-            ToolPartTextureDatabase toolTexDb = new(toolDefinitions, toolMaterials);
-            ItemSpriteAtlas itemSpriteAtlas = ItemSpriteAtlasBuilder.Build(
-                itemEntries, stateRegistry, resolvedFaces, toolTexDb);
-            _logger.LogInfo($"Built item sprite atlas: {itemSpriteAtlas.Count} sprites.");
-
-            // Phase 15.5: Build item display transform lookup for first-person held items
-            ItemDisplayTransformLookup displayTransformLookup = new();
-
-            // Load base model assets for fallback display transforms
-            BlockModel blockBaseModel = Resources.Load<BlockModel>("Content/Models/block");
-            BlockModel generatedBaseModel = Resources.Load<BlockModel>("Content/ItemModels/generated");
-
-            ModelDisplayTransform blockBaseDt = blockBaseModel != null
-                ? modelResolver.ResolveFirstPersonRightHand(blockBaseModel)
-                : null;
-            ModelDisplayTransform generatedBaseDt = generatedBaseModel != null
-                ? modelResolver.ResolveFirstPersonRightHand(generatedBaseModel)
-                : null;
-
-            // Block items: resolve display transform from block variant model chain
-            for (int i = 0; i < entries.Count; i++)
+            IContentPhase[] postModPhases =
             {
-                StateRegistryEntry entry = entries[i];
+                new BakeNativePhase(),
+                new BuildItemSpritesPhase(),
+                new LoadSmeltingRecipesPhase(),
+                new RegisterBlockEntitiesPhase(),
+                new LoadSoundGroupsPhase(),
+            };
 
-                if (entry.BaseStateId == 0)
-                {
-                    continue;
-                }
-
-                if (!blockLookup.TryGetValue(entry.Id.ToString(), out BlockDefinition block))
-                {
-                    continue;
-                }
-
-                BlockStateMapping mapping = block.BlockStateMapping;
-
-                if (mapping == null || mapping.Variants.Count == 0)
-                {
-                    continue;
-                }
-
-                BlockModel variantModel = mapping.Variants[0].Model;
-                ModelDisplayTransform dt = modelResolver.ResolveFirstPersonRightHand(variantModel);
-
-                // Fallback to block.asset display transform if model chain has none
-                if (dt == null)
-                {
-                    dt = blockBaseDt;
-                }
-
-                if (dt != null)
-                {
-                    displayTransformLookup.Register(entry.Id, ItemDisplayTransformLookup.BuildMatrix(dt));
-                }
+            for (int i = 0; i < postModPhases.Length; i++)
+            {
+                yield return postModPhases[i].Description;
+                postModPhases[i].Execute(ctx);
             }
 
-            // Standalone items: resolve display transform from item model chain
-            for (int i = 0; i < items.Length; i++)
-            {
-                ItemDefinition item = items[i];
-
-                if (item.ItemModel == null)
-                {
-                    continue;
-                }
-
-                ModelDisplayTransform dt = modelResolver.ResolveFirstPersonRightHand(item.ItemModel);
-
-                // Fallback to generated.asset display transform if model chain has none
-                if (dt == null)
-                {
-                    dt = generatedBaseDt;
-                }
-
-                if (dt != null)
-                {
-                    ResourceId itemId = new(item.Namespace, item.ItemName);
-                    displayTransformLookup.Register(itemId, ItemDisplayTransformLookup.BuildMatrix(dt));
-                }
-            }
-
-            // Phase 16: Load smelting recipes and register block entity factories
-            yield return "Loading smelting recipes...";
-            SmeltingRecipeRegistry smeltingRecipeRegistry = new();
-            SmeltingRecipeDefinition[] smeltingRecipes =
-                Resources.LoadAll<SmeltingRecipeDefinition>("Content/Recipes/Smelting");
-
-            for (int i = 0; i < smeltingRecipes.Length; i++)
-            {
-                SmeltingRecipeDefinition sr = smeltingRecipes[i];
-
-                if (!string.IsNullOrEmpty(sr.InputItemId) && !string.IsNullOrEmpty(sr.ResultItemId))
-                {
-                    ResourceId inputId = ResourceId.Parse(sr.InputItemId);
-                    ResourceId resultId = ResourceId.Parse(sr.ResultItemId);
-                    SmeltingRecipeEntry entry = new(
-                        inputId, resultId, sr.ResultCount, sr.ExperienceReward);
-                    smeltingRecipeRegistry.Register(entry);
-                }
-            }
-
-            _logger.LogInfo($"Loaded {smeltingRecipeRegistry.Count} smelting recipes.");
-
-            // Register block entity factories
-            BlockEntityRegistry blockEntityRegistry = new();
-            blockEntityRegistry.Register(new BlockEntityType(
-                ChestBlockEntity.TypeIdValue,
-                new ChestBlockEntityFactory()));
-            blockEntityRegistry.Register(new BlockEntityType(
-                FurnaceBlockEntity.TypeIdValue,
-                new FurnaceBlockEntityFactory(smeltingRecipeRegistry, itemRegistry)));
-            blockEntityRegistry.Register(new BlockEntityType(
-                ToolStationBlockEntity.TypeIdValue,
-                new ToolStationBlockEntityFactory(toolMaterialRegistry, itemRegistry)));
-            blockEntityRegistry.Register(new BlockEntityType(
-                CraftingTableBlockEntity.TypeIdValue,
-                new CraftingTableBlockEntityFactory()));
-            blockEntityRegistry.Register(new BlockEntityType(
-                PartBuilderBlockEntity.TypeIdValue,
-                new PartBuilderBlockEntityFactory()));
-            blockEntityRegistry.Freeze();
-
-            _logger.LogInfo($"Registered {blockEntityRegistry.Count} block entity types.");
-
-            // Phase 18: Load sound group definitions
-            yield return "Loading sound groups...";
-            SoundGroupRegistry soundGroupRegistry = new();
-            SoundGroupDefinition[] soundGroups =
-                Resources.LoadAll<SoundGroupDefinition>("Content/SoundGroups");
-
-            for (int i = 0; i < soundGroups.Length; i++)
-            {
-                SoundGroupDefinition sg = soundGroups[i];
-
-                if (!string.IsNullOrEmpty(sg.GroupName))
-                {
-                    soundGroupRegistry.Register(sg.GroupName, sg);
-                }
-            }
-
-            _logger.LogInfo($"Loaded {soundGroupRegistry.Count} sound groups.");
-
-            // Create tool template registry (empty for now — tool templates are populated
-            // by mod/content packs in a future pipeline phase)
-            ToolTemplateRegistry toolTemplateRegistry = new(null);
+            // ══════════════════════════════════════════════════════════════════
+            // Build final result from context
+            // ══════════════════════════════════════════════════════════════════
 
             Result = new ContentPipelineResult(
-                stateRegistry,
-                nativeStateRegistry,
-                nativeAtlasLookup,
-                atlasResult,
-                biomes,
-                ores,
-                itemEntries,
-                lootTables,
-                tagRegistry,
-                itemRegistry,
-                craftingEngine,
-                itemSpriteAtlas,
-                blockEntityRegistry,
-                smeltingRecipeRegistry,
-                displayTransformLookup,
-                toolMaterialRegistry,
-                toolTraitRegistry,
-                soundGroupRegistry,
-                toolTexDb,
-                toolMaterials,
-                toolTemplateRegistry,
-                partBuilderRecipeRegistry,
-                materialInputRegistry);
+                ctx.StateRegistry,
+                ctx.NativeStateRegistry,
+                ctx.NativeAtlasLookup,
+                ctx.AtlasResult,
+                ctx.BiomeDefinitions,
+                ctx.OreDefinitions,
+                ctx.ItemEntries,
+                ctx.LootTables,
+                ctx.TagRegistry,
+                ctx.ItemRegistry,
+                ctx.CraftingEngine,
+                ctx.ItemSpriteAtlas,
+                ctx.BlockEntityRegistry,
+                ctx.SmeltingRecipeRegistry,
+                ctx.DisplayTransformLookup,
+                ctx.ToolMaterialRegistry,
+                ctx.ToolTraitRegistry,
+                ctx.SoundGroupRegistry,
+                ctx.ToolPartTextures,
+                ctx.ToolMaterials,
+                ctx.ToolTemplateRegistry,
+                ctx.PartBuilderRecipeRegistry,
+                ctx.MaterialInputRegistry);
         }
 
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)
@@ -740,131 +368,14 @@ namespace Lithforge.Runtime.Bootstrap
             return null;
         }
 
-        private static LootTableDefinition ConvertLootTable(LootTable lt, ResourceId id)
+        private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)
         {
-            LootTableDefinition def = new(id)
+            if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))
             {
-                Type = lt.Type,
-            };
-
-            IReadOnlyList<LootPoolEntry> pools = lt.Pools;
-
-            for (int p = 0; p < pools.Count; p++)
-            {
-                LootPoolEntry poolEntry = pools[p];
-                LootPool pool = new()
-                {
-                    RollsMin = poolEntry.RollsMin, RollsMax = poolEntry.RollsMax,
-                };
-
-                IReadOnlyList<LootItemEntry> items = poolEntry.Entries;
-
-                for (int e = 0; e < items.Count; e++)
-                {
-                    LootItemEntry itemEntry = items[e];
-                    LootEntry entry = new()
-                    {
-                        Type = itemEntry.Type, Name = itemEntry.ItemName, Weight = itemEntry.Weight,
-                    };
-
-                    IReadOnlyList<LootFunctionEntry> funcs = itemEntry.Functions;
-
-                    for (int f = 0; f < funcs.Count; f++)
-                    {
-                        LootFunctionEntry funcEntry = funcs[f];
-                        LootFunction func = new()
-                        {
-                            Type = funcEntry.FunctionType,
-                        };
-
-                        IReadOnlyList<StringPair> pars = funcEntry.Parameters;
-
-                        for (int pi = 0; pi < pars.Count; pi++)
-                        {
-                            func.Parameters[pars[pi].Key] = pars[pi].Value;
-                        }
-
-                        func.PreParseValues();
-                        entry.Functions.Add(func);
-                    }
-
-                    pool.Entries.Add(entry);
-                }
-
-                def.Pools.Add(pool);
+                return (ushort)index;
             }
 
-            return def;
-        }
-
-        private static RecipeEntry ConvertRecipe(RecipeDefinition source)
-        {
-            ResourceId id = new(source.Namespace, source.RecipeName);
-            RecipeEntry recipe = new(id)
-            {
-                Type = source.Type, ResultCount = source.ResultCount,
-            };
-
-            if (!string.IsNullOrEmpty(source.ResultItemId))
-            {
-                recipe.ResultItem = ResourceId.Parse(source.ResultItemId);
-            }
-
-            IReadOnlyList<string> pattern = source.Pattern;
-
-            for (int i = 0; i < pattern.Count; i++)
-            {
-                recipe.Pattern.Add(pattern[i]);
-            }
-
-            IReadOnlyList<RecipeKeyEntry> keys = source.Keys;
-
-            for (int i = 0; i < keys.Count; i++)
-            {
-                RecipeKeyEntry key = keys[i];
-
-                if (!string.IsNullOrEmpty(key.ItemId))
-                {
-                    recipe.Keys[key.Key] = ResourceId.Parse(key.ItemId);
-                }
-            }
-
-            IReadOnlyList<RecipeIngredient> ingredients = source.Ingredients;
-
-            for (int i = 0; i < ingredients.Count; i++)
-            {
-                if (!string.IsNullOrEmpty(ingredients[i].ItemId))
-                {
-                    recipe.Ingredients.Add(ResourceId.Parse(ingredients[i].ItemId));
-                }
-            }
-
-            return recipe;
-        }
-
-        private static ItemEntry ConvertItem(ItemDefinition item)
-        {
-            ResourceId id = new(item.Namespace, item.ItemName);
-            ItemEntry def = new(id)
-            {
-                MaxStackSize = item.MaxStackSize, FuelTime = item.FuelTime,
-            };
-
-            if (item.PlacesBlock != null)
-            {
-                def.IsBlockItem = true;
-                def.BlockId = new ResourceId(
-                    item.PlacesBlock.Namespace, item.PlacesBlock.BlockName);
-            }
-
-            IReadOnlyList<string> tags = item.Tags;
-
-            for (int i = 0; i < tags.Count; i++)
-            {
-                def.Tags.Add(tags[i]);
-            }
-
-            return def;
+            return (ushort)atlas.MissingTextureIndex;
         }
 
         /// <summary>
@@ -1091,110 +602,6 @@ namespace Lithforge.Runtime.Bootstrap
                     ref overlayTex, ref overlayTintType);
                 return;
             }
-        }
-
-        private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)
-        {
-            if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))
-            {
-                return (ushort)index;
-            }
-
-            return (ushort)atlas.MissingTextureIndex;
-        }
-
-        private static NativeAtlasLookup BakeAtlasLookup(
-            StateRegistry stateRegistry,
-            AtlasResult atlasResult,
-            Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
-        {
-            int totalStates = stateRegistry.TotalStateCount;
-            NativeArray<AtlasEntry> entries = new(
-                totalStates, Allocator.Persistent);
-
-            for (int i = 0; i < totalStates; i++)
-            {
-                StateId sid = new((ushort)i);
-                BlockStateCompact state = stateRegistry.GetState(sid);
-
-                AtlasEntry entry = new()
-                {
-                    // Base texture indices (from StateRegistry, already patched)
-                    TexPosX = state.TexEast,
-                    TexNegX = state.TexWest,
-                    TexPosY = state.TexUp,
-                    TexNegY = state.TexDown,
-                    TexPosZ = state.TexSouth,
-                    TexNegZ = state.TexNorth,
-
-                    // Defaults: no overlay
-                    OvlPosX = 0xFFFF,
-                    OvlNegX = 0xFFFF,
-                    OvlPosY = 0xFFFF,
-                    OvlNegY = 0xFFFF,
-                    OvlPosZ = 0xFFFF,
-                    OvlNegZ = 0xFFFF,
-                    BaseTintPacked = 0,
-                    OverlayTintPacked = 0,
-                };
-
-                // Populate overlay + per-face tint from resolved face data
-                if (resolvedFaces.TryGetValue(sid, out ResolvedFaceTextures2D faces))
-                {
-                    // Per-face base tint (face direction: PosX=East, NegX=West, PosY=Up, NegY=Down, PosZ=South, NegZ=North)
-                    entry.BaseTintPacked = PackFaceTints(
-                        faces.TintEast, faces.TintWest,
-                        faces.TintUp, faces.TintDown,
-                        faces.TintSouth, faces.TintNorth);
-
-                    // Overlay textures
-                    entry.OvlPosX = GetOverlayIndex(atlasResult, faces.OverlayEast);
-                    entry.OvlNegX = GetOverlayIndex(atlasResult, faces.OverlayWest);
-                    entry.OvlPosY = GetOverlayIndex(atlasResult, faces.OverlayUp);
-                    entry.OvlNegY = GetOverlayIndex(atlasResult, faces.OverlayDown);
-                    entry.OvlPosZ = GetOverlayIndex(atlasResult, faces.OverlaySouth);
-                    entry.OvlNegZ = GetOverlayIndex(atlasResult, faces.OverlayNorth);
-
-                    // Per-face overlay tint
-                    entry.OverlayTintPacked = PackFaceTints(
-                        faces.OverlayTintEast, faces.OverlayTintWest,
-                        faces.OverlayTintUp, faces.OverlayTintDown,
-                        faces.OverlayTintSouth, faces.OverlayTintNorth);
-                }
-
-                entries[i] = entry;
-            }
-
-            int textureCount = 0;
-
-            if (atlasResult.TextureArray != null)
-            {
-                textureCount = atlasResult.TextureArray.depth;
-            }
-
-            return new NativeAtlasLookup(entries, textureCount);
-        }
-
-        private static ushort PackFaceTints(
-            byte posX, byte negX, byte posY, byte negY, byte posZ, byte negZ)
-        {
-            return (ushort)(
-                posX & 0x3 |
-                (negX & 0x3) << 2 |
-                (posY & 0x3) << 4 |
-                (negY & 0x3) << 6 |
-                (posZ & 0x3) << 8 |
-                (negZ & 0x3) << 10);
-        }
-
-        private static ushort GetOverlayIndex(AtlasResult atlas, Texture2D texture)
-        {
-            if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))
-            {
-                return (ushort)index;
-            }
-
-            return 0xFFFF;
         }
     }
 }
