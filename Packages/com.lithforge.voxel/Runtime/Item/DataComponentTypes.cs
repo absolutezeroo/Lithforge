@@ -54,7 +54,7 @@ namespace Lithforge.Voxel.Item
             }
 
             // Fallback: read into a list
-            using (MemoryStream buffer = new MemoryStream())
+            using (MemoryStream buffer = new())
             {
                 reader.BaseStream.CopyTo(buffer);
                 return buffer.ToArray();

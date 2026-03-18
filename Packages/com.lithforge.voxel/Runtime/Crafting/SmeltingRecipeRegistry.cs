@@ -9,8 +9,7 @@ namespace Lithforge.Voxel.Crafting
     /// </summary>
     public sealed class SmeltingRecipeRegistry
     {
-        private readonly Dictionary<ResourceId, SmeltingRecipeEntry> _recipes =
-            new Dictionary<ResourceId, SmeltingRecipeEntry>();
+        private readonly Dictionary<ResourceId, SmeltingRecipeEntry> _recipes = new();
 
         public void Register(SmeltingRecipeEntry entry)
         {

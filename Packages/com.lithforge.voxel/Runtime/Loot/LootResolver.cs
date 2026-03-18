@@ -11,8 +11,8 @@ namespace Lithforge.Voxel.Loot
     public sealed class LootResolver
     {
         private readonly Dictionary<ResourceId, LootTableDefinition> _tables;
-        private readonly List<LootEntry> _validEntries = new List<LootEntry>();
-        private readonly List<LootDrop> _dropCache = new List<LootDrop>();
+        private readonly List<LootEntry> _validEntries = new();
+        private readonly List<LootDrop> _dropCache = new();
 
         public LootResolver(Dictionary<ResourceId, LootTableDefinition> tables)
         {

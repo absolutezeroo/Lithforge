@@ -13,8 +13,7 @@ namespace Lithforge.Voxel.Network
     /// </summary>
     public sealed class ChunkDirtyTracker
     {
-        private readonly Dictionary<int3, List<BlockChangeEntry>> _pendingChanges =
-            new Dictionary<int3, List<BlockChangeEntry>>();
+        private readonly Dictionary<int3, List<BlockChangeEntry>> _pendingChanges = new();
 
         /// <summary>
         /// Records a block change. Intended to be wired to <see cref="ChunkManager.OnBlockChanged"/>.
@@ -74,8 +73,7 @@ namespace Lithforge.Voxel.Network
         /// </summary>
         public Dictionary<int3, List<BlockChangeEntry>> FlushAll()
         {
-            Dictionary<int3, List<BlockChangeEntry>> snapshot =
-                new Dictionary<int3, List<BlockChangeEntry>>(_pendingChanges);
+            Dictionary<int3, List<BlockChangeEntry>> snapshot = new(_pendingChanges);
             _pendingChanges.Clear();
             return snapshot;
         }

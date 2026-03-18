@@ -58,7 +58,7 @@ namespace Lithforge.Network.Messages
 
         public static ChunkDataMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            ChunkDataMessage msg = new ChunkDataMessage();
+            ChunkDataMessage msg = new();
 
             if (length < HeaderSize)
             {

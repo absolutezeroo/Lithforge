@@ -68,12 +68,12 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_AllClimateValuesInRange()
         {
-            NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
+            NativeArray<ClimateData> climateMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
-                ClimateNoiseJob job = new ClimateNoiseJob
+                ClimateNoiseJob job = new()
                 {
                     ClimateMap = climateMap,
                     Seed = 42L,
@@ -108,14 +108,14 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_Deterministic_SameSeedSameResult()
         {
-            NativeArray<ClimateData> climateMap1 = new NativeArray<ClimateData>(
+            NativeArray<ClimateData> climateMap1 = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<ClimateData> climateMap2 = new NativeArray<ClimateData>(
+            NativeArray<ClimateData> climateMap2 = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
-                ClimateNoiseJob job1 = new ClimateNoiseJob
+                ClimateNoiseJob job1 = new()
                 {
                     ClimateMap = climateMap1,
                     Seed = 42L,
@@ -126,7 +126,7 @@ namespace Lithforge.WorldGen.Tests
                     ErosionNoise = _erosionNoise,
                 };
 
-                ClimateNoiseJob job2 = new ClimateNoiseJob
+                ClimateNoiseJob job2 = new()
                 {
                     ClimateMap = climateMap2,
                     Seed = 42L,

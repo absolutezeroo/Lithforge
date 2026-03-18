@@ -49,7 +49,7 @@ namespace Lithforge.WorldGen.Stages
                     ^ ((long)ChunkCoord.y * 83492791L)
                     ^ ((long)ChunkCoord.z * 50331653L));
 
-                Random rng = new Random(math.max(1u, oreSeed));
+                Random rng = new(math.max(1u, oreSeed));
 
                 int veinCount = (int)config.Frequency;
 

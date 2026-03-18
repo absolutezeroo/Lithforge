@@ -13,7 +13,7 @@ namespace Lithforge.Network.SendQueue
     public sealed class ReliableSendQueue
     {
         private readonly ILogger _logger;
-        private readonly List<PendingSend> _pending = new List<PendingSend>();
+        private readonly List<PendingSend> _pending = new();
 
         private struct PendingSend
         {
@@ -51,7 +51,7 @@ namespace Lithforge.Network.SendQueue
                 Data = copy,
                 Offset = 0,
                 Length = length,
-                RetryCount = 0
+                RetryCount = 0,
             });
         }
 

@@ -34,6 +34,18 @@ csharp_style_expression_bodied_local_functions = false:error
 # ── Prefer braces always ──
 csharp_prefer_braces = true:warning
 
+# ── Target-typed new() ──
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+
+# ── Switch expressions ──
+csharp_style_prefer_switch_expression = true:suggestion
+
+# ── Pattern matching ──
+csharp_style_prefer_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_prefer_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_prefer_not_pattern = true:suggestion
+csharp_style_prefer_extended_property_pattern = true:suggestion
+
 # ── Parentheses for clarity ──
 dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:suggestion
 dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:suggestion

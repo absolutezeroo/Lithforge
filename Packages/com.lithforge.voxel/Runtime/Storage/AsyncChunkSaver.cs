@@ -21,17 +21,17 @@ namespace Lithforge.Voxel.Storage
             public Dictionary<int, IBlockEntity> BlockEntities;
         }
 
-        private readonly ConcurrentQueue<SaveRequest> _queue = new ConcurrentQueue<SaveRequest>();
+        private readonly ConcurrentQueue<SaveRequest> _queue = new();
         private readonly WorldStorage _worldStorage;
         private readonly Thread _workerThread;
-        private readonly ManualResetEventSlim _workAvailable = new ManualResetEventSlim(false);
+        private readonly ManualResetEventSlim _workAvailable = new(false);
         private readonly ILogger _logger;
         private volatile bool _shutdownRequested;
         private bool _disposed;
         private int _pendingCount;
 
-        private readonly ConcurrentBag<byte[]> _voxelBufferPool = new ConcurrentBag<byte[]>();
-        private readonly ConcurrentBag<byte[]> _lightBufferPool = new ConcurrentBag<byte[]>();
+        private readonly ConcurrentBag<byte[]> _voxelBufferPool = new();
+        private readonly ConcurrentBag<byte[]> _lightBufferPool = new();
 
         private static readonly int s_voxelBufferSize = ChunkConstants.Volume * 2;
         private static readonly int s_lightBufferSize = ChunkConstants.Volume;

@@ -71,22 +71,20 @@ namespace Lithforge.WorldGen.Tests
             int blockIndex = ChunkData.GetIndex(testX, testY, testZ);
 
             // Place opaque block
-            StateId stoneId = new StateId(1);
+            StateId stoneId = new(1);
             _chunkData[blockIndex] = stoneId;
 
             // Set heightmap: surface is above, so this is a below-surface edit
             int colIdx = testZ * ChunkConstants.Size + testX;
             _heightMap[colIdx] = testY + 5;
 
-            NativeArray<int> changedIndices = new NativeArray<int>(1, Allocator.TempJob);
+            NativeArray<int> changedIndices = new(1, Allocator.TempJob);
             changedIndices[0] = blockIndex;
 
-            NativeArray<NativeBorderLightEntry> borderSeeds =
-                new NativeArray<NativeBorderLightEntry>(0, Allocator.TempJob);
-            NativeList<NativeBorderLightEntry> borderOutput =
-                new NativeList<NativeBorderLightEntry>(16, Allocator.TempJob);
+            NativeArray<NativeBorderLightEntry> borderSeeds = new(0, Allocator.TempJob);
+            NativeList<NativeBorderLightEntry> borderOutput = new(16, Allocator.TempJob);
 
-            LightRemovalJob job = new LightRemovalJob
+            LightRemovalJob job = new()
             {
                 LightData = _lightData,
                 ChunkData = _chunkData,
@@ -124,22 +122,20 @@ namespace Lithforge.WorldGen.Tests
             int blockIndex = ChunkData.GetIndex(testX, blockY, testZ);
 
             // Place opaque block
-            StateId stoneId = new StateId(1);
+            StateId stoneId = new(1);
             _chunkData[blockIndex] = stoneId;
 
             // Set heightmap at or below the placed block so column-write is triggered
             int colIdx = testZ * ChunkConstants.Size + testX;
             _heightMap[colIdx] = blockY - 1;
 
-            NativeArray<int> changedIndices = new NativeArray<int>(1, Allocator.TempJob);
+            NativeArray<int> changedIndices = new(1, Allocator.TempJob);
             changedIndices[0] = blockIndex;
 
-            NativeArray<NativeBorderLightEntry> borderSeeds =
-                new NativeArray<NativeBorderLightEntry>(0, Allocator.TempJob);
-            NativeList<NativeBorderLightEntry> borderOutput =
-                new NativeList<NativeBorderLightEntry>(16, Allocator.TempJob);
+            NativeArray<NativeBorderLightEntry> borderSeeds = new(0, Allocator.TempJob);
+            NativeList<NativeBorderLightEntry> borderOutput = new(16, Allocator.TempJob);
 
-            LightRemovalJob job = new LightRemovalJob
+            LightRemovalJob job = new()
             {
                 LightData = _lightData,
                 ChunkData = _chunkData,
@@ -183,7 +179,7 @@ namespace Lithforge.WorldGen.Tests
 
             // Set up: stone at y=20, air everywhere else
             // Sun=15 above the stone, sun=0 below
-            StateId stoneId = new StateId(1);
+            StateId stoneId = new(1);
             _chunkData[ChunkData.GetIndex(testX, stoneY, testZ)] = stoneId;
 
             for (int y = stoneY + 1; y < ChunkConstants.Size; y++)
@@ -224,15 +220,13 @@ namespace Lithforge.WorldGen.Tests
             // Now break the stone (set to air via ChangedIndices)
             _chunkData[ChunkData.GetIndex(testX, stoneY, testZ)] = new StateId(0);
 
-            NativeArray<int> changedIndices = new NativeArray<int>(1, Allocator.TempJob);
+            NativeArray<int> changedIndices = new(1, Allocator.TempJob);
             changedIndices[0] = ChunkData.GetIndex(testX, stoneY, testZ);
 
-            NativeArray<NativeBorderLightEntry> borderSeeds =
-                new NativeArray<NativeBorderLightEntry>(0, Allocator.TempJob);
-            NativeList<NativeBorderLightEntry> borderOutput =
-                new NativeList<NativeBorderLightEntry>(16, Allocator.TempJob);
+            NativeArray<NativeBorderLightEntry> borderSeeds = new(0, Allocator.TempJob);
+            NativeList<NativeBorderLightEntry> borderOutput = new(16, Allocator.TempJob);
 
-            LightRemovalJob job = new LightRemovalJob
+            LightRemovalJob job = new()
             {
                 LightData = _lightData,
                 ChunkData = _chunkData,
@@ -280,23 +274,21 @@ namespace Lithforge.WorldGen.Tests
             }
 
             // Create border removal seed at x=0 face
-            NativeArray<int> changedIndices = new NativeArray<int>(0, Allocator.TempJob);
+            NativeArray<int> changedIndices = new(0, Allocator.TempJob);
 
-            NativeBorderLightEntry seed = new NativeBorderLightEntry
+            NativeBorderLightEntry seed = new()
             {
                 LocalPosition = new Unity.Mathematics.int3(0, 5, 5),
                 PackedLight = LightUtils.Pack(15, 0),
                 Face = 1, // -X face
             };
 
-            NativeArray<NativeBorderLightEntry> borderSeeds =
-                new NativeArray<NativeBorderLightEntry>(1, Allocator.TempJob);
+            NativeArray<NativeBorderLightEntry> borderSeeds = new(1, Allocator.TempJob);
             borderSeeds[0] = seed;
 
-            NativeList<NativeBorderLightEntry> borderOutput =
-                new NativeList<NativeBorderLightEntry>(16, Allocator.TempJob);
+            NativeList<NativeBorderLightEntry> borderOutput = new(16, Allocator.TempJob);
 
-            LightRemovalJob job = new LightRemovalJob
+            LightRemovalJob job = new()
             {
                 LightData = _lightData,
                 ChunkData = _chunkData,
@@ -335,22 +327,20 @@ namespace Lithforge.WorldGen.Tests
             int blockIndex = ChunkData.GetIndex(testX, testY, testZ);
 
             // Place one opaque block at center
-            StateId stoneId = new StateId(1);
+            StateId stoneId = new(1);
             _chunkData[blockIndex] = stoneId;
 
             // Set heightmap: surface is above, so this is a below-surface edit
             int colIdx = testZ * ChunkConstants.Size + testX;
             _heightMap[colIdx] = testY + 5;
 
-            NativeArray<int> changedIndices = new NativeArray<int>(1, Allocator.TempJob);
+            NativeArray<int> changedIndices = new(1, Allocator.TempJob);
             changedIndices[0] = blockIndex;
 
-            NativeArray<NativeBorderLightEntry> borderSeeds =
-                new NativeArray<NativeBorderLightEntry>(0, Allocator.TempJob);
-            NativeList<NativeBorderLightEntry> borderOutput =
-                new NativeList<NativeBorderLightEntry>(16, Allocator.TempJob);
+            NativeArray<NativeBorderLightEntry> borderSeeds = new(0, Allocator.TempJob);
+            NativeList<NativeBorderLightEntry> borderOutput = new(16, Allocator.TempJob);
 
-            LightRemovalJob job = new LightRemovalJob
+            LightRemovalJob job = new()
             {
                 LightData = _lightData,
                 ChunkData = _chunkData,
@@ -400,13 +390,11 @@ namespace Lithforge.WorldGen.Tests
             _lightData[borderIndex] = LightUtils.Pack(10, 0);
 
             // Run LightRemovalJob with empty inputs (no-op removal, just border collection)
-            NativeArray<int> changedIndices = new NativeArray<int>(0, Allocator.TempJob);
-            NativeArray<NativeBorderLightEntry> borderSeeds =
-                new NativeArray<NativeBorderLightEntry>(0, Allocator.TempJob);
-            NativeList<NativeBorderLightEntry> borderOutput =
-                new NativeList<NativeBorderLightEntry>(16, Allocator.TempJob);
+            NativeArray<int> changedIndices = new(0, Allocator.TempJob);
+            NativeArray<NativeBorderLightEntry> borderSeeds = new(0, Allocator.TempJob);
+            NativeList<NativeBorderLightEntry> borderOutput = new(16, Allocator.TempJob);
 
-            LightRemovalJob job = new LightRemovalJob
+            LightRemovalJob job = new()
             {
                 LightData = _lightData,
                 ChunkData = _chunkData,

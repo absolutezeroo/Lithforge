@@ -44,7 +44,7 @@ namespace Lithforge.Network.Messages
 
         public static StartDiggingCmdMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            StartDiggingCmdMessage msg = new StartDiggingCmdMessage();
+            StartDiggingCmdMessage msg = new();
 
             if (length < Size)
             {

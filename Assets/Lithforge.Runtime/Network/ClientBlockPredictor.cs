@@ -48,7 +48,7 @@ namespace Lithforge.Runtime.Network
         {
             ushort seqId = _sequenceId++;
 
-            StartDiggingCmdMessage msg = new StartDiggingCmdMessage
+            StartDiggingCmdMessage msg = new()
             {
                 SequenceId = seqId,
                 PositionX = position.x,

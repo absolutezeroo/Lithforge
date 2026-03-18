@@ -10,8 +10,7 @@ namespace Lithforge.Voxel.Crafting
     /// </summary>
     public sealed class MaterialInputRegistry
     {
-        private readonly Dictionary<ResourceId, MaterialInputData> _byItem =
-            new Dictionary<ResourceId, MaterialInputData>();
+        private readonly Dictionary<ResourceId, MaterialInputData> _byItem = new();
 
         public void Register(MaterialInputData entry)
         {

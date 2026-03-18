@@ -45,13 +45,13 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void SetAndGetState_RoundTrip()
         {
-            NativeArray<StateId> states = new NativeArray<StateId>(
+            NativeArray<StateId> states = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             ChunkData chunk = new ChunkData(states);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
                 chunk.SetState(5, 10, 15, stone);
                 StateId result = chunk.GetState(5, 10, 15);
 
@@ -66,7 +66,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void NewChunk_AllAir()
         {
-            NativeArray<StateId> states = new NativeArray<StateId>(
+            NativeArray<StateId> states = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             ChunkData chunk = new ChunkData(states);
 
@@ -86,7 +86,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Dispose_DisposesNativeArray()
         {
-            NativeArray<StateId> states = new NativeArray<StateId>(
+            NativeArray<StateId> states = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             ChunkData chunk = new ChunkData(states);
 

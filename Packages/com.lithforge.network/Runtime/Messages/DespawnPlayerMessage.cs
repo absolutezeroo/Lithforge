@@ -31,7 +31,7 @@ namespace Lithforge.Network.Messages
 
         public static DespawnPlayerMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            DespawnPlayerMessage msg = new DespawnPlayerMessage();
+            DespawnPlayerMessage msg = new();
 
             if (length < Size)
             {

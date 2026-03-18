@@ -9,8 +9,7 @@ namespace Lithforge.Voxel.Item
     /// </summary>
     public sealed class DataComponentMap : IEnumerable<KeyValuePair<int, IDataComponent>>
     {
-        private readonly Dictionary<int, IDataComponent> _components =
-            new Dictionary<int, IDataComponent>();
+        private readonly Dictionary<int, IDataComponent> _components = new();
 
         /// <summary>
         /// Gets a typed component by type ID, or null if not present.

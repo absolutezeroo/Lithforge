@@ -12,8 +12,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Register_ValidEntry_CanBuildAndRetrieve()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
-            ResourceId id = new ResourceId("lithforge", "stone");
+            RegistryBuilder<string> builder = new();
+            ResourceId id = new("lithforge", "stone");
             builder.Register(id, "stone_value");
 
             Registry<string> registry = builder.Build();
@@ -24,9 +24,9 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Register_MultipleEntries_AllRetrievable()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
-            ResourceId id1 = new ResourceId("lithforge", "stone");
-            ResourceId id2 = new ResourceId("lithforge", "dirt");
+            RegistryBuilder<string> builder = new();
+            ResourceId id1 = new("lithforge", "stone");
+            ResourceId id2 = new("lithforge", "dirt");
             builder.Register(id1, "stone_value");
             builder.Register(id2, "dirt_value");
 
@@ -40,8 +40,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Register_DuplicateId_ThrowsArgumentException()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
-            ResourceId id = new ResourceId("lithforge", "stone");
+            RegistryBuilder<string> builder = new();
+            ResourceId id = new("lithforge", "stone");
             builder.Register(id, "first");
 
             Assert.Throws<ArgumentException>(() => builder.Register(id, "second"));
@@ -50,17 +50,17 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Register_AfterBuild_ThrowsInvalidOperationException()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
+            RegistryBuilder<string> builder = new();
             builder.Build();
 
-            ResourceId id = new ResourceId("lithforge", "stone");
+            ResourceId id = new("lithforge", "stone");
             Assert.Throws<InvalidOperationException>(() => builder.Register(id, "value"));
         }
 
         [Test]
         public void Build_CalledTwice_ThrowsInvalidOperationException()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
+            RegistryBuilder<string> builder = new();
             builder.Build();
 
             Assert.Throws<InvalidOperationException>(() => builder.Build());
@@ -69,8 +69,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Contains_RegisteredId_ReturnsTrue()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
-            ResourceId id = new ResourceId("lithforge", "stone");
+            RegistryBuilder<string> builder = new();
+            ResourceId id = new("lithforge", "stone");
             builder.Register(id, "value");
 
             Registry<string> registry = builder.Build();
@@ -81,29 +81,29 @@ namespace Lithforge.Core.Tests
         [Test]
         public void Contains_UnregisteredId_ReturnsFalse()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
+            RegistryBuilder<string> builder = new();
             Registry<string> registry = builder.Build();
 
-            ResourceId id = new ResourceId("lithforge", "unknown");
+            ResourceId id = new("lithforge", "unknown");
             Assert.IsFalse(registry.Contains(id));
         }
 
         [Test]
         public void Get_UnregisteredId_ThrowsKeyNotFoundException()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
+            RegistryBuilder<string> builder = new();
             Registry<string> registry = builder.Build();
 
-            ResourceId id = new ResourceId("lithforge", "unknown");
+            ResourceId id = new("lithforge", "unknown");
             Assert.Throws<KeyNotFoundException>(() => registry.Get(id));
         }
 
         [Test]
         public void GetAll_ReturnsAllEntries()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
-            ResourceId id1 = new ResourceId("lithforge", "stone");
-            ResourceId id2 = new ResourceId("lithforge", "dirt");
+            RegistryBuilder<string> builder = new();
+            ResourceId id1 = new("lithforge", "stone");
+            ResourceId id2 = new("lithforge", "dirt");
             builder.Register(id1, "stone_value");
             builder.Register(id2, "dirt_value");
 
@@ -116,8 +116,8 @@ namespace Lithforge.Core.Tests
         [Test]
         public void BuilderContains_BeforeBuild_Works()
         {
-            RegistryBuilder<string> builder = new RegistryBuilder<string>();
-            ResourceId id = new ResourceId("lithforge", "stone");
+            RegistryBuilder<string> builder = new();
+            ResourceId id = new("lithforge", "stone");
             builder.Register(id, "value");
 
             Assert.IsTrue(builder.Contains(id));

@@ -42,16 +42,16 @@ namespace Lithforge.Runtime.Content.Recipes
         /// </summary>
         [FormerlySerializedAs("_pattern"),Header("Shaped Pattern")]
         [Tooltip("Pattern rows (e.g. '## ', '## ', '   ')")]
-        [SerializeField] private List<string> pattern = new List<string>();
+        [SerializeField] private List<string> pattern = new();
 
         /// <summary>Maps each character used in <see cref="pattern"/> to an ingredient.</summary>
         [FormerlySerializedAs("_keys"),Tooltip("Key mappings (character → item)")]
-        [SerializeField] private List<RecipeKeyEntry> keys = new List<RecipeKeyEntry>();
+        [SerializeField] private List<RecipeKeyEntry> keys = new();
 
         /// <summary>Unordered ingredient list used when <see cref="type"/> is <see cref="RecipeType.Shapeless"/>.</summary>
         [FormerlySerializedAs("_ingredients"),Header("Shapeless Ingredients")]
         [Tooltip("Ingredients for shapeless recipes")]
-        [SerializeField] private List<RecipeIngredient> ingredients = new List<RecipeIngredient>();
+        [SerializeField] private List<RecipeIngredient> ingredients = new();
 
         /// <summary>Resource-id namespace (typically "lithforge").</summary>
         public string Namespace

@@ -25,9 +25,9 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_PlacesOreInStone()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<NativeOreConfig> oreConfigs = new NativeArray<NativeOreConfig>(
+            NativeArray<NativeOreConfig> oreConfigs = new(
                 1, Allocator.TempJob);
 
             try
@@ -49,7 +49,7 @@ namespace Lithforge.WorldGen.Tests
                     OreType = 1, // blob
                 };
 
-                OreGenerationJob job = new OreGenerationJob
+                OreGenerationJob job = new()
                 {
                     ChunkData = chunkData,
                     OreConfigs = oreConfigs,
@@ -83,9 +83,9 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_DoesNotPlaceOreInAir()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<NativeOreConfig> oreConfigs = new NativeArray<NativeOreConfig>(
+            NativeArray<NativeOreConfig> oreConfigs = new(
                 1, Allocator.TempJob);
 
             try
@@ -102,7 +102,7 @@ namespace Lithforge.WorldGen.Tests
                     OreType = 1,
                 };
 
-                OreGenerationJob job = new OreGenerationJob
+                OreGenerationJob job = new()
                 {
                     ChunkData = chunkData,
                     OreConfigs = oreConfigs,
@@ -130,9 +130,9 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_RespectsYRange()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<NativeOreConfig> oreConfigs = new NativeArray<NativeOreConfig>(
+            NativeArray<NativeOreConfig> oreConfigs = new(
                 1, Allocator.TempJob);
 
             try
@@ -156,7 +156,7 @@ namespace Lithforge.WorldGen.Tests
                 };
 
                 // Chunk at y=2 means world y range 64-95, entirely above MaxY=16
-                OreGenerationJob job = new OreGenerationJob
+                OreGenerationJob job = new()
                 {
                     ChunkData = chunkData,
                     OreConfigs = oreConfigs,
@@ -184,11 +184,11 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_Deterministic_SameSeedSameResult()
         {
-            NativeArray<StateId> chunkData1 = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData1 = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<StateId> chunkData2 = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData2 = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<NativeOreConfig> oreConfigs = new NativeArray<NativeOreConfig>(
+            NativeArray<NativeOreConfig> oreConfigs = new(
                 1, Allocator.TempJob);
 
             try
@@ -210,7 +210,7 @@ namespace Lithforge.WorldGen.Tests
                     OreType = 1,
                 };
 
-                OreGenerationJob job1 = new OreGenerationJob
+                OreGenerationJob job1 = new()
                 {
                     ChunkData = chunkData1,
                     OreConfigs = oreConfigs,
@@ -219,7 +219,7 @@ namespace Lithforge.WorldGen.Tests
                     StoneId = _stoneId,
                 };
 
-                OreGenerationJob job2 = new OreGenerationJob
+                OreGenerationJob job2 = new()
                 {
                     ChunkData = chunkData2,
                     OreConfigs = oreConfigs,

@@ -29,10 +29,10 @@ namespace Lithforge.Network.Server
         private readonly ILogger _logger;
 
         // Cached collections (reused per call, cleared before use)
-        private readonly List<int3> _unloadCandidates = new List<int3>();
-        private readonly HashSet<int3> _newInterestSet = new HashSet<int3>();
-        private readonly List<int3> _candidateChunks = new List<int3>();
-        private readonly List<float> _candidateScores = new List<float>();
+        private readonly List<int3> _unloadCandidates = new();
+        private readonly HashSet<int3> _newInterestSet = new();
+        private readonly List<int3> _candidateChunks = new();
+        private readonly List<float> _candidateScores = new();
 
         public ChunkStreamingManager(int yLoadMin, int yLoadMax, int readyRadius, ILogger logger)
         {
@@ -92,7 +92,7 @@ namespace Lithforge.Network.Server
                     continue;
                 }
 
-                ChunkDataMessage msg = new ChunkDataMessage
+                ChunkDataMessage msg = new()
                 {
                     ChunkX = coord.x,
                     ChunkY = coord.y,
@@ -137,7 +137,7 @@ namespace Lithforge.Network.Server
                 {
                     for (int y = _yLoadMin; y <= _yLoadMax; y++)
                     {
-                        int3 coord = new int3(center.x + x, y, center.z + z);
+                        int3 coord = new(center.x + x, y, center.z + z);
 
                         if (!interest.LoadedChunks.Contains(coord))
                         {
@@ -174,7 +174,7 @@ namespace Lithforge.Network.Server
 
             int3 center = interest.CurrentChunk;
             int radius = interest.ViewRadius;
-            float2 lookDir = new float2(
+            float2 lookDir = new(
                 math.sin(math.radians(interest.LastKnownLookDir.x)),
                 math.cos(math.radians(interest.LastKnownLookDir.x)));
             float lookLen = math.length(lookDir);
@@ -190,7 +190,7 @@ namespace Lithforge.Network.Server
                 {
                     for (int y = _yLoadMin; y <= _yLoadMax; y++)
                     {
-                        int3 coord = new int3(center.x + x, y, center.z + z);
+                        int3 coord = new(center.x + x, y, center.z + z);
 
                         if (interest.LoadedChunks.Contains(coord))
                         {
@@ -251,7 +251,7 @@ namespace Lithforge.Network.Server
                 int3 coord = _unloadCandidates[i];
                 interest.LoadedChunks.Remove(coord);
 
-                ChunkUnloadMessage msg = new ChunkUnloadMessage
+                ChunkUnloadMessage msg = new()
                 {
                     ChunkX = coord.x,
                     ChunkY = coord.y,

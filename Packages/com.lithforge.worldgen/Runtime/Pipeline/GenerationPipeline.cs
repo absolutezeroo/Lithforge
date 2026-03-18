@@ -88,29 +88,29 @@ namespace Lithforge.WorldGen.Pipeline
 
         public GenerationHandle Schedule(int3 coord, long seed, NativeArray<StateId> chunkData)
         {
-            NativeArray<int> heightMap = new NativeArray<int>(
+            NativeArray<int> heightMap = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            NativeArray<byte> lightData = new NativeArray<byte>(
+            NativeArray<byte> lightData = new(
                 ChunkConstants.Volume, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-            NativeArray<byte> biomeMap = new NativeArray<byte>(
+            NativeArray<byte> biomeMap = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
-            NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
+            NativeArray<ClimateData> climateMap = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             // River arrays: flags are Persistent (transferred to ManagedChunk),
             // carve depth is Persistent (transient, consumed by RiverCarveJob only,
             // disposed in GenerationHandle.Dispose).
-            NativeArray<byte> riverFlags = new NativeArray<byte>(
+            NativeArray<byte> riverFlags = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.ClearMemory);
 
-            NativeArray<float> riverCarveDepth = new NativeArray<float>(
+            NativeArray<float> riverCarveDepth = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             // Stage 1: Climate noise sampling (4 parameters per column)
-            ClimateNoiseJob climateJob = new ClimateNoiseJob
+            ClimateNoiseJob climateJob = new()
             {
                 ClimateMap = climateMap,
                 Seed = seed,
@@ -124,7 +124,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle climateHandle = climateJob.Schedule(ChunkConstants.SizeSquared, 64);
 
             // Stage 2: Terrain shape with biome-weighted height blending
-            TerrainShapeJob terrainJob = new TerrainShapeJob
+            TerrainShapeJob terrainJob = new()
             {
                 ChunkData = chunkData,
                 HeightMap = heightMap,
@@ -143,7 +143,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle terrainHandle = terrainJob.Schedule(ChunkConstants.SizeSquared, 32, climateHandle);
 
             // Stage 3: River noise (2D per-column, domain-warped threshold band)
-            RiverNoiseJob riverNoiseJob = new RiverNoiseJob
+            RiverNoiseJob riverNoiseJob = new()
             {
                 ClimateMap = climateMap,
                 HeightMap = heightMap,
@@ -158,7 +158,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle riverNoiseHandle = riverNoiseJob.Schedule(ChunkConstants.SizeSquared, 64, terrainHandle);
 
             // Stage 4: River carving (3D, applies carve depth to voxel array)
-            RiverCarveJob riverCarveJob = new RiverCarveJob
+            RiverCarveJob riverCarveJob = new()
             {
                 ChunkData = chunkData,
                 RiverCarveDepth = riverCarveDepth,
@@ -172,7 +172,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle riverCarveHandle = riverCarveJob.Schedule(ChunkConstants.SizeSquared, 64, riverNoiseHandle);
 
             // Stage 5: Cave carving
-            CaveCarverJob caveJob = new CaveCarverJob
+            CaveCarverJob caveJob = new()
             {
                 ChunkData = chunkData,
                 Seed = seed,
@@ -191,7 +191,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle caveHandle = caveJob.Schedule(ChunkConstants.SizeSquared, 32, riverCarveHandle);
 
             // Stage 6: Surface builder (biome-driven, reads river flags)
-            SurfaceBuilderJob surfaceJob = new SurfaceBuilderJob
+            SurfaceBuilderJob surfaceJob = new()
             {
                 ChunkData = chunkData,
                 HeightMap = heightMap,
@@ -212,7 +212,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle surfaceHandle = surfaceJob.Schedule(ChunkConstants.SizeSquared, 32, caveHandle);
 
             // Stage 7: Ore generation
-            OreGenerationJob oreJob = new OreGenerationJob
+            OreGenerationJob oreJob = new()
             {
                 ChunkData = chunkData,
                 OreConfigs = _oreConfigs,
@@ -224,7 +224,7 @@ namespace Lithforge.WorldGen.Pipeline
             JobHandle oreHandle = oreJob.Schedule(surfaceHandle);
 
             // Stage 8: Initial lighting
-            InitialLightingJob lightingJob = new InitialLightingJob
+            InitialLightingJob lightingJob = new()
             {
                 HeightMap = heightMap,
                 ChunkCoord = coord,
@@ -238,10 +238,9 @@ namespace Lithforge.WorldGen.Pipeline
             // Stage 9: Light propagation (BFS flood fill)
             // Border light output for cross-chunk propagation.
             // Owner: GenerationHandle. Dispose: GenerationScheduler after reading.
-            NativeList<NativeBorderLightEntry> borderLightOutput =
-                new NativeList<NativeBorderLightEntry>(256, Allocator.Persistent);
+            NativeList<NativeBorderLightEntry> borderLightOutput = new(256, Allocator.Persistent);
 
-            LightPropagationJob lightPropJob = new LightPropagationJob
+            LightPropagationJob lightPropJob = new()
             {
                 ChunkData = chunkData,
                 StateTable = _stateTable,

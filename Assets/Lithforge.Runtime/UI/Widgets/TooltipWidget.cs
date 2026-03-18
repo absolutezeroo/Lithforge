@@ -25,8 +25,8 @@ namespace Lithforge.Runtime.UI.Widgets
         private readonly Label _typeLabel;
 
         // Reusable collections to avoid per-frame allocation
-        private readonly HashSet<string> _seenTraits = new HashSet<string>();
-        private readonly StringBuilder _sb = new StringBuilder(256);
+        private readonly HashSet<string> _seenTraits = new();
+        private readonly StringBuilder _sb = new(256);
 
         public TooltipWidget()
         {

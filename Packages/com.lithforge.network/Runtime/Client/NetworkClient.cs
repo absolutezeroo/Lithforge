@@ -114,7 +114,8 @@ namespace Lithforge.Network.Client
 
             if (_stateMachine.Current != ConnectionState.Disconnected)
             {
-                DisconnectMessage msg = new DisconnectMessage { Reason = DisconnectReason.Graceful };
+                DisconnectMessage msg = new()
+                    { Reason = DisconnectReason.Graceful };
                 Send(msg, PipelineId.ReliableSequenced);
                 _stateMachine.Transition(ConnectionState.Disconnecting, 0f);
             }
@@ -139,11 +140,11 @@ namespace Lithforge.Network.Client
             _stateMachine.Transition(ConnectionState.Handshaking, 0f);
 
             // Send handshake request immediately
-            HandshakeRequestMessage request = new HandshakeRequestMessage
+            HandshakeRequestMessage request = new()
             {
                 ProtocolVersion = NetworkConstants.ProtocolVersion,
                 ContentHash = _contentHash,
-                PlayerName = _playerName
+                PlayerName = _playerName,
             };
 
             Send(request, PipelineId.ReliableSequenced);
@@ -224,7 +225,8 @@ namespace Lithforge.Network.Client
             if (currentTime - _lastPingTime >= NetworkConstants.PingIntervalSeconds)
             {
                 _lastPingTime = currentTime;
-                PingMessage ping = new PingMessage { Timestamp = currentTime };
+                PingMessage ping = new()
+                    { Timestamp = currentTime };
                 Send(ping, PipelineId.UnreliableSequenced);
             }
         }

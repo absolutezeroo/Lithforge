@@ -9,8 +9,7 @@ namespace Lithforge.Voxel.BlockEntity
     /// </summary>
     public sealed class BlockEntityRegistry
     {
-        private readonly Dictionary<string, BlockEntityType> _types =
-            new Dictionary<string, BlockEntityType>();
+        private readonly Dictionary<string, BlockEntityType> _types = new();
         private bool _frozen;
 
         /// <summary>

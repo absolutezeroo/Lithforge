@@ -24,7 +24,7 @@ namespace Lithforge.Runtime.Rendering
         private Material _translucentMaterial;
         private float _dayAmbient;
         private float _nightAmbient;
-        private readonly List<Material> _additionalMaterials = new List<Material>();
+        private readonly List<Material> _additionalMaterials = new();
 
         private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
         private static readonly int s_ambientLightId = Shader.PropertyToID("_AmbientLight");

@@ -20,7 +20,7 @@ namespace Lithforge.Runtime.Content.Mods
         /// <summary>
         /// Keeps loaded AssetBundles alive so their assets stay valid until UnloadAll.
         /// </summary>
-        private readonly List<AssetBundle> _loadedBundles = new List<AssetBundle>();
+        private readonly List<AssetBundle> _loadedBundles = new();
 
         /// <summary>Block definitions extracted from all loaded mods, ready for StateRegistry.</summary>
         public List<BlockDefinition> LoadedBlocks { get; private set; } = new();

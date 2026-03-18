@@ -5,6 +5,6 @@ namespace Lithforge.Network.Messages
         Graceful = 0,
         Timeout = 1,
         Kicked = 2,
-        ServerShutdown = 3
+        ServerShutdown = 3,
     }
 }

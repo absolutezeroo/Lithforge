@@ -17,7 +17,7 @@ namespace Lithforge.Runtime.Content.Loot
 
         /// <summary>Key-value parameters interpreted by the function (e.g. "min"="1", "max"="3").</summary>
         [FormerlySerializedAs("_parameters"),Tooltip("Function parameters as key=value pairs")]
-        [SerializeField] private List<StringPair> parameters = new List<StringPair>();
+        [SerializeField] private List<StringPair> parameters = new();
 
         /// <summary>Function identifier (e.g. "set_count", "apply_bonus", "explosion_decay").</summary>
         public string FunctionType

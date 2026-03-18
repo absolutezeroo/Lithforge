@@ -36,17 +36,14 @@ namespace Lithforge.Runtime.Simulation
         private readonly ILogger _logger;
 
         // Per-player state
-        private readonly Dictionary<ushort, PlayerDiggingState> _diggingStates =
-            new Dictionary<ushort, PlayerDiggingState>();
+        private readonly Dictionary<ushort, PlayerDiggingState> _diggingStates = new();
 
-        private readonly Dictionary<ushort, float> _rateLimitTokens =
-            new Dictionary<ushort, float>();
+        private readonly Dictionary<ushort, float> _rateLimitTokens = new();
 
-        private readonly Dictionary<ushort, float> _rateLimitLastRefill =
-            new Dictionary<ushort, float>();
+        private readonly Dictionary<ushort, float> _rateLimitLastRefill = new();
 
         // Reusable list for SetBlock dirtied chunks (fill pattern)
-        private readonly List<int3> _dirtiedChunksCache = new List<int3>();
+        private readonly List<int3> _dirtiedChunksCache = new();
 
         public ServerBlockProcessor(
             ChunkManager chunkManager,
@@ -103,7 +100,7 @@ namespace Lithforge.Runtime.Simulation
             uint serverTick)
         {
             // Reach check
-            float3 blockCenter = new float3(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
+            float3 blockCenter = new(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
             float distance = math.distance(playerPosition, blockCenter);
 
             if (distance > MaxReachDistance + PositionTolerance)
@@ -142,7 +139,7 @@ namespace Lithforge.Runtime.Simulation
                 expectedBreakTime = entry.Hardness * _handMiningMultiplier;
             }
 
-            PlayerDiggingState digState = new PlayerDiggingState
+            PlayerDiggingState digState = new()
             {
                 IsDigging = true,
                 DigPosition = position,
@@ -158,7 +155,7 @@ namespace Lithforge.Runtime.Simulation
         {
             if (_diggingStates.ContainsKey(playerId))
             {
-                PlayerDiggingState cleared = new PlayerDiggingState();
+                PlayerDiggingState cleared = new();
                 _diggingStates[playerId] = cleared;
             }
         }
@@ -178,7 +175,7 @@ namespace Lithforge.Runtime.Simulation
             }
 
             // 2. Reach check
-            float3 blockCenter = new float3(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
+            float3 blockCenter = new(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
             float distance = math.distance(playerPosition, blockCenter);
 
             if (distance > MaxReachDistance)
@@ -236,7 +233,7 @@ namespace Lithforge.Runtime.Simulation
             _chunkManager.SetBlock(position, StateId.Air, _dirtiedChunksCache);
 
             // Clear digging state
-            PlayerDiggingState cleared = new PlayerDiggingState();
+            PlayerDiggingState cleared = new();
             _diggingStates[playerId] = cleared;
 
             return BlockProcessResult.Accept(currentState, StateId.Air);
@@ -258,7 +255,7 @@ namespace Lithforge.Runtime.Simulation
             }
 
             // 2. Reach check
-            float3 blockCenter = new float3(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
+            float3 blockCenter = new(position.x + 0.5f, position.y + 0.5f, position.z + 0.5f);
             float distance = math.distance(playerPosition, blockCenter);
 
             if (distance > MaxReachDistance)
@@ -310,7 +307,7 @@ namespace Lithforge.Runtime.Simulation
                 if ((placedCompact.Flags & BlockStateCompact.FlagFullCube) != 0)
                 {
                     // Simple AABB check: player is ~0.6 wide, 1.8 tall
-                    float3 blockMin = new float3(position.x, position.y, position.z);
+                    float3 blockMin = new(position.x, position.y, position.z);
                     float3 blockMax = blockMin + new float3(1f, 1f, 1f);
                     float3 playerMin = playerPosition - new float3(0.3f, 0f, 0.3f);
                     float3 playerMax = playerPosition + new float3(0.3f, 1.8f, 0.3f);
@@ -356,23 +353,16 @@ namespace Lithforge.Runtime.Simulation
 
         private static int3 FaceNormalToInt3(BlockFace face)
         {
-            switch (face)
+            return face switch
             {
-                case BlockFace.East:
-                    return new int3(1, 0, 0);
-                case BlockFace.West:
-                    return new int3(-1, 0, 0);
-                case BlockFace.Up:
-                    return new int3(0, 1, 0);
-                case BlockFace.Down:
-                    return new int3(0, -1, 0);
-                case BlockFace.North:
-                    return new int3(0, 0, 1);
-                case BlockFace.South:
-                    return new int3(0, 0, -1);
-                default:
-                    return int3.zero;
-            }
+                BlockFace.East => new int3(1, 0, 0),
+                BlockFace.West => new int3(-1, 0, 0),
+                BlockFace.Up => new int3(0, 1, 0),
+                BlockFace.Down => new int3(0, -1, 0),
+                BlockFace.North => new int3(0, 0, 1),
+                BlockFace.South => new int3(0, 0, -1),
+                _ => int3.zero,
+            };
         }
     }
 }

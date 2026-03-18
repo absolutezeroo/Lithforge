@@ -13,16 +13,16 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_FillsBelowHeightWithStone()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
+            NativeArray<StateId> chunkStates = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
                 StateId air = StateId.Air;
                 int surfaceHeight = 16;
 
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
                     ChunkStates = chunkStates,
                     StoneState = stone,
@@ -55,15 +55,15 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_AllColumnsFilledConsistently()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
+            NativeArray<StateId> chunkStates = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
                 int surfaceHeight = 20;
 
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
                     ChunkStates = chunkStates,
                     StoneState = stone,
@@ -97,12 +97,12 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_SurfaceHeightZero_AllAir()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
+            NativeArray<StateId> chunkStates = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
                     ChunkStates = chunkStates,
                     StoneState = new StateId(1),
@@ -126,14 +126,14 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Execute_SurfaceHeight32_AllStone()
         {
-            NativeArray<StateId> chunkStates = new NativeArray<StateId>(
+            NativeArray<StateId> chunkStates = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
 
-                FillColumnJob job = new FillColumnJob
+                FillColumnJob job = new()
                 {
                     ChunkStates = chunkStates,
                     StoneState = stone,

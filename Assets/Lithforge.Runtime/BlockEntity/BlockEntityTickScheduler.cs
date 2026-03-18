@@ -17,10 +17,8 @@ namespace Lithforge.Runtime.BlockEntity
         private const int BucketCount = 20;
 
         private readonly List<EntityKey>[] _buckets;
-        private readonly Dictionary<EntityKey, BlockEntity> _entities =
-            new Dictionary<EntityKey, BlockEntity>();
-        private readonly Dictionary<int3, List<EntityKey>> _chunkIndex =
-            new Dictionary<int3, List<EntityKey>>();
+        private readonly Dictionary<EntityKey, BlockEntity> _entities = new();
+        private readonly Dictionary<int3, List<EntityKey>> _chunkIndex = new();
         private int _currentBucket;
 
         private readonly ChunkManager _chunkManager;
@@ -98,7 +96,7 @@ namespace Lithforge.Runtime.BlockEntity
             {
                 if (kvp.Value is BlockEntity runtimeEntity)
                 {
-                    EntityKey key = new EntityKey(chunkCoord, kvp.Key);
+                    EntityKey key = new(chunkCoord, kvp.Key);
 
                     if (!_entities.ContainsKey(key))
                     {
@@ -168,7 +166,7 @@ namespace Lithforge.Runtime.BlockEntity
 
             if (entity is BlockEntity runtimeEntity)
             {
-                EntityKey key = new EntityKey(chunkCoord, flatIndex);
+                EntityKey key = new(chunkCoord, flatIndex);
                 _entities[key] = runtimeEntity;
                 int bucketIndex = GetBucketIndex(key);
                 _buckets[bucketIndex].Add(key);
@@ -196,7 +194,7 @@ namespace Lithforge.Runtime.BlockEntity
                 entity.OnChunkUnload();
                 chunk.BlockEntities.Remove(flatIndex);
 
-                EntityKey key = new EntityKey(chunkCoord, flatIndex);
+                EntityKey key = new(chunkCoord, flatIndex);
                 _entities.Remove(key);
                 // Bucket entries cleaned up lazily in Tick()
 
@@ -218,13 +216,13 @@ namespace Lithforge.Runtime.BlockEntity
         /// </summary>
         public BlockEntity GetEntity(int3 chunkCoord, int flatIndex)
         {
-            EntityKey key = new EntityKey(chunkCoord, flatIndex);
+            EntityKey key = new(chunkCoord, flatIndex);
             _entities.TryGetValue(key, out BlockEntity entity);
 
             return entity;
         }
 
-        private static readonly Stack<List<EntityKey>> s_listPool = new Stack<List<EntityKey>>();
+        private static readonly Stack<List<EntityKey>> s_listPool = new();
 
         private static List<EntityKey> RentList()
         {

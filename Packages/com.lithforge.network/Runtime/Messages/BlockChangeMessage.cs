@@ -43,7 +43,7 @@ namespace Lithforge.Network.Messages
 
         public static BlockChangeMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            BlockChangeMessage msg = new BlockChangeMessage();
+            BlockChangeMessage msg = new();
 
             if (length < Size)
             {

@@ -50,7 +50,7 @@ namespace Lithforge.Runtime
         private FallSoundDetector _fallSoundDetector;
         private SfxSourcePool _sfxSourcePool;
         private AudioEnvironmentController _audioEnvironmentController;
-        private readonly List<int3> _unloadedCoords = new List<int3>();
+        private readonly List<int3> _unloadedCoords = new();
         private float _unloadBudgetMs;
         private bool _initialized;
         private GameState _gameState = GameState.Playing;
@@ -74,7 +74,7 @@ namespace Lithforge.Runtime
         private ServerGameLoop _serverGameLoop;
         private INetworkClient _networkClient;
         private ClientChunkHandler _clientChunkHandler;
-        private readonly List<int3> _networkUnloadCache = new List<int3>();
+        private readonly List<int3> _networkUnloadCache = new();
 
         // Remote players
         private RemotePlayerManager _remotePlayerManager;

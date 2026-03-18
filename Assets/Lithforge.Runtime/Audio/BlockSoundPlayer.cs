@@ -20,7 +20,7 @@ namespace Lithforge.Runtime.Audio
         private readonly float _cooldownSeconds;
 
         // Compound key: soundGroup hashcode ^ eventType — maps to last play time
-        private readonly Dictionary<long, float> _cooldowns = new Dictionary<long, float>();
+        private readonly Dictionary<long, float> _cooldowns = new();
 
         public BlockSoundPlayer(
             SoundGroupRegistry registry,

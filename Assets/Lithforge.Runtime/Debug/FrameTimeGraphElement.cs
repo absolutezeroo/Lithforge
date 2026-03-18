@@ -15,12 +15,12 @@ namespace Lithforge.Runtime.Debug
         private int _head;
         private int _filled;
 
-        private static readonly Color s_green = new Color(0f, 0.78f, 0f, 1f);
-        private static readonly Color s_yellow = new Color(0.86f, 0.78f, 0f, 1f);
-        private static readonly Color s_red = new Color(0.86f, 0.16f, 0.16f, 1f);
-        private static readonly Color s_bgColor = new Color(0f, 0f, 0f, 0.63f);
-        private static readonly Color s_line60 = new Color(0f, 0.7f, 0f, 0.35f);
-        private static readonly Color s_line30 = new Color(0.86f, 0.16f, 0.16f, 0.35f);
+        private static readonly Color s_green = new(0f, 0.78f, 0f, 1f);
+        private static readonly Color s_yellow = new(0.86f, 0.78f, 0f, 1f);
+        private static readonly Color s_red = new(0.86f, 0.16f, 0.16f, 1f);
+        private static readonly Color s_bgColor = new(0f, 0f, 0f, 0.63f);
+        private static readonly Color s_line60 = new(0f, 0.7f, 0f, 0.35f);
+        private static readonly Color s_line30 = new(0.86f, 0.16f, 0.16f, 0.35f);
 
         public FrameTimeGraphElement()
         {

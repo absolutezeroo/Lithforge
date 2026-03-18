@@ -45,8 +45,8 @@ namespace Lithforge.Meshing
 
         private void ProcessFaceDirection(int face)
         {
-            NativeArray<uint> rowMask = new NativeArray<uint>(GridSize, Allocator.Temp);
-            NativeArray<ushort> faceStateId = new NativeArray<ushort>(GridSize * GridSize, Allocator.Temp);
+            NativeArray<uint> rowMask = new(GridSize, Allocator.Temp);
+            NativeArray<ushort> faceStateId = new(GridSize * GridSize, Allocator.Temp);
 
             for (int slice = 0; slice < GridSize; slice++)
             {

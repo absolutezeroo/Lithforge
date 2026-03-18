@@ -158,13 +158,13 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
 
             // Fallback: infer from slot position
-            switch (slotPosition)
+            return slotPosition switch
             {
-                case 0: return ToolPartType.Head;
-                case 1: return ToolPartType.Handle;
-                case 2: return ToolPartType.Binding;
-                default: return ToolPartType.None;
-            }
+                0 => ToolPartType.Head,
+                1 => ToolPartType.Handle,
+                2 => ToolPartType.Binding,
+                _ => ToolPartType.None,
+            };
         }
 
         private static ResourceId ResolveMaterialId(ItemEntry itemDef)

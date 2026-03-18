@@ -27,20 +27,20 @@ namespace Lithforge.Runtime.Content.Settings
         /// <summary>Horizon band color keyed to normalised time of day (0=midnight, 0.5=noon).</summary>
         [Header("Sky")]
         [Tooltip("Sky horizon color gradient over time of day (0=midnight, 0.5=noon, 1=midnight)")]
-        [SerializeField] private Gradient skyGradient = new Gradient();
+        [SerializeField] private Gradient skyGradient = new();
 
         /// <summary>Color at the top of the sky dome, keyed to normalised time of day.</summary>
         [Tooltip("Sky zenith color gradient over time of day")]
-        [SerializeField] private Gradient skyZenithGradient = new Gradient();
+        [SerializeField] private Gradient skyZenithGradient = new();
 
         /// <summary>Scene ambient color keyed to normalised time of day; blends between day and night.</summary>
         [Tooltip("Ambient light gradient over time of day")]
-        [SerializeField] private Gradient ambientGradient = new Gradient();
+        [SerializeField] private Gradient ambientGradient = new();
 
         /// <summary>Fog tint keyed to normalised time of day, used with exponential-squared fog.</summary>
         [Header("Fog")]
         [Tooltip("Fog color gradient over time of day")]
-        [SerializeField] private Gradient fogGradient = new Gradient();
+        [SerializeField] private Gradient fogGradient = new();
 
         /// <summary>Density coefficient for exp2 fog; higher values make distant terrain fade sooner.</summary>
         [Tooltip("Fog density for exponential squared fog")]
@@ -93,7 +93,7 @@ namespace Lithforge.Runtime.Content.Settings
         /// </summary>
         [Tooltip("Sun intensity curve over normalised time (0=midnight, 0.5=noon). " +
                                                         "If empty, falls back to cosine approximation.")]
-        [SerializeField] private AnimationCurve dayNightCurve = new AnimationCurve(
+        [SerializeField] private AnimationCurve dayNightCurve = new(
             new Keyframe(0.00f, 0.05f, 0f, 0f),   // midnight — night plateau start
             new Keyframe(0.18f, 0.05f, 0f, 0f),   // night plateau end
             new Keyframe(0.25f, 0.50f, 2f, 2f),   // dawn midpoint (fast rise)
@@ -117,7 +117,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Directional light color keyed to normalised time of day for warm sunrise/sunset tints.</summary>
         [Tooltip("Sun directional light color gradient over time of day (0=midnight, 0.5=noon)")]
-        [SerializeField] private Gradient sunColorGradient = new Gradient();
+        [SerializeField] private Gradient sunColorGradient = new();
 
         /// <summary>Line width (world units) of the wireframe cube drawn around the targeted block.</summary>
         [Header("Block Highlight")]

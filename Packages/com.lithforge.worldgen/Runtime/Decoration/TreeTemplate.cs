@@ -23,8 +23,7 @@ namespace Lithforge.WorldGen.Decoration
             count += 3 * 3 - 1; // top 3x3 minus trunk would be gone but trunk is only 5 tall
 
             // Just build the list dynamically
-            System.Collections.Generic.List<TreeBlock> blocks =
-                new System.Collections.Generic.List<TreeBlock>();
+            System.Collections.Generic.List<TreeBlock> blocks = new();
 
             // Trunk
             for (int y = 0; y < trunkHeight; y++)
@@ -80,8 +79,7 @@ namespace Lithforge.WorldGen.Decoration
         /// </summary>
         public static TreeBlock[] BirchTree(StateId logId, StateId leavesId)
         {
-            System.Collections.Generic.List<TreeBlock> blocks =
-                new System.Collections.Generic.List<TreeBlock>();
+            System.Collections.Generic.List<TreeBlock> blocks = new();
 
             int trunkHeight = 7;
 
@@ -133,8 +131,7 @@ namespace Lithforge.WorldGen.Decoration
         /// </summary>
         public static TreeBlock[] SpruceTree(StateId logId, StateId leavesId)
         {
-            System.Collections.Generic.List<TreeBlock> blocks =
-                new System.Collections.Generic.List<TreeBlock>();
+            System.Collections.Generic.List<TreeBlock> blocks = new();
 
             int trunkHeight = 6;
 

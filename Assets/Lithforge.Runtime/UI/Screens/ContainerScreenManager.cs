@@ -19,8 +19,7 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class ContainerScreenManager : MonoBehaviour
     {
-        private readonly List<BlockEntityScreenBinding> _bindings =
-            new List<BlockEntityScreenBinding>();
+        private readonly List<BlockEntityScreenBinding> _bindings = new();
 
         private ContainerScreen _activeScreen;
         private int _lastCloseFrame = -1;

@@ -6,10 +6,9 @@ namespace Lithforge.WorldGen.Decoration
 {
     public sealed class PendingDecorationStore
     {
-        private readonly Dictionary<int3, List<PendingBlock>> _pending =
-            new Dictionary<int3, List<PendingBlock>>();
+        private readonly Dictionary<int3, List<PendingBlock>> _pending = new();
 
-        private readonly object _lock = new object();
+        private readonly object _lock = new();
 
         public void Add(int3 chunkCoord, PendingBlock block)
         {

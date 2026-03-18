@@ -13,7 +13,7 @@ namespace Lithforge.Core.Validation
         /// </summary>
         public ValidationResult ValidateResourceId(string raw)
         {
-            ValidationResult result = new ValidationResult();
+            ValidationResult result = new();
 
             if (string.IsNullOrEmpty(raw))
             {

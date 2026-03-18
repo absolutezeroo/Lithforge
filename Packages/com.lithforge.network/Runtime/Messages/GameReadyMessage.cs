@@ -47,7 +47,7 @@ namespace Lithforge.Network.Messages
 
         public static GameReadyMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            GameReadyMessage msg = new GameReadyMessage();
+            GameReadyMessage msg = new();
 
             if (length < Size)
             {

@@ -10,7 +10,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void InitialState_IsDisconnected()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
 
             Assert.AreEqual(ConnectionState.Disconnected, sm.Current);
         }
@@ -18,7 +18,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void ValidTransition_Disconnected_To_Connecting()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             bool result = sm.Transition(ConnectionState.Connecting, 0f);
 
             Assert.IsTrue(result);
@@ -28,7 +28,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void ValidTransition_FullHandshakeSequence()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
 
             Assert.IsTrue(sm.Transition(ConnectionState.Connecting, 0f));
             Assert.IsTrue(sm.Transition(ConnectionState.Handshaking, 1f));
@@ -40,7 +40,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void ValidTransition_Handshaking_To_Disconnecting()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
 
@@ -53,7 +53,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void ValidTransition_Playing_To_Disconnecting()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
             sm.Transition(ConnectionState.Loading, 2f);
@@ -68,7 +68,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void ValidTransition_AnyState_To_Disconnected()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
             sm.Transition(ConnectionState.Loading, 2f);
@@ -83,7 +83,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void InvalidTransition_Disconnected_To_Handshaking()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             bool result = sm.Transition(ConnectionState.Handshaking, 0f);
 
             Assert.IsFalse(result);
@@ -93,7 +93,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void InvalidTransition_Connecting_To_Playing()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
 
             bool result = sm.Transition(ConnectionState.Playing, 1f);
@@ -105,7 +105,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void InvalidTransition_Loading_To_Disconnecting()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
             sm.Transition(ConnectionState.Loading, 2f);
@@ -119,7 +119,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void InvalidTransition_Disconnecting_To_Playing()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
             sm.Transition(ConnectionState.Disconnecting, 2f);
@@ -133,7 +133,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void GetTimeInState_ReturnsCorrectDuration()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 5.0f);
 
             float duration = sm.GetTimeInState(8.0f);
@@ -144,7 +144,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void IsTimedOut_ReturnsFalse_WhenWithinTimeout()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 10.0f);
 
             bool timedOut = sm.IsTimedOut(15.0f, 10.0f);
@@ -155,7 +155,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void IsTimedOut_ReturnsTrue_WhenExceedsTimeout()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 10.0f);
 
             bool timedOut = sm.IsTimedOut(25.0f, 10.0f);
@@ -166,7 +166,7 @@ namespace Lithforge.Network.Tests
         [Test]
         public void StateEntryTime_UpdatesOnTransition()
         {
-            ConnectionStateMachine sm = new ConnectionStateMachine();
+            ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 1.0f);
             Assert.AreEqual(1.0f, sm.StateEntryTime, 0.001f);
 

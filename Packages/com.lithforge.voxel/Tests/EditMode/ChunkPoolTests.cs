@@ -11,7 +11,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Constructor_PreAllocates()
         {
-            ChunkPool pool = new ChunkPool(4);
+            ChunkPool pool = new(4);
 
             try
             {
@@ -27,7 +27,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Checkout_ReturnsArrayOfCorrectSize()
         {
-            ChunkPool pool = new ChunkPool(1);
+            ChunkPool pool = new(1);
 
             try
             {
@@ -47,7 +47,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Checkout_AllAir()
         {
-            ChunkPool pool = new ChunkPool(1);
+            ChunkPool pool = new(1);
 
             try
             {
@@ -69,7 +69,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Return_ClearsArray()
         {
-            ChunkPool pool = new ChunkPool(1);
+            ChunkPool pool = new(1);
 
             try
             {
@@ -90,7 +90,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Checkout_PoolExhausted_AllocatesNew()
         {
-            ChunkPool pool = new ChunkPool(1);
+            ChunkPool pool = new(1);
 
             try
             {
@@ -112,7 +112,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Dispose_DisposesAllArrays()
         {
-            ChunkPool pool = new ChunkPool(2);
+            ChunkPool pool = new(2);
             pool.Dispose();
 
             Assert.AreEqual(0, pool.AvailableCount);
@@ -121,7 +121,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Dispose_DisposesCheckedOutArrays()
         {
-            ChunkPool pool = new ChunkPool(2);
+            ChunkPool pool = new(2);
             NativeArray<StateId> checkedOut = pool.Checkout();
 
             Assert.AreEqual(1, pool.CheckedOutCount);
@@ -135,7 +135,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Return_MultipleCheckouts_TracksCorrectly()
         {
-            ChunkPool pool = new ChunkPool(4);
+            ChunkPool pool = new(4);
 
             try
             {

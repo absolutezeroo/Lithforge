@@ -29,7 +29,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
         public AtlasResult Build(Dictionary<StateId, ResolvedFaceTextures2D> resolvedFaces)
         {
             // Collect all unique Texture2D refs (null = missing)
-            HashSet<Texture2D> uniqueTextures = new HashSet<Texture2D>();
+            HashSet<Texture2D> uniqueTextures = new();
 
             foreach (KeyValuePair<StateId, ResolvedFaceTextures2D> kvp in resolvedFaces)
             {
@@ -53,8 +53,8 @@ namespace Lithforge.Runtime.Rendering.Atlas
             }
 
             // Build index mapping: 0 = missing, then each unique texture
-            Dictionary<Texture2D, int> indexByTexture = new Dictionary<Texture2D, int>();
-            List<Texture2D> orderedTextures = new List<Texture2D>();
+            Dictionary<Texture2D, int> indexByTexture = new();
+            List<Texture2D> orderedTextures = new();
 
             // Reserve index 0 for missing texture (null key not stored — handled by lookup miss)
             orderedTextures.Add(null);
@@ -71,7 +71,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
             _logger.LogInfo($"Atlas: {sliceCount} texture slices ({sliceCount - 1} unique + 1 missing).");
 
             // Create Texture2DArray
-            Texture2DArray textureArray = new Texture2DArray(
+            Texture2DArray textureArray = new(
                 _tileSize, _tileSize, sliceCount,
                 TextureFormat.RGBA32, false, false)
             {
@@ -115,7 +115,7 @@ namespace Lithforge.Runtime.Rendering.Atlas
 
                 // Blit through RenderTexture so we can read any texture,
                 // even compressed or non-readable ones.
-                Texture2D readable = new Texture2D(_tileSize, _tileSize, TextureFormat.RGBA32, false);
+                Texture2D readable = new(_tileSize, _tileSize, TextureFormat.RGBA32, false);
                 RenderTexture rt = RenderTexture.GetTemporary(_tileSize, _tileSize, 0, RenderTextureFormat.ARGB32);
                 RenderTexture prev = RenderTexture.active;
                 Graphics.Blit(sourceTex, rt);

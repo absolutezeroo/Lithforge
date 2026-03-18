@@ -83,7 +83,7 @@ namespace Lithforge.Network.Messages
 
         public static SpawnPlayerMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            SpawnPlayerMessage msg = new SpawnPlayerMessage();
+            SpawnPlayerMessage msg = new();
 
             if (length < FixedSize)
             {

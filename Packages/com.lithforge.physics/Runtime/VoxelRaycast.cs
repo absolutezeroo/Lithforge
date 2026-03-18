@@ -36,25 +36,25 @@ namespace Lithforge.Physics
             }
 
             // Step direction per axis: +1 or -1
-            int3 step = new int3(
+            int3 step = new(
                 dir.x >= 0f ? 1 : -1,
                 dir.y >= 0f ? 1 : -1,
                 dir.z >= 0f ? 1 : -1);
 
             // Current voxel coordinates
-            int3 blockCoord = new int3(
+            int3 blockCoord = new(
                 (int)math.floor(origin.x),
                 (int)math.floor(origin.y),
                 (int)math.floor(origin.z));
 
             // tMax: parametric distance to the next voxel boundary on each axis
-            float3 tMax = new float3(
+            float3 tMax = new(
                 ComputeInitialT(origin.x, dir.x, step.x),
                 ComputeInitialT(origin.y, dir.y, step.y),
                 ComputeInitialT(origin.z, dir.z, step.z));
 
             // tDelta: parametric distance to cross one full voxel on each axis
-            float3 tDelta = new float3(
+            float3 tDelta = new(
                 math.abs(dir.x) > 1e-6f ? math.abs(1.0f / dir.x) : float.MaxValue,
                 math.abs(dir.y) > 1e-6f ? math.abs(1.0f / dir.y) : float.MaxValue,
                 math.abs(dir.z) > 1e-6f ? math.abs(1.0f / dir.z) : float.MaxValue);

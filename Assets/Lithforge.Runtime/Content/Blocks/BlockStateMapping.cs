@@ -15,7 +15,7 @@ namespace Lithforge.Runtime.Content.Blocks
         /// <summary>List of property-key → model mappings. Resolved during ContentPipeline Phase 2.</summary>
         [FormerlySerializedAs("_variants"),Header("Variants")]
         [Tooltip("Property string → model reference mappings")]
-        [SerializeField] private List<BlockStateVariantEntry> variants = new List<BlockStateVariantEntry>();
+        [SerializeField] private List<BlockStateVariantEntry> variants = new();
 
         /// <summary>List of property-key → model mappings.</summary>
         public IReadOnlyList<BlockStateVariantEntry> Variants

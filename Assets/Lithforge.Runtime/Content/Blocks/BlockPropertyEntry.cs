@@ -21,7 +21,7 @@ namespace Lithforge.Runtime.Content.Blocks
 
         /// <summary>Explicit value list — only used when Kind is Enum.</summary>
         [FormerlySerializedAs("_values"),Tooltip("Possible values (for enum type, or auto-generated for bool/int)")]
-        [SerializeField] private List<string> values = new List<string>();
+        [SerializeField] private List<string> values = new();
 
         /// <summary>Value assigned when no property string is specified in a block state.</summary>
         [FormerlySerializedAs("_defaultValue"),Tooltip("Default value")]

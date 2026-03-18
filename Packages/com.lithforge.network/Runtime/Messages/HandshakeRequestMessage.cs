@@ -69,7 +69,7 @@ namespace Lithforge.Network.Messages
 
         public static HandshakeRequestMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            HandshakeRequestMessage msg = new HandshakeRequestMessage();
+            HandshakeRequestMessage msg = new();
 
             if (length < MinSize)
             {

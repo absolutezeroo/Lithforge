@@ -25,7 +25,7 @@ namespace Lithforge.Runtime.World
             float timeOfDay,
             Inventory inventory)
         {
-            WorldPlayerState state = new WorldPlayerState();
+            WorldPlayerState state = new();
 
             if (playerTransform != null)
             {
@@ -86,9 +86,9 @@ namespace Lithforge.Runtime.World
 
                             foreach (KeyValuePair<int, IDataComponent> kvp in stack.Components)
                             {
-                                using (MemoryStream ms = new MemoryStream())
+                                using (MemoryStream ms = new())
                                 {
-                                    using (BinaryWriter w = new BinaryWriter(ms))
+                                    using (BinaryWriter w = new(ms))
                                     {
                                         DataComponentRegistry.SerializeComponent(kvp.Value, w);
                                     }
@@ -174,7 +174,7 @@ namespace Lithforge.Runtime.World
                         continue;
                     }
 
-                    ResourceId itemId = new ResourceId(saved.Ns, saved.Name);
+                    ResourceId itemId = new(saved.Ns, saved.Name);
 
                     // Allow items with component data even if not in registry,
                     // since they carry all their data in the serialized components
@@ -192,7 +192,7 @@ namespace Lithforge.Runtime.World
                     // New format: typed components
                     if (saved.Components != null && saved.Components.Count > 0)
                     {
-                        DataComponentMap map = new DataComponentMap();
+                        DataComponentMap map = new();
 
                         for (int c = 0; c < saved.Components.Count; c++)
                         {
@@ -205,8 +205,8 @@ namespace Lithforge.Runtime.World
 
                             byte[] data = Convert.FromBase64String(entry.DataBase64);
 
-                            using (MemoryStream ms = new MemoryStream(data))
-                            using (BinaryReader reader = new BinaryReader(ms))
+                            using (MemoryStream ms = new(data))
+                            using (BinaryReader reader = new(ms))
                             {
                                 IDataComponent component =
                                     DataComponentRegistry.DeserializeComponent(entry.TypeId, reader);

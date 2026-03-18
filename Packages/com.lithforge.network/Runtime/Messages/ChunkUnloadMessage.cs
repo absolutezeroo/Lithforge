@@ -39,7 +39,7 @@ namespace Lithforge.Network.Messages
 
         public static ChunkUnloadMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            ChunkUnloadMessage msg = new ChunkUnloadMessage();
+            ChunkUnloadMessage msg = new();
 
             if (length < Size)
             {

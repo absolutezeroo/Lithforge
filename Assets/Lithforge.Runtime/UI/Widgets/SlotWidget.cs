@@ -115,7 +115,7 @@ namespace Lithforge.Runtime.UI.Widgets
                 if (partComp != null)
                 {
                     ToolPartData partData = partComp.PartData;
-                    ResourceId cacheKey = new ResourceId(
+                    ResourceId cacheKey = new(
                         stack.ItemId.Namespace,
                         stack.ItemId.Name + "__" + partData.MaterialId.Name);
 

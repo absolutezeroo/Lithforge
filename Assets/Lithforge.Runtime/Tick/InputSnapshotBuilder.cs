@@ -122,7 +122,7 @@ namespace Lithforge.Runtime.Tick
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
 
-            InputSnapshot snapshot = new InputSnapshot
+            InputSnapshot snapshot = new()
             {
                 // Edge-triggered (accumulated since last tick)
                 JumpPressed = _jumpPressed,

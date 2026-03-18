@@ -32,10 +32,10 @@ namespace Lithforge.Runtime.Network
         private bool _disposed;
 
         // Cached list for multi-block change deserialization
-        private readonly List<int3> _dirtiedChunksCache = new List<int3>();
+        private readonly List<int3> _dirtiedChunksCache = new();
 
         // Pending unloads — queued by network handler, drained by GameLoop
-        private readonly List<int3> _pendingUnloads = new List<int3>();
+        private readonly List<int3> _pendingUnloads = new();
 
         public ClientChunkHandler(
             ChunkManager chunkManager,
@@ -83,7 +83,7 @@ namespace Lithforge.Runtime.Network
         private void OnChunkData(ConnectionId connId, byte[] data, int offset, int length)
         {
             ChunkDataMessage msg = ChunkDataMessage.Deserialize(data, offset, length);
-            int3 chunkCoord = new int3(msg.ChunkX, msg.ChunkY, msg.ChunkZ);
+            int3 chunkCoord = new(msg.ChunkX, msg.ChunkY, msg.ChunkZ);
 
             if (msg.Payload == null || msg.Payload.Length == 0)
             {
@@ -107,7 +107,7 @@ namespace Lithforge.Runtime.Network
         private void OnChunkUnload(ConnectionId connId, byte[] data, int offset, int length)
         {
             ChunkUnloadMessage msg = ChunkUnloadMessage.Deserialize(data, offset, length);
-            int3 chunkCoord = new int3(msg.ChunkX, msg.ChunkY, msg.ChunkZ);
+            int3 chunkCoord = new(msg.ChunkX, msg.ChunkY, msg.ChunkZ);
 
             // Queue for GameLoop to process with full cleanup chain
             _pendingUnloads.Add(chunkCoord);
@@ -116,8 +116,8 @@ namespace Lithforge.Runtime.Network
         private void OnBlockChange(ConnectionId connId, byte[] data, int offset, int length)
         {
             BlockChangeMessage msg = BlockChangeMessage.Deserialize(data, offset, length);
-            int3 position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ);
-            StateId newState = new StateId(msg.NewState);
+            int3 position = new(msg.PositionX, msg.PositionY, msg.PositionZ);
+            StateId newState = new(msg.NewState);
             _dirtiedChunksCache.Clear();
             _chunkManager.SetBlock(position, newState, _dirtiedChunksCache);
         }

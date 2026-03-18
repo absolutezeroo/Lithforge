@@ -80,7 +80,7 @@ namespace Lithforge.Meshing.Tests
             GreedyMeshData meshData,
             NativeArray<byte> lightData)
         {
-            GreedyMeshJob job = new GreedyMeshJob
+            GreedyMeshJob job = new()
             {
                 ChunkData = chunkData,
                 NeighborPosX = meshData.NeighborPosX,
@@ -134,7 +134,7 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void AirChunk_ZeroVertices()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
@@ -157,7 +157,7 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void SingleBlock_SixFaces()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
@@ -186,7 +186,7 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void TwoAdjacentBlocks_SharedFaceCulled()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
@@ -223,14 +223,14 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void FullChunk_GreedyMergesReduceQuads()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
             try
             {
-                StateId stone = new StateId(1);
+                StateId stone = new(1);
 
                 for (int i = 0; i < ChunkConstants.Volume; i++)
                 {
@@ -261,7 +261,7 @@ namespace Lithforge.Meshing.Tests
         [Test]
         public void VertexColor_ContainsTextureIndex()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
@@ -303,7 +303,7 @@ namespace Lithforge.Meshing.Tests
                 OverlayTintPacked = 0,
             };
 
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
@@ -355,7 +355,7 @@ namespace Lithforge.Meshing.Tests
                 OverlayTintPacked = (ushort)(2 << (0 * 2)),
             };
 
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();

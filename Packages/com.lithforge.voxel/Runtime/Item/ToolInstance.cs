@@ -38,17 +38,13 @@ namespace Lithforge.Voxel.Item
 
                 float pct = MaxDurability > 0 ? (float)CurrentDurability / MaxDurability : 0f;
 
-                switch (pct)
+                return pct switch
                 {
-                    case > 0.50f:
-                        return ToolDurabilityState.New;
-                    case > 0.20f:
-                        return ToolDurabilityState.Worn;
-                    case > 0.05f:
-                        return ToolDurabilityState.Damaged;
-                    default:
-                        return ToolDurabilityState.Critical;
-                }
+                    > 0.50f => ToolDurabilityState.New,
+                    > 0.20f => ToolDurabilityState.Worn,
+                    > 0.05f => ToolDurabilityState.Damaged,
+                    _ => ToolDurabilityState.Critical,
+                };
             }
         }
 

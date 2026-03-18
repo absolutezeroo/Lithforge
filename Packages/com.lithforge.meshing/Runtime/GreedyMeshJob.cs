@@ -77,15 +77,15 @@ namespace Lithforge.Meshing
 
         private void ProcessFaceDirection(int face)
         {
-            NativeArray<uint> rowMask = new NativeArray<uint>(ChunkConstants.Size, Allocator.Temp);
-            NativeArray<ushort> faceStateId = new NativeArray<ushort>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceRenderLayer = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO00 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO10 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO01 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceAO11 = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceLight = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
-            NativeArray<byte> faceFluidLevel = new NativeArray<byte>(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<uint> rowMask = new(ChunkConstants.Size, Allocator.Temp);
+            NativeArray<ushort> faceStateId = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceRenderLayer = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO00 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO10 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO01 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceAO11 = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceLight = new(ChunkConstants.SizeSquared, Allocator.Temp);
+            NativeArray<byte> faceFluidLevel = new(ChunkConstants.SizeSquared, Allocator.Temp);
 
             for (int slice = 0; slice < ChunkConstants.Size; slice++)
             {

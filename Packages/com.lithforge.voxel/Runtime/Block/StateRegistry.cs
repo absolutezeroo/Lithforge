@@ -15,8 +15,8 @@ namespace Lithforge.Voxel.Block
     /// </summary>
     public sealed class StateRegistry
     {
-        private readonly List<StateRegistryEntry> _entries = new List<StateRegistryEntry>();
-        private readonly List<BlockStateCompact> _states = new List<BlockStateCompact>();
+        private readonly List<StateRegistryEntry> _entries = new();
+        private readonly List<BlockStateCompact> _states = new();
         private bool _frozen;
 
         public int TotalStateCount
@@ -32,7 +32,7 @@ namespace Lithforge.Voxel.Block
         public StateRegistry()
         {
             // StateId(0) = AIR, hardcoded invariant
-            BlockStateCompact airState = new BlockStateCompact
+            BlockStateCompact airState = new()
             {
                 BlockId = 0,
                 Flags = BlockStateCompact.FlagAir,
@@ -78,7 +78,7 @@ namespace Lithforge.Voxel.Block
 
             for (int i = 0; i < stateCount; i++)
             {
-                BlockStateCompact state = new BlockStateCompact
+                BlockStateCompact state = new()
                 {
                     BlockId = blockOrdinal,
                     Flags = flags,
@@ -98,7 +98,7 @@ namespace Lithforge.Voxel.Block
                 _states.Add(state);
             }
 
-            StateRegistryEntry entry = new StateRegistryEntry(
+            StateRegistryEntry entry = new(
                 data.Id, baseId, stateCount, blockOrdinal, data.LootTable,
                 data.Hardness, data.BlastResistance, data.RequiresTool,
                 data.MaterialType, data.RequiredToolLevel, data.SoundGroup);

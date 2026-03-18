@@ -27,7 +27,7 @@ namespace Lithforge.Runtime.Audio
 
             for (int i = 0; i < poolSize; i++)
             {
-                GameObject child = new GameObject("SfxSource_" + i);
+                GameObject child = new("SfxSource_" + i);
                 child.transform.SetParent(host.transform);
                 AudioSource source = child.AddComponent<AudioSource>();
                 source.playOnAwake = false;

@@ -16,6 +16,6 @@ namespace Lithforge.Core.Logging
         Warning,
 
         /// <summary>Failures that prevent a subsystem from functioning correctly.</summary>
-        Error
+        Error,
     }
 }

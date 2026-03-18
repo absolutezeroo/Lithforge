@@ -43,30 +43,30 @@ namespace Lithforge.Meshing.Atlas
 
         public ushort GetTextureIndex(int faceDirection)
         {
-            switch (faceDirection)
+            return faceDirection switch
             {
-                case 0: return TexPosX;
-                case 1: return TexNegX;
-                case 2: return TexPosY;
-                case 3: return TexNegY;
-                case 4: return TexPosZ;
-                case 5: return TexNegZ;
-                default: return 0;
-            }
+                0 => TexPosX,
+                1 => TexNegX,
+                2 => TexPosY,
+                3 => TexNegY,
+                4 => TexPosZ,
+                5 => TexNegZ,
+                _ => 0,
+            };
         }
 
         public ushort GetOverlayTextureIndex(int faceDirection)
         {
-            switch (faceDirection)
+            return faceDirection switch
             {
-                case 0: return OvlPosX;
-                case 1: return OvlNegX;
-                case 2: return OvlPosY;
-                case 3: return OvlNegY;
-                case 4: return OvlPosZ;
-                case 5: return OvlNegZ;
-                default: return 0xFFFF;
-            }
+                0 => OvlPosX,
+                1 => OvlNegX,
+                2 => OvlPosY,
+                3 => OvlNegY,
+                4 => OvlPosZ,
+                5 => OvlNegZ,
+                _ => 0xFFFF,
+            };
         }
 
         public byte GetBaseTintType(int faceDirection)

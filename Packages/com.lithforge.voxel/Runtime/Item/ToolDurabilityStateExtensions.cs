@@ -8,21 +8,15 @@ namespace Lithforge.Voxel.Item
         /// </summary>
         public static float GetEffectiveSpeedMultiplier(this ToolDurabilityState state)
         {
-            switch (state)
+            return state switch
             {
-                case ToolDurabilityState.New:
-                    return 1.0f;
-                case ToolDurabilityState.Worn:
-                    return 1.0f;
-                case ToolDurabilityState.Damaged:
-                    return 0.75f;
-                case ToolDurabilityState.Critical:
-                    return 0.5f;
-                case ToolDurabilityState.Broken:
-                    return 0.0f;
-                default:
-                    return 1.0f;
-            }
+                ToolDurabilityState.New => 1.0f,
+                ToolDurabilityState.Worn => 1.0f,
+                ToolDurabilityState.Damaged => 0.75f,
+                ToolDurabilityState.Critical => 0.5f,
+                ToolDurabilityState.Broken => 0.0f,
+                _ => 1.0f,
+            };
         }
     }
 }

@@ -45,9 +45,9 @@ namespace Lithforge.Network.Server
         private bool _disposed;
 
         // Cached collections (fill pattern, reused every tick)
-        private readonly List<PeerInfo> _playingPeersCache = new List<PeerInfo>();
-        private readonly List<PeerInfo> _loadingPeersCache = new List<PeerInfo>();
-        private readonly List<int3> _dirtiedChunksCache = new List<int3>();
+        private readonly List<PeerInfo> _playingPeersCache = new();
+        private readonly List<PeerInfo> _loadingPeersCache = new();
+        private readonly List<int3> _dirtiedChunksCache = new();
 
         // Host-local callbacks: let the host see remote players without a NetworkClient.
         // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
@@ -62,8 +62,8 @@ namespace Lithforge.Network.Server
         public Action<PlayerStateMessage> OnHostPlayerState;
 
         // Host-local entity tracking (mirrors SpawnedRemotePlayers on network peers)
-        private readonly HashSet<ushort> _hostSpawnedPlayers = new HashSet<ushort>();
-        private readonly List<ushort> _hostDespawnCache = new List<ushort>();
+        private readonly HashSet<ushort> _hostSpawnedPlayers = new();
+        private readonly List<ushort> _hostDespawnCache = new();
 
         public uint CurrentTick
         {
@@ -221,7 +221,7 @@ namespace Lithforge.Network.Server
                 BlockProcessResult result = _blockProcessor.TryBreakBlock(
                     playerId, cmd.Position, playerState.Position, _currentTick);
 
-                AcknowledgeBlockChangeMessage ack = new AcknowledgeBlockChangeMessage
+                AcknowledgeBlockChangeMessage ack = new()
                 {
                     SequenceId = cmd.SequenceId,
                     Accepted = (byte)(result.Accepted ? 1 : 0),
@@ -246,7 +246,7 @@ namespace Lithforge.Network.Server
                 BlockProcessResult result = _blockProcessor.TryPlaceBlock(
                     playerId, cmd.Position, cmd.BlockState, cmd.Face, playerState.Position);
 
-                AcknowledgeBlockChangeMessage ack = new AcknowledgeBlockChangeMessage
+                AcknowledgeBlockChangeMessage ack = new()
                 {
                     SequenceId = cmd.SequenceId,
                     Accepted = (byte)(result.Accepted ? 1 : 0),
@@ -280,7 +280,7 @@ namespace Lithforge.Network.Server
 
                 PlayerPhysicsState state = _simulation.GetPlayerState(peer.AssignedPlayerId);
 
-                PlayerStateMessage msg = new PlayerStateMessage
+                PlayerStateMessage msg = new()
                 {
                     PlayerId = peer.AssignedPlayerId,
                     ServerTick = _currentTick,
@@ -368,7 +368,7 @@ namespace Lithforge.Network.Server
                     {
                         PlayerPhysicsState state = _simulation.GetPlayerState(subjectId);
 
-                        SpawnPlayerMessage msg = new SpawnPlayerMessage
+                        SpawnPlayerMessage msg = new()
                         {
                             PlayerId = subjectId,
                             PlayerName = subject.PlayerName,
@@ -385,7 +385,7 @@ namespace Lithforge.Network.Server
                     }
                     else if (!visible && alreadySpawned)
                     {
-                        DespawnPlayerMessage msg = new DespawnPlayerMessage
+                        DespawnPlayerMessage msg = new()
                         {
                             PlayerId = subjectId,
                         };
@@ -478,7 +478,7 @@ namespace Lithforge.Network.Server
                 if (changes.Count == 1)
                 {
                     BlockChangeEntry change = changes[0];
-                    BlockChangeMessage msg = new BlockChangeMessage
+                    BlockChangeMessage msg = new()
                     {
                         PositionX = change.Position.x,
                         PositionY = change.Position.y,
@@ -501,7 +501,7 @@ namespace Lithforge.Network.Server
                 else
                 {
                     byte[] batchData = ChunkNetSerializer.SerializeBlockChangeBatch(chunkCoord, changes);
-                    MultiBlockChangeMessage msg = new MultiBlockChangeMessage
+                    MultiBlockChangeMessage msg = new()
                     {
                         BatchData = batchData,
                     };
@@ -557,7 +557,7 @@ namespace Lithforge.Network.Server
             PlayerInterestState interest = peer.InterestState;
             interest.IsInitialLoad = false;
 
-            GameReadyMessage msg = new GameReadyMessage
+            GameReadyMessage msg = new()
             {
                 SpawnX = interest.SpawnPosition.x,
                 SpawnY = interest.SpawnPosition.y,
@@ -586,7 +586,7 @@ namespace Lithforge.Network.Server
 
             MoveInputMessage msg = MoveInputMessage.Deserialize(data, offset, length);
 
-            MoveCommand cmd = new MoveCommand
+            MoveCommand cmd = new()
             {
                 Tick = _currentTick,
                 SequenceId = msg.SequenceId,
@@ -611,7 +611,7 @@ namespace Lithforge.Network.Server
 
             PlaceBlockCmdMessage msg = PlaceBlockCmdMessage.Deserialize(data, offset, length);
 
-            PlaceBlockCommand cmd = new PlaceBlockCommand
+            PlaceBlockCommand cmd = new()
             {
                 Tick = _currentTick,
                 SequenceId = msg.SequenceId,
@@ -636,7 +636,7 @@ namespace Lithforge.Network.Server
 
             BreakBlockCmdMessage msg = BreakBlockCmdMessage.Deserialize(data, offset, length);
 
-            BreakBlockCommand cmd = new BreakBlockCommand
+            BreakBlockCommand cmd = new()
             {
                 Tick = _currentTick,
                 SequenceId = msg.SequenceId,
@@ -659,7 +659,7 @@ namespace Lithforge.Network.Server
 
             StartDiggingCmdMessage msg = StartDiggingCmdMessage.Deserialize(data, offset, length);
 
-            StartDiggingCommand cmd = new StartDiggingCommand
+            StartDiggingCommand cmd = new()
             {
                 Tick = _currentTick,
                 SequenceId = msg.SequenceId,
@@ -717,7 +717,7 @@ namespace Lithforge.Network.Server
 
                 if (observerInterest.SpawnedRemotePlayers.Remove(playerId))
                 {
-                    DespawnPlayerMessage msg = new DespawnPlayerMessage
+                    DespawnPlayerMessage msg = new()
                     {
                         PlayerId = playerId,
                     };

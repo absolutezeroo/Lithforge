@@ -95,7 +95,7 @@ namespace Lithforge.Runtime.Rendering
                 // Warm fog tint when sun is near horizon (sunrise/sunset)
                 float sunElevation = _directionalLight.transform.forward.y;
                 float horizonFactor = 1f - Mathf.Clamp01(Mathf.Abs(sunElevation) * 3f);
-                Color warmTint = new Color(1f, 0.65f, 0.35f);
+                Color warmTint = new(1f, 0.65f, 0.35f);
                 fogColor = Color.Lerp(fogColor, warmTint, horizonFactor * 0.4f * sunFactor);
             }
 

@@ -18,7 +18,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void AddItem_FullInventory_ReturnsRemaining()
         {
-            ResourceId itemA = new ResourceId("lithforge", "stone");
+            ResourceId itemA = new("lithforge", "stone");
 
             // Fill all 36 slots to max stack
             for (int i = 0; i < Inventory.SlotCount; i++)
@@ -35,7 +35,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void AddItem_SplitsAcrossStacks()
         {
-            ResourceId itemA = new ResourceId("lithforge", "stone");
+            ResourceId itemA = new("lithforge", "stone");
 
             // Slot 0 has 60 of itemA with maxStack=64
             _inventory.SetSlot(0, new ItemStack(itemA, 60));
@@ -51,7 +51,7 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void RemoveFromSlot_MoreThanCount_ReturnsActual()
         {
-            ResourceId itemA = new ResourceId("lithforge", "stone");
+            ResourceId itemA = new("lithforge", "stone");
             _inventory.SetSlot(0, new ItemStack(itemA, 3));
 
             int removed = _inventory.RemoveFromSlot(0, 10);

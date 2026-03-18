@@ -14,7 +14,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         [SerializeField] private bool relativeOffset = true;
 
         [Tooltip("Target position or offset in world coordinates")]
-        [SerializeField] private Vector3 position = new Vector3(2000f, 0f, 0f);
+        [SerializeField] private Vector3 position = new(2000f, 0f, 0f);
 
         public override IEnumerator Execute(BenchmarkContext context)
         {

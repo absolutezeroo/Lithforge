@@ -86,7 +86,7 @@ namespace Lithforge.Runtime.Content.Items
         /// <summary>Tag string IDs this item belongs to.</summary>
         [FormerlySerializedAs("_tags"),Header("Tags")]
         [Tooltip("Tags this item belongs to")]
-        [SerializeField] private List<string> tags = new List<string>();
+        [SerializeField] private List<string> tags = new();
 
         /// <summary>ResourceId namespace — almost always "lithforge" for base content.</summary>
         public string Namespace

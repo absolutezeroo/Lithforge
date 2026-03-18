@@ -82,23 +82,14 @@ namespace Lithforge.Runtime.UI
 
         private static string BuildStatusText(SaveProgress progress)
         {
-            switch (progress.Phase)
+            return progress.Phase switch
             {
-                case SaveState.CompletingJobs:
-                    return "Completing jobs...";
-
-                case SaveState.SavingChunks:
-                    return $"Saving chunks... {progress.SavedChunks}/{progress.TotalChunks}";
-
-                case SaveState.FlushingRegions:
-                    return $"Flushing regions... {progress.FlushedRegions}/{progress.TotalRegions}";
-
-                case SaveState.Done:
-                    return "Save complete!";
-
-                default:
-                    return "";
-            }
+                SaveState.CompletingJobs => "Completing jobs...",
+                SaveState.SavingChunks => $"Saving chunks... {progress.SavedChunks}/{progress.TotalChunks}",
+                SaveState.FlushingRegions => $"Flushing regions... {progress.FlushedRegions}/{progress.TotalRegions}",
+                SaveState.Done => "Save complete!",
+                _ => "",
+            };
         }
 
         private void BuildUI(VisualElement root)

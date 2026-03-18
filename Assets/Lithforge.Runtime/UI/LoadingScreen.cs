@@ -196,23 +196,14 @@ namespace Lithforge.Runtime.UI
 
         private string BuildStatusText(SpawnProgress progress)
         {
-            switch (progress.Phase)
+            return progress.Phase switch
             {
-                case SpawnState.Checking:
-                    return $"Generating terrain... {progress.ReadyChunks}/{progress.TotalChunks} chunks";
-
-                case SpawnState.FindingY:
-                    return "Locating spawn position...";
-
-                case SpawnState.Teleporting:
-                    return "Placing player...";
-
-                case SpawnState.Done:
-                    return "Ready!";
-
-                default:
-                    return "";
-            }
+                SpawnState.Checking => $"Generating terrain... {progress.ReadyChunks}/{progress.TotalChunks} chunks",
+                SpawnState.FindingY => "Locating spawn position...",
+                SpawnState.Teleporting => "Placing player...",
+                SpawnState.Done => "Ready!",
+                _ => "",
+            };
         }
 
         private IEnumerator FadeOut()

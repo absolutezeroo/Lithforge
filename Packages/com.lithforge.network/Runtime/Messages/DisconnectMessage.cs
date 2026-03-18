@@ -31,7 +31,7 @@ namespace Lithforge.Network.Messages
 
         public static DisconnectMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            DisconnectMessage msg = new DisconnectMessage();
+            DisconnectMessage msg = new();
 
             if (length < Size)
             {

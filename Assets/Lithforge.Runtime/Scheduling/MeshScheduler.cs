@@ -19,13 +19,13 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class MeshScheduler
     {
         /// <summary>Mesh jobs currently running on worker threads.</summary>
-        private readonly List<PendingMesh> _pendingMeshes = new List<PendingMesh>();
+        private readonly List<PendingMesh> _pendingMeshes = new();
 
         /// <summary>
         /// Mesh jobs whose chunk was unloaded while in-flight. Polled and disposed
         /// at most 2 per frame to spread out the disposal cost.
         /// </summary>
-        private readonly List<PendingMesh> _pendingDisposals = new List<PendingMesh>();
+        private readonly List<PendingMesh> _pendingDisposals = new();
 
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
@@ -63,7 +63,7 @@ namespace Lithforge.Runtime.Scheduling
         /// Reusable list for FillChunksToMesh — avoids per-frame allocation.
         /// Owner: MeshScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<ManagedChunk> _meshCandidateCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _meshCandidateCache = new();
 
         /// <summary>Number of mesh jobs currently in-flight on worker threads.</summary>
         public int PendingCount
@@ -176,7 +176,7 @@ namespace Lithforge.Runtime.Scheduling
             }
 
             // Second pass: process remaining (non-urgent) completions within budget.
-            FrameBudget budget = new FrameBudget(_completionBudgetMs);
+            FrameBudget budget = new(_completionBudgetMs);
             int i = 0;
 
             while (i < _pendingMeshes.Count)
@@ -433,7 +433,7 @@ namespace Lithforge.Runtime.Scheduling
                 _chunkManager.SetChunkState(chunk, ChunkState.Meshing);
 
                 long ta0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                GreedyMeshData meshData = new GreedyMeshData(Allocator.TempJob);
+                GreedyMeshData meshData = new(Allocator.TempJob);
                 long ta1 = System.Diagnostics.Stopwatch.GetTimestamp();
                 allocAccum += (float)((ta1 - ta0) * 1000.0 / freq);
 
@@ -457,7 +457,7 @@ namespace Lithforge.Runtime.Scheduling
                 // Schedule combined border extraction job on worker thread (Burst-compiled)
                 JobHandle borderDependency = ScheduleBorderExtractionJob(chunk.Coord, meshData);
 
-                GreedyMeshJob meshJob = new GreedyMeshJob
+                GreedyMeshJob meshJob = new()
                 {
                     ChunkData = chunk.Data,
                     NeighborPosX = meshData.NeighborPosX,
@@ -663,7 +663,7 @@ namespace Lithforge.Runtime.Scheduling
             ManagedChunk nPZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[4] : null);
             ManagedChunk nNZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[5] : null);
 
-            ExtractAllBordersJob job = new ExtractAllBordersJob
+            ExtractAllBordersJob job = new()
             {
                 NeighborPosXData = nPX != null ? nPX.Data : _dummyBorder,
                 NeighborNegXData = nNX != null ? nNX.Data : _dummyBorder,
@@ -725,15 +725,14 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private void ExtractLiquidBorderSlab(ManagedChunk centerChunk, int face, NativeArray<byte> output)
         {
-            int3 offset;
 
-            switch (face)
+            int3 offset = face switch
             {
-                case 0: offset = new int3(1, 0, 0); break;
-                case 1: offset = new int3(-1, 0, 0); break;
-                case 4: offset = new int3(0, 0, 1); break;
-                default: offset = new int3(0, 0, -1); break;
-            }
+                0 => new int3(1, 0, 0),
+                1 => new int3(-1, 0, 0),
+                4 => new int3(0, 0, 1),
+                _ => new int3(0, 0, -1),
+            };
 
             int neighborIndex = face switch
             {
@@ -760,23 +759,17 @@ namespace Lithforge.Runtime.Scheduling
             {
                 for (int i = 0; i < ChunkConstants.Size; i++)
                 {
-                    int srcIndex;
 
-                    switch (face)
+                    int srcIndex = face switch
                     {
-                        case 0: // +X neighbor: read x=0 slice, indexed [y*Size+z]
-                            srcIndex = y * ChunkConstants.SizeSquared + i * ChunkConstants.Size + 0;
-                            break;
-                        case 1: // -X neighbor: read x=Size-1 slice, indexed [y*Size+z]
-                            srcIndex = y * ChunkConstants.SizeSquared + i * ChunkConstants.Size + (ChunkConstants.Size - 1);
-                            break;
-                        case 4: // +Z neighbor: read z=0 slice, indexed [y*Size+x]
-                            srcIndex = y * ChunkConstants.SizeSquared + 0 * ChunkConstants.Size + i;
-                            break;
-                        default: // -Z neighbor: read z=Size-1 slice, indexed [y*Size+x]
-                            srcIndex = y * ChunkConstants.SizeSquared + (ChunkConstants.Size - 1) * ChunkConstants.Size + i;
-                            break;
-                    }
+                        0 => // +X neighbor: read x=0 slice, indexed [y*Size+z]
+                            y * ChunkConstants.SizeSquared + i * ChunkConstants.Size + 0,
+                        1 => // -X neighbor: read x=Size-1 slice, indexed [y*Size+z]
+                            y * ChunkConstants.SizeSquared + i * ChunkConstants.Size + (ChunkConstants.Size - 1),
+                        4 => // +Z neighbor: read z=0 slice, indexed [y*Size+x]
+                            y * ChunkConstants.SizeSquared + 0 * ChunkConstants.Size + i,
+                        _ => y * ChunkConstants.SizeSquared + (ChunkConstants.Size - 1) * ChunkConstants.Size + i,
+                    };
 
                     output[y * ChunkConstants.Size + i] = srcLiquid[srcIndex];
                 }

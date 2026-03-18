@@ -39,10 +39,10 @@ namespace Lithforge.WorldGen.Tests
         private NativeArray<ClimateData> CreateUniformClimateMap(
             float temperature, float humidity, float continentalness, float erosion)
         {
-            NativeArray<ClimateData> climateMap = new NativeArray<ClimateData>(
+            NativeArray<ClimateData> climateMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob);
 
-            ClimateData uniform = new ClimateData
+            ClimateData uniform = new()
             {
                 Temperature = temperature,
                 Humidity = humidity,
@@ -60,7 +60,7 @@ namespace Lithforge.WorldGen.Tests
 
         private NativeArray<NativeBiomeData> CreateSingleBiome(float baseHeight, float heightAmplitude)
         {
-            NativeArray<NativeBiomeData> biomeData = new NativeArray<NativeBiomeData>(
+            NativeArray<NativeBiomeData> biomeData = new(
                 1, Allocator.TempJob);
 
             biomeData[0] = new NativeBiomeData
@@ -85,11 +85,11 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_FlatConfig_StoneBelow_AirAbove()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<int> heightMap = new NativeArray<int>(
+            NativeArray<int> heightMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            NativeArray<byte> biomeMap = new NativeArray<byte>(
+            NativeArray<byte> biomeMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<ClimateData> climateMap = CreateUniformClimateMap(0.5f, 0.5f, 0.5f, 0.5f);
             NativeArray<NativeBiomeData> biomeData = CreateSingleBiome(0.0f, 0.0f);
@@ -98,7 +98,7 @@ namespace Lithforge.WorldGen.Tests
             {
                 int seaLevel = 16;
 
-                TerrainShapeJob job = new TerrainShapeJob
+                TerrainShapeJob job = new()
                 {
                     ChunkData = chunkData,
                     HeightMap = heightMap,
@@ -147,18 +147,18 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_HeightMapPopulated()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<int> heightMap = new NativeArray<int>(
+            NativeArray<int> heightMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> biomeMap = new NativeArray<byte>(
+            NativeArray<byte> biomeMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
             NativeArray<ClimateData> climateMap = CreateUniformClimateMap(0.5f, 0.5f, 0.5f, 0.5f);
             NativeArray<NativeBiomeData> biomeData = CreateSingleBiome(0.0f, 0.0f);
 
             try
             {
-                TerrainShapeJob job = new TerrainShapeJob
+                TerrainShapeJob job = new()
                 {
                     ChunkData = chunkData,
                     HeightMap = heightMap,
@@ -195,17 +195,17 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_BiomeBlending_DominantBiomeSelected()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<int> heightMap = new NativeArray<int>(
+            NativeArray<int> heightMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            NativeArray<byte> biomeMap = new NativeArray<byte>(
+            NativeArray<byte> biomeMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             // Climate at (0.8, 0.1, 0.5, 0.5) — hot, dry — should select desert (biome 2)
             NativeArray<ClimateData> climateMap = CreateUniformClimateMap(0.8f, 0.1f, 0.5f, 0.5f);
 
-            NativeArray<NativeBiomeData> biomeData = new NativeArray<NativeBiomeData>(
+            NativeArray<NativeBiomeData> biomeData = new(
                 3, Allocator.TempJob);
 
             try
@@ -246,7 +246,7 @@ namespace Lithforge.WorldGen.Tests
                     FillerDepth = 4,
                 };
 
-                TerrainShapeJob job = new TerrainShapeJob
+                TerrainShapeJob job = new()
                 {
                     ChunkData = chunkData,
                     HeightMap = heightMap,

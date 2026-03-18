@@ -80,7 +80,7 @@ namespace Lithforge.Runtime.Simulation
                 PlayerPhysicsState state =
                     _playerPhysicsManager.GetState(LocalPlayerId);
 
-                MoveCommand move = new MoveCommand
+                MoveCommand move = new()
                 {
                     Tick = _currentTick,
                     SequenceId = _moveSequenceId++,

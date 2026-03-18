@@ -32,15 +32,15 @@ namespace Lithforge.Voxel.Storage
             s_stream.SetLength(0);
             s_stream.Position = 0;
 
-            BinaryWriter writer = new BinaryWriter(s_stream, Encoding.UTF8, true);
+            BinaryWriter writer = new(s_stream, Encoding.UTF8, true);
 
             // Header
             writer.Write(s_magic);
             writer.Write(Version);
 
             // Build palette
-            Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
-            List<ushort> paletteList = new List<ushort>();
+            Dictionary<ushort, ushort> paletteMap = new();
+            List<ushort> paletteList = new();
 
             for (int i = 0; i < chunkData.Length; i++)
             {
@@ -131,15 +131,15 @@ namespace Lithforge.Voxel.Storage
             s_stream.SetLength(0);
             s_stream.Position = 0;
 
-            BinaryWriter writer = new BinaryWriter(s_stream, Encoding.UTF8, true);
+            BinaryWriter writer = new(s_stream, Encoding.UTF8, true);
 
             // Header
             writer.Write(s_magic);
             writer.Write(Version);
 
             // Build palette from raw voxel bytes
-            Dictionary<ushort, ushort> paletteMap = new Dictionary<ushort, ushort>();
-            List<ushort> paletteList = new List<ushort>();
+            Dictionary<ushort, ushort> paletteMap = new();
+            List<ushort> paletteList = new();
 
             for (int i = 0; i < voxelCount; i++)
             {
@@ -218,8 +218,8 @@ namespace Lithforge.Voxel.Storage
                     writer.Write(kvp.Value.TypeId); // type ID string
 
                     // Length-prefixed entity payload
-                    using (MemoryStream entityMs = new MemoryStream())
-                    using (BinaryWriter entityWriter = new BinaryWriter(entityMs))
+                    using (MemoryStream entityMs = new())
+                    using (BinaryWriter entityWriter = new(entityMs))
                     {
                         kvp.Value.Serialize(entityWriter);
                         entityWriter.Flush();
@@ -266,8 +266,8 @@ namespace Lithforge.Voxel.Storage
                 return false;
             }
 
-            using (MemoryStream ms = new MemoryStream(data, 0, payloadLength))
-            using (BinaryReader reader = new BinaryReader(ms))
+            using (MemoryStream ms = new(data, 0, payloadLength))
+            using (BinaryReader reader = new(ms))
             {
                 // Verify magic
                 byte[] magic = reader.ReadBytes(4);
@@ -355,8 +355,8 @@ namespace Lithforge.Voxel.Storage
 
                             if (entity != null)
                             {
-                                using (MemoryStream entityMs = new MemoryStream(payload))
-                                using (BinaryReader entityReader = new BinaryReader(entityMs))
+                                using (MemoryStream entityMs = new(payload))
+                                using (BinaryReader entityReader = new(entityMs))
                                 {
                                     entity.Deserialize(entityReader);
                                 }

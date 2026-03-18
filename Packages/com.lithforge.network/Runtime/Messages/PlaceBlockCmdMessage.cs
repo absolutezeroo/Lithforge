@@ -48,7 +48,7 @@ namespace Lithforge.Network.Messages
 
         public static PlaceBlockCmdMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            PlaceBlockCmdMessage msg = new PlaceBlockCmdMessage();
+            PlaceBlockCmdMessage msg = new();
 
             if (length < Size)
             {

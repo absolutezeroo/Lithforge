@@ -44,7 +44,7 @@ namespace Lithforge.Network.Messages
 
         public static MoveInputMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            MoveInputMessage msg = new MoveInputMessage();
+            MoveInputMessage msg = new();
 
             if (length < Size)
             {

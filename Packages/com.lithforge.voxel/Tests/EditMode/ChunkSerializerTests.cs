@@ -12,19 +12,19 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void RoundTrip_UniformChunk_PreservesData()
         {
-            NativeArray<StateId> original = new NativeArray<StateId>(
+            NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<byte> originalLight = new NativeArray<byte>(
+            NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<StateId> restored = new NativeArray<StateId>(
+            NativeArray<StateId> restored = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> restoredLight = new NativeArray<byte>(
+            NativeArray<byte> restoredLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
             {
                 // Fill with single state
-                StateId stoneId = new StateId(1);
+                StateId stoneId = new(1);
 
                 for (int i = 0; i < ChunkConstants.Volume; i++)
                 {
@@ -54,13 +54,13 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void RoundTrip_MixedChunk_PreservesAllStates()
         {
-            NativeArray<StateId> original = new NativeArray<StateId>(
+            NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<byte> originalLight = new NativeArray<byte>(
+            NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<StateId> restored = new NativeArray<StateId>(
+            NativeArray<StateId> restored = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> restoredLight = new NativeArray<byte>(
+            NativeArray<byte> restoredLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
@@ -97,13 +97,13 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void RoundTrip_LightData_PreservesNibbles()
         {
-            NativeArray<StateId> original = new NativeArray<StateId>(
+            NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> originalLight = new NativeArray<byte>(
+            NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<StateId> restored = new NativeArray<StateId>(
+            NativeArray<StateId> restored = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> restoredLight = new NativeArray<byte>(
+            NativeArray<byte> restoredLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
@@ -139,9 +139,9 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Deserialize_InvalidMagic_ReturnsFalse()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> lightData = new NativeArray<byte>(
+            NativeArray<byte> lightData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
@@ -161,13 +161,13 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void RoundTrip_WithLightData_PreservesBitExact()
         {
-            NativeArray<StateId> original = new NativeArray<StateId>(
+            NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> originalLight = new NativeArray<byte>(
+            NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<StateId> restored = new NativeArray<StateId>(
+            NativeArray<StateId> restored = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> restoredLight = new NativeArray<byte>(
+            NativeArray<byte> restoredLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
@@ -206,13 +206,13 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void RoundTrip_PreservesMultipleBlockTypes()
         {
-            NativeArray<StateId> original = new NativeArray<StateId>(
+            NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<byte> originalLight = new NativeArray<byte>(
+            NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<StateId> restored = new NativeArray<StateId>(
+            NativeArray<StateId> restored = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> restoredLight = new NativeArray<byte>(
+            NativeArray<byte> restoredLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
@@ -246,13 +246,13 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Deserialize_CorruptedCrc_ReturnsFalse()
         {
-            NativeArray<StateId> original = new NativeArray<StateId>(
+            NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> originalLight = new NativeArray<byte>(
+            NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<StateId> restored = new NativeArray<StateId>(
+            NativeArray<StateId> restored = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> restoredLight = new NativeArray<byte>(
+            NativeArray<byte> restoredLight = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try
@@ -279,9 +279,9 @@ namespace Lithforge.Voxel.Tests
         [Test]
         public void Serialize_Compression_SmallerThanRaw()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
-            NativeArray<byte> lightData = new NativeArray<byte>(
+            NativeArray<byte> lightData = new(
                 ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
 
             try

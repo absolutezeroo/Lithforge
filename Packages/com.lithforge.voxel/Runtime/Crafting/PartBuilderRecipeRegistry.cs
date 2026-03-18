@@ -8,7 +8,7 @@ namespace Lithforge.Voxel.Crafting
     /// </summary>
     public sealed class PartBuilderRecipeRegistry
     {
-        private readonly List<PartBuilderRecipe> _recipes = new List<PartBuilderRecipe>();
+        private readonly List<PartBuilderRecipe> _recipes = new();
 
         public void Register(PartBuilderRecipe recipe)
         {

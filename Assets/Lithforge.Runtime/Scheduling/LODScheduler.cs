@@ -19,8 +19,8 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class LODScheduler
     {
-        private readonly List<PendingLODMesh> _pendingLODMeshes = new List<PendingLODMesh>();
-        private readonly List<PendingLODMesh> _pendingLODDisposals = new List<PendingLODMesh>();
+        private readonly List<PendingLODMesh> _pendingLODMeshes = new();
+        private readonly List<PendingLODMesh> _pendingLODDisposals = new();
         private readonly ChunkManager _chunkManager;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly NativeAtlasLookup _nativeAtlasLookup;
@@ -35,9 +35,9 @@ namespace Lithforge.Runtime.Scheduling
         private int _lod3Distance;
 
         // Reusable caches to avoid per-frame allocation
-        private readonly List<ManagedChunk> _readyChunksCache = new List<ManagedChunk>();
-        private readonly List<ManagedChunk> _generatedLODCache = new List<ManagedChunk>();
-        private readonly List<ManagedChunk> _generatedChunksCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _readyChunksCache = new();
+        private readonly List<ManagedChunk> _generatedLODCache = new();
+        private readonly List<ManagedChunk> _generatedChunksCache = new();
 
         public int PendingCount
         {
@@ -87,7 +87,7 @@ namespace Lithforge.Runtime.Scheduling
 
             PollPendingLODDisposals();
 
-            FrameBudget budget = new FrameBudget(_completionBudgetMs);
+            FrameBudget budget = new(_completionBudgetMs);
             int completedThisFrame = 0;
 
             for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
@@ -339,9 +339,9 @@ namespace Lithforge.Runtime.Scheduling
             int gridSize = ChunkConstants.Size / scale;
             int gridVolume = gridSize * gridSize * gridSize;
 
-            LODMeshData lodData = new LODMeshData(gridVolume, Allocator.TempJob);
+            LODMeshData lodData = new(gridVolume, Allocator.TempJob);
 
-            VoxelDownsampleJob downsampleJob = new VoxelDownsampleJob
+            VoxelDownsampleJob downsampleJob = new()
             {
                 SourceData = chunk.Data,
                 StateTable = _nativeStateRegistry.States,
@@ -353,7 +353,7 @@ namespace Lithforge.Runtime.Scheduling
 
             int lodScaleIndex = lodLevel; // 1=x2, 2=x4, 3=x8
 
-            LODGreedyMeshJob meshJob = new LODGreedyMeshJob
+            LODGreedyMeshJob meshJob = new()
             {
                 Data = lodData.DownsampledData,
                 StateTable = _nativeStateRegistry.States,

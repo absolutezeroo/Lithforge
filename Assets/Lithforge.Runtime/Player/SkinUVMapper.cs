@@ -12,36 +12,36 @@ namespace Lithforge.Runtime.Player
         private const float TexSize = 64f;
 
         // Head (8x8x8)
-        public static readonly SkinPartDefinition HeadBase = new SkinPartDefinition(0, 0, 8, 8, 8);
-        public static readonly SkinPartDefinition HeadOverlay = new SkinPartDefinition(32, 0, 8, 8, 8);
+        public static readonly SkinPartDefinition HeadBase = new(0, 0, 8, 8, 8);
+        public static readonly SkinPartDefinition HeadOverlay = new(32, 0, 8, 8, 8);
 
         // Body (8x12x4)
-        public static readonly SkinPartDefinition BodyBase = new SkinPartDefinition(16, 16, 8, 12, 4);
-        public static readonly SkinPartDefinition BodyOverlay = new SkinPartDefinition(16, 32, 8, 12, 4);
+        public static readonly SkinPartDefinition BodyBase = new(16, 16, 8, 12, 4);
+        public static readonly SkinPartDefinition BodyOverlay = new(16, 32, 8, 12, 4);
 
         // Right Arm (classic 4px wide)
-        public static readonly SkinPartDefinition RightArmBase4 = new SkinPartDefinition(40, 16, 4, 12, 4);
-        public static readonly SkinPartDefinition RightArmOverlay4 = new SkinPartDefinition(40, 32, 4, 12, 4);
+        public static readonly SkinPartDefinition RightArmBase4 = new(40, 16, 4, 12, 4);
+        public static readonly SkinPartDefinition RightArmOverlay4 = new(40, 32, 4, 12, 4);
 
         // Right Arm (slim 3px wide)
-        public static readonly SkinPartDefinition RightArmBase3 = new SkinPartDefinition(40, 16, 3, 12, 4);
-        public static readonly SkinPartDefinition RightArmOverlay3 = new SkinPartDefinition(40, 32, 3, 12, 4);
+        public static readonly SkinPartDefinition RightArmBase3 = new(40, 16, 3, 12, 4);
+        public static readonly SkinPartDefinition RightArmOverlay3 = new(40, 32, 3, 12, 4);
 
         // Left Arm (classic 4px wide)
-        public static readonly SkinPartDefinition LeftArmBase4 = new SkinPartDefinition(32, 48, 4, 12, 4);
-        public static readonly SkinPartDefinition LeftArmOverlay4 = new SkinPartDefinition(48, 48, 4, 12, 4);
+        public static readonly SkinPartDefinition LeftArmBase4 = new(32, 48, 4, 12, 4);
+        public static readonly SkinPartDefinition LeftArmOverlay4 = new(48, 48, 4, 12, 4);
 
         // Left Arm (slim 3px wide)
-        public static readonly SkinPartDefinition LeftArmBase3 = new SkinPartDefinition(32, 48, 3, 12, 4);
-        public static readonly SkinPartDefinition LeftArmOverlay3 = new SkinPartDefinition(48, 48, 3, 12, 4);
+        public static readonly SkinPartDefinition LeftArmBase3 = new(32, 48, 3, 12, 4);
+        public static readonly SkinPartDefinition LeftArmOverlay3 = new(48, 48, 3, 12, 4);
 
         // Right Leg (4x12x4)
-        public static readonly SkinPartDefinition RightLegBase = new SkinPartDefinition(0, 16, 4, 12, 4);
-        public static readonly SkinPartDefinition RightLegOverlay = new SkinPartDefinition(0, 32, 4, 12, 4);
+        public static readonly SkinPartDefinition RightLegBase = new(0, 16, 4, 12, 4);
+        public static readonly SkinPartDefinition RightLegOverlay = new(0, 32, 4, 12, 4);
 
         // Left Leg (4x12x4)
-        public static readonly SkinPartDefinition LeftLegBase = new SkinPartDefinition(16, 48, 4, 12, 4);
-        public static readonly SkinPartDefinition LeftLegOverlay = new SkinPartDefinition(0, 48, 4, 12, 4);
+        public static readonly SkinPartDefinition LeftLegBase = new(16, 48, 4, 12, 4);
+        public static readonly SkinPartDefinition LeftLegOverlay = new(0, 48, 4, 12, 4);
 
         /// <summary>
         /// Computes the UV rectangle for a specific face of a body part.

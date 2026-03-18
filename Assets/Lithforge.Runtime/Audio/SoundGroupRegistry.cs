@@ -9,10 +9,9 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class SoundGroupRegistry
     {
-        private readonly Dictionary<string, SoundGroupDefinition> _groups =
-            new Dictionary<string, SoundGroupDefinition>();
+        private readonly Dictionary<string, SoundGroupDefinition> _groups = new();
 
-        private readonly HashSet<string> _warnedGroups = new HashSet<string>();
+        private readonly HashSet<string> _warnedGroups = new();
 
         /// <summary>
         /// Registers a sound group definition. Duplicate names overwrite silently.

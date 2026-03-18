@@ -120,7 +120,7 @@ namespace Lithforge.Runtime.Spawn
                 {
                     for (int y = _yMin; y <= _yMax; y++)
                     {
-                        int3 coord = new int3(
+                        int3 coord = new(
                             _spawnChunkCoord.x + x,
                             _spawnChunkCoord.y + y,
                             _spawnChunkCoord.z + z);
@@ -197,11 +197,11 @@ namespace Lithforge.Runtime.Spawn
         private bool IsRestoredPositionSafe()
         {
             Vector3 pos = _playerTransform.position;
-            int3 feetBlock = new int3(
+            int3 feetBlock = new(
                 (int)math.floor(pos.x),
                 (int)math.floor(pos.y),
                 (int)math.floor(pos.z));
-            int3 headBlock = new int3(feetBlock.x, feetBlock.y + 1, feetBlock.z);
+            int3 headBlock = new(feetBlock.x, feetBlock.y + 1, feetBlock.z);
 
             StateId feetState = _chunkManager.GetBlock(feetBlock);
             StateId headState = _chunkManager.GetBlock(headBlock);
@@ -225,7 +225,7 @@ namespace Lithforge.Runtime.Spawn
 
             for (int y = maxY; y >= minY; y--)
             {
-                int3 blockCoord = new int3(worldX, y, worldZ);
+                int3 blockCoord = new(worldX, y, worldZ);
                 StateId stateId = _chunkManager.GetBlock(blockCoord);
                 BlockStateCompact state = _nativeStateRegistry.States[stateId.Value];
 

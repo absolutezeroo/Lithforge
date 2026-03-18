@@ -42,7 +42,7 @@ namespace Lithforge.Network.Messages
 
         public static BreakBlockCmdMessage Deserialize(byte[] buffer, int offset, int length)
         {
-            BreakBlockCmdMessage msg = new BreakBlockCmdMessage();
+            BreakBlockCmdMessage msg = new();
 
             if (length < Size)
             {

@@ -15,7 +15,7 @@ namespace Lithforge.Runtime.Content.Settings
         /// <returns>A fully populated settings container, never null.</returns>
         public static LoadedSettings Load()
         {
-            LoadedSettings result = new LoadedSettings
+            LoadedSettings result = new()
             {
                 WorldGen = LoadOrCreate<WorldGenSettings>("Settings/WorldGenSettings"),
                 Chunk = LoadOrCreate<ChunkSettings>("Settings/ChunkSettings"),

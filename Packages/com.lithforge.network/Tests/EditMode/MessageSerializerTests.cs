@@ -24,11 +24,11 @@ namespace Lithforge.Network.Tests
         [Test]
         public void HandshakeRequest_RoundTrip()
         {
-            HandshakeRequestMessage original = new HandshakeRequestMessage
+            HandshakeRequestMessage original = new()
             {
                 ProtocolVersion = 1,
                 ContentHash = new ContentHash(0xDEADBEEF, 0xCAFEBABE),
-                PlayerName = "TestPlayer"
+                PlayerName = "TestPlayer",
             };
 
             byte[] buffer = new byte[128];
@@ -43,13 +43,13 @@ namespace Lithforge.Network.Tests
         [Test]
         public void HandshakeResponse_RoundTrip()
         {
-            HandshakeResponseMessage original = new HandshakeResponseMessage
+            HandshakeResponseMessage original = new()
             {
                 Accepted = true,
                 RejectReason = HandshakeRejectReason.None,
                 PlayerId = 42,
                 ServerTick = 12345,
-                WorldSeed = 9876543210UL
+                WorldSeed = 9876543210UL,
             };
 
             byte[] buffer = new byte[128];
@@ -66,13 +66,13 @@ namespace Lithforge.Network.Tests
         [Test]
         public void HandshakeResponse_Rejected_RoundTrip()
         {
-            HandshakeResponseMessage original = new HandshakeResponseMessage
+            HandshakeResponseMessage original = new()
             {
                 Accepted = false,
                 RejectReason = HandshakeRejectReason.ContentMismatch,
                 PlayerId = 0,
                 ServerTick = 0,
-                WorldSeed = 0
+                WorldSeed = 0,
             };
 
             byte[] buffer = new byte[128];
@@ -86,9 +86,9 @@ namespace Lithforge.Network.Tests
         [Test]
         public void DisconnectMessage_RoundTrip()
         {
-            DisconnectMessage original = new DisconnectMessage
+            DisconnectMessage original = new()
             {
-                Reason = DisconnectReason.Kicked
+                Reason = DisconnectReason.Kicked,
             };
 
             byte[] buffer = new byte[16];
@@ -101,7 +101,8 @@ namespace Lithforge.Network.Tests
         [Test]
         public void PingMessage_RoundTrip()
         {
-            PingMessage original = new PingMessage { Timestamp = 123.456f };
+            PingMessage original = new()
+                { Timestamp = 123.456f };
 
             byte[] buffer = new byte[16];
             int written = original.Serialize(buffer, 0);
@@ -113,10 +114,10 @@ namespace Lithforge.Network.Tests
         [Test]
         public void PongMessage_RoundTrip()
         {
-            PongMessage original = new PongMessage
+            PongMessage original = new()
             {
                 EchoTimestamp = 123.456f,
-                ServerTick = 99999
+                ServerTick = 99999,
             };
 
             byte[] buffer = new byte[16];
@@ -130,7 +131,8 @@ namespace Lithforge.Network.Tests
         [Test]
         public void WriteMessage_IncludesHeaderAndPayload()
         {
-            PingMessage msg = new PingMessage { Timestamp = 1.0f };
+            PingMessage msg = new()
+                { Timestamp = 1.0f };
 
             int totalBytes = MessageSerializer.WriteMessage(msg, out byte[] buffer);
 
@@ -185,11 +187,11 @@ namespace Lithforge.Network.Tests
         [Test]
         public void HandshakeRequest_EmptyName_RoundTrip()
         {
-            HandshakeRequestMessage original = new HandshakeRequestMessage
+            HandshakeRequestMessage original = new()
             {
                 ProtocolVersion = 1,
                 ContentHash = new ContentHash(0, 0),
-                PlayerName = ""
+                PlayerName = "",
             };
 
             byte[] buffer = new byte[128];
@@ -202,11 +204,11 @@ namespace Lithforge.Network.Tests
         [Test]
         public void GetSerializedSize_MatchesActualOutput()
         {
-            HandshakeRequestMessage request = new HandshakeRequestMessage
+            HandshakeRequestMessage request = new()
             {
                 ProtocolVersion = 1,
                 ContentHash = new ContentHash(1, 2),
-                PlayerName = "Hello"
+                PlayerName = "Hello",
             };
 
             byte[] buffer = new byte[128];

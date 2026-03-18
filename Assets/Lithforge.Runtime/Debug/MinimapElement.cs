@@ -17,14 +17,14 @@ namespace Lithforge.Runtime.Debug
 
         private static readonly Color[] s_stateColors = new Color[]
         {
-            new Color(0.08f, 0.08f, 0.08f, 1f),  // Unloaded
-            new Color(0.31f, 0.31f, 0.31f, 1f),   // Loading
-            new Color(0.78f, 0.47f, 0f, 1f),       // Generating
-            new Color(0.71f, 0.39f, 0f, 1f),       // Decorating
-            new Color(0.71f, 0f, 0.71f, 1f),       // RelightPending
-            new Color(0f, 0.47f, 0.78f, 1f),       // Generated
-            new Color(0.78f, 0.78f, 0f, 1f),       // Meshing
-            new Color(0f, 0.71f, 0f, 1f),          // Ready
+            new(0.08f, 0.08f, 0.08f, 1f), // Unloaded
+            new(0.31f, 0.31f, 0.31f, 1f), // Loading
+            new(0.78f, 0.47f, 0f, 1f),    // Generating
+            new(0.71f, 0.39f, 0f, 1f),    // Decorating
+            new(0.71f, 0f, 0.71f, 1f),    // RelightPending
+            new(0f, 0.47f, 0.78f, 1f),    // Generated
+            new(0.78f, 0.78f, 0f, 1f),    // Meshing
+            new(0f, 0.71f, 0f, 1f),       // Ready
         };
 
         public MinimapElement()
@@ -78,7 +78,7 @@ namespace Lithforge.Runtime.Debug
             {
                 for (int dz = -rd; dz <= rd; dz++)
                 {
-                    int3 coord = new int3(camChunkX + dx, camChunkY, camChunkZ + dz);
+                    int3 coord = new(camChunkX + dx, camChunkY, camChunkZ + dz);
                     ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
                     Color color;

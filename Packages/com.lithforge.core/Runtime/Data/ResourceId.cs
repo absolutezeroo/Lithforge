@@ -10,8 +10,7 @@ namespace Lithforge.Core.Data
     /// </summary>
     public readonly struct ResourceId : IEquatable<ResourceId>
     {
-        private static readonly Regex s_validPattern =
-            new Regex(@"^[a-z0-9_]+:[a-z0-9_/]+$", RegexOptions.Compiled);
+        private static readonly Regex s_validPattern = new(@"^[a-z0-9_]+:[a-z0-9_/]+$", RegexOptions.Compiled);
 
         /// <summary>The content namespace (e.g. "lithforge").</summary>
         public string Namespace { get; }

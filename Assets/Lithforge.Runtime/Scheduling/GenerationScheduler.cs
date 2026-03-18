@@ -25,13 +25,13 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class GenerationScheduler
     {
         /// <summary>Generation jobs currently running on worker threads.</summary>
-        private readonly List<PendingGeneration> _pendingGenerations = new List<PendingGeneration>();
+        private readonly List<PendingGeneration> _pendingGenerations = new();
 
         /// <summary>
         /// Generation jobs whose chunk was unloaded while in-flight. Polled each frame
         /// until complete, then all NativeContainers are disposed.
         /// </summary>
-        private readonly List<PendingGeneration> _pendingGenDisposals = new List<PendingGeneration>();
+        private readonly List<PendingGeneration> _pendingGenDisposals = new();
 
         private readonly ChunkManager _chunkManager;
         private readonly GenerationPipeline _generationPipeline;
@@ -51,13 +51,13 @@ namespace Lithforge.Runtime.Scheduling
         /// Reusable list for FillChunksToGenerate — avoids per-frame allocation.
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<ManagedChunk> _generateCandidateCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _generateCandidateCache = new();
 
         /// <summary>
         /// Guards against double-scheduling the same chunk coord.
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
-        private readonly HashSet<int3> _pendingCoords = new HashSet<int3>();
+        private readonly HashSet<int3> _pendingCoords = new();
 
         /// <summary>
         /// Face-to-neighbor offset mapping (shared by InvalidateLightNeighbors and
@@ -65,12 +65,12 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private static readonly int3[] s_faceOffsets = new int3[]
         {
-            new int3(1, 0, 0),   // face 0: +X
-            new int3(-1, 0, 0),  // face 1: -X
-            new int3(0, 1, 0),   // face 2: +Y
-            new int3(0, -1, 0),  // face 3: -Y
-            new int3(0, 0, 1),   // face 4: +Z
-            new int3(0, 0, -1),  // face 5: -Z
+            new(1, 0, 0),  // face 0: +X
+            new(-1, 0, 0), // face 1: -X
+            new(0, 1, 0),  // face 2: +Y
+            new(0, -1, 0), // face 3: -Y
+            new(0, 0, 1),  // face 4: +Z
+            new(0, 0, -1), // face 5: -Z
         };
 
         /// <summary>
@@ -82,21 +82,21 @@ namespace Lithforge.Runtime.Scheduling
         /// Reusable list for chunks needing light updates — avoids per-frame allocation.
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<ManagedChunk> _lightUpdateCache = new List<ManagedChunk>();
+        private readonly List<ManagedChunk> _lightUpdateCache = new();
 
         /// <summary>
         /// Reusable list for scheduling light update jobs within ProcessCrossChunkLightUpdates.
         /// Drained into _inFlightLightUpdates at the end of each scheduling pass.
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<PendingLightUpdate> _pendingLightUpdates = new List<PendingLightUpdate>();
+        private readonly List<PendingLightUpdate> _pendingLightUpdates = new();
 
         /// <summary>
         /// Light update jobs scheduled last frame, awaiting completion this frame.
         /// Pattern: schedule frame N, complete frame N+1.
         /// Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<PendingLightUpdate> _inFlightLightUpdates = new List<PendingLightUpdate>();
+        private readonly List<PendingLightUpdate> _inFlightLightUpdates = new();
 
         /// <summary>
         /// Optional biome tint manager for writing climate data to the global GPU texture.
@@ -195,7 +195,7 @@ namespace Lithforge.Runtime.Scheduling
 
             PollPendingGenDisposals();
 
-            FrameBudget budget = new FrameBudget(_completionBudgetMs);
+            FrameBudget budget = new(_completionBudgetMs);
             int completedThisFrame = 0;
             int i = 0;
 
@@ -450,8 +450,7 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                NativeList<NativeBorderLightEntry> seedEntries =
-                    new NativeList<NativeBorderLightEntry>(128, Allocator.TempJob);
+                NativeList<NativeBorderLightEntry> seedEntries = new(128, Allocator.TempJob);
 
                 for (int f = 0; f < 6; f++)
                 {
@@ -492,7 +491,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (seedEntries.Length > 0)
                 {
-                    LightUpdateJob updateJob = new LightUpdateJob
+                    LightUpdateJob updateJob = new()
                     {
                         LightData = chunk.LightData,
                         ChunkData = chunk.Data,
@@ -539,23 +538,22 @@ namespace Lithforge.Runtime.Scheduling
         {
             int lastIdx = ChunkConstants.Size - 1;
 
-            switch (sourceFace)
+            return sourceFace switch
             {
-                case 0: // +X face of source -> -X face of receiver (x=0)
-                    return new int3(0, sourceLocal.y, sourceLocal.z);
-                case 1: // -X face of source -> +X face of receiver (x=31)
-                    return new int3(lastIdx, sourceLocal.y, sourceLocal.z);
-                case 2: // +Y face of source -> -Y face of receiver (y=0)
-                    return new int3(sourceLocal.x, 0, sourceLocal.z);
-                case 3: // -Y face of source -> +Y face of receiver (y=31)
-                    return new int3(sourceLocal.x, lastIdx, sourceLocal.z);
-                case 4: // +Z face of source -> -Z face of receiver (z=0)
-                    return new int3(sourceLocal.x, sourceLocal.y, 0);
-                case 5: // -Z face of source -> +Z face of receiver (z=31)
-                    return new int3(sourceLocal.x, sourceLocal.y, lastIdx);
-                default:
-                    return sourceLocal;
-            }
+                0 => // +X face of source -> -X face of receiver (x=0)
+                    new int3(0, sourceLocal.y, sourceLocal.z),
+                1 => // -X face of source -> +X face of receiver (x=31)
+                    new int3(lastIdx, sourceLocal.y, sourceLocal.z),
+                2 => // +Y face of source -> -Y face of receiver (y=0)
+                    new int3(sourceLocal.x, 0, sourceLocal.z),
+                3 => // -Y face of source -> +Y face of receiver (y=31)
+                    new int3(sourceLocal.x, lastIdx, sourceLocal.z),
+                4 => // +Z face of source -> -Z face of receiver (z=0)
+                    new int3(sourceLocal.x, sourceLocal.y, 0),
+                5 => // -Z face of source -> +Z face of receiver (z=31)
+                    new int3(sourceLocal.x, sourceLocal.y, lastIdx),
+                _ => sourceLocal,
+            };
         }
 
         /// <summary>
@@ -590,7 +588,7 @@ namespace Lithforge.Runtime.Scheduling
                 // Try loading from storage first
                 if (_worldStorage != null && _worldStorage.HasChunk(chunk.Coord))
                 {
-                    NativeArray<byte> lightData = new NativeArray<byte>(
+                    NativeArray<byte> lightData = new(
                         ChunkConstants.Volume,
                         Allocator.Persistent, NativeArrayOptions.ClearMemory);
 

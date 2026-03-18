@@ -5,7 +5,7 @@ namespace Lithforge.Core.Logging
     /// </summary>
     public sealed class NullLogger : ILogger
     {
-        public static readonly NullLogger Instance = new NullLogger();
+        public static readonly NullLogger Instance = new();
 
         private NullLogger()
         {

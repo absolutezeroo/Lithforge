@@ -27,7 +27,7 @@ namespace Lithforge.Runtime.Player
             }
 
             byte[] pngBytes = File.ReadAllBytes(path);
-            Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            Texture2D tex = new(2, 2, TextureFormat.RGBA32, false);
 
             if (!tex.LoadImage(pngBytes))
             {
@@ -61,7 +61,7 @@ namespace Lithforge.Runtime.Player
         /// </summary>
         public Texture2D CreateDefaultSkin()
         {
-            Texture2D tex = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            Texture2D tex = new(64, 64, TextureFormat.RGBA32, false);
             Color[] pixels = new Color[64 * 64];
 
             // Fill with transparent
@@ -70,10 +70,10 @@ namespace Lithforge.Runtime.Player
                 pixels[i] = new Color(0f, 0f, 0f, 0f);
             }
 
-            Color skinColor = new Color(0.73f, 0.56f, 0.42f, 1f);
-            Color shirtColor = new Color(0.22f, 0.68f, 0.68f, 1f);
-            Color pantsColor = new Color(0.27f, 0.27f, 0.75f, 1f);
-            Color hairColor = new Color(0.35f, 0.22f, 0.12f, 1f);
+            Color skinColor = new(0.73f, 0.56f, 0.42f, 1f);
+            Color shirtColor = new(0.22f, 0.68f, 0.68f, 1f);
+            Color pantsColor = new(0.27f, 0.27f, 0.75f, 1f);
+            Color hairColor = new(0.35f, 0.22f, 0.12f, 1f);
 
             // Head base (u=0, v=0, 8w 8h 8d → strip 32x16)
             FillRegion(pixels, 8, 0, 8, 8, skinColor);   // top face
@@ -137,7 +137,7 @@ namespace Lithforge.Runtime.Player
         /// </summary>
         private Texture2D ConvertLegacySkin(Texture2D legacy)
         {
-            Texture2D full = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+            Texture2D full = new(64, 64, TextureFormat.RGBA32, false);
             Color[] clear = new Color[64 * 64];
             full.SetPixels(clear);
 

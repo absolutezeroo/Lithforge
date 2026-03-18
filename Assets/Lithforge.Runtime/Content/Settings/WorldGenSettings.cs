@@ -16,7 +16,7 @@ namespace Lithforge.Runtime.Content.Settings
     {
         /// <summary>Primary terrain heightmap noise: controls broad hills, valleys, and plateaus.</summary>
         [Header("Terrain Noise")]
-        [SerializeField] private NoiseLayerConfig terrainNoise = new NoiseLayerConfig
+        [SerializeField] private NoiseLayerConfig terrainNoise = new()
         {
             frequency = 0.008f,
             lacunarity = 2.0f,
@@ -28,7 +28,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Low-frequency noise that drives biome temperature; sampled per column.</summary>
         [Header("Temperature Noise")]
-        [SerializeField] private NoiseLayerConfig temperatureNoise = new NoiseLayerConfig
+        [SerializeField] private NoiseLayerConfig temperatureNoise = new()
         {
             frequency = 0.002f,
             lacunarity = 2.0f,
@@ -40,7 +40,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Low-frequency noise that drives biome humidity; sampled per column.</summary>
         [Header("Humidity Noise")]
-        [SerializeField] private NoiseLayerConfig humidityNoise = new NoiseLayerConfig
+        [SerializeField] private NoiseLayerConfig humidityNoise = new()
         {
             frequency = 0.002f,
             lacunarity = 2.0f,
@@ -52,7 +52,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Noise controlling land-vs-ocean distribution; low values produce ocean biomes.</summary>
         [Header("Continentalness Noise")]
-        [SerializeField] private NoiseLayerConfig continentalnessNoise = new NoiseLayerConfig
+        [SerializeField] private NoiseLayerConfig continentalnessNoise = new()
         {
             frequency = 0.002f,
             lacunarity = 2.0f,
@@ -64,7 +64,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Noise that modifies terrain smoothness; high erosion produces flatter terrain.</summary>
         [Header("Erosion Noise")]
-        [SerializeField] private NoiseLayerConfig erosionNoise = new NoiseLayerConfig
+        [SerializeField] private NoiseLayerConfig erosionNoise = new()
         {
             frequency = 0.003f,
             lacunarity = 2.0f,
@@ -76,7 +76,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>3D noise sampled by CaveCarverJob to carve spaghetti-style cave tunnels.</summary>
         [Header("Cave Noise")]
-        [SerializeField] private NoiseLayerConfig caveNoise = new NoiseLayerConfig
+        [SerializeField] private NoiseLayerConfig caveNoise = new()
         {
             frequency = 0.03f,
             lacunarity = 2.0f,
@@ -88,7 +88,7 @@ namespace Lithforge.Runtime.Content.Settings
 
         /// <summary>Noise and carving parameters that shape river channels between landmasses.</summary>
         [Header("River Noise")]
-        [SerializeField] private RiverNoiseConfig riverNoise = new RiverNoiseConfig
+        [SerializeField] private RiverNoiseConfig riverNoise = new()
         {
             frequency = 0.003f,
             warpFrequency = 0.006f,

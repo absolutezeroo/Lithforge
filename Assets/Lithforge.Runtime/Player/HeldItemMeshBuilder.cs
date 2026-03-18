@@ -50,7 +50,7 @@ namespace Lithforge.Runtime.Player
             float3 handOffset = s_mainHandLocator;
 
             float4x4 displayMat = displayMatrix;
-            float3x3 displayRot = new float3x3(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
+            float3x3 displayRot = new(displayMat.c0.xyz, displayMat.c1.xyz, displayMat.c2.xyz);
 
             // Unit cube: 1x1x1 centered at origin (Minecraft blocks are 16x16x16 = 1 block)
             float h = 0.5f;
@@ -81,50 +81,50 @@ namespace Lithforge.Runtime.Player
             // +X face
             faceVerts[0] = new float3[]
             {
-                new float3(h, h, -h),
-                new float3(h, h, h),
-                new float3(h, -h, h),
-                new float3(h, -h, -h),
+                new(h, h, -h),
+                new(h, h, h),
+                new(h, -h, h),
+                new(h, -h, -h),
             };
             // -X face
             faceVerts[1] = new float3[]
             {
-                new float3(-h, h, h),
-                new float3(-h, h, -h),
-                new float3(-h, -h, -h),
-                new float3(-h, -h, h),
+                new(-h, h, h),
+                new(-h, h, -h),
+                new(-h, -h, -h),
+                new(-h, -h, h),
             };
             // +Y face
             faceVerts[2] = new float3[]
             {
-                new float3(-h, h, -h),
-                new float3(-h, h, h),
-                new float3(h, h, h),
-                new float3(h, h, -h),
+                new(-h, h, -h),
+                new(-h, h, h),
+                new(h, h, h),
+                new(h, h, -h),
             };
             // -Y face
             faceVerts[3] = new float3[]
             {
-                new float3(-h, -h, h),
-                new float3(-h, -h, -h),
-                new float3(h, -h, -h),
-                new float3(h, -h, h),
+                new(-h, -h, h),
+                new(-h, -h, -h),
+                new(h, -h, -h),
+                new(h, -h, h),
             };
             // +Z face
             faceVerts[4] = new float3[]
             {
-                new float3(h, h, h),
-                new float3(-h, h, h),
-                new float3(-h, -h, h),
-                new float3(h, -h, h),
+                new(h, h, h),
+                new(-h, h, h),
+                new(-h, -h, h),
+                new(h, -h, h),
             };
             // -Z face
             faceVerts[5] = new float3[]
             {
-                new float3(-h, h, -h),
-                new float3(h, h, -h),
-                new float3(h, -h, -h),
-                new float3(-h, -h, -h),
+                new(-h, h, -h),
+                new(h, h, -h),
+                new(h, -h, -h),
+                new(-h, -h, -h),
             };
 
             for (int face = 0; face < 6; face++)
@@ -182,13 +182,13 @@ namespace Lithforge.Runtime.Player
             // (Minecraft item sprites are 16x16 pixels = 1x1 block)
             float3[] quadVerts = new float3[]
             {
-                new float3(-0.5f, 1f, 0f),
-                new float3(0.5f, 1f, 0f),
-                new float3(0.5f, 0f, 0f),
-                new float3(-0.5f, 0f, 0f),
+                new(-0.5f, 1f, 0f),
+                new(0.5f, 1f, 0f),
+                new(0.5f, 0f, 0f),
+                new(-0.5f, 0f, 0f),
             };
 
-            float3 frontNormal = new float3(0, 0, 1);
+            float3 frontNormal = new(0, 0, 1);
             float3 rotFrontNormal = math.normalize(
                 math.mul((float3x3)displayMat, frontNormal));
             float3 rotBackNormal = -rotFrontNormal;
@@ -227,26 +227,26 @@ namespace Lithforge.Runtime.Player
 
         private static float2 GetBlockFaceUV(int vertexIndex)
         {
-            switch (vertexIndex)
+            return vertexIndex switch
             {
-                case 0: return new float2(0f, 0f);
-                case 1: return new float2(1f, 0f);
-                case 2: return new float2(1f, 1f);
-                case 3: return new float2(0f, 1f);
-                default: return float2.zero;
-            }
+                0 => new float2(0f, 0f),
+                1 => new float2(1f, 0f),
+                2 => new float2(1f, 1f),
+                3 => new float2(0f, 1f),
+                _ => float2.zero,
+            };
         }
 
         private static float2 GetItemQuadUV(int vertexIndex)
         {
-            switch (vertexIndex)
+            return vertexIndex switch
             {
-                case 0: return new float2(0f, 1f);
-                case 1: return new float2(1f, 1f);
-                case 2: return new float2(1f, 0f);
-                case 3: return new float2(0f, 0f);
-                default: return float2.zero;
-            }
+                0 => new float2(0f, 1f),
+                1 => new float2(1f, 1f),
+                2 => new float2(1f, 0f),
+                3 => new float2(0f, 0f),
+                _ => float2.zero,
+            };
         }
 
         /// <summary>

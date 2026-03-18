@@ -20,7 +20,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 return;
             }
 
-            StringBuilder csv = new StringBuilder(1024 * 64);
+            StringBuilder csv = new(1024 * 64);
 
             // Header
             csv.Append("frame_index,frame_ms");

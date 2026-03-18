@@ -31,11 +31,11 @@ namespace Lithforge.Runtime.Content.Loot
 
         /// <summary>All conditions must pass for this entry to be eligible during pool rolls.</summary>
         [FormerlySerializedAs("_conditions"),Tooltip("Conditions for this entry")]
-        [SerializeField] private List<LootConditionEntry> conditions = new List<LootConditionEntry>();
+        [SerializeField] private List<LootConditionEntry> conditions = new();
 
         /// <summary>Functions applied to the drop after selection (e.g. set count, apply fortune).</summary>
         [FormerlySerializedAs("_functions"),Tooltip("Functions to apply to this entry")]
-        [SerializeField] private List<LootFunctionEntry> functions = new List<LootFunctionEntry>();
+        [SerializeField] private List<LootFunctionEntry> functions = new();
 
         /// <summary>Entry type: "item" for a direct drop, "empty" for nothing, "loot_table" for delegation.</summary>
         public string Type

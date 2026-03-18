@@ -38,7 +38,7 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_CarvesSomeBlocks_InStoneChunk()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob);
 
             try
@@ -49,7 +49,7 @@ namespace Lithforge.WorldGen.Tests
                     chunkData[i] = _stoneId;
                 }
 
-                CaveCarverJob job = new CaveCarverJob
+                CaveCarverJob job = new()
                 {
                     ChunkData = chunkData,
                     Seed = 42L,
@@ -91,7 +91,7 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_DoesNotCarveWater()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob);
 
             try
@@ -102,7 +102,7 @@ namespace Lithforge.WorldGen.Tests
                     chunkData[i] = _waterId;
                 }
 
-                CaveCarverJob job = new CaveCarverJob
+                CaveCarverJob job = new()
                 {
                     ChunkData = chunkData,
                     Seed = 42L,
@@ -136,7 +136,7 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_DoesNotCarveNearSeaLevel()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob);
 
             try
@@ -150,7 +150,7 @@ namespace Lithforge.WorldGen.Tests
                 int seaLevel = 64;
 
                 // Chunk at y=2 means world y range 64-95 (spans sea level)
-                CaveCarverJob job = new CaveCarverJob
+                CaveCarverJob job = new()
                 {
                     ChunkData = chunkData,
                     Seed = 42L,
@@ -198,7 +198,7 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_DoesNotCarveBelowMinY()
         {
-            NativeArray<StateId> chunkData = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData = new(
                 ChunkConstants.Volume, Allocator.TempJob);
 
             try
@@ -210,7 +210,7 @@ namespace Lithforge.WorldGen.Tests
                 }
 
                 // Chunk at y=0 means world y range 0-31
-                CaveCarverJob job = new CaveCarverJob
+                CaveCarverJob job = new()
                 {
                     ChunkData = chunkData,
                     Seed = 42L,
@@ -251,9 +251,9 @@ namespace Lithforge.WorldGen.Tests
         [Test]
         public void Execute_Deterministic_SameSeedSameResult()
         {
-            NativeArray<StateId> chunkData1 = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData1 = new(
                 ChunkConstants.Volume, Allocator.TempJob);
-            NativeArray<StateId> chunkData2 = new NativeArray<StateId>(
+            NativeArray<StateId> chunkData2 = new(
                 ChunkConstants.Volume, Allocator.TempJob);
 
             try
@@ -265,7 +265,7 @@ namespace Lithforge.WorldGen.Tests
                     chunkData2[i] = _stoneId;
                 }
 
-                CaveCarverJob job1 = new CaveCarverJob
+                CaveCarverJob job1 = new()
                 {
                     ChunkData = chunkData1,
                     Seed = 42L,
@@ -281,7 +281,7 @@ namespace Lithforge.WorldGen.Tests
                     SeaLevelCarveBuffer = 4,
                 };
 
-                CaveCarverJob job2 = new CaveCarverJob
+                CaveCarverJob job2 = new()
                 {
                     ChunkData = chunkData2,
                     Seed = 42L,
