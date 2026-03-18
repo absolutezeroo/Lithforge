@@ -3,9 +3,9 @@ using UnityEngine;
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Builds a simple billboard quad mesh for a remote player's name tag.
-    /// The mesh is a single quad (4 vertices, 6 indices) centered above the player's head.
-    /// Text is rendered onto a small texture that is applied via the name tag material.
+    ///     Builds a simple billboard quad mesh for a remote player's name tag.
+    ///     The mesh is a single quad (4 vertices, 6 indices) centered above the player's head.
+    ///     Text is rendered onto a small texture that is applied via the name tag material.
     /// </summary>
     public static class RemotePlayerNameTagBuilder
     {
@@ -13,13 +13,15 @@ namespace Lithforge.Runtime.Player
         private const float QuadHeight = 0.2f;
 
         /// <summary>
-        /// Creates a quad mesh for displaying the player name above the entity.
-        /// The mesh is centered at the origin; positioning is done via the render matrix.
+        ///     Creates a quad mesh for displaying the player name above the entity.
+        ///     The mesh is centered at the origin; positioning is done via the render matrix.
         /// </summary>
         public static Mesh BuildMesh(string playerName)
         {
-            Mesh mesh = new Mesh();
-            mesh.name = "NameTag_" + playerName;
+            Mesh mesh = new()
+            {
+                name = "NameTag_" + playerName,
+            };
 
             float halfW = QuadWidth * 0.5f;
             float halfH = QuadHeight * 0.5f;
@@ -36,7 +38,15 @@ namespace Lithforge.Runtime.Player
             uvs[2] = new Vector2(1f, 1f);
             uvs[3] = new Vector2(0f, 1f);
 
-            int[] indices = new int[] { 0, 2, 1, 0, 3, 2 };
+            int[] indices =
+            {
+                0,
+                2,
+                1,
+                0,
+                3,
+                2,
+            };
 
             mesh.vertices = vertices;
             mesh.uv = uvs;
@@ -47,18 +57,20 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Creates a texture with the player name rendered as white text on a
-        /// semi-transparent black background. Uses Unity's built-in font.
+        ///     Creates a texture with the player name rendered as white text on a
+        ///     semi-transparent black background. Uses Unity's built-in font.
         /// </summary>
         public static Texture2D BuildTexture(string playerName)
         {
             int texWidth = 256;
             int texHeight = 32;
-            Texture2D texture = new Texture2D(texWidth, texHeight, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Bilinear;
+            Texture2D texture = new(texWidth, texHeight, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+            };
 
             // Fill with semi-transparent black background
-            Color32 bgColor = new Color32(0, 0, 0, 128);
+            Color32 bgColor = new(0, 0, 0, 128);
             Color32[] pixels = new Color32[texWidth * texHeight];
 
             for (int i = 0; i < pixels.Length; i++)

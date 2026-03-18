@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
+
 using Lithforge.Voxel.Storage;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -10,49 +13,49 @@ using Cursor = UnityEngine.Cursor;
 namespace Lithforge.Runtime.World
 {
     /// <summary>
-    /// Full-screen UI Toolkit overlay that lets the player browse, create, and delete
-    /// world saves before entering a game session. Scans the worlds directory on a
-    /// background thread, then populates a scrollable list on the main thread.
-    /// Invokes a callback with a <see cref="WorldSession"/> and destroys itself once
-    /// the player picks a world.
+    ///     Full-screen UI Toolkit overlay that lets the player browse, create, and delete
+    ///     world saves before entering a game session. Scans the worlds directory on a
+    ///     background thread, then populates a scrollable list on the main thread.
+    ///     Invokes a callback with a <see cref="WorldSession" /> and destroys itself once
+    ///     the player picks a world.
     /// </summary>
     public sealed class WorldSelectionScreen : MonoBehaviour
     {
-        private static readonly Color s_backgroundColor = new Color(0.08f, 0.08f, 0.10f, 1.0f);
-        private static readonly Color s_panelColor = new Color(0.12f, 0.12f, 0.15f, 0.95f);
-        private static readonly Color s_entryColor = new Color(0.16f, 0.16f, 0.20f, 1.0f);
-        private static readonly Color s_entryHoverColor = new Color(0.22f, 0.22f, 0.28f, 1.0f);
-        private static readonly Color s_entrySelectedColor = new Color(0.25f, 0.30f, 0.45f, 1.0f);
-        private static readonly Color s_buttonColor = new Color(0.20f, 0.45f, 0.25f, 1.0f);
-        private static readonly Color s_buttonHoverColor = new Color(0.25f, 0.55f, 0.30f, 1.0f);
-        private static readonly Color s_deleteButtonColor = new Color(0.55f, 0.20f, 0.20f, 1.0f);
-        private static readonly Color s_deleteButtonHoverColor = new Color(0.70f, 0.25f, 0.25f, 1.0f);
-        private static readonly Color s_disabledButtonColor = new Color(0.25f, 0.25f, 0.25f, 1.0f);
-        private static readonly Color s_textColor = new Color(0.90f, 0.90f, 0.88f, 1.0f);
-        private static readonly Color s_dimTextColor = new Color(0.55f, 0.55f, 0.50f, 1.0f);
-        private static readonly Color s_logoColor = new Color(1.0f, 0.95f, 0.80f, 1.0f);
-        private static readonly Color s_lockedColor = new Color(0.80f, 0.40f, 0.40f, 1.0f);
-        private static readonly Color s_survivalDotColor = new Color(0.40f, 0.75f, 0.40f, 1.0f);
-        private static readonly Color s_creativeDotColor = new Color(0.40f, 0.55f, 0.85f, 1.0f);
-        private static readonly Color s_modalOverlayColor = new Color(0f, 0f, 0f, 0.7f);
+        private static readonly Color s_backgroundColor = new(0.08f, 0.08f, 0.10f, 1.0f);
+        private static readonly Color s_panelColor = new(0.12f, 0.12f, 0.15f, 0.95f);
+        private static readonly Color s_entryColor = new(0.16f, 0.16f, 0.20f, 1.0f);
+        private static readonly Color s_entryHoverColor = new(0.22f, 0.22f, 0.28f, 1.0f);
+        private static readonly Color s_entrySelectedColor = new(0.25f, 0.30f, 0.45f, 1.0f);
+        private static readonly Color s_buttonColor = new(0.20f, 0.45f, 0.25f, 1.0f);
+        private static readonly Color s_buttonHoverColor = new(0.25f, 0.55f, 0.30f, 1.0f);
+        private static readonly Color s_deleteButtonColor = new(0.55f, 0.20f, 0.20f, 1.0f);
+        private static readonly Color s_deleteButtonHoverColor = new(0.70f, 0.25f, 0.25f, 1.0f);
+        private static readonly Color s_disabledButtonColor = new(0.25f, 0.25f, 0.25f, 1.0f);
+        private static readonly Color s_textColor = new(0.90f, 0.90f, 0.88f, 1.0f);
+        private static readonly Color s_dimTextColor = new(0.55f, 0.55f, 0.50f, 1.0f);
+        private static readonly Color s_logoColor = new(1.0f, 0.95f, 0.80f, 1.0f);
+        private static readonly Color s_lockedColor = new(0.80f, 0.40f, 0.40f, 1.0f);
+        private static readonly Color s_survivalDotColor = new(0.40f, 0.75f, 0.40f, 1.0f);
+        private static readonly Color s_creativeDotColor = new(0.40f, 0.55f, 0.85f, 1.0f);
+        private static readonly Color s_modalOverlayColor = new(0f, 0f, 0f, 0.7f);
+        private readonly List<VisualElement> _entryElements = new();
+        private VisualElement _background;
+        private Button _deleteButton;
+        private Label _detailInfo;
+        private Label _detailName;
 
         private UIDocument _document;
-        private VisualElement _background;
-        private ScrollView _worldListScroll;
-        private Button _playButton;
-        private Button _deleteButton;
-        private Label _detailName;
-        private Label _detailInfo;
         private VisualElement _modalOverlay;
 
         private Action<WorldSession> _onWorldSelected;
-        private string _worldsRoot;
-        private List<WorldScanEntry> _scanResults;
+        private Button _playButton;
         private volatile bool _scanComplete;
+        private List<WorldScanEntry> _scanResults;
         private volatile bool _scanRunning;
-        private bool _uiPopulated;
         private int _selectedIndex = -1;
-        private List<VisualElement> _entryElements = new List<VisualElement>();
+        private bool _uiPopulated;
+        private ScrollView _worldListScroll;
+        private string _worldsRoot;
 
         private void Awake()
         {
@@ -60,15 +63,24 @@ namespace Lithforge.Runtime.World
             Cursor.visible = true;
         }
 
+        private void Update()
+        {
+            if (_scanComplete && !_uiPopulated)
+            {
+                _uiPopulated = true;
+                PopulateWorldList();
+            }
+        }
+
         /// <summary>
-        /// Builds the UI hierarchy and kicks off an asynchronous world-directory scan.
-        /// Must be called exactly once after the component is added.
+        ///     Builds the UI hierarchy and kicks off an asynchronous world-directory scan.
+        ///     Must be called exactly once after the component is added.
         /// </summary>
         /// <param name="panelSettings">Shared panel settings for the UIDocument (sortingOrder 600).</param>
         public void Initialize(PanelSettings panelSettings, Action<WorldSession> onWorldSelected)
         {
             _onWorldSelected = onWorldSelected;
-            _worldsRoot = System.IO.Path.Combine(Application.persistentDataPath, "worlds");
+            _worldsRoot = Path.Combine(Application.persistentDataPath, "worlds");
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.panelSettings = panelSettings;
@@ -88,8 +100,10 @@ namespace Lithforge.Runtime.World
             }
 
             _scanRunning = true;
-            Thread scanThread = new Thread(ScanWorker);
-            scanThread.IsBackground = true;
+            Thread scanThread = new(ScanWorker)
+            {
+                IsBackground = true,
+            };
             scanThread.Start();
         }
 
@@ -100,124 +114,156 @@ namespace Lithforge.Runtime.World
             _scanRunning = false;
         }
 
-        private void Update()
-        {
-            if (_scanComplete && !_uiPopulated)
-            {
-                _uiPopulated = true;
-                PopulateWorldList();
-            }
-        }
-
         private void BuildUI(VisualElement root)
         {
             root.pickingMode = PickingMode.Ignore;
 
-            _background = new VisualElement();
-            _background.style.position = Position.Absolute;
-            _background.style.left = 0;
-            _background.style.top = 0;
-            _background.style.right = 0;
-            _background.style.bottom = 0;
-            _background.style.backgroundColor = s_backgroundColor;
-            _background.style.flexDirection = FlexDirection.Column;
-            _background.style.alignItems = Align.Center;
-            _background.style.paddingTop = 30;
-            _background.style.paddingBottom = 30;
+            _background = new VisualElement
+            {
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = 0,
+                    right = 0,
+                    bottom = 0,
+                    backgroundColor = s_backgroundColor,
+                    flexDirection = FlexDirection.Column,
+                    alignItems = Align.Center,
+                    paddingTop = 30,
+                    paddingBottom = 30,
+                },
+            };
             root.Add(_background);
 
             // Logo
-            Label logo = new Label("LITHFORGE");
-            logo.style.fontSize = 48;
-            logo.style.color = s_logoColor;
-            logo.style.unityTextAlign = TextAnchor.MiddleCenter;
-            logo.style.unityFontStyleAndWeight = FontStyle.Bold;
-            logo.style.letterSpacing = 4;
-            logo.style.marginBottom = 4;
+            Label logo = new("LITHFORGE")
+            {
+                style =
+                {
+                    fontSize = 48,
+                    color = s_logoColor,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    letterSpacing = 4,
+                    marginBottom = 4,
+                },
+            };
             _background.Add(logo);
 
-            Label subtitle = new Label("Select World");
-            subtitle.style.fontSize = 18;
-            subtitle.style.color = s_dimTextColor;
-            subtitle.style.unityTextAlign = TextAnchor.MiddleCenter;
-            subtitle.style.marginBottom = 20;
+            Label subtitle = new("Select World")
+            {
+                style =
+                {
+                    fontSize = 18, color = s_dimTextColor, unityTextAlign = TextAnchor.MiddleCenter, marginBottom = 20,
+                },
+            };
             _background.Add(subtitle);
 
             // Content area: list on left, detail on right
-            VisualElement contentArea = new VisualElement();
-            contentArea.style.flexDirection = FlexDirection.Row;
-            contentArea.style.flexGrow = 1;
-            contentArea.style.width = new Length(80, LengthUnit.Percent);
-            contentArea.style.maxWidth = 900;
+            VisualElement contentArea = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row, flexGrow = 1, width = new Length(80, LengthUnit.Percent), maxWidth = 900,
+                },
+            };
             _background.Add(contentArea);
 
             // Left panel — world list
-            VisualElement listPanel = new VisualElement();
-            listPanel.style.flexGrow = 1;
-            listPanel.style.flexBasis = new Length(60, LengthUnit.Percent);
-            listPanel.style.marginRight = 12;
+            VisualElement listPanel = new()
+            {
+                style =
+                {
+                    flexGrow = 1, flexBasis = new Length(60, LengthUnit.Percent), marginRight = 12,
+                },
+            };
             contentArea.Add(listPanel);
 
-            _worldListScroll = new ScrollView(ScrollViewMode.Vertical);
-            _worldListScroll.style.flexGrow = 1;
-            _worldListScroll.style.backgroundColor = s_panelColor;
-            _worldListScroll.style.borderTopLeftRadius = 6;
-            _worldListScroll.style.borderTopRightRadius = 6;
-            _worldListScroll.style.borderBottomLeftRadius = 6;
-            _worldListScroll.style.borderBottomRightRadius = 6;
-            _worldListScroll.style.paddingTop = 8;
-            _worldListScroll.style.paddingBottom = 8;
-            _worldListScroll.style.paddingLeft = 8;
-            _worldListScroll.style.paddingRight = 8;
+            _worldListScroll = new ScrollView(ScrollViewMode.Vertical)
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    backgroundColor = s_panelColor,
+                    borderTopLeftRadius = 6,
+                    borderTopRightRadius = 6,
+                    borderBottomLeftRadius = 6,
+                    borderBottomRightRadius = 6,
+                    paddingTop = 8,
+                    paddingBottom = 8,
+                    paddingLeft = 8,
+                    paddingRight = 8,
+                },
+            };
             listPanel.Add(_worldListScroll);
 
             // Loading placeholder
-            Label loadingLabel = new Label("Scanning worlds...");
-            loadingLabel.name = "loading-label";
-            loadingLabel.style.fontSize = 14;
-            loadingLabel.style.color = s_dimTextColor;
-            loadingLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-            loadingLabel.style.marginTop = 20;
+            Label loadingLabel = new("Scanning worlds...")
+            {
+                name = "loading-label",
+                style =
+                {
+                    fontSize = 14, color = s_dimTextColor, unityTextAlign = TextAnchor.MiddleCenter, marginTop = 20,
+                },
+            };
             _worldListScroll.Add(loadingLabel);
 
             // Right panel — detail / info
-            VisualElement detailPanel = new VisualElement();
-            detailPanel.style.flexBasis = new Length(40, LengthUnit.Percent);
-            detailPanel.style.backgroundColor = s_panelColor;
-            detailPanel.style.borderTopLeftRadius = 6;
-            detailPanel.style.borderTopRightRadius = 6;
-            detailPanel.style.borderBottomLeftRadius = 6;
-            detailPanel.style.borderBottomRightRadius = 6;
-            detailPanel.style.paddingTop = 20;
-            detailPanel.style.paddingBottom = 20;
-            detailPanel.style.paddingLeft = 20;
-            detailPanel.style.paddingRight = 20;
-            detailPanel.style.alignItems = Align.Center;
-            detailPanel.style.justifyContent = Justify.Center;
+            VisualElement detailPanel = new()
+            {
+                style =
+                {
+                    flexBasis = new Length(40, LengthUnit.Percent),
+                    backgroundColor = s_panelColor,
+                    borderTopLeftRadius = 6,
+                    borderTopRightRadius = 6,
+                    borderBottomLeftRadius = 6,
+                    borderBottomRightRadius = 6,
+                    paddingTop = 20,
+                    paddingBottom = 20,
+                    paddingLeft = 20,
+                    paddingRight = 20,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                },
+            };
             contentArea.Add(detailPanel);
 
-            _detailName = new Label("No world selected");
-            _detailName.style.fontSize = 20;
-            _detailName.style.color = s_textColor;
-            _detailName.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _detailName.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _detailName.style.marginBottom = 12;
+            _detailName = new Label("No world selected")
+            {
+                style =
+                {
+                    fontSize = 20,
+                    color = s_textColor,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    marginBottom = 12,
+                },
+            };
             detailPanel.Add(_detailName);
 
-            _detailInfo = new Label("");
-            _detailInfo.style.fontSize = 13;
-            _detailInfo.style.color = s_dimTextColor;
-            _detailInfo.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _detailInfo.style.whiteSpace = WhiteSpace.Normal;
+            _detailInfo = new Label("")
+            {
+                style =
+                {
+                    fontSize = 13, color = s_dimTextColor, unityTextAlign = TextAnchor.MiddleCenter, whiteSpace = WhiteSpace.Normal,
+                },
+            };
             detailPanel.Add(_detailInfo);
 
             // Bottom button row
-            VisualElement buttonRow = new VisualElement();
-            buttonRow.style.flexDirection = FlexDirection.Row;
-            buttonRow.style.marginTop = 16;
-            buttonRow.style.justifyContent = Justify.Center;
-            buttonRow.style.width = new Length(80, LengthUnit.Percent);
-            buttonRow.style.maxWidth = 900;
+            VisualElement buttonRow = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    marginTop = 16,
+                    justifyContent = Justify.Center,
+                    width = new Length(80, LengthUnit.Percent),
+                    maxWidth = 900,
+                },
+            };
             _background.Add(buttonRow);
 
             _playButton = CreateButton("Play Selected", s_buttonColor, s_buttonHoverColor, OnPlayClicked);
@@ -237,16 +283,21 @@ namespace Lithforge.Runtime.World
             buttonRow.Add(_deleteButton);
 
             // Modal overlay (hidden by default)
-            _modalOverlay = new VisualElement();
-            _modalOverlay.style.position = Position.Absolute;
-            _modalOverlay.style.left = 0;
-            _modalOverlay.style.top = 0;
-            _modalOverlay.style.right = 0;
-            _modalOverlay.style.bottom = 0;
-            _modalOverlay.style.backgroundColor = s_modalOverlayColor;
-            _modalOverlay.style.alignItems = Align.Center;
-            _modalOverlay.style.justifyContent = Justify.Center;
-            _modalOverlay.style.display = DisplayStyle.None;
+            _modalOverlay = new VisualElement
+            {
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = 0,
+                    right = 0,
+                    bottom = 0,
+                    backgroundColor = s_modalOverlayColor,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                    display = DisplayStyle.None,
+                },
+            };
             root.Add(_modalOverlay);
         }
 
@@ -257,12 +308,17 @@ namespace Lithforge.Runtime.World
 
             if (_scanResults == null || _scanResults.Count == 0)
             {
-                Label empty = new Label("No worlds found. Create a new world to begin.");
-                empty.style.fontSize = 14;
-                empty.style.color = s_dimTextColor;
-                empty.style.unityTextAlign = TextAnchor.MiddleCenter;
-                empty.style.marginTop = 20;
-                empty.style.whiteSpace = WhiteSpace.Normal;
+                Label empty = new("No worlds found. Create a new world to begin.")
+                {
+                    style =
+                    {
+                        fontSize = 14,
+                        color = s_dimTextColor,
+                        unityTextAlign = TextAnchor.MiddleCenter,
+                        marginTop = 20,
+                        whiteSpace = WhiteSpace.Normal,
+                    },
+                };
                 _worldListScroll.Add(empty);
                 return;
             }
@@ -272,29 +328,39 @@ namespace Lithforge.Runtime.World
                 WorldScanEntry entry = _scanResults[i];
                 int index = i;
 
-                VisualElement row = new VisualElement();
-                row.style.flexDirection = FlexDirection.Row;
-                row.style.alignItems = Align.Center;
-                row.style.backgroundColor = s_entryColor;
-                row.style.borderTopLeftRadius = 4;
-                row.style.borderTopRightRadius = 4;
-                row.style.borderBottomLeftRadius = 4;
-                row.style.borderBottomRightRadius = 4;
-                row.style.paddingTop = 10;
-                row.style.paddingBottom = 10;
-                row.style.paddingLeft = 12;
-                row.style.paddingRight = 12;
-                row.style.marginBottom = 4;
+                VisualElement row = new()
+                {
+                    style =
+                    {
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        backgroundColor = s_entryColor,
+                        borderTopLeftRadius = 4,
+                        borderTopRightRadius = 4,
+                        borderBottomLeftRadius = 4,
+                        borderBottomRightRadius = 4,
+                        paddingTop = 10,
+                        paddingBottom = 10,
+                        paddingLeft = 12,
+                        paddingRight = 12,
+                        marginBottom = 4,
+                    },
+                };
 
                 // Game mode dot
-                VisualElement dot = new VisualElement();
-                dot.style.width = 12;
-                dot.style.height = 12;
-                dot.style.borderTopLeftRadius = 6;
-                dot.style.borderTopRightRadius = 6;
-                dot.style.borderBottomLeftRadius = 6;
-                dot.style.borderBottomRightRadius = 6;
-                dot.style.marginRight = 10;
+                VisualElement dot = new()
+                {
+                    style =
+                    {
+                        width = 12,
+                        height = 12,
+                        borderTopLeftRadius = 6,
+                        borderTopRightRadius = 6,
+                        borderBottomLeftRadius = 6,
+                        borderBottomRightRadius = 6,
+                        marginRight = 10,
+                    },
+                };
 
                 if (entry.Metadata != null)
                 {
@@ -311,21 +377,27 @@ namespace Lithforge.Runtime.World
 
                 // Name
                 string displayName = entry.Metadata?.DisplayName ?? entry.DirectoryName;
-                Label nameLabel = new Label(displayName);
-                nameLabel.style.fontSize = 15;
-                nameLabel.style.color = entry.IsLocked ? s_lockedColor : s_textColor;
-                nameLabel.style.flexGrow = 1;
-                nameLabel.pickingMode = PickingMode.Ignore;
+                Label nameLabel = new(displayName)
+                {
+                    style =
+                    {
+                        fontSize = 15, color = entry.IsLocked ? s_lockedColor : s_textColor, flexGrow = 1,
+                    },
+                    pickingMode = PickingMode.Ignore,
+                };
                 row.Add(nameLabel);
 
                 // Locked indicator
                 if (entry.IsLocked)
                 {
-                    Label lockedLabel = new Label("(in use)");
-                    lockedLabel.style.fontSize = 12;
-                    lockedLabel.style.color = s_lockedColor;
-                    lockedLabel.style.marginRight = 10;
-                    lockedLabel.pickingMode = PickingMode.Ignore;
+                    Label lockedLabel = new("(in use)")
+                    {
+                        style =
+                        {
+                            fontSize = 12, color = s_lockedColor, marginRight = 10,
+                        },
+                        pickingMode = PickingMode.Ignore,
+                    };
                     row.Add(lockedLabel);
                 }
 
@@ -333,15 +405,19 @@ namespace Lithforge.Runtime.World
                 if (entry.Metadata != null)
                 {
                     string dateStr = entry.Metadata.LastPlayed.ToLocalTime().ToString("g");
-                    Label dateLabel = new Label(dateStr);
-                    dateLabel.style.fontSize = 12;
-                    dateLabel.style.color = s_dimTextColor;
-                    dateLabel.pickingMode = PickingMode.Ignore;
+                    Label dateLabel = new(dateStr)
+                    {
+                        style =
+                        {
+                            fontSize = 12, color = s_dimTextColor,
+                        },
+                        pickingMode = PickingMode.Ignore,
+                    };
                     row.Add(dateLabel);
                 }
 
                 // Hover + click
-                row.RegisterCallback<PointerEnterEvent>((PointerEnterEvent evt) =>
+                row.RegisterCallback((PointerEnterEvent evt) =>
                 {
                     if (index != _selectedIndex)
                     {
@@ -349,7 +425,7 @@ namespace Lithforge.Runtime.World
                     }
                 });
 
-                row.RegisterCallback<PointerLeaveEvent>((PointerLeaveEvent evt) =>
+                row.RegisterCallback((PointerLeaveEvent evt) =>
                 {
                     if (index != _selectedIndex)
                     {
@@ -357,7 +433,7 @@ namespace Lithforge.Runtime.World
                     }
                 });
 
-                row.RegisterCallback<PointerDownEvent>((PointerDownEvent evt) =>
+                row.RegisterCallback((PointerDownEvent evt) =>
                 {
                     SelectWorld(index);
                 });
@@ -422,7 +498,7 @@ namespace Lithforge.Runtime.World
                 return;
             }
 
-            WorldSession session = new WorldSession(
+            WorldSession session = new(
                 entry.DirectoryPath,
                 entry.Metadata.DisplayName,
                 entry.Metadata.Seed,
@@ -462,57 +538,93 @@ namespace Lithforge.Runtime.World
 
             VisualElement panel = CreateModalPanel(380);
 
-            Label title = new Label("Create New World");
-            title.style.fontSize = 22;
-            title.style.color = s_textColor;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.unityTextAlign = TextAnchor.MiddleCenter;
-            title.style.marginBottom = 20;
+            Label title = new("Create New World")
+            {
+                style =
+                {
+                    fontSize = 22,
+                    color = s_textColor,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    marginBottom = 20,
+                },
+            };
             panel.Add(title);
 
             // World name field
-            Label nameLabel = new Label("World Name");
-            nameLabel.style.fontSize = 13;
-            nameLabel.style.color = s_dimTextColor;
-            nameLabel.style.marginBottom = 4;
+            Label nameLabel = new("World Name")
+            {
+                style =
+                {
+                    fontSize = 13, color = s_dimTextColor, marginBottom = 4,
+                },
+            };
             panel.Add(nameLabel);
 
-            TextField nameField = new TextField();
-            nameField.value = "New World";
-            nameField.style.marginBottom = 12;
+            TextField nameField = new()
+            {
+                value = "New World",
+                style =
+                {
+                    marginBottom = 12,
+                },
+            };
             StyleTextField(nameField);
             panel.Add(nameField);
 
             // Seed field
-            Label seedLabel = new Label("Seed (leave empty for random)");
-            seedLabel.style.fontSize = 13;
-            seedLabel.style.color = s_dimTextColor;
-            seedLabel.style.marginBottom = 4;
+            Label seedLabel = new("Seed (leave empty for random)")
+            {
+                style =
+                {
+                    fontSize = 13, color = s_dimTextColor, marginBottom = 4,
+                },
+            };
             panel.Add(seedLabel);
 
-            TextField seedField = new TextField();
-            seedField.value = "";
-            seedField.style.marginBottom = 12;
+            TextField seedField = new()
+            {
+                value = "",
+                style =
+                {
+                    marginBottom = 12,
+                },
+            };
             StyleTextField(seedField);
             panel.Add(seedField);
 
             // Game mode
-            Label modeLabel = new Label("Game Mode");
-            modeLabel.style.fontSize = 13;
-            modeLabel.style.color = s_dimTextColor;
-            modeLabel.style.marginBottom = 4;
+            Label modeLabel = new("Game Mode")
+            {
+                style =
+                {
+                    fontSize = 13, color = s_dimTextColor, marginBottom = 4,
+                },
+            };
             panel.Add(modeLabel);
 
-            DropdownField modeField = new DropdownField(
-                new List<string> { "Survival", "Creative" }, 0);
-            modeField.style.marginBottom = 20;
+            DropdownField modeField = new(
+                new List<string>
+                {
+                    "Survival", "Creative",
+                }, 0)
+            {
+                style =
+                {
+                    marginBottom = 20,
+                },
+            };
             StyleDropdown(modeField);
             panel.Add(modeField);
 
             // Buttons
-            VisualElement btnRow = new VisualElement();
-            btnRow.style.flexDirection = FlexDirection.Row;
-            btnRow.style.justifyContent = Justify.Center;
+            VisualElement btnRow = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row, justifyContent = Justify.Center,
+                },
+            };
             panel.Add(btnRow);
 
             Button createBtn = CreateButton("Create", s_buttonColor, s_buttonHoverColor, () =>
@@ -540,7 +652,7 @@ namespace Lithforge.Runtime.World
 
                 string worldDir = WorldDirectoryScanner.CreateWorld(_worldsRoot, worldName, seed, mode);
 
-                WorldSession session = new WorldSession(worldDir, worldName, seed, mode, true);
+                WorldSession session = new(worldDir, worldName, seed, mode, true);
                 _onWorldSelected?.Invoke(session);
                 _modalOverlay.style.display = DisplayStyle.None;
                 Destroy(gameObject);
@@ -566,26 +678,40 @@ namespace Lithforge.Runtime.World
 
             VisualElement panel = CreateModalPanel(360);
 
-            Label title = new Label("Delete World");
-            title.style.fontSize = 22;
-            title.style.color = s_textColor;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.unityTextAlign = TextAnchor.MiddleCenter;
-            title.style.marginBottom = 16;
+            Label title = new("Delete World")
+            {
+                style =
+                {
+                    fontSize = 22,
+                    color = s_textColor,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    marginBottom = 16,
+                },
+            };
             panel.Add(title);
 
             string displayName = entry.Metadata?.DisplayName ?? entry.DirectoryName;
-            Label warning = new Label($"'{displayName}' will be lost forever! (A long time!)");
-            warning.style.fontSize = 14;
-            warning.style.color = s_lockedColor;
-            warning.style.unityTextAlign = TextAnchor.MiddleCenter;
-            warning.style.whiteSpace = WhiteSpace.Normal;
-            warning.style.marginBottom = 20;
+            Label warning = new($"'{displayName}' will be lost forever! (A long time!)")
+            {
+                style =
+                {
+                    fontSize = 14,
+                    color = s_lockedColor,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    whiteSpace = WhiteSpace.Normal,
+                    marginBottom = 20,
+                },
+            };
             panel.Add(warning);
 
-            VisualElement btnRow = new VisualElement();
-            btnRow.style.flexDirection = FlexDirection.Row;
-            btnRow.style.justifyContent = Justify.Center;
+            VisualElement btnRow = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row, justifyContent = Justify.Center,
+                },
+            };
             panel.Add(btnRow);
 
             Button deleteBtn = CreateButton("Delete", s_deleteButtonColor, s_deleteButtonHoverColor, () =>
@@ -620,44 +746,54 @@ namespace Lithforge.Runtime.World
 
         private VisualElement CreateModalPanel(int width)
         {
-            VisualElement panel = new VisualElement();
-            panel.style.width = width;
-            panel.style.backgroundColor = s_panelColor;
-            panel.style.borderTopLeftRadius = 8;
-            panel.style.borderTopRightRadius = 8;
-            panel.style.borderBottomLeftRadius = 8;
-            panel.style.borderBottomRightRadius = 8;
-            panel.style.paddingTop = 24;
-            panel.style.paddingBottom = 24;
-            panel.style.paddingLeft = 24;
-            panel.style.paddingRight = 24;
+            VisualElement panel = new()
+            {
+                style =
+                {
+                    width = width,
+                    backgroundColor = s_panelColor,
+                    borderTopLeftRadius = 8,
+                    borderTopRightRadius = 8,
+                    borderBottomLeftRadius = 8,
+                    borderBottomRightRadius = 8,
+                    paddingTop = 24,
+                    paddingBottom = 24,
+                    paddingLeft = 24,
+                    paddingRight = 24,
+                },
+            };
             return panel;
         }
 
         private Button CreateButton(string text, Color normalColor, Color hoverColor, Action onClick)
         {
-            Button btn = new Button();
-            btn.text = text;
-            btn.style.height = 36;
-            btn.style.fontSize = 14;
-            btn.style.color = s_textColor;
-            btn.style.backgroundColor = normalColor;
-            btn.style.borderTopLeftRadius = 4;
-            btn.style.borderTopRightRadius = 4;
-            btn.style.borderBottomLeftRadius = 4;
-            btn.style.borderBottomRightRadius = 4;
-            btn.style.borderTopWidth = 0;
-            btn.style.borderBottomWidth = 0;
-            btn.style.borderLeftWidth = 0;
-            btn.style.borderRightWidth = 0;
-            btn.style.unityFontStyleAndWeight = FontStyle.Bold;
+            Button btn = new()
+            {
+                text = text,
+                style =
+                {
+                    height = 36,
+                    fontSize = 14,
+                    color = s_textColor,
+                    backgroundColor = normalColor,
+                    borderTopLeftRadius = 4,
+                    borderTopRightRadius = 4,
+                    borderBottomLeftRadius = 4,
+                    borderBottomRightRadius = 4,
+                    borderTopWidth = 0,
+                    borderBottomWidth = 0,
+                    borderLeftWidth = 0,
+                    borderRightWidth = 0,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                },
+            };
 
-            btn.RegisterCallback<PointerEnterEvent>((PointerEnterEvent evt) =>
+            btn.RegisterCallback((PointerEnterEvent evt) =>
             {
                 btn.style.backgroundColor = hoverColor;
             });
 
-            btn.RegisterCallback<PointerLeaveEvent>((PointerLeaveEvent evt) =>
+            btn.RegisterCallback((PointerLeaveEvent evt) =>
             {
                 btn.style.backgroundColor = normalColor;
             });

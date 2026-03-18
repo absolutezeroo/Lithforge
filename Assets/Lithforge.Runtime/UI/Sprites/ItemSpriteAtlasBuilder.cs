@@ -186,8 +186,10 @@ namespace Lithforge.Runtime.UI.Sprites
             FilterMode originalFilter = source.filterMode;
             source.filterMode = FilterMode.Point;
 
-            Texture2D readable = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
-            readable.filterMode = FilterMode.Point;
+            Texture2D readable = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
 
             RenderTexture rt = RenderTexture.GetTemporary(
                 SpriteSize, SpriteSize, 0, RenderTextureFormat.ARGB32);
@@ -214,8 +216,10 @@ namespace Lithforge.Runtime.UI.Sprites
 
         private static Sprite CreateFallbackSprite()
         {
-            Texture2D fallbackTex = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
-            fallbackTex.filterMode = FilterMode.Point;
+            Texture2D fallbackTex = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
             Color32[] pixels = new Color32[SpriteSize * SpriteSize];
 
             for (int p = 0; p < pixels.Length; p++)
@@ -260,10 +264,86 @@ namespace Lithforge.Runtime.UI.Sprites
             // Top face (brightness 1.0)
             int[][] topPattern =
             {
-                new[] { 2, 0 }, new[] { 3, 0 }, new[] { 4, 0 }, new[] { 5, 0 },
-                new[] { 0, 1 }, new[] { 1, 1 }, new[] { 2, 1 }, new[] { 3, 1 },
-                new[] { 4, 1 }, new[] { 5, 1 }, new[] { 6, 1 }, new[] { 7, 1 },
-                new[] { 2, 2 }, new[] { 3, 2 }, new[] { 4, 2 }, new[] { 5, 2 },
+                new[]
+                {
+                    2,
+                    0,
+                },
+                new[]
+                {
+                    3,
+                    0,
+                },
+                new[]
+                {
+                    4,
+                    0,
+                },
+                new[]
+                {
+                    5,
+                    0,
+                },
+                new[]
+                {
+                    0,
+                    1,
+                },
+                new[]
+                {
+                    1,
+                    1,
+                },
+                new[]
+                {
+                    2,
+                    1,
+                },
+                new[]
+                {
+                    3,
+                    1,
+                },
+                new[]
+                {
+                    4,
+                    1,
+                },
+                new[]
+                {
+                    5,
+                    1,
+                },
+                new[]
+                {
+                    6,
+                    1,
+                },
+                new[]
+                {
+                    7,
+                    1,
+                },
+                new[]
+                {
+                    2,
+                    2,
+                },
+                new[]
+                {
+                    3,
+                    2,
+                },
+                new[]
+                {
+                    4,
+                    2,
+                },
+                new[]
+                {
+                    5,
+                    2,
+                },
             };
 
             DrawCubeFace(pixels, cubeSize, topPx, tileSize, 1.0f,
@@ -274,12 +354,106 @@ namespace Lithforge.Runtime.UI.Sprites
             // Left face (brightness 0.836660)
             int[][] leftPattern =
             {
-                new[] { 0, 0 }, new[] { 1, 0 },
-                new[] { 0, 1 }, new[] { 1, 1 }, new[] { 2, 1 }, new[] { 3, 1 },
-                new[] { 0, 2 }, new[] { 1, 2 }, new[] { 2, 2 }, new[] { 3, 2 },
-                new[] { 0, 3 }, new[] { 1, 3 }, new[] { 2, 3 }, new[] { 3, 3 },
-                new[] { 0, 4 }, new[] { 1, 4 }, new[] { 2, 4 }, new[] { 3, 4 },
-                new[] { 2, 5 }, new[] { 3, 5 },
+                new[]
+                {
+                    0,
+                    0,
+                },
+                new[]
+                {
+                    1,
+                    0,
+                },
+                new[]
+                {
+                    0,
+                    1,
+                },
+                new[]
+                {
+                    1,
+                    1,
+                },
+                new[]
+                {
+                    2,
+                    1,
+                },
+                new[]
+                {
+                    3,
+                    1,
+                },
+                new[]
+                {
+                    0,
+                    2,
+                },
+                new[]
+                {
+                    1,
+                    2,
+                },
+                new[]
+                {
+                    2,
+                    2,
+                },
+                new[]
+                {
+                    3,
+                    2,
+                },
+                new[]
+                {
+                    0,
+                    3,
+                },
+                new[]
+                {
+                    1,
+                    3,
+                },
+                new[]
+                {
+                    2,
+                    3,
+                },
+                new[]
+                {
+                    3,
+                    3,
+                },
+                new[]
+                {
+                    0,
+                    4,
+                },
+                new[]
+                {
+                    1,
+                    4,
+                },
+                new[]
+                {
+                    2,
+                    4,
+                },
+                new[]
+                {
+                    3,
+                    4,
+                },
+                new[]
+                {
+                    2,
+                    5,
+                },
+                new[]
+                {
+                    3,
+                    5,
+                },
             };
 
             DrawCubeFace(pixels, cubeSize, leftPx, tileSize, 0.836660f,
@@ -290,12 +464,106 @@ namespace Lithforge.Runtime.UI.Sprites
             // Right face (brightness 0.670820)
             int[][] rightPattern =
             {
-                new[] { 2, 0 }, new[] { 3, 0 },
-                new[] { 0, 1 }, new[] { 1, 1 }, new[] { 2, 1 }, new[] { 3, 1 },
-                new[] { 0, 2 }, new[] { 1, 2 }, new[] { 2, 2 }, new[] { 3, 2 },
-                new[] { 0, 3 }, new[] { 1, 3 }, new[] { 2, 3 }, new[] { 3, 3 },
-                new[] { 0, 4 }, new[] { 1, 4 }, new[] { 2, 4 }, new[] { 3, 4 },
-                new[] { 0, 5 }, new[] { 1, 5 },
+                new[]
+                {
+                    2,
+                    0,
+                },
+                new[]
+                {
+                    3,
+                    0,
+                },
+                new[]
+                {
+                    0,
+                    1,
+                },
+                new[]
+                {
+                    1,
+                    1,
+                },
+                new[]
+                {
+                    2,
+                    1,
+                },
+                new[]
+                {
+                    3,
+                    1,
+                },
+                new[]
+                {
+                    0,
+                    2,
+                },
+                new[]
+                {
+                    1,
+                    2,
+                },
+                new[]
+                {
+                    2,
+                    2,
+                },
+                new[]
+                {
+                    3,
+                    2,
+                },
+                new[]
+                {
+                    0,
+                    3,
+                },
+                new[]
+                {
+                    1,
+                    3,
+                },
+                new[]
+                {
+                    2,
+                    3,
+                },
+                new[]
+                {
+                    3,
+                    3,
+                },
+                new[]
+                {
+                    0,
+                    4,
+                },
+                new[]
+                {
+                    1,
+                    4,
+                },
+                new[]
+                {
+                    2,
+                    4,
+                },
+                new[]
+                {
+                    3,
+                    4,
+                },
+                new[]
+                {
+                    0,
+                    5,
+                },
+                new[]
+                {
+                    1,
+                    5,
+                },
             };
 
             DrawCubeFace(pixels, cubeSize, rightPx, tileSize, 0.670820f,
@@ -303,8 +571,10 @@ namespace Lithforge.Runtime.UI.Sprites
                 -2, 5, 4 * tileSize - 2,
                 xOffset, rightPattern);
 
-            Texture2D tex = new Texture2D(cubeSize, cubeSize, TextureFormat.RGBA32, false);
-            tex.filterMode = FilterMode.Point;
+            Texture2D tex = new(cubeSize, cubeSize, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
             tex.SetPixels32(pixels);
             tex.Apply();
 
@@ -351,7 +621,7 @@ namespace Lithforge.Runtime.UI.Sprites
                     for (int p = 0; p < pattern.Length; p++)
                     {
                         int px = sx + pattern[p][0] + xOffset;
-                        int py = (cubeSize - 1) - (sy + pattern[p][1]);
+                        int py = cubeSize - 1 - (sy + pattern[p][1]);
 
                         if (px >= 0 && px < cubeSize && py >= 0 && py < cubeSize)
                         {
@@ -383,7 +653,7 @@ namespace Lithforge.Runtime.UI.Sprites
             Graphics.Blit(source, rt);
             RenderTexture.active = rt;
 
-            Texture2D readable = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            Texture2D readable = new(size, size, TextureFormat.RGBA32, false);
             readable.ReadPixels(new Rect(0, 0, size, size), 0, 0);
             readable.Apply();
 

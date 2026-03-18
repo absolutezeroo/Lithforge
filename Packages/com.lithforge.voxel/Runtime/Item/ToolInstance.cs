@@ -12,11 +12,17 @@ namespace Lithforge.Voxel.Item
         public float BaseDamage;
 
         public float BaseSpeed;
+
         public int CurrentDurability;
+
         public int EffectiveToolLevel;
+
         public bool IsBroken;
+
         public int MaxDurability;
+
         public ToolPart[] Parts;
+
         public ModifierSlot[] Slots;
 
         public ToolType ToolType;
@@ -169,14 +175,16 @@ namespace Lithforge.Voxel.Item
         /// </summary>
         public ToolInstance Clone()
         {
-            ToolInstance copy = new();
-            copy.ToolType = ToolType;
-            copy.BaseDamage = BaseDamage;
-            copy.BaseSpeed = BaseSpeed;
-            copy.CurrentDurability = CurrentDurability;
-            copy.MaxDurability = MaxDurability;
-            copy.IsBroken = IsBroken;
-            copy.EffectiveToolLevel = EffectiveToolLevel;
+            ToolInstance copy = new()
+            {
+                ToolType = ToolType,
+                BaseDamage = BaseDamage,
+                BaseSpeed = BaseSpeed,
+                CurrentDurability = CurrentDurability,
+                MaxDurability = MaxDurability,
+                IsBroken = IsBroken,
+                EffectiveToolLevel = EffectiveToolLevel,
+            };
 
             if (Parts != null)
             {

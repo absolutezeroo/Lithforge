@@ -21,8 +21,20 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class PartBuilderScreen : ContainerScreen
     {
-        private readonly List<PartBuilderRecipe> _availableRecipes = new List<PartBuilderRecipe>();
-        private readonly List<Button> _patternButtons = new List<Button>();
+        private static readonly Key[] s_numberKeys =
+        {
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
+        };
+        private readonly List<PartBuilderRecipe> _availableRecipes = new();
+        private readonly List<Button> _patternButtons = new();
         private Label _costLabel;
         private PartBuilderBlockEntity _currentBuilder;
         private Label _haveLabel;
@@ -46,12 +58,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
         // Pattern selection state
         private int _selectedPatternIndex = -1;
         private PartBuilderRecipe _selectedRecipe;
-
-        private static readonly Key[] s_numberKeys =
-        {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
-        };
 
         private void Update()
         {
@@ -327,7 +333,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (leftoverCount > 0 && _resolvedInput.HasLeftover)
             {
-                ItemStack leftoverStack = new ItemStack(
+                ItemStack leftoverStack = new(
                     _resolvedInput.LeftoverItemId, leftoverCount);
                 Context.PlayerInventory.AddItemStack(leftoverStack);
             }
@@ -438,7 +444,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             // 4. Sort by recipe cost then display name (TiC behavior)
-            _availableRecipes.Sort((PartBuilderRecipe a, PartBuilderRecipe b) =>
+            _availableRecipes.Sort((a, b) =>
             {
                 int ca = GetRecipeCost(a);
                 int cb = GetRecipeCost(b);
@@ -465,8 +471,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartBuilderRecipe recipe = _availableRecipes[i];
                 int capturedIndex = i;
 
-                Button btn = new Button();
-                btn.text = recipe.DisplayName;
+                Button btn = new()
+                {
+                    text = recipe.DisplayName,
+                };
                 btn.AddToClassList("lf-btn");
                 btn.AddToClassList("lf-btn--compact");
 
@@ -546,12 +554,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             // Build preview result
-            ToolPartData partData = new ToolPartData
+            ToolPartData partData = new()
             {
-                PartType = _selectedRecipe.ResultPartType,
-                MaterialId = _resolvedMaterial.MaterialId,
+                PartType = _selectedRecipe.ResultPartType, MaterialId = _resolvedMaterial.MaterialId,
             };
-            DataComponentMap partMap = new DataComponentMap();
+            DataComponentMap partMap = new();
             partMap.Set(DataComponentTypes.ToolPartDataId,
                 new ToolPartDataComponent(partData));
 
@@ -572,15 +579,17 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
             }
 
-            ItemStack previewResult = new ItemStack(resultId, resultCount);
-            previewResult.Components = partMap;
+            ItemStack previewResult = new(resultId, resultCount)
+            {
+                Components = partMap,
+            };
 
             // Ensure sprite is cached
             string matSuffix = Context.ToolPartTextures != null
                 ? Context.ToolPartTextures.ResolveSuffix(_resolvedMaterial.MaterialId)
                 : _resolvedMaterial.MaterialId.Name;
 
-            ResourceId spriteCacheKey = new ResourceId(
+            ResourceId spriteCacheKey = new(
                 resultId.Namespace,
                 resultId.Name + "__" + _resolvedMaterial.MaterialId.Name);
 

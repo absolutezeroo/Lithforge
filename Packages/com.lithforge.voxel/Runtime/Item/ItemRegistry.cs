@@ -39,10 +39,10 @@ namespace Lithforge.Voxel.Item
                     continue;
                 }
 
-                ItemEntry itemDef = new(blockId);
-                itemDef.MaxStackSize = 64;
-                itemDef.IsBlockItem = true;
-                itemDef.BlockId = blockId;
+                ItemEntry itemDef = new(blockId)
+                {
+                    MaxStackSize = 64, IsBlockItem = true, BlockId = blockId,
+                };
 
                 _items[blockId] = itemDef;
             }

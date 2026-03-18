@@ -1,3 +1,5 @@
+using System;
+
 using Lithforge.Core.Data;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
@@ -6,6 +8,7 @@ using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -13,44 +16,124 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    /// Screen for the tool station block entity. Shows 3 part slots (head, handle, binding),
-    /// tool type selector buttons, result preview label, and output slot.
-    /// Player inventory and hotbar below.
+    ///     Screen for the tool station block entity. Shows 3 part slots (head, handle, binding),
+    ///     tool type selector buttons, result preview label, and output slot.
+    ///     Player inventory and hotbar below.
     /// </summary>
     public sealed class ToolStationScreen : ContainerScreen
     {
+        private static readonly Key[] s_numberKeys =
+        {
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
+        };
+        private Button _axeBtn;
+        private BlockEntityContainerAdapter _bindingAdapter;
+        private ToolInstance _cachedPreview;
         private ToolStationBlockEntity _currentStation;
-        private ToolTraitRegistry _traitRegistry;
+        private BlockEntityContainerAdapter _handleAdapter;
 
         private BlockEntityContainerAdapter _headAdapter;
-        private BlockEntityContainerAdapter _handleAdapter;
-        private BlockEntityContainerAdapter _bindingAdapter;
-        private BlockEntityContainerAdapter _outputAdapter;
         private InventoryContainerAdapter _hotbarAdapter;
         private InventoryContainerAdapter _mainAdapter;
-
-        private ToolType _selectedToolType = ToolType.Pickaxe;
-        private Label _resultLabel;
-        private Label _statsLabel;
-        private ToolInstance _cachedPreview;
-        private bool _previewDirty = true;
+        private Label _modeLabel;
+        private BlockEntityContainerAdapter _outputAdapter;
 
         // Tool type buttons for styling
         private Button _pickaxeBtn;
-        private Button _axeBtn;
-        private Button _shovelBtn;
-        private Button _swordBtn;
-        private Label _modeLabel;
+        private bool _previewDirty = true;
 
         // Repair mode state
         private int[] _repairItemsConsumed;
         private int _repairTotalRepair;
+        private Label _resultLabel;
 
-        private static readonly Key[] s_numberKeys =
+        private ToolType _selectedToolType = ToolType.Pickaxe;
+        private Button _shovelBtn;
+        private Label _statsLabel;
+        private Button _swordBtn;
+        private ToolTraitRegistry _traitRegistry;
+
+        private void Update()
         {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
-        };
+            if (Context == null)
+            {
+                return;
+            }
+
+            if (IsOpen && Keyboard.current != null &&
+                (Keyboard.current.escapeKey.wasPressedThisFrame ||
+                 Keyboard.current.eKey.wasPressedThisFrame))
+            {
+                Close();
+                return;
+            }
+
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            if (IsInGracePeriod())
+            {
+                RefreshAllSlots();
+                return;
+            }
+
+            if (Keyboard.current != null)
+            {
+                HandleNumberKeys(Keyboard.current);
+            }
+
+            // Update preview only when slots change
+            if (_currentStation != null && _previewDirty
+                                        && _resultLabel != null && _statsLabel != null)
+            {
+                _previewDirty = false;
+
+                if (IsRepairMode())
+                {
+                    UpdateRepairPreview();
+
+                    if (_modeLabel != null)
+                    {
+                        _modeLabel.text = "Repair";
+                    }
+                }
+                else
+                {
+                    _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
+
+                    if (_cachedPreview != null)
+                    {
+                        _resultLabel.text = _selectedToolType + " (Lvl " + _cachedPreview.EffectiveToolLevel + ")";
+                        _statsLabel.text = "Speed: " + _cachedPreview.BaseSpeed.ToString("F1")
+                                                     + "  Durability: " + _cachedPreview.MaxDurability
+                                                     + "  Damage: " + _cachedPreview.BaseDamage.ToString("F1");
+                    }
+                    else
+                    {
+                        _resultLabel.text = "Place parts to assemble";
+                        _statsLabel.text = "";
+                    }
+
+                    if (_modeLabel != null)
+                    {
+                        _modeLabel.text = "Assembly";
+                    }
+                }
+            }
+
+            RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
+        }
 
         public void Initialize(ScreenContext context)
         {
@@ -79,11 +162,11 @@ namespace Lithforge.Runtime.BlockEntity.UI
             InventoryBehavior inv = station.Inventory;
 
             _headAdapter = new BlockEntityContainerAdapter(
-                inv, ToolStationBlockEntity.HeadSlot, 1, false);
+                inv, ToolStationBlockEntity.HeadSlot, 1);
             _handleAdapter = new BlockEntityContainerAdapter(
-                inv, ToolStationBlockEntity.HandleSlot, 1, false);
+                inv, ToolStationBlockEntity.HandleSlot, 1);
             _bindingAdapter = new BlockEntityContainerAdapter(
-                inv, ToolStationBlockEntity.BindingSlot, 1, false);
+                inv, ToolStationBlockEntity.BindingSlot, 1);
             _outputAdapter = new BlockEntityContainerAdapter(
                 inv, ToolStationBlockEntity.OutputSlot, 1, true);
 
@@ -232,7 +315,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                  Keyboard.current.rightShiftKey.isPressed))
             {
                 if (container == _headAdapter || container == _handleAdapter
-                    || container == _bindingAdapter)
+                                              || container == _bindingAdapter)
                 {
                     ContainerTransfer.TransferItem(
                         container, slotIndex, _mainAdapter, _hotbarAdapter, ItemRegistryRef);
@@ -293,15 +376,17 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
             }
 
-            ItemStack resultStack = new ItemStack(resultItemId, 1);
-            resultStack.Durability = tool.MaxDurability;
-            DataComponentMap toolMap = new DataComponentMap();
+            ItemStack resultStack = new(resultItemId, 1)
+            {
+                Durability = tool.MaxDurability,
+            };
+            DataComponentMap toolMap = new();
             toolMap.Set(DataComponentTypes.ToolInstanceId, new ToolInstanceComponent(tool));
             resultStack.Components = toolMap;
 
             bool isShift = Keyboard.current != null &&
-                (Keyboard.current.leftShiftKey.isPressed ||
-                 Keyboard.current.rightShiftKey.isPressed);
+                           (Keyboard.current.leftShiftKey.isPressed ||
+                            Keyboard.current.rightShiftKey.isPressed);
 
             if (isShift)
             {
@@ -435,13 +520,13 @@ namespace Lithforge.Runtime.BlockEntity.UI
                     break;
                 }
 
-                int needed = (int)System.Math.Ceiling((float)remaining / repairPerItem);
-                int used = System.Math.Min(needed, stack.Count);
+                int needed = (int)Math.Ceiling((float)remaining / repairPerItem);
+                int used = Math.Min(needed, stack.Count);
                 itemsConsumed[i] = used;
                 totalRepair += used * repairPerItem;
             }
 
-            totalRepair = System.Math.Min(totalRepair, damageToRepair);
+            totalRepair = Math.Min(totalRepair, damageToRepair);
 
             if (totalRepair <= 0)
             {
@@ -464,7 +549,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             ItemStack previewStack = toolStack;
             previewStack.Durability = repaired.CurrentDurability;
-            DataComponentMap repairedMap = new DataComponentMap();
+            DataComponentMap repairedMap = new();
             repairedMap.Set(DataComponentTypes.ToolInstanceId,
                 new ToolInstanceComponent(repaired));
             previewStack.Components = repairedMap;
@@ -496,8 +581,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             bool isShift = Keyboard.current != null &&
-                (Keyboard.current.leftShiftKey.isPressed ||
-                 Keyboard.current.rightShiftKey.isPressed);
+                           (Keyboard.current.leftShiftKey.isPressed ||
+                            Keyboard.current.rightShiftKey.isPressed);
 
             if (isShift)
             {
@@ -561,80 +646,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
         {
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);
             _currentStation = null;
-        }
-
-        private void Update()
-        {
-            if (Context == null)
-            {
-                return;
-            }
-
-            if (IsOpen && Keyboard.current != null &&
-                (Keyboard.current.escapeKey.wasPressedThisFrame ||
-                 Keyboard.current.eKey.wasPressedThisFrame))
-            {
-                Close();
-                return;
-            }
-
-            if (!IsOpen)
-            {
-                return;
-            }
-
-            if (IsInGracePeriod())
-            {
-                RefreshAllSlots();
-                return;
-            }
-
-            if (Keyboard.current != null)
-            {
-                HandleNumberKeys(Keyboard.current);
-            }
-
-            // Update preview only when slots change
-            if (_currentStation != null && _previewDirty
-                && _resultLabel != null && _statsLabel != null)
-            {
-                _previewDirty = false;
-
-                if (IsRepairMode())
-                {
-                    UpdateRepairPreview();
-
-                    if (_modeLabel != null)
-                    {
-                        _modeLabel.text = "Repair";
-                    }
-                }
-                else
-                {
-                    _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
-
-                    if (_cachedPreview != null)
-                    {
-                        _resultLabel.text = _selectedToolType.ToString() + " (Lvl " + _cachedPreview.EffectiveToolLevel + ")";
-                        _statsLabel.text = "Speed: " + _cachedPreview.BaseSpeed.ToString("F1")
-                            + "  Durability: " + _cachedPreview.MaxDurability
-                            + "  Damage: " + _cachedPreview.BaseDamage.ToString("F1");
-                    }
-                    else
-                    {
-                        _resultLabel.text = "Place parts to assemble";
-                        _statsLabel.text = "";
-                    }
-
-                    if (_modeLabel != null)
-                    {
-                        _modeLabel.text = "Assembly";
-                    }
-                }
-            }
-
-            RefreshAllSlots();
-            UpdateTooltipKeyRefresh();
         }
 
         private void HandleNumberKeys(Keyboard keyboard)

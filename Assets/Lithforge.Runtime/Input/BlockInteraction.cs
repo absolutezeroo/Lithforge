@@ -594,11 +594,10 @@ namespace Lithforge.Runtime.Input
             // Delegate state mutation (set to air) to command processor
             if (_commandProcessor != null)
             {
-                BreakBlockCommand cmd = new();
-                cmd.Tick = 0;
-                cmd.SequenceId = 0;
-                cmd.PlayerId = 0;
-                cmd.Position = blockCoord;
+                BreakBlockCommand cmd = new()
+                {
+                    Tick = 0, SequenceId = 0, PlayerId = 0, Position = blockCoord,
+                };
 
                 _commandProcessor.ProcessBreak(in cmd, _dirtiedChunks);
             }
@@ -678,13 +677,15 @@ namespace Lithforge.Runtime.Input
             // Delegate validation (air check, player overlap) and state mutation to command processor
             if (_commandProcessor != null)
             {
-                PlaceBlockCommand cmd = new();
-                cmd.Tick = 0;
-                cmd.SequenceId = 0;
-                cmd.PlayerId = 0;
-                cmd.Position = placeCoord;
-                cmd.BlockState = placeState;
-                cmd.Face = NormalToBlockFace(hit.Normal);
+                PlaceBlockCommand cmd = new()
+                {
+                    Tick = 0,
+                    SequenceId = 0,
+                    PlayerId = 0,
+                    Position = placeCoord,
+                    BlockState = placeState,
+                    Face = NormalToBlockFace(hit.Normal),
+                };
 
                 CommandResult result = _commandProcessor.ProcessPlace(in cmd, _dirtiedChunks);
 
