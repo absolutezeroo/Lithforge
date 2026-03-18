@@ -61,7 +61,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public Inventory Inventory { get; }
 
-        public PlayerPhysicsBody PhysicsBody { get; }
+        public PlayerPhysicsBody PhysicsBody { get; set; }
 
         public PlayerRenderer Renderer { get; set; }
 

@@ -1,57 +1,47 @@
-using System;
-
 namespace Lithforge.Network.Connection
 {
     /// <summary>
-    /// Per-connection finite state machine with validated transitions and timeout detection.
-    /// Valid transitions:
-    ///   Disconnected → Connecting
-    ///   Connecting → Handshaking
-    ///   Handshaking → Loading | Disconnecting
-    ///   Loading → Playing
-    ///   Playing → Disconnecting
-    ///   Any → Disconnected
+    ///     Per-connection finite state machine with validated transitions and timeout detection.
+    ///     Valid transitions:
+    ///     Disconnected → Connecting
+    ///     Connecting → Handshaking
+    ///     Handshaking → Loading | Disconnecting
+    ///     Loading → Playing
+    ///     Playing → Disconnecting
+    ///     Any → Disconnected
     /// </summary>
     public sealed class ConnectionStateMachine
     {
-        private ConnectionState _state = ConnectionState.Disconnected;
-        private float _stateEntryTime = 0f;
+        public ConnectionState Current { get; private set; } = ConnectionState.Disconnected;
 
-        public ConnectionState Current
-        {
-            get { return _state; }
-        }
-
-        public float StateEntryTime
-        {
-            get { return _stateEntryTime; }
-        }
+        public float StateEntryTime { get; private set; }
 
         /// <summary>
-        /// Attempts to transition to a new state. Returns true if the transition is valid.
+        ///     Attempts to transition to a new state. Returns true if the transition is valid.
         /// </summary>
         public bool Transition(ConnectionState newState, float currentTime)
         {
-            if (!IsValidTransition(_state, newState))
+            if (!IsValidTransition(Current, newState))
             {
                 return false;
             }
 
-            _state = newState;
-            _stateEntryTime = currentTime;
+            Current = newState;
+            StateEntryTime = currentTime;
+
             return true;
         }
 
         /// <summary>
-        /// Returns the time in seconds since entering the current state.
+        ///     Returns the time in seconds since entering the current state.
         /// </summary>
         public float GetTimeInState(float currentTime)
         {
-            return currentTime - _stateEntryTime;
+            return currentTime - StateEntryTime;
         }
 
         /// <summary>
-        /// Returns true if the connection has been in the current state longer than the given timeout.
+        ///     Returns true if the connection has been in the current state longer than the given timeout.
         /// </summary>
         public bool IsTimedOut(float currentTime, float timeoutSeconds)
         {
@@ -59,7 +49,7 @@ namespace Lithforge.Network.Connection
         }
 
         /// <summary>
-        /// Validates whether a transition from one state to another is permitted.
+        ///     Validates whether a transition from one state to another is permitted.
         /// </summary>
         public static bool IsValidTransition(ConnectionState from, ConnectionState to)
         {

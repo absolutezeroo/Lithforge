@@ -72,6 +72,19 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>
+        ///     Transitions the client to Playing state. Called when the server
+        ///     sends GameReady, indicating chunk streaming is complete.
+        /// </summary>
+        public void TransitionToPlaying()
+        {
+            if (_stateMachine.Current == ConnectionState.Loading)
+            {
+                _stateMachine.Transition(ConnectionState.Playing, _lastUpdateTime);
+                _logger.LogInfo("Client transitioned to Playing.");
+            }
+        }
+
         public bool IsConnected
         {
             get

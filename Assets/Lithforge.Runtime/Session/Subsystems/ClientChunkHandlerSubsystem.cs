@@ -68,6 +68,9 @@ namespace Lithforge.Runtime.Session.Subsystems
                         }
                     }
 
+                    // Transition client to Playing state so input/block commands are sent
+                    client.TransitionToPlaying();
+
                     // Dismiss loading screen (Client mode has no SpawnManager)
                     loadingScreen?.ForceComplete();
                 });

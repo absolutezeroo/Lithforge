@@ -86,9 +86,27 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             _client.OnHandshakeComplete = () =>
             {
+                ushort localId = _client.LocalPlayerId;
+
+                // The server created the authoritative physics body at localId
+                // during OnPlayerAccepted. Remove the placeholder body (ID 0)
+                // and point the renderer/controller to the server's body.
+                physicsManager.RemovePlayer(0);
+                PlayerPhysicsBody serverBody = physicsManager.GetBody(localId);
+
+                if (context.TryGet(out PlayerTransformHolder playerHolder) && serverBody != null)
+                {
+                    playerHolder.PhysicsBody = serverBody;
+
+                    if (playerHolder.Controller != null)
+                    {
+                        playerHolder.Controller.SetPhysicsBody(serverBody);
+                    }
+                }
+
                 ClientWorldSimulation clientSim = new(
                     tickRegistry, physicsManager, input,
-                    _client, _client.LocalPlayerId,
+                    _client, localId,
                     _client.ServerTickAtHandshake);
 
                 // Register player state handler for reconciliation

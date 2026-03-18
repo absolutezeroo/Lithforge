@@ -54,6 +54,15 @@ namespace Lithforge.Network.Server
         private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
         private IChunkStreamingStrategy _defaultStrategy;
 
+        // Spatial index: maps coarse grid cells to player indices in _playingPeersCache.
+        // Rebuilt every tick in O(N). Queried in O(27 * K) per subject where K = players per cell.
+        private readonly Dictionary<int3, List<int>> _spatialCells = new();
+        private readonly List<List<int>> _cellListPool = new();
+        private int _cellPoolCursor;
+        private readonly List<int> _nearbyCache = new();
+        private readonly Dictionary<ushort, int> _playerIdToIndex = new();
+        private readonly List<ushort> _despawnCache = new();
+
         private bool _disposed;
         private int _streamDebugCounter;
         private float _tickAccumulator;
@@ -168,6 +177,9 @@ namespace Lithforge.Network.Server
             // Phase 2: Process player inputs
             GatherPeersByState(_playingPeersCache, ConnectionState.Playing);
             ProcessPlayerInputs();
+
+            // Build spatial index for Phase 5 broadcast (O(N) instead of O(N²) iteration)
+            BuildSpatialIndex();
 
             // Phase 3: Simulate world
             _simulation.TickWorldSystems(TickDt);
@@ -340,9 +352,13 @@ namespace Lithforge.Network.Server
                 // Send to the owning player (for prediction reconciliation)
                 _server.SendTo(peer.ConnectionId, msg, PipelineId.UnreliableSequenced);
 
-                // Broadcast to other playing peers
-                for (int j = 0; j < _playingPeersCache.Count; j++)
+                // Broadcast to spatially nearby playing peers (O(K) instead of O(N))
+                GatherNearbyPlayerIndices(interest.CurrentChunk);
+
+                for (int k = 0; k < _nearbyCache.Count; k++)
                 {
+                    int j = _nearbyCache[k];
+
                     if (j == i)
                     {
                         continue;
@@ -386,8 +402,13 @@ namespace Lithforge.Network.Server
                     continue;
                 }
 
-                for (int j = 0; j < _playingPeersCache.Count; j++)
+                // Spawn detection: check only spatially nearby players (O(K) instead of O(N))
+                GatherNearbyPlayerIndices(observerInterest.CurrentChunk);
+
+                for (int k = 0; k < _nearbyCache.Count; k++)
                 {
+                    int j = _nearbyCache[k];
+
                     if (j == i)
                     {
                         continue;
@@ -424,16 +445,45 @@ namespace Lithforge.Network.Server
                         _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
                         observerInterest.SpawnedRemotePlayers.Add(subjectId);
                     }
-                    else if (!visible && alreadySpawned)
-                    {
-                        DespawnPlayerMessage msg = new()
-                        {
-                            PlayerId = subjectId,
-                        };
+                }
 
-                        _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
-                        observerInterest.SpawnedRemotePlayers.Remove(subjectId);
+                // Despawn detection: iterate spawned remote players (typically small set, O(S))
+                // Players who moved beyond the spatial neighborhood are NOT found by
+                // GatherNearbyPlayerIndices, so we check SpawnedRemotePlayers directly.
+                _despawnCache.Clear();
+
+                foreach (ushort spawnedId in observerInterest.SpawnedRemotePlayers)
+                {
+                    if (!_playerIdToIndex.TryGetValue(spawnedId, out int subjectIdx))
+                    {
+                        // Player disconnected — handled by OnPlayerDisconnected
+                        continue;
                     }
+
+                    PlayerInterestState subjectInterest = _playingPeersCache[subjectIdx].InterestState;
+
+                    if (subjectInterest == null)
+                    {
+                        continue;
+                    }
+
+                    if (!observerInterest.LoadedChunks.Contains(subjectInterest.CurrentChunk))
+                    {
+                        _despawnCache.Add(spawnedId);
+                    }
+                }
+
+                for (int k = 0; k < _despawnCache.Count; k++)
+                {
+                    ushort id = _despawnCache[k];
+
+                    DespawnPlayerMessage msg = new()
+                    {
+                        PlayerId = id,
+                    };
+
+                    _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
+                    observerInterest.SpawnedRemotePlayers.Remove(id);
                 }
             }
 
@@ -848,6 +898,108 @@ namespace Lithforge.Network.Server
             }
 
             OnPlayerCountChanged?.Invoke(CountPlayingPeers());
+        }
+
+        // ── Spatial index (O(N) build, O(27*K) query) ──
+
+        /// <summary>
+        ///     Populates the spatial hash from <see cref="_playingPeersCache" />.
+        ///     Cell size equals <see cref="DefaultViewRadius" /> so that a 3x3x3 cell
+        ///     query covers all potential observers for any subject chunk.
+        /// </summary>
+        private void BuildSpatialIndex()
+        {
+            // Return pooled lists and clear the dictionary
+            _cellPoolCursor = 0;
+            _spatialCells.Clear();
+            _playerIdToIndex.Clear();
+
+            for (int i = 0; i < _playingPeersCache.Count; i++)
+            {
+                PeerInfo peer = _playingPeersCache[i];
+                PlayerInterestState interest = peer.InterestState;
+
+                if (interest == null)
+                {
+                    continue;
+                }
+
+                _playerIdToIndex[peer.AssignedPlayerId] = i;
+
+                int3 cell = ChunkToCell(interest.CurrentChunk, DefaultViewRadius);
+
+                if (!_spatialCells.TryGetValue(cell, out List<int> list))
+                {
+                    list = RentCellList();
+                    _spatialCells[cell] = list;
+                }
+
+                list.Add(i);
+            }
+        }
+
+        private List<int> RentCellList()
+        {
+            if (_cellPoolCursor < _cellListPool.Count)
+            {
+                List<int> list = _cellListPool[_cellPoolCursor];
+                list.Clear();
+                _cellPoolCursor++;
+                return list;
+            }
+
+            List<int> newList = new();
+            _cellListPool.Add(newList);
+            _cellPoolCursor++;
+            return newList;
+        }
+
+        /// <summary>
+        ///     Fills <see cref="_nearbyCache" /> with indices into <see cref="_playingPeersCache" />
+        ///     for all players whose <see cref="PlayerInterestState.CurrentChunk" /> falls within
+        ///     a 3x3x3 cell neighborhood of the given chunk coordinate.
+        /// </summary>
+        private void GatherNearbyPlayerIndices(int3 subjectChunk)
+        {
+            _nearbyCache.Clear();
+            int3 centerCell = ChunkToCell(subjectChunk, DefaultViewRadius);
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        int3 cell = centerCell + new int3(dx, dy, dz);
+
+                        if (_spatialCells.TryGetValue(cell, out List<int> list))
+                        {
+                            for (int k = 0; k < list.Count; k++)
+                            {
+                                _nearbyCache.Add(list[k]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static int3 ChunkToCell(int3 chunkCoord, int cellSize)
+        {
+            return new int3(
+                FloorDiv(chunkCoord.x, cellSize),
+                FloorDiv(chunkCoord.y, cellSize),
+                FloorDiv(chunkCoord.z, cellSize));
+        }
+
+        private static int FloorDiv(int a, int b)
+        {
+            if (a >= 0)
+            {
+                return a / b;
+            }
+
+            return (a - b + 1) / b;
         }
 
         // ── Helpers ──

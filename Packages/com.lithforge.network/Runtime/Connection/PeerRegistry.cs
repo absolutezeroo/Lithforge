@@ -10,9 +10,13 @@ namespace Lithforge.Network.Connection
     {
         // Cached list for iteration to avoid allocating during broadcast
         private readonly List<PeerInfo> _allPeersCache = new();
+
         private readonly Dictionary<int, PeerInfo> _byConnection = new();
+
         private readonly Dictionary<ushort, PeerInfo> _byPlayerId = new();
+
         private bool _cacheDirty = true;
+
         private ushort _nextPlayerId = 1;
 
         public int Count
@@ -83,9 +87,12 @@ namespace Lithforge.Network.Connection
             }
 
             ushort playerId = _nextPlayerId;
+
             _nextPlayerId++;
+
             peer.AssignedPlayerId = playerId;
             _byPlayerId[playerId] = peer;
+
             return playerId;
         }
 
@@ -95,6 +102,7 @@ namespace Lithforge.Network.Connection
         public PeerInfo GetByConnection(ConnectionId connectionId)
         {
             _byConnection.TryGetValue(connectionId.Value, out PeerInfo peer);
+
             return peer;
         }
 
@@ -104,6 +112,7 @@ namespace Lithforge.Network.Connection
         public PeerInfo GetByPlayerId(ushort playerId)
         {
             _byPlayerId.TryGetValue(playerId, out PeerInfo peer);
+
             return peer;
         }
     }

@@ -84,5 +84,11 @@ namespace Lithforge.Network.Client
         ///     Gracefully disconnects from the server.
         /// </summary>
         public void Disconnect();
+
+        /// <summary>
+        ///     Transitions the client from Loading to Playing state.
+        ///     Called when the server sends GameReady.
+        /// </summary>
+        public void TransitionToPlaying();
     }
 }

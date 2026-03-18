@@ -17,6 +17,7 @@ namespace Lithforge.Network.Connection
             RoundTripTime = 0f;
             InterestState = null;
         }
+
         public ConnectionId ConnectionId { get; }
 
         public ConnectionStateMachine StateMachine { get; }
