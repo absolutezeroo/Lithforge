@@ -72,6 +72,15 @@ namespace Lithforge.Runtime.Session
         {
             get
             {
+                // Client mode: SpawnReady is set directly on the physics body
+                // by the GameReady handler in ClientChunkHandlerSubsystem
+                if (_config.IsClientMode)
+                {
+                    return _config.PlayerPhysicsBody != null
+                        && _config.PlayerPhysicsBody.SpawnReady;
+                }
+
+                // Singleplayer/Host: driven by SpawnManager
                 return _config.SpawnManager != null && _config.SpawnManager.IsComplete;
             }
         }

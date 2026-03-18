@@ -7,6 +7,8 @@ using Lithforge.Runtime.UI;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
 
+using Unity.Mathematics;
+
 namespace Lithforge.Runtime.Session.Subsystems
 {
     public sealed class ClientChunkHandlerSubsystem : IGameSubsystem
@@ -40,6 +42,10 @@ namespace Lithforge.Runtime.Session.Subsystems
             SessionInitArgs args = SessionInitArgsHolder.Current;
             LoadingScreen loadingScreen = args?.LoadingScreen;
 
+            // Capture player references for GameReady teleport
+            PlayerTransformHolder player =
+                context.TryGet(out PlayerTransformHolder p) ? p : null;
+
             _handler = new ClientChunkHandler(
                 chunkManager, client,
                 msg =>
@@ -47,7 +53,21 @@ namespace Lithforge.Runtime.Session.Subsystems
                     UnityEngine.Debug.Log(
                         $"[Lithforge] GameReady: spawn=({msg.SpawnX},{msg.SpawnY},{msg.SpawnZ})");
 
-                    // Dismiss loading screen (Client mode has no SpawnManager to do this)
+                    // Teleport player to server-assigned spawn position
+                    if (player != null)
+                    {
+                        UnityEngine.Vector3 spawnPos = new(msg.SpawnX, msg.SpawnY, msg.SpawnZ);
+                        player.Transform.position = spawnPos;
+
+                        if (player.PhysicsBody != null)
+                        {
+                            player.PhysicsBody.Teleport(new float3(
+                                msg.SpawnX, msg.SpawnY, msg.SpawnZ));
+                            player.PhysicsBody.SpawnReady = true;
+                        }
+                    }
+
+                    // Dismiss loading screen (Client mode has no SpawnManager)
                     loadingScreen?.ForceComplete();
                 });
 
