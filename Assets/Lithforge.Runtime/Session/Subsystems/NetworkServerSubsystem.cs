@@ -27,6 +27,12 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         private DirectTransportServer _directServer;
 
+        /// <summary>
+        ///     Set in PostInitialize; used by the accept callback to teleport the
+        ///     player to spawn so that generation centers on the correct position.
+        /// </summary>
+        private PlayerTransformHolder _playerHolder;
+
         private NetworkServer _server;
 
         private ServerGameLoop _serverGameLoop;
@@ -181,6 +187,15 @@ namespace Lithforge.Runtime.Session.Subsystems
                     {
                         peer.IsLocal = true;
 
+                        // Teleport player to spawn immediately so that
+                        // GetServerChunkCenter returns the spawn chunk and
+                        // generation centers on the correct position.
+                        if (_playerHolder != null)
+                        {
+                            _playerHolder.Transform.position =
+                                new UnityEngine.Vector3(spawnPos.x, spawnPos.y, spawnPos.z);
+                        }
+
                         int3 spawnChunk = new(
                             (int)math.floor(spawnPos.x / ChunkConstants.Size),
                             (int)math.floor(spawnPos.y / ChunkConstants.Size),
@@ -206,6 +221,14 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public void PostInitialize(SessionContext context)
         {
+            // Capture player transform for the accept callback's spawn teleport.
+            // PostInitialize runs after all subsystems are initialized, so PlayerSubsystem
+            // has already registered the holder.
+            if (context.TryGet(out PlayerTransformHolder player))
+            {
+                _playerHolder = player;
+            }
+
             // Wire player count to LAN broadcaster if present
             if (context.TryGet(out LanBroadcaster lan))
             {

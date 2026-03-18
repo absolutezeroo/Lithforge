@@ -91,12 +91,17 @@ namespace Lithforge.Network.Server
                 interest.PreviousChunk = interest.CurrentChunk;
             }
 
-            // Stream chunks up to rate limit
+            // Stream chunks up to rate limit.
+            // MaxChecksPerTick prevents scanning the entire queue when most chunks
+            // aren't generated yet — the cursor stops and resumes next tick.
             int rate = interest.IsInitialLoad ? InitialLoadRate : SteadyStateRate;
+            int maxChecks = rate * 64;
             int sent = 0;
+            int checked_ = 0;
             bool hasSkipped = false;
 
-            while (sent < rate && interest.StreamingQueueIndex < interest.StreamingQueue.Count)
+            while (sent < rate && checked_ < maxChecks
+                                && interest.StreamingQueueIndex < interest.StreamingQueue.Count)
             {
                 int3 coord = interest.StreamingQueue[interest.StreamingQueueIndex];
 
@@ -106,6 +111,8 @@ namespace Lithforge.Network.Server
                     interest.StreamingQueueIndex++;
                     continue;
                 }
+
+                checked_++;
 
                 // Skip-air fast path: all-air chunks require no mesh and no network data.
                 // Mark as loaded immediately without invoking the strategy.

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-using Lithforge.Core.Logging;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
@@ -11,6 +10,10 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
+
+using UnityEngine;
+
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Network.Server
 {
@@ -32,7 +35,9 @@ namespace Lithforge.Network.Server
         private const float MaxReachDistance = 6f;
         private const int DefaultViewRadius = 10;
         private readonly IServerBlockProcessor _blockProcessor;
+        private readonly List<List<int>> _cellListPool = new();
         private readonly IServerChunkProvider _chunkProvider;
+        private readonly List<ushort> _despawnCache = new();
         private readonly List<int3> _dirtiedChunksCache = new();
         private readonly ChunkDirtyTracker _dirtyTracker;
         private readonly List<ushort> _hostDespawnCache = new();
@@ -41,6 +46,11 @@ namespace Lithforge.Network.Server
         private readonly HashSet<ushort> _hostSpawnedPlayers = new();
         private readonly List<PeerInfo> _loadingPeersCache = new();
         private readonly ILogger _logger;
+        private readonly List<int> _nearbyCache = new();
+
+        /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
+        private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
+        private readonly Dictionary<ushort, int> _playerIdToIndex = new();
 
         // Cached collections (fill pattern, reused every tick)
         private readonly List<PeerInfo> _playingPeersCache = new();
@@ -48,20 +58,13 @@ namespace Lithforge.Network.Server
         private readonly INetworkServer _server;
         private readonly NetworkServer _serverImpl;
         private readonly IServerSimulation _simulation;
-        private readonly ChunkStreamingManager _streamingManager;
-
-        /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
-        private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
-        private IChunkStreamingStrategy _defaultStrategy;
 
         // Spatial index: maps coarse grid cells to player indices in _playingPeersCache.
         // Rebuilt every tick in O(N). Queried in O(27 * K) per subject where K = players per cell.
         private readonly Dictionary<int3, List<int>> _spatialCells = new();
-        private readonly List<List<int>> _cellListPool = new();
+        private readonly ChunkStreamingManager _streamingManager;
         private int _cellPoolCursor;
-        private readonly List<int> _nearbyCache = new();
-        private readonly Dictionary<ushort, int> _playerIdToIndex = new();
-        private readonly List<ushort> _despawnCache = new();
+        private IChunkStreamingStrategy _defaultStrategy;
 
         private bool _disposed;
         private int _streamDebugCounter;
@@ -73,11 +76,8 @@ namespace Lithforge.Network.Server
         /// <summary>Fires each tick with a remote player's authoritative state.</summary>
         public Action<PlayerStateMessage> OnHostPlayerState;
 
-        // Host-local callbacks: let the host see remote players without a NetworkClient.
-        // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
-
-        /// <summary>Fired when the number of playing peers changes. Parameter is the new count.</summary>
-        public Action<int> OnPlayerCountChanged;
+        /// <summary>Fires when a remote player enters the host's view.</summary>
+        public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
 
         /// <summary>
         ///     Fires after a player is accepted and initialized (physics body created,
@@ -86,8 +86,11 @@ namespace Lithforge.Network.Server
         /// </summary>
         public Action<PeerInfo, float3> OnPlayerAcceptedCallback;
 
-        /// <summary>Fires when a remote player enters the host's view.</summary>
-        public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
+        // Host-local callbacks: let the host see remote players without a NetworkClient.
+        // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
+
+        /// <summary>Fired when the number of playing peers changes. Parameter is the new count.</summary>
+        public Action<int> OnPlayerCountChanged;
 
         public ServerGameLoop(
             NetworkServer server,
@@ -119,23 +122,6 @@ namespace Lithforge.Network.Server
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
         }
 
-        /// <summary>
-        ///     Sets the default streaming strategy used for peers without a per-connection override.
-        /// </summary>
-        public void SetDefaultStrategy(IChunkStreamingStrategy strategy)
-        {
-            _defaultStrategy = strategy;
-        }
-
-        /// <summary>
-        ///     Registers a per-connection streaming strategy override (e.g. LocalChunkStreamingStrategy
-        ///     for the local peer in always-server mode).
-        /// </summary>
-        public void SetPeerStrategy(ConnectionId connectionId, IChunkStreamingStrategy strategy)
-        {
-            _peerStrategies[connectionId.Value] = strategy;
-        }
-
         public uint CurrentTick { get; private set; } = 1;
 
         public void Dispose()
@@ -152,6 +138,23 @@ namespace Lithforge.Network.Server
                 OnHostDespawnPlayer = null;
                 OnHostPlayerState = null;
             }
+        }
+
+        /// <summary>
+        ///     Sets the default streaming strategy used for peers without a per-connection override.
+        /// </summary>
+        public void SetDefaultStrategy(IChunkStreamingStrategy strategy)
+        {
+            _defaultStrategy = strategy;
+        }
+
+        /// <summary>
+        ///     Registers a per-connection streaming strategy override (e.g. LocalChunkStreamingStrategy
+        ///     for the local peer in always-server mode).
+        /// </summary>
+        public void SetPeerStrategy(ConnectionId connectionId, IChunkStreamingStrategy strategy)
+        {
+            _peerStrategies[connectionId.Value] = strategy;
         }
 
         /// <summary>
@@ -657,7 +660,7 @@ namespace Lithforge.Network.Server
                             states += $"{allPeers[i].ConnectionId}={allPeers[i].StateMachine.Current}";
                         }
 
-                        UnityEngine.Debug.Log(
+                        Debug.Log(
                             $"[STREAM] {peerCount} peer(s) but none in Loading/Playing. States: {states}");
                     }
                 }
@@ -674,7 +677,7 @@ namespace Lithforge.Network.Server
                     {
                         if (peer.InterestState != null)
                         {
-                            UnityEngine.Debug.Log(
+                            Debug.Log(
                                 $"[STREAM] peer={peer.ConnectionId} state={state} " +
                                 $"queue={peer.InterestState.StreamingQueue.Count} " +
                                 $"loaded={peer.InterestState.LoadedChunks.Count} " +
@@ -682,7 +685,7 @@ namespace Lithforge.Network.Server
                         }
                         else
                         {
-                            UnityEngine.Debug.Log(
+                            Debug.Log(
                                 $"[STREAM] peer={peer.ConnectionId} state={state} InterestState=NULL");
                         }
                     }
@@ -693,23 +696,29 @@ namespace Lithforge.Network.Server
                     // Check if Loading peer is ready to transition to Playing
                     if (state == ConnectionState.Loading)
                     {
-                        SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
-
-                        if (snapshot.IsComplete)
+                        if (peer.IsLocal)
                         {
                             TransitionToPlaying(peer, currentTime);
                         }
-                        else if (!peer.IsLocal && CurrentTick % 10 == 0)
+                        else
                         {
-                            // Send progress to remote clients every ~333ms for loading screen
-                            LoadingProgressMessage progressMsg = new()
-                            {
-                                ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue),
-                                TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
-                            };
+                            SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
 
-                            _server.SendTo(
-                                peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
+                            if (snapshot.IsComplete)
+                            {
+                                TransitionToPlaying(peer, currentTime);
+                            }
+                            else if (!peer.IsLocal && CurrentTick % 10 == 0)
+                            {
+                                // Send progress to remote clients every ~333ms for loading screen
+                                LoadingProgressMessage progressMsg = new()
+                                {
+                                    ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue), TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
+                                };
+
+                                _server.SendTo(
+                                    peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
+                            }
                         }
                     }
                 }
@@ -884,8 +893,7 @@ namespace Lithforge.Network.Server
                 SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
                 LoadingProgressMessage progressMsg = new()
                 {
-                    ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue),
-                    TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
+                    ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue), TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
                 };
 
                 _server.SendTo(peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
