@@ -5,6 +5,7 @@
     "Lithforge.Core",
     "Unity.Burst",
     "Unity.Collections",
+    "Unity.Jobs",
     "Unity.Mathematics"
   ],
   "includePlatforms": [],
