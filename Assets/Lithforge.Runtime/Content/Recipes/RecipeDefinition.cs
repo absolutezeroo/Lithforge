@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Lithforge.Runtime.Content.Items;
 using Lithforge.Voxel.Crafting;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -27,13 +26,9 @@ namespace Lithforge.Runtime.Content.Recipes
         [FormerlySerializedAs("_type"),Header("Type")]
         [SerializeField] private RecipeType type = RecipeType.Shaped;
 
-        /// <summary>Direct SO reference to the item produced by this recipe.</summary>
-        [FormerlySerializedAs("_resultItem"),Header("Result")]
-        [Tooltip("Result item")]
-        [SerializeField] private ItemDefinition resultItem;
-
-        /// <summary>Fallback ResourceId string used when <see cref="resultItem"/> is not set.</summary>
-        [FormerlySerializedAs("_resultItemId"),Tooltip("Result item id (fallback when direct reference not set)")]
+        /// <summary>ResourceId string for the item produced by this recipe (e.g. "lithforge:oak_planks").</summary>
+        [FormerlySerializedAs("_resultItemId"),Header("Result")]
+        [Tooltip("Result item resource ID (e.g. lithforge:oak_planks)")]
         [SerializeField] private string resultItemId;
 
         /// <summary>Stack size of the crafting output per single craft.</summary>
@@ -76,13 +71,7 @@ namespace Lithforge.Runtime.Content.Recipes
             get { return type; }
         }
 
-        /// <summary>Direct SO reference to the produced item, or null if <see cref="ResultItemId"/> is used instead.</summary>
-        public ItemDefinition ResultItem
-        {
-            get { return resultItem; }
-        }
-
-        /// <summary>ResourceId string fallback for the produced item when the SO reference is unset.</summary>
+        /// <summary>ResourceId string for the produced item (e.g. "lithforge:oak_planks").</summary>
         public string ResultItemId
         {
             get { return resultItemId; }
