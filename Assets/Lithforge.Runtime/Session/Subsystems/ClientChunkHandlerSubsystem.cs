@@ -46,6 +46,10 @@ namespace Lithforge.Runtime.Session.Subsystems
             PlayerTransformHolder player =
                 context.TryGet(out PlayerTransformHolder p) ? p : null;
 
+            // Capture loading screen so the GameReady callback can dismiss it
+            SessionInitArgs args = SessionInitArgsHolder.Current;
+            LoadingScreen loadingScreen = args?.LoadingScreen;
+
             _handler = new ClientChunkHandler(
                 chunkManager, client,
                 msg =>
@@ -69,6 +73,9 @@ namespace Lithforge.Runtime.Session.Subsystems
 
                     // Transition client to Playing state so input/block commands are sent
                     client.TransitionToPlaying();
+
+                    // Dismiss the loading screen
+                    loadingScreen?.ForceComplete();
                 });
 
             context.Register(_handler);
