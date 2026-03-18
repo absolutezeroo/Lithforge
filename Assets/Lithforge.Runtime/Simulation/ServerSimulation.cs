@@ -55,7 +55,8 @@ namespace Lithforge.Runtime.Simulation
         public PlayerPhysicsState ApplyMoveInput(
             ushort playerId, float yaw, float pitch, byte flags, float tickDt)
         {
-            // Reconstruct InputSnapshot from wire-format flags
+            // Reconstruct InputSnapshot from wire-format flags.
+            // Bits 0-5 are held input, bits 6-7 are edge-triggered toggles.
             InputSnapshot snapshot = new()
             {
                 Yaw = yaw,
@@ -67,6 +68,8 @@ namespace Lithforge.Runtime.Simulation
                 Sprint = (flags & InputFlags.Sprint) != 0,
                 JumpPressed = (flags & InputFlags.Jump) != 0,
                 JumpHeld = (flags & InputFlags.Jump) != 0,
+                FlyTogglePressed = (flags & InputFlags.FlyToggle) != 0,
+                NoclipTogglePressed = (flags & InputFlags.NoclipToggle) != 0,
             };
 
             _playerPhysicsManager.TickPlayer(playerId, tickDt, in snapshot);

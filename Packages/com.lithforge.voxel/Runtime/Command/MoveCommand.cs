@@ -36,6 +36,7 @@ namespace Lithforge.Voxel.Command
 
     /// <summary>
     /// Bit positions for <see cref="MoveCommand.Flags"/>.
+    /// Bits 0-5: held/continuous input, Bits 6-7: edge-triggered toggles.
     /// </summary>
     public static class InputFlags
     {
@@ -45,6 +46,7 @@ namespace Lithforge.Voxel.Command
         public const byte MoveRight = 1 << 3;
         public const byte Sprint = 1 << 4;
         public const byte Jump = 1 << 5;
-        public const byte Sneak = 1 << 6;
+        public const byte FlyToggle = 1 << 6;
+        public const byte NoclipToggle = 1 << 7;
     }
 }

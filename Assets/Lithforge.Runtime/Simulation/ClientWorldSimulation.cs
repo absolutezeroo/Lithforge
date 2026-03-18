@@ -1,4 +1,5 @@
 using System;
+
 using Lithforge.Network;
 using Lithforge.Network.Client;
 using Lithforge.Network.Messages;
@@ -21,8 +22,11 @@ namespace Lithforge.Runtime.Simulation
     public sealed class ClientWorldSimulation : IWorldSimulation
     {
         private const float ErrorThresholdIgnore = 0.001f;
+
         private const float ErrorThresholdSmooth = 0.04f;
+
         private const float ErrorThresholdTeleport = 4.0f;
+
         private const float PositionErrorDecay = 0.9f;
 
         /// <summary>
@@ -30,9 +34,21 @@ namespace Lithforge.Runtime.Simulation
         ///     Parallel to _predictionBuffer — indexed by the same tick values.
         /// </summary>
         private readonly CommandRingBuffer<InputSnapshot> _inputBuffer;
+
         private readonly InputSnapshotBuilder _inputSnapshotBuilder;
+
+        /// <summary>
+        ///     When true, the server and client share the same <see cref="PlayerPhysicsBody" />
+        ///     (SP/Host via DirectTransport). The server already ticks physics and world systems
+        ///     authoritatively, so <see cref="Tick" /> skips <c>TickPlayer</c> and
+        ///     <c>TickRegistry.TickAll</c> to avoid double-advancing.
+        /// </summary>
+        private readonly bool _isSharedBody;
+
         private readonly ushort _localPlayerId;
+
         private readonly INetworkClient _networkClient;
+
         private readonly PlayerPhysicsManager _playerPhysicsManager;
 
         /// <summary>Prediction buffer storing per-tick MoveCommands with predicted positions.</summary>
@@ -43,16 +59,8 @@ namespace Lithforge.Runtime.Simulation
         private ushort _moveSequenceId;
 
         /// <summary>
-        ///     When true, the server and client share the same <see cref="PlayerPhysicsBody" />
-        ///     (SP/Host via DirectTransport). The server already ticks physics and world systems
-        ///     authoritatively, so <see cref="Tick" /> skips <c>TickPlayer</c> and
-        ///     <c>TickRegistry.TickAll</c> to avoid double-advancing.
-        /// </summary>
-        private readonly bool _isSharedBody;
-
-        /// <summary>
-        /// Optional callback invoked for remote player state messages (PlayerId != localPlayerId).
-        /// Set via <see cref="SetRemotePlayerStateHandler"/> after construction.
+        ///     Optional callback invoked for remote player state messages (PlayerId != localPlayerId).
+        ///     Set via <see cref="SetRemotePlayerStateHandler" /> after construction.
         /// </summary>
         private Action<PlayerStateMessage> _onRemotePlayerState;
 
@@ -92,17 +100,6 @@ namespace Lithforge.Runtime.Simulation
         }
 
         public uint CurrentTick { get; private set; }
-
-        /// <summary>
-        /// Registers a handler that will be called for remote player state messages
-        /// (where PlayerId != localPlayerId). Used to route remote player snapshots
-        /// to the <see cref="Player.RemotePlayerManager"/> without requiring a second
-        /// handler registration on the single-handler MessageDispatcher.
-        /// </summary>
-        public void SetRemotePlayerStateHandler(Action<PlayerStateMessage> handler)
-        {
-            _onRemotePlayerState = handler;
-        }
 
         /// <summary>
         ///     Advances one tick: captures input, runs local physics prediction,
@@ -165,6 +162,17 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>
+        ///     Registers a handler that will be called for remote player state messages
+        ///     (where PlayerId != localPlayerId). Used to route remote player snapshots
+        ///     to the <see cref="Player.RemotePlayerManager" /> without requiring a second
+        ///     handler registration on the single-handler MessageDispatcher.
+        /// </summary>
+        public void SetRemotePlayerStateHandler(Action<PlayerStateMessage> handler)
+        {
+            _onRemotePlayerState = handler;
+        }
+
+        /// <summary>
         ///     Called when a PlayerStateMessage is received from the server.
         ///     Registers as a handler on the client's MessageDispatcher.
         /// </summary>
@@ -176,6 +184,7 @@ namespace Lithforge.Runtime.Simulation
             {
                 // Remote player state — route to remote player manager
                 _onRemotePlayerState?.Invoke(msg);
+
                 return;
             }
 
@@ -185,6 +194,7 @@ namespace Lithforge.Runtime.Simulation
             {
                 _predictionBuffer.DiscardBefore(CurrentTick);
                 _inputBuffer.DiscardBefore(CurrentTick);
+
                 return;
             }
 
@@ -206,6 +216,7 @@ namespace Lithforge.Runtime.Simulation
                     predictedPos = predicted.Position;
                     ackedTick = t;
                     foundPrediction = true;
+
                     break;
                 }
             }
@@ -223,6 +234,7 @@ namespace Lithforge.Runtime.Simulation
                 // Floating point noise — discard acknowledged entries (inclusive)
                 _predictionBuffer.DiscardBefore(ackedTick + 1);
                 _inputBuffer.DiscardBefore(ackedTick + 1);
+
                 return;
             }
 
@@ -230,8 +242,10 @@ namespace Lithforge.Runtime.Simulation
             {
                 // Small error: visual smoothing only (decays via PositionErrorDecay)
                 PositionError += serverPos - predictedPos;
+
                 _predictionBuffer.DiscardBefore(ackedTick + 1);
                 _inputBuffer.DiscardBefore(ackedTick + 1);
+
                 return;
             }
 
@@ -248,6 +262,7 @@ namespace Lithforge.Runtime.Simulation
                 PositionError = float3.zero;
                 _predictionBuffer.DiscardBefore(CurrentTick);
                 _inputBuffer.DiscardBefore(CurrentTick);
+
                 return;
             }
 
@@ -267,6 +282,7 @@ namespace Lithforge.Runtime.Simulation
             // 1. Snap to server state
             float3 serverPos = new(serverMsg.PositionX, serverMsg.PositionY, serverMsg.PositionZ);
             float3 serverVel = new(serverMsg.VelocityX, serverMsg.VelocityY, serverMsg.VelocityZ);
+
             body.SetPosition(serverPos);
             body.SetVelocity(serverVel);
             body.SetFlags(serverMsg.Flags);
@@ -287,6 +303,7 @@ namespace Lithforge.Runtime.Simulation
                     if (_predictionBuffer.TryGet(t, out MoveCommand oldCmd))
                     {
                         oldCmd.Position = corrected.Position;
+
                         _predictionBuffer.Add(t, oldCmd);
                     }
                 }
@@ -297,7 +314,8 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>
-        ///     Packs continuous input fields into the InputFlags bitmask.
+        ///     Packs input fields into the InputFlags bitmask.
+        ///     Bits 0-5: held/continuous, Bits 6-7: edge-triggered toggles.
         /// </summary>
         private static byte SnapshotToFlags(in InputSnapshot snapshot)
         {
@@ -331,6 +349,16 @@ namespace Lithforge.Runtime.Simulation
             if (snapshot.JumpPressed || snapshot.JumpHeld)
             {
                 flags |= InputFlags.Jump;
+            }
+
+            if (snapshot.FlyTogglePressed)
+            {
+                flags |= InputFlags.FlyToggle;
+            }
+
+            if (snapshot.NoclipTogglePressed)
+            {
+                flags |= InputFlags.NoclipToggle;
             }
 
             return flags;
