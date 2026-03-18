@@ -299,6 +299,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
 
             parent.Add(groupContainer);
+
             return groupContainer;
         }
 
@@ -332,6 +333,7 @@ namespace Lithforge.Runtime.UI.Screens
 
             parent.Add(widget);
             _allBindings.Add(new SlotWidgetBinding(container, slotIndex, widget));
+
             return widget;
         }
 
