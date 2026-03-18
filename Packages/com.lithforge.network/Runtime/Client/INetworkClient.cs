@@ -39,6 +39,11 @@ namespace Lithforge.Network.Client
         ///     The message dispatcher for registering external handlers.
         /// </summary>
         public MessageDispatcher Dispatcher { get; }
+
+        /// <summary>
+        ///     True when the client is fully connected and in Playing state.
+        /// </summary>
+        public bool IsPlaying { get; }
         /// <summary>
         ///     Initiates a connection to the given server address and port.
         /// </summary>

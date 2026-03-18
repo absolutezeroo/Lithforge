@@ -55,6 +55,11 @@ namespace Lithforge.Network.Client
 
         public MessageDispatcher Dispatcher { get; private set; }
 
+        public bool IsPlaying
+        {
+            get { return _stateMachine?.Current == ConnectionState.Playing; }
+        }
+
         public void Connect(string address, ushort port, float currentTime)
         {
             if (_transport != null)

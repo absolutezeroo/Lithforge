@@ -122,12 +122,15 @@ namespace Lithforge.Runtime.Simulation
                 _predictionBuffer.Add(CurrentTick, move);
                 _inputBuffer.Add(CurrentTick, snapshot);
 
-                // 4. Send input to server
-                MoveInputMessage msg = new()
+                // 4. Send input to server (only when connection is fully established)
+                if (_networkClient.IsPlaying)
                 {
-                    SequenceId = _moveSequenceId, Yaw = snapshot.Yaw, Pitch = snapshot.Pitch, Flags = move.Flags,
-                };
-                _networkClient.Send(msg, PipelineId.UnreliableSequenced);
+                    MoveInputMessage msg = new()
+                    {
+                        SequenceId = _moveSequenceId, Yaw = snapshot.Yaw, Pitch = snapshot.Pitch, Flags = move.Flags,
+                    };
+                    _networkClient.Send(msg, PipelineId.UnreliableSequenced);
+                }
 
                 _moveSequenceId++;
             }
