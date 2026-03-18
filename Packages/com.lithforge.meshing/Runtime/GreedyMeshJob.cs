@@ -708,7 +708,9 @@ namespace Lithforge.Meshing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte CornerLevelToFluidLevel(float cornerLevel)
         {
-            int fl = (int)math.round((1.0f - cornerLevel) * 7.0f);
+            // Inverse of SampleLiquidLevel's level / 8.0f normalization.
+            // Source (1.0) → 0, weakest flow (0.125) → 7.
+            int fl = (int)math.round((1.0f - cornerLevel) * 8.0f);
 
             return (byte)math.clamp(fl, 0, 7);
         }
