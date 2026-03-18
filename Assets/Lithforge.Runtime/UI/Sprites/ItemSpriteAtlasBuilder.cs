@@ -186,8 +186,10 @@ namespace Lithforge.Runtime.UI.Sprites
             FilterMode originalFilter = source.filterMode;
             source.filterMode = FilterMode.Point;
 
-            Texture2D readable = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
-            readable.filterMode = FilterMode.Point;
+            Texture2D readable = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
 
             RenderTexture rt = RenderTexture.GetTemporary(
                 SpriteSize, SpriteSize, 0, RenderTextureFormat.ARGB32);
@@ -214,8 +216,10 @@ namespace Lithforge.Runtime.UI.Sprites
 
         private static Sprite CreateFallbackSprite()
         {
-            Texture2D fallbackTex = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false);
-            fallbackTex.filterMode = FilterMode.Point;
+            Texture2D fallbackTex = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
             Color32[] pixels = new Color32[SpriteSize * SpriteSize];
 
             for (int p = 0; p < pixels.Length; p++)
@@ -567,8 +571,10 @@ namespace Lithforge.Runtime.UI.Sprites
                 -2, 5, 4 * tileSize - 2,
                 xOffset, rightPattern);
 
-            Texture2D tex = new(cubeSize, cubeSize, TextureFormat.RGBA32, false);
-            tex.filterMode = FilterMode.Point;
+            Texture2D tex = new(cubeSize, cubeSize, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
             tex.SetPixels32(pixels);
             tex.Apply();
 

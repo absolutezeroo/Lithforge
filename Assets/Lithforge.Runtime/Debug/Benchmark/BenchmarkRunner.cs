@@ -256,38 +256,48 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private void BuildMenuPanel()
         {
             // Centered container
-            VisualElement centerContainer = new();
-            centerContainer.pickingMode = PickingMode.Ignore;
-            centerContainer.style.position = Position.Absolute;
-            centerContainer.style.left = 0;
-            centerContainer.style.top = 0;
-            centerContainer.style.right = 0;
-            centerContainer.style.bottom = 0;
-            centerContainer.style.justifyContent = Justify.Center;
-            centerContainer.style.alignItems = Align.Center;
+            VisualElement centerContainer = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = 0,
+                    right = 0,
+                    bottom = 0,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center,
+                },
+            };
             _uiRoot.Add(centerContainer);
 
             // Menu panel
-            _menuPanel = new VisualElement();
-            _menuPanel.pickingMode = PickingMode.Ignore;
-            _menuPanel.style.backgroundColor = new Color(0.05f, 0.05f, 0.1f, 0.92f);
-            _menuPanel.style.paddingLeft = 16;
-            _menuPanel.style.paddingRight = 16;
-            _menuPanel.style.paddingTop = 12;
-            _menuPanel.style.paddingBottom = 12;
-            _menuPanel.style.borderTopLeftRadius = 8;
-            _menuPanel.style.borderTopRightRadius = 8;
-            _menuPanel.style.borderBottomLeftRadius = 8;
-            _menuPanel.style.borderBottomRightRadius = 8;
-            _menuPanel.style.minWidth = 340;
-            _menuPanel.style.borderLeftWidth = 1;
-            _menuPanel.style.borderRightWidth = 1;
-            _menuPanel.style.borderTopWidth = 1;
-            _menuPanel.style.borderBottomWidth = 1;
-            _menuPanel.style.borderLeftColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
-            _menuPanel.style.borderRightColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
-            _menuPanel.style.borderTopColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
-            _menuPanel.style.borderBottomColor = new Color(0.3f, 0.5f, 0.8f, 0.6f);
+            _menuPanel = new VisualElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    backgroundColor = new Color(0.05f, 0.05f, 0.1f, 0.92f),
+                    paddingLeft = 16,
+                    paddingRight = 16,
+                    paddingTop = 12,
+                    paddingBottom = 12,
+                    borderTopLeftRadius = 8,
+                    borderTopRightRadius = 8,
+                    borderBottomLeftRadius = 8,
+                    borderBottomRightRadius = 8,
+                    minWidth = 340,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = new Color(0.3f, 0.5f, 0.8f, 0.6f),
+                    borderRightColor = new Color(0.3f, 0.5f, 0.8f, 0.6f),
+                    borderTopColor = new Color(0.3f, 0.5f, 0.8f, 0.6f),
+                    borderBottomColor = new Color(0.3f, 0.5f, 0.8f, 0.6f),
+                },
+            };
             centerContainer.Add(_menuPanel);
 
             // Title
@@ -297,11 +307,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _menuPanel.Add(_titleLabel);
 
             // Separator
-            VisualElement sep = new();
-            sep.pickingMode = PickingMode.Ignore;
-            sep.style.height = 1;
-            sep.style.backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
-            sep.style.marginBottom = 6;
+            VisualElement sep = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    height = 1, backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f), marginBottom = 6,
+                },
+            };
             _menuPanel.Add(sep);
 
             // Scenario rows
@@ -328,12 +341,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
 
             // Separator
-            VisualElement sep2 = new();
-            sep2.pickingMode = PickingMode.Ignore;
-            sep2.style.height = 1;
-            sep2.style.backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f);
-            sep2.style.marginTop = 6;
-            sep2.style.marginBottom = 4;
+            VisualElement sep2 = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    height = 1, backgroundColor = new Color(0.3f, 0.5f, 0.8f, 0.4f), marginTop = 6, marginBottom = 4,
+                },
+            };
             _menuPanel.Add(sep2);
 
             // Hint
@@ -345,26 +360,36 @@ namespace Lithforge.Runtime.Debug.Benchmark
         private void BuildStatusPanel()
         {
             // Status toast — top-center
-            VisualElement topContainer = new();
-            topContainer.pickingMode = PickingMode.Ignore;
-            topContainer.style.position = Position.Absolute;
-            topContainer.style.left = 0;
-            topContainer.style.right = 0;
-            topContainer.style.top = 16;
-            topContainer.style.alignItems = Align.Center;
+            VisualElement topContainer = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    right = 0,
+                    top = 16,
+                    alignItems = Align.Center,
+                },
+            };
             _uiRoot.Add(topContainer);
 
-            _statusPanel = new VisualElement();
-            _statusPanel.pickingMode = PickingMode.Ignore;
-            _statusPanel.style.backgroundColor = new Color(0.05f, 0.05f, 0.1f, 0.85f);
-            _statusPanel.style.paddingLeft = 16;
-            _statusPanel.style.paddingRight = 16;
-            _statusPanel.style.paddingTop = 8;
-            _statusPanel.style.paddingBottom = 8;
-            _statusPanel.style.borderTopLeftRadius = 6;
-            _statusPanel.style.borderTopRightRadius = 6;
-            _statusPanel.style.borderBottomLeftRadius = 6;
-            _statusPanel.style.borderBottomRightRadius = 6;
+            _statusPanel = new VisualElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    backgroundColor = new Color(0.05f, 0.05f, 0.1f, 0.85f),
+                    paddingLeft = 16,
+                    paddingRight = 16,
+                    paddingTop = 8,
+                    paddingBottom = 8,
+                    borderTopLeftRadius = 6,
+                    borderTopRightRadius = 6,
+                    borderBottomLeftRadius = 6,
+                    borderBottomRightRadius = 6,
+                },
+            };
             topContainer.Add(_statusPanel);
 
             _statusLabel = CreateLabel("", 14, s_runningColor);
@@ -416,15 +441,20 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         private static Label CreateLabel(string text, int fontSize, Color color)
         {
-            Label label = new(text);
-            label.pickingMode = PickingMode.Ignore;
-            label.style.fontSize = fontSize;
-            label.style.color = color;
-            label.style.unityTextAlign = TextAnchor.UpperLeft;
-            label.style.marginTop = 0;
-            label.style.marginBottom = 0;
-            label.style.paddingTop = 0;
-            label.style.paddingBottom = 0;
+            Label label = new(text)
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    fontSize = fontSize,
+                    color = color,
+                    unityTextAlign = TextAnchor.UpperLeft,
+                    marginTop = 0,
+                    marginBottom = 0,
+                    paddingTop = 0,
+                    paddingBottom = 0,
+                },
+            };
             return label;
         }
 
@@ -797,36 +827,37 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         private BenchmarkResult BuildResult(BenchmarkScenario scenario, int totalFrames)
         {
-            BenchmarkResult result = new();
-            result.ScenarioName = scenario.ScenarioName;
-            result.TotalFrames = totalFrames;
-
-            // Assign array references
-            result.FrameMs = _frameMs;
-            result.SectionMs = _sectionMs;
-            result.GenCompleted = _genCompleted;
-            result.MeshCompleted = _meshCompleted;
-            result.LodCompleted = _lodCompleted;
-            result.GpuUploadBytes = _gpuUploadBytes;
-            result.GpuUploadCount = _gpuUploadCount;
-            result.GrowEvents = _growEvents;
-            result.GcGen0 = _gcGen0;
-            result.GcGen1 = _gcGen1;
-            result.GcGen2 = _gcGen2;
-            result.GenScheduled = _genScheduled;
-            result.MeshScheduled = _meshScheduled;
-            result.LodScheduled = _lodScheduled;
-            result.InvalidateCount = _invalidateCount;
-            result.MeshCompleteMaxMs = _meshCompleteMaxMs;
-            result.MeshCompleteStalls = _meshCompleteStalls;
-            result.GenCompleteMaxMs = _genCompleteMaxMs;
-            result.GenCompleteStalls = _genCompleteStalls;
-            result.SchedMeshFillMs = _schedMeshFillMs;
-            result.SchedMeshFilterMs = _schedMeshFilterMs;
-            result.SchedMeshAllocMs = _schedMeshAllocMs;
-            result.SchedMeshScheduleMs = _schedMeshScheduleMs;
-            result.SchedMeshFlushMs = _schedMeshFlushMs;
-            result.GeneratedSetSize = _generatedSetSize;
+            BenchmarkResult result = new()
+            {
+                ScenarioName = scenario.ScenarioName,
+                TotalFrames = totalFrames,
+                // Assign array references
+                FrameMs = _frameMs,
+                SectionMs = _sectionMs,
+                GenCompleted = _genCompleted,
+                MeshCompleted = _meshCompleted,
+                LodCompleted = _lodCompleted,
+                GpuUploadBytes = _gpuUploadBytes,
+                GpuUploadCount = _gpuUploadCount,
+                GrowEvents = _growEvents,
+                GcGen0 = _gcGen0,
+                GcGen1 = _gcGen1,
+                GcGen2 = _gcGen2,
+                GenScheduled = _genScheduled,
+                MeshScheduled = _meshScheduled,
+                LodScheduled = _lodScheduled,
+                InvalidateCount = _invalidateCount,
+                MeshCompleteMaxMs = _meshCompleteMaxMs,
+                MeshCompleteStalls = _meshCompleteStalls,
+                GenCompleteMaxMs = _genCompleteMaxMs,
+                GenCompleteStalls = _genCompleteStalls,
+                SchedMeshFillMs = _schedMeshFillMs,
+                SchedMeshFilterMs = _schedMeshFilterMs,
+                SchedMeshAllocMs = _schedMeshAllocMs,
+                SchedMeshScheduleMs = _schedMeshScheduleMs,
+                SchedMeshFlushMs = _schedMeshFlushMs,
+                GeneratedSetSize = _generatedSetSize,
+            };
 
             if (totalFrames == 0)
             {

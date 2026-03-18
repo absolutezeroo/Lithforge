@@ -420,8 +420,10 @@ namespace Lithforge.Runtime.Bootstrap
             {
                 Tag tag = tagAssets[i];
                 ResourceId tagId = new(tag.Namespace, tag.TagName);
-                TagDefinition tagDef = new(tagId);
-                tagDef.Replace = tag.Replace;
+                TagDefinition tagDef = new(tagId)
+                {
+                    Replace = tag.Replace,
+                };
 
                 IReadOnlyList<string> entryIds = tag.EntryIds;
 
@@ -739,35 +741,40 @@ namespace Lithforge.Runtime.Bootstrap
 
         private static LootTableDefinition ConvertLootTable(LootTable lt, ResourceId id)
         {
-            LootTableDefinition def = new(id);
-            def.Type = lt.Type;
+            LootTableDefinition def = new(id)
+            {
+                Type = lt.Type,
+            };
 
             IReadOnlyList<LootPoolEntry> pools = lt.Pools;
 
             for (int p = 0; p < pools.Count; p++)
             {
                 LootPoolEntry poolEntry = pools[p];
-                LootPool pool = new();
-                pool.RollsMin = poolEntry.RollsMin;
-                pool.RollsMax = poolEntry.RollsMax;
+                LootPool pool = new()
+                {
+                    RollsMin = poolEntry.RollsMin, RollsMax = poolEntry.RollsMax,
+                };
 
                 IReadOnlyList<LootItemEntry> items = poolEntry.Entries;
 
                 for (int e = 0; e < items.Count; e++)
                 {
                     LootItemEntry itemEntry = items[e];
-                    LootEntry entry = new();
-                    entry.Type = itemEntry.Type;
-                    entry.Name = itemEntry.ItemName;
-                    entry.Weight = itemEntry.Weight;
+                    LootEntry entry = new()
+                    {
+                        Type = itemEntry.Type, Name = itemEntry.ItemName, Weight = itemEntry.Weight,
+                    };
 
                     IReadOnlyList<LootFunctionEntry> funcs = itemEntry.Functions;
 
                     for (int f = 0; f < funcs.Count; f++)
                     {
                         LootFunctionEntry funcEntry = funcs[f];
-                        LootFunction func = new();
-                        func.Type = funcEntry.FunctionType;
+                        LootFunction func = new()
+                        {
+                            Type = funcEntry.FunctionType,
+                        };
 
                         IReadOnlyList<StringPair> pars = funcEntry.Parameters;
 
@@ -792,9 +799,10 @@ namespace Lithforge.Runtime.Bootstrap
         private static RecipeEntry ConvertRecipe(RecipeDefinition source)
         {
             ResourceId id = new(source.Namespace, source.RecipeName);
-            RecipeEntry recipe = new(id);
-            recipe.Type = source.Type;
-            recipe.ResultCount = source.ResultCount;
+            RecipeEntry recipe = new(id)
+            {
+                Type = source.Type, ResultCount = source.ResultCount,
+            };
 
             if (!string.IsNullOrEmpty(source.ResultItemId))
             {
@@ -836,9 +844,10 @@ namespace Lithforge.Runtime.Bootstrap
         private static ItemEntry ConvertItem(ItemDefinition item)
         {
             ResourceId id = new(item.Namespace, item.ItemName);
-            ItemEntry def = new(id);
-            def.MaxStackSize = item.MaxStackSize;
-            def.FuelTime = item.FuelTime;
+            ItemEntry def = new(id)
+            {
+                MaxStackSize = item.MaxStackSize, FuelTime = item.FuelTime,
+            };
 
             if (item.PlacesBlock != null)
             {

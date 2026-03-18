@@ -111,8 +111,10 @@ namespace Lithforge.Runtime.UI.Sprites
         /// </summary>
         private static Texture2D CompositeLayersPixel(Texture2D[] layers, int size)
         {
-            Texture2D result = new(size, size, TextureFormat.RGBA32, false);
-            result.filterMode = FilterMode.Point;
+            Texture2D result = new(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
             Color32[] pixels = new Color32[size * size];
 
             // Start fully transparent (Color32 zero-initializes to (0,0,0,0))

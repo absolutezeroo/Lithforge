@@ -113,12 +113,12 @@ namespace Lithforge.Runtime.Bootstrap
         private bool _quitInProgress;
         private bool _quitToTitle;
         private RemotePlayerManager _remotePlayerManager;
-        private SessionLockHandle _sessionLockHandle;
-        private bool _sessionShutdownComplete;
+        private SavedServerList _savedServerList;
 
         // Persistent menu screens (survive across sessions)
         private ScreenManager _screenManager;
-        private SavedServerList _savedServerList;
+        private SessionLockHandle _sessionLockHandle;
+        private bool _sessionShutdownComplete;
 
         private LoadedSettings _settings;
         private SfxSourcePool _sfxSourcePool;
@@ -172,6 +172,11 @@ namespace Lithforge.Runtime.Bootstrap
 
                 // Session ended (quit to title), loop back to main menu
             }
+        }
+
+        private void OnDestroy()
+        {
+            ShutdownSessionResources();
         }
 
         /// <summary>
@@ -230,11 +235,6 @@ namespace Lithforge.Runtime.Bootstrap
                 _screenManager.PopTo(ScreenNames.JoinGame);
             });
             _screenManager.Register(connectionProgress);
-        }
-
-        private void OnDestroy()
-        {
-            ShutdownSessionResources();
         }
 
         private IEnumerator RunGameSession(PanelSettings panelSettings)
@@ -346,8 +346,10 @@ namespace Lithforge.Runtime.Bootstrap
             SavingScreen savingScreen = savingObject.AddComponent<SavingScreen>();
             savingScreen.Initialize(panelSettings);
 
-            SaveProgress progress = new();
-            progress.Phase = SaveState.CompletingJobs;
+            SaveProgress progress = new()
+            {
+                Phase = SaveState.CompletingJobs,
+            };
             savingScreen.SetProgress(progress);
 
             // Let the saving screen render
@@ -767,10 +769,10 @@ namespace Lithforge.Runtime.Bootstrap
             if (_worldMetadata == null)
             {
                 // New world or corrupt metadata — create fresh
-                _worldMetadata = new WorldMetadata();
-                _worldMetadata.DisplayName = displayName ?? "New World";
-                _worldMetadata.Seed = seed;
-                _worldMetadata.GameMode = gameMode;
+                _worldMetadata = new WorldMetadata
+                {
+                    DisplayName = displayName ?? "New World", Seed = seed, GameMode = gameMode,
+                };
                 _worldStorage.SaveMetadataFull(_worldMetadata);
             }
 
@@ -1108,11 +1110,16 @@ namespace Lithforge.Runtime.Bootstrap
                 }
 
                 // Create player parent object
-                GameObject playerObject = new("Player");
-                playerObject.transform.position = new Vector3(
-                    0,
-                    _settings.WorldGen.SeaLevel + _settings.Chunk.InitialSpawnYOffset,
-                    0);
+                GameObject playerObject = new("Player")
+                {
+                    transform =
+                    {
+                        position = new Vector3(
+                            0,
+                            _settings.WorldGen.SeaLevel + _settings.Chunk.InitialSpawnYOffset,
+                            0),
+                    },
+                };
 
                 // Reparent camera under player
                 mainCamera.transform.SetParent(playerObject.transform);
@@ -1451,14 +1458,16 @@ namespace Lithforge.Runtime.Bootstrap
                     _pipelineStats);
 
                 // Add benchmark runner (F5 trigger, SO-driven scenarios)
-                BenchmarkContext benchmarkContext = new();
-                benchmarkContext.Metrics = metricsRegistry;
-                benchmarkContext.ChunkManager = _chunkManager;
-                benchmarkContext.PlayerController = playerController;
-                benchmarkContext.PlayerTransform = playerObject.transform;
-                benchmarkContext.MainCamera = mainCamera;
-                benchmarkContext.GameLoop = _gameLoop;
-                benchmarkContext.BlockInteraction = blockInteraction;
+                BenchmarkContext benchmarkContext = new()
+                {
+                    Metrics = metricsRegistry,
+                    ChunkManager = _chunkManager,
+                    PlayerController = playerController,
+                    PlayerTransform = playerObject.transform,
+                    MainCamera = mainCamera,
+                    GameLoop = _gameLoop,
+                    BlockInteraction = blockInteraction,
+                };
 
                 BenchmarkRunner benchmarkRunner = gameObject.AddComponent<BenchmarkRunner>();
                 benchmarkRunner.Initialize(

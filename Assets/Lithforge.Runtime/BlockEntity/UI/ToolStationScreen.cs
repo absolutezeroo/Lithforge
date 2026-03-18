@@ -376,8 +376,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
             }
 
-            ItemStack resultStack = new(resultItemId, 1);
-            resultStack.Durability = tool.MaxDurability;
+            ItemStack resultStack = new(resultItemId, 1)
+            {
+                Durability = tool.MaxDurability,
+            };
             DataComponentMap toolMap = new();
             toolMap.Set(DataComponentTypes.ToolInstanceId, new ToolInstanceComponent(tool));
             resultStack.Components = toolMap;

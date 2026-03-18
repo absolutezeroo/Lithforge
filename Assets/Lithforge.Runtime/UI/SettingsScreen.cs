@@ -134,46 +134,66 @@ namespace Lithforge.Runtime.UI
             root.pickingMode = PickingMode.Ignore;
 
             // Semi-transparent overlay background
-            _overlay = new VisualElement();
-            _overlay.style.position = Position.Absolute;
-            _overlay.style.top = 0;
-            _overlay.style.bottom = 0;
-            _overlay.style.left = 0;
-            _overlay.style.right = 0;
-            _overlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+            _overlay = new VisualElement
+            {
+                style =
+                {
+                    position = Position.Absolute,
+                    top = 0,
+                    bottom = 0,
+                    left = 0,
+                    right = 0,
+                    backgroundColor = new Color(0f, 0f, 0f, 0.6f),
+                },
+            };
             root.Add(_overlay);
 
             // Panel container — centered
-            _panel = new VisualElement();
-            _panel.style.position = Position.Absolute;
-            _panel.style.top = new Length(10, LengthUnit.Percent);
-            _panel.style.bottom = new Length(10, LengthUnit.Percent);
-            _panel.style.left = new Length(20, LengthUnit.Percent);
-            _panel.style.right = new Length(20, LengthUnit.Percent);
-            _panel.style.backgroundColor = new Color(0.12f, 0.12f, 0.15f, 0.95f);
-            _panel.style.borderTopLeftRadius = 8;
-            _panel.style.borderTopRightRadius = 8;
-            _panel.style.borderBottomLeftRadius = 8;
-            _panel.style.borderBottomRightRadius = 8;
-            _panel.style.paddingTop = 20;
-            _panel.style.paddingBottom = 20;
-            _panel.style.paddingLeft = 30;
-            _panel.style.paddingRight = 30;
-            _panel.style.overflow = Overflow.Hidden;
+            _panel = new VisualElement
+            {
+                style =
+                {
+                    position = Position.Absolute,
+                    top = new Length(10, LengthUnit.Percent),
+                    bottom = new Length(10, LengthUnit.Percent),
+                    left = new Length(20, LengthUnit.Percent),
+                    right = new Length(20, LengthUnit.Percent),
+                    backgroundColor = new Color(0.12f, 0.12f, 0.15f, 0.95f),
+                    borderTopLeftRadius = 8,
+                    borderTopRightRadius = 8,
+                    borderBottomLeftRadius = 8,
+                    borderBottomRightRadius = 8,
+                    paddingTop = 20,
+                    paddingBottom = 20,
+                    paddingLeft = 30,
+                    paddingRight = 30,
+                    overflow = Overflow.Hidden,
+                },
+            };
             _overlay.Add(_panel);
 
             // Title
-            Label title = new("Settings");
-            title.style.fontSize = 28;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.color = Color.white;
-            title.style.marginBottom = 20;
-            title.style.unityTextAlign = TextAnchor.MiddleCenter;
+            Label title = new("Settings")
+            {
+                style =
+                {
+                    fontSize = 28,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    color = Color.white,
+                    marginBottom = 20,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                },
+            };
             _panel.Add(title);
 
             // Scrollable content
-            ScrollView scrollView = new(ScrollViewMode.Vertical);
-            scrollView.style.flexGrow = 1;
+            ScrollView scrollView = new(ScrollViewMode.Vertical)
+            {
+                style =
+                {
+                    flexGrow = 1,
+                },
+            };
             _panel.Add(scrollView);
 
             // --- Graphics Section ---
@@ -321,56 +341,78 @@ namespace Lithforge.Runtime.UI
             AddKeybindRow(scrollView, "Noclip (while flying)", "N");
 
             // Close button — calls Close with returnToPause if opened from pause menu
-            Button closeButton = new(() => { Close(OpenedFromPause); });
-            closeButton.text = "Close";
-            closeButton.style.height = 40;
-            closeButton.style.marginTop = 15;
-            closeButton.style.fontSize = 16;
-            closeButton.style.backgroundColor = new Color(0.3f, 0.3f, 0.35f, 1f);
-            closeButton.style.color = Color.white;
-            closeButton.style.borderTopLeftRadius = 4;
-            closeButton.style.borderTopRightRadius = 4;
-            closeButton.style.borderBottomLeftRadius = 4;
-            closeButton.style.borderBottomRightRadius = 4;
+            Button closeButton = new(() => { Close(OpenedFromPause); })
+            {
+                text = "Close",
+                style =
+                {
+                    height = 40,
+                    marginTop = 15,
+                    fontSize = 16,
+                    backgroundColor = new Color(0.3f, 0.3f, 0.35f, 1f),
+                    color = Color.white,
+                    borderTopLeftRadius = 4,
+                    borderTopRightRadius = 4,
+                    borderBottomLeftRadius = 4,
+                    borderBottomRightRadius = 4,
+                },
+            };
             _panel.Add(closeButton);
         }
 
         private void AddSectionHeader(ScrollView parent, string text)
         {
-            Label header = new(text);
-            header.style.fontSize = 20;
-            header.style.unityFontStyleAndWeight = FontStyle.Bold;
-            header.style.color = new Color(0.8f, 0.8f, 0.85f, 1f);
-            header.style.marginTop = 16;
-            header.style.marginBottom = 8;
+            Label header = new(text)
+            {
+                style =
+                {
+                    fontSize = 20,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    color = new Color(0.8f, 0.8f, 0.85f, 1f),
+                    marginTop = 16,
+                    marginBottom = 8,
+                },
+            };
             parent.Add(header);
         }
 
         private void AddSliderFloat(ScrollView parent, string label, float initialValue,
             float min, float max, Action<float> onChange)
         {
-            VisualElement row = new();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginBottom = 6;
-            row.style.height = 30;
+            VisualElement row = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row, alignItems = Align.Center, marginBottom = 6, height = 30,
+                },
+            };
 
-            Label nameLabel = new(label);
-            nameLabel.style.width = new Length(40, LengthUnit.Percent);
-            nameLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f);
-            nameLabel.style.fontSize = 14;
+            Label nameLabel = new(label)
+            {
+                style =
+                {
+                    width = new Length(40, LengthUnit.Percent), color = new Color(0.85f, 0.85f, 0.85f, 1f), fontSize = 14,
+                },
+            };
             row.Add(nameLabel);
 
-            Slider slider = new(min, max);
-            slider.value = initialValue;
-            slider.style.flexGrow = 1;
+            Slider slider = new(min, max)
+            {
+                value = initialValue,
+                style =
+                {
+                    flexGrow = 1,
+                },
+            };
             row.Add(slider);
 
-            Label valueLabel = new(initialValue.ToString("F2"));
-            valueLabel.style.width = 60;
-            valueLabel.style.color = Color.white;
-            valueLabel.style.fontSize = 14;
-            valueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+            Label valueLabel = new(initialValue.ToString("F2"))
+            {
+                style =
+                {
+                    width = 60, color = Color.white, fontSize = 14, unityTextAlign = TextAnchor.MiddleRight,
+                },
+            };
             row.Add(valueLabel);
 
             slider.RegisterValueChangedCallback(evt =>
@@ -385,28 +427,40 @@ namespace Lithforge.Runtime.UI
         private void AddSliderInt(ScrollView parent, string label, int initialValue,
             int min, int max, Action<int> onChange)
         {
-            VisualElement row = new();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginBottom = 6;
-            row.style.height = 30;
+            VisualElement row = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row, alignItems = Align.Center, marginBottom = 6, height = 30,
+                },
+            };
 
-            Label nameLabel = new(label);
-            nameLabel.style.width = new Length(40, LengthUnit.Percent);
-            nameLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f);
-            nameLabel.style.fontSize = 14;
+            Label nameLabel = new(label)
+            {
+                style =
+                {
+                    width = new Length(40, LengthUnit.Percent), color = new Color(0.85f, 0.85f, 0.85f, 1f), fontSize = 14,
+                },
+            };
             row.Add(nameLabel);
 
-            SliderInt slider = new(min, max);
-            slider.value = initialValue;
-            slider.style.flexGrow = 1;
+            SliderInt slider = new(min, max)
+            {
+                value = initialValue,
+                style =
+                {
+                    flexGrow = 1,
+                },
+            };
             row.Add(slider);
 
-            Label valueLabel = new(initialValue.ToString());
-            valueLabel.style.width = 60;
-            valueLabel.style.color = Color.white;
-            valueLabel.style.fontSize = 14;
-            valueLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+            Label valueLabel = new(initialValue.ToString())
+            {
+                style =
+                {
+                    width = 60, color = Color.white, fontSize = 14, unityTextAlign = TextAnchor.MiddleRight,
+                },
+            };
             row.Add(valueLabel);
 
             slider.RegisterValueChangedCallback(evt =>
@@ -420,21 +474,30 @@ namespace Lithforge.Runtime.UI
 
         private void AddKeybindRow(ScrollView parent, string action, string key)
         {
-            VisualElement row = new();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginBottom = 4;
-            row.style.height = 26;
+            VisualElement row = new()
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row, alignItems = Align.Center, marginBottom = 4, height = 26,
+                },
+            };
 
-            Label actionLabel = new(action);
-            actionLabel.style.width = new Length(40, LengthUnit.Percent);
-            actionLabel.style.color = new Color(0.85f, 0.85f, 0.85f, 1f);
-            actionLabel.style.fontSize = 14;
+            Label actionLabel = new(action)
+            {
+                style =
+                {
+                    width = new Length(40, LengthUnit.Percent), color = new Color(0.85f, 0.85f, 0.85f, 1f), fontSize = 14,
+                },
+            };
             row.Add(actionLabel);
 
-            Label keyLabel = new("[" + key + "]");
-            keyLabel.style.color = new Color(0.6f, 0.6f, 0.7f, 1f);
-            keyLabel.style.fontSize = 14;
+            Label keyLabel = new("[" + key + "]")
+            {
+                style =
+                {
+                    color = new Color(0.6f, 0.6f, 0.7f, 1f), fontSize = 14,
+                },
+            };
             row.Add(keyLabel);
 
             parent.Add(row);

@@ -204,8 +204,10 @@ namespace Lithforge.Runtime.UI.Interaction
             {
                 // Pick up half (rounded up)
                 int half = (slotItem.Count + 1) / 2;
-                ItemStack pickup = new(slotItem.ItemId, half, slotItem.Durability);
-                pickup.Components = slotItem.Components;
+                ItemStack pickup = new(slotItem.ItemId, half, slotItem.Durability)
+                {
+                    Components = slotItem.Components,
+                };
                 Held.Set(pickup);
 
                 ItemStack remaining = slotItem;
@@ -215,8 +217,10 @@ namespace Lithforge.Runtime.UI.Interaction
             else if (slotItem.IsEmpty)
             {
                 // Place 1
-                ItemStack placed = new(Held.Stack.ItemId, 1, Held.Stack.Durability);
-                placed.Components = Held.Stack.Components;
+                ItemStack placed = new(Held.Stack.ItemId, 1, Held.Stack.Durability)
+                {
+                    Components = Held.Stack.Components,
+                };
                 container.SetSlot(slotIndex, placed);
 
                 ItemStack newHeld = Held.Stack;
@@ -287,8 +291,10 @@ namespace Lithforge.Runtime.UI.Interaction
 
             if (remaining > 0)
             {
-                ItemStack remainder = new(slotItem.ItemId, remaining, slotItem.Durability);
-                remainder.Components = slotItem.Components;
+                ItemStack remainder = new(slotItem.ItemId, remaining, slotItem.Durability)
+                {
+                    Components = slotItem.Components,
+                };
                 source.SetSlot(slotIndex, remainder);
             }
             else
@@ -568,8 +574,10 @@ namespace Lithforge.Runtime.UI.Interaction
             // Place 1
             if (slotItem.IsEmpty)
             {
-                ItemStack paintStack = new(_paintItemId, 1, _paintDurability);
-                paintStack.Components = _paintComponents;
+                ItemStack paintStack = new(_paintItemId, 1, _paintDurability)
+                {
+                    Components = _paintComponents,
+                };
                 container.SetSlot(slotIndex, paintStack);
             }
             else
@@ -634,8 +642,10 @@ namespace Lithforge.Runtime.UI.Interaction
                 }
 
                 int toMove = Mathf.Min(remaining, maxStack);
-                ItemStack newSlot = new(source.ItemId, toMove, source.Durability);
-                newSlot.Components = source.Components;
+                ItemStack newSlot = new(source.ItemId, toMove, source.Durability)
+                {
+                    Components = source.Components,
+                };
                 target.SetSlot(i, newSlot);
                 remaining -= toMove;
             }
@@ -645,8 +655,10 @@ namespace Lithforge.Runtime.UI.Interaction
 
         private ItemStack BuildPaintProbe()
         {
-            ItemStack probe = new(_paintItemId, 1, _paintDurability);
-            probe.Components = _paintComponents;
+            ItemStack probe = new(_paintItemId, 1, _paintDurability)
+            {
+                Components = _paintComponents,
+            };
             return probe;
         }
 

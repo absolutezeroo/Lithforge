@@ -22,12 +22,17 @@ namespace Lithforge.Runtime.BlockEntity
         private static readonly Stack<List<EntityKey>> s_listPool = new();
 
         private readonly List<EntityKey>[] _buckets;
+
         private readonly Dictionary<int3, List<EntityKey>> _chunkIndex = new();
 
         private readonly ChunkManager _chunkManager;
+
         private readonly Dictionary<EntityKey, BlockEntity> _entities = new();
+
         private readonly BlockEntityRegistry _registry;
+
         private readonly StateRegistry _stateRegistry;
+
         private int _currentBucket;
 
         public BlockEntityTickScheduler(

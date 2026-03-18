@@ -157,16 +157,18 @@ namespace Lithforge.Runtime.Content.Settings
                     string json = File.ReadAllText(filePath);
                     JObject root = JObject.Parse(json);
 
-                    UserPreferences prefs = new();
-                    prefs.Version = root["version"]?.Value<int>() ?? CurrentVersion;
-                    prefs.RenderDistance = root["render_distance"]?.Value<int>() ?? -1;
-                    prefs.FieldOfView = root["field_of_view"]?.Value<float>() ?? -1f;
-                    prefs.MouseSensitivity = root["mouse_sensitivity"]?.Value<float>() ?? -1f;
-                    prefs.AOStrength = root["ao_strength"]?.Value<float>() ?? -1f;
-                    prefs.MasterVolume = root["master_volume"]?.Value<float>() ?? -1f;
-                    prefs.SfxVolume = root["sfx_volume"]?.Value<float>() ?? -1f;
-                    prefs.MusicVolume = root["music_volume"]?.Value<float>() ?? -1f;
-                    prefs.AmbientVolume = root["ambient_volume"]?.Value<float>() ?? -1f;
+                    UserPreferences prefs = new()
+                    {
+                        Version = root["version"]?.Value<int>() ?? CurrentVersion,
+                        RenderDistance = root["render_distance"]?.Value<int>() ?? -1,
+                        FieldOfView = root["field_of_view"]?.Value<float>() ?? -1f,
+                        MouseSensitivity = root["mouse_sensitivity"]?.Value<float>() ?? -1f,
+                        AOStrength = root["ao_strength"]?.Value<float>() ?? -1f,
+                        MasterVolume = root["master_volume"]?.Value<float>() ?? -1f,
+                        SfxVolume = root["sfx_volume"]?.Value<float>() ?? -1f,
+                        MusicVolume = root["music_volume"]?.Value<float>() ?? -1f,
+                        AmbientVolume = root["ambient_volume"]?.Value<float>() ?? -1f,
+                    };
 
                     return prefs;
                 }

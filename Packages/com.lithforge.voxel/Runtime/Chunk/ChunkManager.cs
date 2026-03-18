@@ -782,6 +782,9 @@ namespace Lithforge.Voxel.Chunk
                     chunk.ActiveJobHandle.Complete();
                 }
 
+                // LiquidSimJob reads BlockData as [ReadOnly].
+                chunk.LiquidJobHandle.Complete();
+
                 // Neighbor mesh jobs read this chunk's Data as border slices via
                 // ExtractAllBordersJob. Complete them to release safety locks.
                 for (int face = 0; face < 6; face++)

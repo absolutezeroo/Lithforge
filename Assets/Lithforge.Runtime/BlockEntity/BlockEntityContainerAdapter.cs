@@ -5,50 +5,43 @@ using Lithforge.Voxel.Item;
 namespace Lithforge.Runtime.BlockEntity
 {
     /// <summary>
-    /// Adapts an InventoryBehavior to the ISlotContainer interface,
-    /// allowing block entity inventories to be used with the existing
-    /// SlotInteractionController and ContainerScreen infrastructure.
+    ///     Adapts an InventoryBehavior to the ISlotContainer interface,
+    ///     allowing block entity inventories to be used with the existing
+    ///     SlotInteractionController and ContainerScreen infrastructure.
     /// </summary>
     public sealed class BlockEntityContainerAdapter : ISlotContainer
     {
         private readonly InventoryBehavior _inventory;
+
         private readonly int _slotOffset;
-        private readonly int _slotCount;
-        private readonly bool _isReadOnly;
-
-        public int SlotCount
-        {
-            get { return _slotCount; }
-        }
-
-        public bool IsReadOnly
-        {
-            get { return _isReadOnly; }
-        }
 
         /// <summary>
-        /// Wraps the full inventory (all slots).
+        ///     Wraps the full inventory (all slots).
         /// </summary>
         public BlockEntityContainerAdapter(InventoryBehavior inventory, bool isReadOnly = false)
         {
             _inventory = inventory;
             _slotOffset = 0;
-            _slotCount = inventory.SlotCount;
-            _isReadOnly = isReadOnly;
+            SlotCount = inventory.SlotCount;
+            IsReadOnly = isReadOnly;
         }
 
         /// <summary>
-        /// Wraps a sub-range of the inventory (slotOffset .. slotOffset+slotCount-1).
-        /// Used by FurnaceScreen to expose one slot per adapter.
+        ///     Wraps a sub-range of the inventory (slotOffset .. slotOffset+slotCount-1).
+        ///     Used by FurnaceScreen to expose one slot per adapter.
         /// </summary>
         public BlockEntityContainerAdapter(
             InventoryBehavior inventory, int slotOffset, int slotCount, bool isReadOnly = false)
         {
             _inventory = inventory;
             _slotOffset = slotOffset;
-            _slotCount = slotCount;
-            _isReadOnly = isReadOnly;
+            SlotCount = slotCount;
+            IsReadOnly = isReadOnly;
         }
+
+        public int SlotCount { get; }
+
+        public bool IsReadOnly { get; }
 
         public ItemStack GetSlot(int index)
         {

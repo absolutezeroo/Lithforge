@@ -5,47 +5,43 @@ using Lithforge.Voxel.Item;
 namespace Lithforge.Runtime.BlockEntity
 {
     /// <summary>
-    /// Furnace block entity: 3-slot inventory (input=0, fuel=1, output=2)
-    /// with fuel burn and smelting behaviors.
+    ///     Furnace block entity: 3-slot inventory (input=0, fuel=1, output=2)
+    ///     with fuel burn and smelting behaviors.
     /// </summary>
     public sealed class FurnaceBlockEntity : BlockEntity
     {
         public const string TypeIdValue = "lithforge:furnace";
+
         public const int FurnaceSlotCount = 3;
+
         public const int InputSlot = 0;
+
         public const int FuelSlot = 1;
+
         public const int OutputSlot = 2;
 
-        private readonly InventoryBehavior _inventory;
-        private readonly FuelBurnBehavior _fuelBurn;
-        private readonly SmeltingBehavior _smelting;
+        public FurnaceBlockEntity(SmeltingRecipeRegistry recipeRegistry, ItemRegistry itemRegistry)
+        {
+            Inventory = new InventoryBehavior(FurnaceSlotCount);
+            FuelBurn = new FuelBurnBehavior(Inventory, itemRegistry, FuelSlot);
+            Smelting = new SmeltingBehavior(Inventory, FuelBurn, recipeRegistry, itemRegistry);
+            Behaviors = new BlockEntityBehavior[]
+            {
+                Inventory,
+                FuelBurn,
+                Smelting,
+            };
+        }
 
         public override string TypeId
         {
             get { return TypeIdValue; }
         }
 
-        public InventoryBehavior Inventory
-        {
-            get { return _inventory; }
-        }
+        public InventoryBehavior Inventory { get; }
 
-        public FuelBurnBehavior FuelBurn
-        {
-            get { return _fuelBurn; }
-        }
+        public FuelBurnBehavior FuelBurn { get; }
 
-        public SmeltingBehavior Smelting
-        {
-            get { return _smelting; }
-        }
-
-        public FurnaceBlockEntity(SmeltingRecipeRegistry recipeRegistry, ItemRegistry itemRegistry)
-        {
-            _inventory = new InventoryBehavior(FurnaceSlotCount);
-            _fuelBurn = new FuelBurnBehavior(_inventory, itemRegistry, FuelSlot);
-            _smelting = new SmeltingBehavior(_inventory, _fuelBurn, recipeRegistry, itemRegistry);
-            Behaviors = new BlockEntityBehavior[] { _inventory, _fuelBurn, _smelting };
-        }
+        public SmeltingBehavior Smelting { get; }
     }
 }

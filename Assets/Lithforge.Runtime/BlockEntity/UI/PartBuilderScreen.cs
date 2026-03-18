@@ -34,16 +34,25 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit9,
         };
         private readonly List<PartBuilderRecipe> _availableRecipes = new();
+
         private readonly List<Button> _patternButtons = new();
+
         private Label _costLabel;
+
         private PartBuilderBlockEntity _currentBuilder;
+
         private Label _haveLabel;
+
         private InventoryContainerAdapter _hotbarAdapter;
+
         private InventoryContainerAdapter _mainAdapter;
+
         private BlockEntityContainerAdapter _materialAdapter;
+
         private Label _materialLabel;
 
         private bool _needsRefresh;
+
         private BlockEntityContainerAdapter _outputAdapter;
 
         private BlockEntityContainerAdapter _patternAdapter;
@@ -53,10 +62,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         // Material resolution (TiC-style)
         private MaterialInputData _resolvedInput;
+
         private ToolMaterialData _resolvedMaterial;
 
         // Pattern selection state
         private int _selectedPatternIndex = -1;
+
         private PartBuilderRecipe _selectedRecipe;
 
         private void Update()
@@ -71,6 +82,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                  Keyboard.current.eKey.wasPressedThisFrame))
             {
                 Close();
+
                 return;
             }
 
@@ -82,6 +94,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             if (IsInGracePeriod())
             {
                 RefreshAllSlots();
+
                 return;
             }
 
@@ -93,6 +106,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             if (_needsRefresh)
             {
                 _needsRefresh = false;
+
                 RefreshPatternButtons();
             }
 
@@ -118,6 +132,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 Interaction.NumberKeySwap(hoveredContainer, hoveredIndex, _hotbarAdapter, i);
+
                 return;
             }
         }
@@ -246,6 +261,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 evt.StopPropagation();
+
                 return;
             }
 
@@ -449,7 +465,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 int ca = GetRecipeCost(a);
                 int cb = GetRecipeCost(b);
                 int cmp = ca.CompareTo(cb);
-                return cmp != 0 ? cmp : string.Compare(a.DisplayName, b.DisplayName);
+                return cmp != 0 ? cmp : string.CompareOrdinal(a.DisplayName, b.DisplayName);
             });
 
             RebuildPatternButtonsUI();
@@ -471,8 +487,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartBuilderRecipe recipe = _availableRecipes[i];
                 int capturedIndex = i;
 
-                Button btn = new();
-                btn.text = recipe.DisplayName;
+                Button btn = new()
+                {
+                    text = recipe.DisplayName,
+                };
                 btn.AddToClassList("lf-btn");
                 btn.AddToClassList("lf-btn--compact");
 
@@ -577,8 +595,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
             }
 
-            ItemStack previewResult = new(resultId, resultCount);
-            previewResult.Components = partMap;
+            ItemStack previewResult = new(resultId, resultCount)
+            {
+                Components = partMap,
+            };
 
             // Ensure sprite is cached
             string matSuffix = Context.ToolPartTextures != null
@@ -624,6 +644,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                     : "";
                 _costLabel.text = "";
                 _haveLabel.text = "";
+
                 return;
             }
 
@@ -633,6 +654,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 _materialLabel.text = _selectedRecipe.DisplayName;
                 _costLabel.text = "Place material to craft";
                 _haveLabel.text = "";
+
                 return;
             }
 
@@ -683,6 +705,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             int cost = GetRecipeCost(recipe);
+
             return _resolvedInput.GetItemsUsed(cost);
         }
 

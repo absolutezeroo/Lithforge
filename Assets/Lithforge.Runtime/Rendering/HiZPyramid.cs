@@ -161,13 +161,15 @@ namespace Lithforge.Runtime.Rendering
                 int mipW = Mathf.Max(1, width >> mip);
                 int mipH = Mathf.Max(1, height >> mip);
 
-                RenderTexture rt = new(mipW, mipH, 0, RenderTextureFormat.RFloat);
-                rt.enableRandomWrite = true;
-                rt.filterMode = FilterMode.Point;
-                rt.wrapMode = TextureWrapMode.Clamp;
-                rt.useMipMap = false;
-                rt.autoGenerateMips = false;
-                rt.name = $"HiZ_Mip{mip}";
+                RenderTexture rt = new(mipW, mipH, 0, RenderTextureFormat.RFloat)
+                {
+                    enableRandomWrite = true,
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                    useMipMap = false,
+                    autoGenerateMips = false,
+                    name = $"HiZ_Mip{mip}",
+                };
                 rt.Create();
 
                 _mipTextures[mip] = rt;
@@ -176,12 +178,14 @@ namespace Lithforge.Runtime.Rendering
             // Combined mipmapped RT for sampling in occlusion cull compute shader.
             // Per-mip RTs are used during generation (avoids DX11 read-write hazard),
             // then copied into this combined RT for efficient mip-level access.
-            _combinedTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.RFloat);
-            _combinedTexture.useMipMap = true;
-            _combinedTexture.autoGenerateMips = false;
-            _combinedTexture.filterMode = FilterMode.Point;
-            _combinedTexture.wrapMode = TextureWrapMode.Clamp;
-            _combinedTexture.name = "HiZ_Combined";
+            _combinedTexture = new RenderTexture(Width, Height, 0, RenderTextureFormat.RFloat)
+            {
+                useMipMap = true,
+                autoGenerateMips = false,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "HiZ_Combined",
+            };
             _combinedTexture.Create();
         }
 

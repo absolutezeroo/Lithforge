@@ -9,19 +9,21 @@ using Cursor = UnityEngine.Cursor;
 namespace Lithforge.Runtime.UI.Navigation
 {
     /// <summary>
-    /// Manages a push/pop stack of <see cref="IScreen"/> instances. Owns cursor
-    /// state centrally so individual screens never touch <c>Cursor.lockState</c>.
-    /// Handles Escape key dispatch to the topmost opaque screen.
+    ///     Manages a push/pop stack of <see cref="IScreen" /> instances. Owns cursor
+    ///     state centrally so individual screens never touch <c>Cursor.lockState</c>.
+    ///     Handles Escape key dispatch to the topmost opaque screen.
     /// </summary>
     /// <remarks>
-    /// Lives on the same root GameObject as LithforgeBootstrap and persists for
-    /// the entire application lifetime. Screens are registered by name and can
-    /// be pushed/popped by name or by direct reference.
+    ///     Lives on the same root GameObject as LithforgeBootstrap and persists for
+    ///     the entire application lifetime. Screens are registered by name and can
+    ///     be pushed/popped by name or by direct reference.
     /// </remarks>
     public sealed class ScreenManager : MonoBehaviour
     {
         private readonly Dictionary<string, IScreen> _registry = new();
+
         private readonly List<IScreen> _stack = new();
+
         private bool _transitioning;
 
         /// <summary>The topmost screen in the stack, or null if empty.</summary>
@@ -35,6 +37,13 @@ namespace Lithforge.Runtime.UI.Navigation
         {
             get { return _stack.Count; }
         }
+
+        /// <summary>
+        ///     Callback invoked when Escape is pressed but the stack is empty.
+        ///     Set by the bootstrap during gameplay to push the pause menu.
+        ///     Cleared when the game session ends.
+        /// </summary>
+        public Action OnEscapeEmpty { get; set; }
 
         private void Update()
         {
@@ -55,6 +64,7 @@ namespace Lithforge.Runtime.UI.Navigation
 
             if (topOpaque == null)
             {
+                OnEscapeEmpty?.Invoke();
                 return;
             }
 
@@ -66,7 +76,7 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Registers a screen by name for later push-by-name operations.
+        ///     Registers a screen by name for later push-by-name operations.
         /// </summary>
         public void Register(IScreen screen)
         {
@@ -74,7 +84,7 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Pushes a screen onto the stack by name. The screen must be registered.
+        ///     Pushes a screen onto the stack by name. The screen must be registered.
         /// </summary>
         public void Push(string screenName, object context = null)
         {
@@ -82,6 +92,7 @@ namespace Lithforge.Runtime.UI.Navigation
             {
                 UnityEngine.Debug.LogError(
                     $"[ScreenManager] Screen '{screenName}' is not registered.");
+
                 return;
             }
 
@@ -89,7 +100,7 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Pushes a screen directly onto the stack (does not need to be registered).
+        ///     Pushes a screen directly onto the stack (does not need to be registered).
         /// </summary>
         public void Push(IScreen screen, object context = null)
         {
@@ -97,8 +108,8 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Pops the topmost screen from the stack. If a screen below it exists,
-        /// that screen receives an <see cref="IScreen.OnShow"/> with <c>IsReturning=true</c>.
+        ///     Pops the topmost screen from the stack. If a screen below it exists,
+        ///     that screen receives an <see cref="IScreen.OnShow" /> with <c>IsReturning=true</c>.
         /// </summary>
         public void Pop()
         {
@@ -108,6 +119,7 @@ namespace Lithforge.Runtime.UI.Navigation
             }
 
             IScreen popped = _stack[_stack.Count - 1];
+
             _stack.RemoveAt(_stack.Count - 1);
 
             _transitioning = true;
@@ -119,6 +131,7 @@ namespace Lithforge.Runtime.UI.Navigation
                 if (_stack.Count > 0)
                 {
                     IScreen newTop = _stack[_stack.Count - 1];
+
                     newTop.OnShow(new ScreenShowArgs(true));
                 }
 
@@ -127,8 +140,8 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Pops all screens down to (but not including) the screen with the
-        /// given name. If the named screen is not in the stack, does nothing.
+        ///     Pops all screens down to (but not including) the screen with the
+        ///     given name. If the named screen is not in the stack, does nothing.
         /// </summary>
         public void PopTo(string screenName)
         {
@@ -144,6 +157,7 @@ namespace Lithforge.Runtime.UI.Navigation
                 if (_stack[i].ScreenName == screenName)
                 {
                     targetIndex = i;
+
                     break;
                 }
             }
@@ -157,19 +171,21 @@ namespace Lithforge.Runtime.UI.Navigation
             for (int i = _stack.Count - 1; i > targetIndex; i--)
             {
                 IScreen screen = _stack[i];
+
                 screen.OnHide(() => { });
             }
 
             _stack.RemoveRange(targetIndex + 1, _stack.Count - targetIndex - 1);
 
             IScreen revealed = _stack[targetIndex];
+
             revealed.OnShow(new ScreenShowArgs(true));
             ApplyCursorState();
         }
 
         /// <summary>
-        /// Clears the entire stack, hiding all screens. Used when transitioning
-        /// between major application states (e.g., ending a session).
+        ///     Clears the entire stack, hiding all screens. Used when transitioning
+        ///     between major application states (e.g., ending a session).
         /// </summary>
         public void ClearAll()
         {
@@ -185,7 +201,7 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Returns true if the named screen is anywhere in the stack.
+        ///     Returns true if the named screen is anywhere in the stack.
         /// </summary>
         public bool Contains(string screenName)
         {
@@ -201,8 +217,8 @@ namespace Lithforge.Runtime.UI.Navigation
         }
 
         /// <summary>
-        /// Replaces the topmost screen with a new one. The old screen is hidden
-        /// and the new screen is shown without back-navigation to the old one.
+        ///     Replaces the topmost screen with a new one. The old screen is hidden
+        ///     and the new screen is shown without back-navigation to the old one.
         /// </summary>
         public void Replace(string screenName, object context = null)
         {
@@ -216,6 +232,7 @@ namespace Lithforge.Runtime.UI.Navigation
             if (_stack.Count > 0)
             {
                 IScreen old = _stack[_stack.Count - 1];
+
                 _stack.RemoveAt(_stack.Count - 1);
                 old.OnHide(() => { });
             }
@@ -230,6 +247,14 @@ namespace Lithforge.Runtime.UI.Navigation
             if (_transitioning)
             {
                 return;
+            }
+
+            // Hide the current top screen before showing the new one
+            if (_stack.Count > 0)
+            {
+                IScreen current = _stack[_stack.Count - 1];
+
+                current.OnHide(() => { });
             }
 
             _stack.Add(screen);

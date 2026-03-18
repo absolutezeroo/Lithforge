@@ -18,7 +18,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         ///     v3: sentinel int.MinValue + 3, supports typed DataComponentMap.
         /// </summary>
         private const int V2Sentinel = int.MinValue + 2;
+
         private const int V3Sentinel = int.MinValue + 3;
+
         private readonly ItemStack[] _slots;
 
         public InventoryBehavior(int slotCount)

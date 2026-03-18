@@ -126,76 +126,101 @@ namespace Lithforge.Runtime.UI
         private void BuildUI(VisualElement root)
         {
             // Full-screen dirt background
-            _background = new VisualElement();
-            _background.name = "loading-background";
-            _background.pickingMode = PickingMode.Ignore;
-            _background.style.position = Position.Absolute;
-            _background.style.left = 0;
-            _background.style.top = 0;
-            _background.style.right = 0;
-            _background.style.bottom = 0;
-            _background.style.backgroundColor = s_backgroundColor;
-            _background.style.alignItems = Align.Center;
-            _background.style.justifyContent = Justify.Center;
-            _background.style.flexDirection = FlexDirection.Column;
+            _background = new VisualElement
+            {
+                name = "loading-background",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = 0,
+                    right = 0,
+                    bottom = 0,
+                    backgroundColor = s_backgroundColor,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                    flexDirection = FlexDirection.Column,
+                },
+            };
             root.Add(_background);
 
             // Logo label
-            Label logo = new("LITHFORGE");
-            logo.name = "loading-logo";
-            logo.pickingMode = PickingMode.Ignore;
-            logo.style.fontSize = 64;
-            logo.style.color = s_logoColor;
-            logo.style.unityTextAlign = TextAnchor.MiddleCenter;
-            logo.style.marginBottom = 8;
-            logo.style.unityFontStyleAndWeight = FontStyle.Bold;
-            logo.style.letterSpacing = 6;
+            Label logo = new("LITHFORGE")
+            {
+                name = "loading-logo",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    fontSize = 64,
+                    color = s_logoColor,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    marginBottom = 8,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    letterSpacing = 6,
+                },
+            };
             _background.Add(logo);
 
             // Subtitle
-            Label subtitle = new("Loading World...");
-            subtitle.name = "loading-subtitle";
-            subtitle.pickingMode = PickingMode.Ignore;
-            subtitle.style.fontSize = 18;
-            subtitle.style.color = s_statusColor;
-            subtitle.style.unityTextAlign = TextAnchor.MiddleCenter;
-            subtitle.style.marginBottom = 32;
+            Label subtitle = new("Loading World...")
+            {
+                name = "loading-subtitle",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    fontSize = 18, color = s_statusColor, unityTextAlign = TextAnchor.MiddleCenter, marginBottom = 32,
+                },
+            };
             _background.Add(subtitle);
 
             // Progress bar track
-            VisualElement progressTrack = new();
-            progressTrack.name = "progress-track";
-            progressTrack.pickingMode = PickingMode.Ignore;
-            progressTrack.style.width = BarWidth;
-            progressTrack.style.height = BarHeight;
-            progressTrack.style.backgroundColor = s_progressTrackColor;
-            progressTrack.style.borderTopLeftRadius = 3;
-            progressTrack.style.borderTopRightRadius = 3;
-            progressTrack.style.borderBottomLeftRadius = 3;
-            progressTrack.style.borderBottomRightRadius = 3;
-            progressTrack.style.overflow = Overflow.Hidden;
-            progressTrack.style.marginBottom = 12;
+            VisualElement progressTrack = new()
+            {
+                name = "progress-track",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    width = BarWidth,
+                    height = BarHeight,
+                    backgroundColor = s_progressTrackColor,
+                    borderTopLeftRadius = 3,
+                    borderTopRightRadius = 3,
+                    borderBottomLeftRadius = 3,
+                    borderBottomRightRadius = 3,
+                    overflow = Overflow.Hidden,
+                    marginBottom = 12,
+                },
+            };
             _background.Add(progressTrack);
 
             // Progress bar fill
-            _progressFill = new VisualElement();
-            _progressFill.name = "progress-fill";
-            _progressFill.pickingMode = PickingMode.Ignore;
-            _progressFill.style.position = Position.Absolute;
-            _progressFill.style.left = 0;
-            _progressFill.style.top = 0;
-            _progressFill.style.bottom = 0;
-            _progressFill.style.width = new StyleLength(new Length(0f, LengthUnit.Percent));
-            _progressFill.style.backgroundColor = s_progressFillColor;
+            _progressFill = new VisualElement
+            {
+                name = "progress-fill",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = 0,
+                    bottom = 0,
+                    width = new StyleLength(new Length(0f, LengthUnit.Percent)),
+                    backgroundColor = s_progressFillColor,
+                },
+            };
             progressTrack.Add(_progressFill);
 
             // Status label
-            _statusLabel = new Label("Generating terrain...");
-            _statusLabel.name = "loading-status";
-            _statusLabel.pickingMode = PickingMode.Ignore;
-            _statusLabel.style.fontSize = 14;
-            _statusLabel.style.color = s_statusColor;
-            _statusLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _statusLabel = new Label("Generating terrain...")
+            {
+                name = "loading-status",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    fontSize = 14, color = s_statusColor, unityTextAlign = TextAnchor.MiddleCenter,
+                },
+            };
             _background.Add(_statusLabel);
         }
 

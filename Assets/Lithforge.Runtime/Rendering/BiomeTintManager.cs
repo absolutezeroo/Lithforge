@@ -54,14 +54,16 @@ namespace Lithforge.Runtime.Rendering
             _chunkSize = chunkSize;
 
             // RGBA32 = R8G8B8A8: R=temperature, G=humidity, B=biomeId, A=reserved
-            _globalMap = new Texture2D(mapSize, mapSize, TextureFormat.RGBA32, false, true);
-            _globalMap.name = "GlobalBiomeParamMap";
-            // Point filtering required: B channel stores discrete biomeId (integer 0-255).
-            // Bilinear would interpolate biome IDs at chunk boundaries, corrupting water
-            // color LUT lookups. Temperature/humidity in RG are smooth noise values that
-            // don't need sub-texel interpolation.
-            _globalMap.filterMode = FilterMode.Point;
-            _globalMap.wrapMode = TextureWrapMode.Repeat;
+            _globalMap = new Texture2D(mapSize, mapSize, TextureFormat.RGBA32, false, true)
+            {
+                name = "GlobalBiomeParamMap",
+                // Point filtering required: B channel stores discrete biomeId (integer 0-255).
+                // Bilinear would interpolate biome IDs at chunk boundaries, corrupting water
+                // color LUT lookups. Temperature/humidity in RG are smooth noise values that
+                // don't need sub-texel interpolation.
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Repeat,
+            };
 
             // Clear to default (temp=0.5, humidity=0.5, biomeId=0, reserved=255)
             NativeArray<byte> clearData = _globalMap.GetPixelData<byte>(0);
@@ -77,8 +79,10 @@ namespace Lithforge.Runtime.Rendering
             _globalMap.Apply(false, false);
 
             // Staging texture for chunk-sized uploads
-            _staging = new Texture2D(chunkSize, chunkSize, TextureFormat.RGBA32, false, true);
-            _staging.name = "BiomeTintStaging";
+            _staging = new Texture2D(chunkSize, chunkSize, TextureFormat.RGBA32, false, true)
+            {
+                name = "BiomeTintStaging",
+            };
 
             // Bind globally
             Shader.SetGlobalTexture(s_biomeParamMapId, _globalMap);
@@ -98,10 +102,10 @@ namespace Lithforge.Runtime.Rendering
             Shader.SetGlobalVector(s_biomeMapScaleId, new Vector4(0, 0, invMapSize, invMapSize));
 
             // Build water color LUT (256x1, one pixel per biome)
-            _waterColorLut = new Texture2D(256, 1, TextureFormat.RGBA32, false, true);
-            _waterColorLut.name = "WaterColorLUT";
-            _waterColorLut.filterMode = FilterMode.Point;
-            _waterColorLut.wrapMode = TextureWrapMode.Clamp;
+            _waterColorLut = new Texture2D(256, 1, TextureFormat.RGBA32, false, true)
+            {
+                name = "WaterColorLUT", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp,
+            };
 
             Color32[] lutPixels = new Color32[256];
 

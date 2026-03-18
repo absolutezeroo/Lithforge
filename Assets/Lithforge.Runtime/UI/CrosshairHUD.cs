@@ -66,14 +66,19 @@ namespace Lithforge.Runtime.UI
         private void BuildCrosshair(VisualElement root)
         {
             // Container centered on screen
-            VisualElement container = new();
-            container.name = "crosshair-container";
-            container.pickingMode = PickingMode.Ignore;
-            container.style.position = Position.Absolute;
-            container.style.left = new StyleLength(new Length(50, LengthUnit.Percent));
-            container.style.top = new StyleLength(new Length(50, LengthUnit.Percent));
-            container.style.width = 0;
-            container.style.height = 0;
+            VisualElement container = new()
+            {
+                name = "crosshair-container",
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute,
+                    left = new StyleLength(new Length(50, LengthUnit.Percent)),
+                    top = new StyleLength(new Length(50, LengthUnit.Percent)),
+                    width = 0,
+                    height = 0,
+                },
+            };
             root.Add(container);
 
             // Top line
@@ -111,10 +116,14 @@ namespace Lithforge.Runtime.UI
 
         private VisualElement CreateLine()
         {
-            VisualElement line = new();
-            line.pickingMode = PickingMode.Ignore;
-            line.style.position = Position.Absolute;
-            line.style.backgroundColor = new Color(1f, 1f, 1f, 0.9f);
+            VisualElement line = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute, backgroundColor = new Color(1f, 1f, 1f, 0.9f),
+                },
+            };
 
             return line;
         }

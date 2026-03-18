@@ -74,14 +74,16 @@ namespace Lithforge.Runtime.UI.Layout
             string name, int cols, int rowCount,
             int start = 0, int size = 60, int spacing = 3, string groupLabel = "")
         {
-            SlotGroupDefinition def = new();
-            def.containerName = name;
-            def.columns = cols;
-            def.rows = rowCount;
-            def.startIndex = start;
-            def.slotSize = size;
-            def.slotSpacing = spacing;
-            def.label = groupLabel;
+            SlotGroupDefinition def = new()
+            {
+                containerName = name,
+                columns = cols,
+                rows = rowCount,
+                startIndex = start,
+                slotSize = size,
+                slotSpacing = spacing,
+                label = groupLabel,
+            };
             return def;
         }
     }

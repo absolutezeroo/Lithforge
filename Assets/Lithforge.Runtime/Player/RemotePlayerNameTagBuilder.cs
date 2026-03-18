@@ -18,8 +18,10 @@ namespace Lithforge.Runtime.Player
         /// </summary>
         public static Mesh BuildMesh(string playerName)
         {
-            Mesh mesh = new();
-            mesh.name = "NameTag_" + playerName;
+            Mesh mesh = new()
+            {
+                name = "NameTag_" + playerName,
+            };
 
             float halfW = QuadWidth * 0.5f;
             float halfH = QuadHeight * 0.5f;
@@ -62,8 +64,10 @@ namespace Lithforge.Runtime.Player
         {
             int texWidth = 256;
             int texHeight = 32;
-            Texture2D texture = new(texWidth, texHeight, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Bilinear;
+            Texture2D texture = new(texWidth, texHeight, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+            };
 
             // Fill with semi-transparent black background
             Color32 bgColor = new(0, 0, 0, 128);

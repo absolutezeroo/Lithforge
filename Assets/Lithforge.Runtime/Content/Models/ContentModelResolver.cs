@@ -94,9 +94,10 @@ namespace Lithforge.Runtime.Content.Models
                 resolvedTextures[kvp.Key] = resolved;
             }
 
-            ResolvedModel result = new();
-            result.Textures = ResolveWithBuiltIn(terminalType, resolvedTextures);
-            result.Elements = mergedElements;
+            ResolvedModel result = new()
+            {
+                Textures = ResolveWithBuiltIn(terminalType, resolvedTextures), Elements = mergedElements,
+            };
 
             _resolvedCache[model] = result.Textures;
 

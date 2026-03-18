@@ -146,37 +146,52 @@ namespace Lithforge.Runtime.UI
         {
             root.pickingMode = PickingMode.Ignore;
 
-            _overlay = new VisualElement();
-            _overlay.style.position = Position.Absolute;
-            _overlay.style.top = 0;
-            _overlay.style.bottom = 0;
-            _overlay.style.left = 0;
-            _overlay.style.right = 0;
-            _overlay.style.backgroundColor = s_overlayColor;
-            _overlay.style.alignItems = Align.Center;
-            _overlay.style.justifyContent = Justify.Center;
+            _overlay = new VisualElement
+            {
+                style =
+                {
+                    position = Position.Absolute,
+                    top = 0,
+                    bottom = 0,
+                    left = 0,
+                    right = 0,
+                    backgroundColor = s_overlayColor,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                },
+            };
             root.Add(_overlay);
 
-            VisualElement panel = new();
-            panel.style.width = 340;
-            panel.style.backgroundColor = s_panelColor;
-            panel.style.borderTopLeftRadius = 8;
-            panel.style.borderTopRightRadius = 8;
-            panel.style.borderBottomLeftRadius = 8;
-            panel.style.borderBottomRightRadius = 8;
-            panel.style.paddingTop = 32;
-            panel.style.paddingBottom = 32;
-            panel.style.paddingLeft = 40;
-            panel.style.paddingRight = 40;
-            panel.style.alignItems = Align.Center;
+            VisualElement panel = new()
+            {
+                style =
+                {
+                    width = 340,
+                    backgroundColor = s_panelColor,
+                    borderTopLeftRadius = 8,
+                    borderTopRightRadius = 8,
+                    borderBottomLeftRadius = 8,
+                    borderBottomRightRadius = 8,
+                    paddingTop = 32,
+                    paddingBottom = 32,
+                    paddingLeft = 40,
+                    paddingRight = 40,
+                    alignItems = Align.Center,
+                },
+            };
             _overlay.Add(panel);
 
-            Label title = new("Game Paused");
-            title.style.fontSize = 28;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.color = s_textColor;
-            title.style.marginBottom = 28;
-            title.style.unityTextAlign = TextAnchor.MiddleCenter;
+            Label title = new("Game Paused")
+            {
+                style =
+                {
+                    fontSize = 28,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    color = s_textColor,
+                    marginBottom = 28,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                },
+            };
             panel.Add(title);
 
             Button resumeBtn = BuildMenuButton("Resume Game", s_buttonColor, s_buttonHoverColor);
@@ -213,23 +228,28 @@ namespace Lithforge.Runtime.UI
 
         private Button BuildMenuButton(string text, Color normalColor, Color hoverColor)
         {
-            Button btn = new();
-            btn.text = text;
-            btn.style.width = new Length(100, LengthUnit.Percent);
-            btn.style.height = 44;
-            btn.style.fontSize = 16;
-            btn.style.color = s_textColor;
-            btn.style.backgroundColor = normalColor;
-            btn.style.borderTopWidth = 0;
-            btn.style.borderBottomWidth = 0;
-            btn.style.borderLeftWidth = 0;
-            btn.style.borderRightWidth = 0;
-            btn.style.borderTopLeftRadius = 4;
-            btn.style.borderTopRightRadius = 4;
-            btn.style.borderBottomLeftRadius = 4;
-            btn.style.borderBottomRightRadius = 4;
-            btn.style.marginBottom = 10;
-            btn.style.unityFontStyleAndWeight = FontStyle.Bold;
+            Button btn = new()
+            {
+                text = text,
+                style =
+                {
+                    width = new Length(100, LengthUnit.Percent),
+                    height = 44,
+                    fontSize = 16,
+                    color = s_textColor,
+                    backgroundColor = normalColor,
+                    borderTopWidth = 0,
+                    borderBottomWidth = 0,
+                    borderLeftWidth = 0,
+                    borderRightWidth = 0,
+                    borderTopLeftRadius = 4,
+                    borderTopRightRadius = 4,
+                    borderBottomLeftRadius = 4,
+                    borderBottomRightRadius = 4,
+                    marginBottom = 10,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                },
+            };
 
             btn.RegisterCallback((PointerEnterEvent evt) =>
             {

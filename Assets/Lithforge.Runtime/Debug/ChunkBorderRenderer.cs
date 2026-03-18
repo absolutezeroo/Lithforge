@@ -82,8 +82,10 @@ namespace Lithforge.Runtime.Debug
             _drawRadius = drawRadius;
 
             Shader lineShader = Shader.Find("Hidden/Internal-Colored");
-            _lineMaterial = new Material(lineShader);
-            _lineMaterial.hideFlags = HideFlags.HideAndDontSave;
+            _lineMaterial = new Material(lineShader)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+            };
             _lineMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
             _lineMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
             _lineMaterial.SetInt("_Cull", (int)CullMode.Off);

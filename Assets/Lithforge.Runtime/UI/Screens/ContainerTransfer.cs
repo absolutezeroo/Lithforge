@@ -90,8 +90,10 @@ namespace Lithforge.Runtime.UI.Screens
                 if (target.GetSlot(i).IsEmpty)
                 {
                     int toAdd = remaining < maxStack ? remaining : maxStack;
-                    ItemStack newSlot = new(itemId, toAdd, source.Durability);
-                    newSlot.Components = source.Components;
+                    ItemStack newSlot = new(itemId, toAdd, source.Durability)
+                    {
+                        Components = source.Components,
+                    };
                     target.SetSlot(i, newSlot);
                     remaining -= toAdd;
                 }

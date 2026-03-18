@@ -222,20 +222,25 @@ namespace Lithforge.Runtime.Debug
             _root.Add(_minimalPanel);
 
             // Left column for full mode
-            _leftColumn = new VisualElement();
-            _leftColumn.pickingMode = PickingMode.Ignore;
-            _leftColumn.style.position = Position.Absolute;
-            _leftColumn.style.left = 8;
-            _leftColumn.style.top = 36;
+            _leftColumn = new VisualElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute, left = 8, top = 36,
+                },
+            };
             _root.Add(_leftColumn);
 
             // Right column for full mode
-            _rightColumn = new VisualElement();
-            _rightColumn.pickingMode = PickingMode.Ignore;
-            _rightColumn.style.position = Position.Absolute;
-            _rightColumn.style.right = 8;
-            _rightColumn.style.top = 8;
-            _rightColumn.style.alignItems = Align.FlexEnd;
+            _rightColumn = new VisualElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute, right = 8, top = 8, alignItems = Align.FlexEnd,
+                },
+            };
             _root.Add(_rightColumn);
 
             BuildPerfPanel();
@@ -244,16 +249,23 @@ namespace Lithforge.Runtime.Debug
             BuildGpuPanel();
 
             // Frame-time graph — bottom-left
-            VisualElement graphContainer = new();
-            graphContainer.pickingMode = PickingMode.Ignore;
-            graphContainer.style.position = Position.Absolute;
-            graphContainer.style.left = 8;
-            graphContainer.style.bottom = 8;
+            VisualElement graphContainer = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute, left = 8, bottom = 8,
+                },
+            };
 
-            _frameGraph = new FrameTimeGraphElement();
-            _frameGraph.pickingMode = PickingMode.Ignore;
-            _frameGraph.style.width = 302;
-            _frameGraph.style.height = 120;
+            _frameGraph = new FrameTimeGraphElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    width = 302, height = 120,
+                },
+            };
             graphContainer.Add(_frameGraph);
 
             _graphStatsLabel = CreateLabel("");
@@ -262,17 +274,23 @@ namespace Lithforge.Runtime.Debug
             _root.Add(graphContainer);
 
             // Minimap — bottom-right
-            VisualElement minimapContainer = new();
-            minimapContainer.pickingMode = PickingMode.Ignore;
-            minimapContainer.style.position = Position.Absolute;
-            minimapContainer.style.right = 8;
-            minimapContainer.style.bottom = 8;
-            minimapContainer.style.alignItems = Align.FlexEnd;
+            VisualElement minimapContainer = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute, right = 8, bottom = 8, alignItems = Align.FlexEnd,
+                },
+            };
 
-            _minimap = new MinimapElement();
-            _minimap.pickingMode = PickingMode.Ignore;
-            _minimap.style.width = 160;
-            _minimap.style.height = 160;
+            _minimap = new MinimapElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    width = 160, height = 160,
+                },
+            };
             minimapContainer.Add(_minimap);
 
             _minimapLabel = CreateLabel("");
@@ -762,31 +780,41 @@ namespace Lithforge.Runtime.Debug
 
         private static VisualElement CreatePanel()
         {
-            VisualElement panel = new();
-            panel.pickingMode = PickingMode.Ignore;
-            panel.style.backgroundColor = new Color(0f, 0f, 0f, 0.65f);
-            panel.style.paddingLeft = 6;
-            panel.style.paddingRight = 6;
-            panel.style.paddingTop = 4;
-            panel.style.paddingBottom = 4;
-            panel.style.borderTopLeftRadius = 4;
-            panel.style.borderTopRightRadius = 4;
-            panel.style.borderBottomLeftRadius = 4;
-            panel.style.borderBottomRightRadius = 4;
+            VisualElement panel = new()
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    backgroundColor = new Color(0f, 0f, 0f, 0.65f),
+                    paddingLeft = 6,
+                    paddingRight = 6,
+                    paddingTop = 4,
+                    paddingBottom = 4,
+                    borderTopLeftRadius = 4,
+                    borderTopRightRadius = 4,
+                    borderBottomLeftRadius = 4,
+                    borderBottomRightRadius = 4,
+                },
+            };
             return panel;
         }
 
         private static Label CreateLabel(string text)
         {
-            Label label = new(text);
-            label.pickingMode = PickingMode.Ignore;
-            label.style.fontSize = 13;
-            label.style.color = new Color(0.86f, 0.86f, 0.86f);
-            label.style.unityTextAlign = TextAnchor.UpperLeft;
-            label.style.marginTop = 1;
-            label.style.marginBottom = 1;
-            label.style.paddingTop = 0;
-            label.style.paddingBottom = 0;
+            Label label = new(text)
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    fontSize = 13,
+                    color = new Color(0.86f, 0.86f, 0.86f),
+                    unityTextAlign = TextAnchor.UpperLeft,
+                    marginTop = 1,
+                    marginBottom = 1,
+                    paddingTop = 0,
+                    paddingBottom = 0,
+                },
+            };
             return label;
         }
     }

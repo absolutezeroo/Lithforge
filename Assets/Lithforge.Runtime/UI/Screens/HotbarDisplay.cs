@@ -139,8 +139,10 @@ namespace Lithforge.Runtime.UI.Screens
 
             for (int i = 0; i < Inventory.HotbarSize; i++)
             {
-                SlotWidget widget = new();
-                widget.pickingMode = PickingMode.Ignore;
+                SlotWidget widget = new()
+                {
+                    pickingMode = PickingMode.Ignore,
+                };
 
                 // Make all children ignore picks too
                 widget.Query().ForEach(child =>
