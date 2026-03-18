@@ -49,6 +49,22 @@ namespace Lithforge.Network.Server
         private readonly List<PeerInfo> _loadingPeersCache = new List<PeerInfo>();
         private readonly List<int3> _dirtiedChunksCache = new List<int3>();
 
+        // Host-local callbacks: let the host see remote players without a NetworkClient.
+        // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
+
+        /// <summary>Fires when a remote player enters the host's view.</summary>
+        public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
+
+        /// <summary>Fires when a remote player leaves the host's view.</summary>
+        public Action<DespawnPlayerMessage> OnHostDespawnPlayer;
+
+        /// <summary>Fires each tick with a remote player's authoritative state.</summary>
+        public Action<PlayerStateMessage> OnHostPlayerState;
+
+        // Host-local entity tracking (mirrors SpawnedRemotePlayers on network peers)
+        private readonly HashSet<ushort> _hostSpawnedPlayers = new HashSet<ushort>();
+        private readonly List<ushort> _hostDespawnCache = new List<ushort>();
+
         public uint CurrentTick
         {
             get { return _currentTick; }
@@ -305,6 +321,9 @@ namespace Lithforge.Network.Server
                         _server.SendTo(observer.ConnectionId, msg, PipelineId.UnreliableSequenced);
                     }
                 }
+
+                // Notify host-local listener (host is not a network peer)
+                OnHostPlayerState?.Invoke(msg);
             }
         }
 
@@ -374,6 +393,66 @@ namespace Lithforge.Network.Server
                         _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
                         observerInterest.SpawnedRemotePlayers.Remove(subjectId);
                     }
+                }
+            }
+
+            // ── Host-local presence tracking ──
+            // The host has all chunks loaded locally, so all playing peers are visible.
+            if (OnHostSpawnPlayer != null || OnHostDespawnPlayer != null)
+            {
+                // Spawn any playing peers the host hasn't seen yet
+                for (int i = 0; i < _playingPeersCache.Count; i++)
+                {
+                    PeerInfo peer = _playingPeersCache[i];
+                    ushort peerId = peer.AssignedPlayerId;
+
+                    if (!_hostSpawnedPlayers.Add(peerId))
+                    {
+                        continue;
+                    }
+
+                    PlayerPhysicsState state = _simulation.GetPlayerState(peerId);
+
+                    OnHostSpawnPlayer?.Invoke(new SpawnPlayerMessage
+                    {
+                        PlayerId = peerId,
+                        PlayerName = peer.PlayerName,
+                        PositionX = state.Position.x,
+                        PositionY = state.Position.y,
+                        PositionZ = state.Position.z,
+                        Yaw = state.Yaw,
+                        Pitch = state.Pitch,
+                        Flags = state.Flags,
+                    });
+                }
+
+                // Despawn players no longer in playing state
+                _hostDespawnCache.Clear();
+
+                foreach (ushort spawnedId in _hostSpawnedPlayers)
+                {
+                    bool stillPlaying = false;
+
+                    for (int i = 0; i < _playingPeersCache.Count; i++)
+                    {
+                        if (_playingPeersCache[i].AssignedPlayerId == spawnedId)
+                        {
+                            stillPlaying = true;
+                            break;
+                        }
+                    }
+
+                    if (!stillPlaying)
+                    {
+                        _hostDespawnCache.Add(spawnedId);
+                    }
+                }
+
+                for (int i = 0; i < _hostDespawnCache.Count; i++)
+                {
+                    ushort id = _hostDespawnCache[i];
+                    OnHostDespawnPlayer?.Invoke(new DespawnPlayerMessage { PlayerId = id });
+                    _hostSpawnedPlayers.Remove(id);
                 }
             }
         }
@@ -646,6 +725,12 @@ namespace Lithforge.Network.Server
                     _server.SendTo(observer.ConnectionId, msg, PipelineId.ReliableSequenced);
                 }
             }
+
+            // Notify host-local listener
+            if (_hostSpawnedPlayers.Remove(playerId))
+            {
+                OnHostDespawnPlayer?.Invoke(new DespawnPlayerMessage { PlayerId = playerId });
+            }
         }
 
         // ── Helpers ──
@@ -669,6 +754,11 @@ namespace Lithforge.Network.Server
             if (!_disposed)
             {
                 _disposed = true;
+                _hostSpawnedPlayers.Clear();
+                _hostDespawnCache.Clear();
+                OnHostSpawnPlayer = null;
+                OnHostDespawnPlayer = null;
+                OnHostPlayerState = null;
             }
         }
     }

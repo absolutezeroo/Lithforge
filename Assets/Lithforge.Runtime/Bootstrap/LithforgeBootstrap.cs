@@ -1577,6 +1577,50 @@ namespace Lithforge.Runtime.Bootstrap
 
                     _gameLoop.SetServerGameLoop(serverGameLoop);
 
+                    // ── Host-mode remote player rendering ──
+                    // Host needs to see connected players. Wire ServerGameLoop host-local
+                    // callbacks to a RemotePlayerManager, same as Client mode but without
+                    // a NetworkClient or ClientRemotePlayerHandler.
+                    if (armBaseMaterialRef != null)
+                    {
+                        Material remoteNameTagMat = new Material(Shader.Find("UI/Default"));
+                        _remotePlayerManager = new RemotePlayerManager(
+                            armBaseMaterialRef, armOverlayMaterialRef, remoteNameTagMat);
+                        _gameLoop.SetRemotePlayerManager(_remotePlayerManager);
+
+                        RemotePlayerManager hostRemoteManager = _remotePlayerManager;
+
+                        serverGameLoop.OnHostSpawnPlayer = (Lithforge.Network.Messages.SpawnPlayerMessage msg) =>
+                        {
+                            hostRemoteManager.SpawnPlayer(
+                                msg.PlayerId,
+                                msg.PlayerName,
+                                new Unity.Mathematics.float3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                                msg.Yaw,
+                                msg.Pitch,
+                                msg.Flags);
+                        };
+
+                        serverGameLoop.OnHostDespawnPlayer = (Lithforge.Network.Messages.DespawnPlayerMessage msg) =>
+                        {
+                            hostRemoteManager.DespawnPlayer(msg.PlayerId);
+                        };
+
+                        serverGameLoop.OnHostPlayerState = (Lithforge.Network.Messages.PlayerStateMessage msg) =>
+                        {
+                            Simulation.RemotePlayerSnapshot snapshot = new Simulation.RemotePlayerSnapshot
+                            {
+                                Position = new Unity.Mathematics.float3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                                Yaw = msg.Yaw,
+                                Pitch = msg.Pitch,
+                                Flags = msg.Flags,
+                            };
+
+                            float serverTimestamp = msg.ServerTick * Tick.FixedTickRate.TickDeltaTime;
+                            hostRemoteManager.PushSnapshot(msg.PlayerId, serverTimestamp, snapshot);
+                        };
+                    }
+
                     // Singleplayer-style local simulation (host is also a player)
                     WorldSimulation worldSimulation = new WorldSimulation(
                         tickRegistryRef, playerPhysicsManager, inputSnapshotBuilder);
