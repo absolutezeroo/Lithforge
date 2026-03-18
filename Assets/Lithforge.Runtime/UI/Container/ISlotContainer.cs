@@ -1,4 +1,4 @@
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 namespace Lithforge.Runtime.UI.Container
 {

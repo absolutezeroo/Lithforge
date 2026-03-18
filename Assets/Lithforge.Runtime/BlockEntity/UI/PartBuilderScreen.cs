@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;

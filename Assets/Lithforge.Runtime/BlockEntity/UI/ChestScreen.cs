@@ -1,7 +1,7 @@
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;

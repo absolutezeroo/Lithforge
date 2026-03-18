@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Item;
 

@@ -130,6 +130,103 @@ namespace MyGame.Combat
 }
 ```
 
+### Modern C# syntax preferences
+
+These modern C# features are **preferred** when they improve readability. They complement (not replace) the "no var" and "no expression-bodied methods" rules.
+
+#### Target-typed `new()`
+
+When the type is already explicit on the left-hand side, use `new()` to avoid redundant repetition:
+
+```csharp
+// Preferred — type is clear from declaration
+List<BlockModel> chain = new();
+Dictionary<StateId, int> lookup = new(capacity);
+DamageInfo info = new() { Amount = 10, Type = DamageType.Fire };
+
+// Still required — no left-hand type to infer from
+return new List<BlockModel>();       // return statements
+DoSomething(new List<int>());        // method arguments
+```
+
+#### Object initializers
+
+Use object initializers when they produce cleaner code than sequential assignment:
+
+```csharp
+// Preferred
+DamageInfo info = new()
+{
+    Amount = 10,
+    Type = DamageType.Fire,
+    IsCritical = true
+};
+
+// Avoid — sequential assignment when initializer is cleaner
+DamageInfo info = new();
+info.Amount = 10;
+info.Type = DamageType.Fire;
+info.IsCritical = true;
+```
+
+#### Switch expressions
+
+Prefer switch expressions over switch statements when the result is a direct assignment or return and cases are simple:
+
+```csharp
+// Preferred — clean mapping
+string label = blockType switch
+{
+    BlockType.Stone => "Stone",
+    BlockType.Dirt => "Dirt",
+    BlockType.Sand => "Sand",
+    _ => "Unknown"
+};
+
+// Keep switch statement when — cases have side effects, multiple statements, or complex logic
+switch (state)
+{
+    case ChunkState.Generating:
+        ScheduleGeneration(chunk);
+        _pendingCount++;
+        break;
+    case ChunkState.Meshing:
+        ScheduleMesh(chunk);
+        break;
+}
+```
+
+#### Pattern matching in `if` / loops
+
+Use pattern matching when it improves readability over traditional casts and null checks:
+
+```csharp
+// Preferred
+if (container is Inventory inventory)
+{
+    inventory.AddItem(stack);
+}
+
+if (value is not null)
+{
+    Process(value);
+}
+
+if (damage is > 0 and < 100)
+{
+    ApplyDamage(damage);
+}
+
+// Avoid — old-style cast check
+if (container is Inventory)
+{
+    Inventory inventory = (Inventory)container;
+    inventory.AddItem(stack);
+}
+```
+
+**Important**: switch expressions and pattern matching are **not** expression-bodied methods. The "no expression-bodied methods" rule (rule 10) bans `void Foo() => ...;` and `int Bar => ...;`, not switch expressions or pattern matching.
+
 ### Boolean naming
 
 Always prefix booleans with a verb to form a question:

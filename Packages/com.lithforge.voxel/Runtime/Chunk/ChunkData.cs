@@ -1,19 +1,19 @@
 using System;
 using System.Runtime.CompilerServices;
+
 using Lithforge.Voxel.Block;
+
 using Unity.Collections;
 
 namespace Lithforge.Voxel.Chunk
 {
     /// <summary>
-    /// Core chunk storage. Owns a NativeArray of StateIds.
-    /// Allocated from ChunkPool, returned on unload.
-    ///
-    /// Thread safety: only ONE writer at a time (generation job or main thread block change).
-    /// Multiple readers allowed when chunk is in READY state.
-    ///
-    /// Index layout: Y-major — y * 1024 + z * 32 + x
-    /// Groups horizontal slices for cache-friendly meshing and sunlight propagation.
+    ///     Core chunk storage. Owns a NativeArray of StateIds.
+    ///     Allocated from ChunkPool, returned on unloading.
+    ///     Thread safety: only ONE writer at a time (generation job or main thread block change).
+    ///     Multiple readers are allowed when a chunk is in the READY state.
+    ///     Index layout: Y-major — y * 1024 + z * 32 + x
+    ///     Groups horizontal slices for cache-friendly meshing and sunlight propagation.
     /// </summary>
     public struct ChunkData : IDisposable
     {
@@ -27,7 +27,7 @@ namespace Lithforge.Voxel.Chunk
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetIndex(int x, int y, int z)
         {
-            return (y * ChunkConstants.SizeSquared) + (z * ChunkConstants.Size) + x;
+            return y * ChunkConstants.SizeSquared + z * ChunkConstants.Size + x;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

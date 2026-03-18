@@ -41,39 +41,43 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 > Full naming conventions reference: **`Docs/CONVENTIONS.md`** (C#, Unity APIs, DOTS/ECS, assets, shaders, namespaces).
 
 1. **No `var`** — explicit types everywhere, enforced by `.editorconfig` as error.
-2. **Allman braces** — opening brace on new line, always.
-3. **One file per type** — each class, interface, enum, struct gets its own file.
-4. **Namespace = package path** — `namespace Lithforge.Voxel.Block;`
-5. **Private fields: `_camelCase`** — underscore prefix.
-6. **No expression-bodied methods** — block bodies only.
-7. **Interfaces: `I` prefix** — `IRegistry`, `ILogger`.
-8. **Accessibility always explicit** — `public`, `private`, `internal`.
+2. **Target-typed `new()`** — prefer `List<int> items = new();` over repeating the type. The left-hand side already declares the type.
+3. **Object initializers** — prefer `new Foo { Bar = 1, Baz = 2 }` when it produces cleaner code than sequential assignment.
+4. **Switch expressions** — prefer `x switch { ... }` over `switch` statements when the result is a direct assignment or return and the cases are simple.
+5. **Pattern matching in `if`/loops** — prefer `if (x is int i)`, `is not null`, `is > 0` when it improves readability.
+6. **Allman braces** — opening brace on new line, always.
+7. **One file per type** — each class, interface, enum, struct gets its own file.
+8. **Namespace = package path** — `namespace Lithforge.Voxel.Block;`
+9. **Private fields: `_camelCase`** — underscore prefix.
+10. **No expression-bodied methods** — block bodies only (switch expressions and pattern matching are not expression-bodied methods).
+11. **Interfaces: `I` prefix** — `IRegistry`, `ILogger`.
+12. **Accessibility always explicit** — `public`, `private`, `internal`.
 
 ### Tier 1 Rules
 
-9. **Zero Unity references** — `Lithforge.Core.asmdef` must not reference any Unity assembly.
-10. **Standard .NET types only** — `Dictionary`, `List`, `string`, etc.
-11. **Unit-testable in isolation** — could compile against .NET Standard.
+13. **Zero Unity references** — `Lithforge.Core.asmdef` must not reference any Unity assembly.
+14. **Standard .NET types only** — `Dictionary`, `List`, `string`, etc.
+15. **Unit-testable in isolation** — could compile against .NET Standard.
 
 ### Tier 2 Rules (Burst/Jobs)
 
-12. **`[BurstCompile]` on all hot-path job structs.**
-13. **`Unity.Mathematics` types** — `float3`, `int3`, `math.sin()` not `System.Math`.
-14. **`NativeArray<T>`** not managed arrays for chunk data, mesh data, light data.
-15. **No heap allocation in Burst paths** — no `new`, no boxing, no string ops.
-16. **No try/catch in Burst paths.**
-17. **No interface dispatch in Burst paths** — no virtual calls.
-18. **No `class` references in Burst jobs** — only blittable structs.
-19. **`[ReadOnly]` attribute on job inputs** that are not modified.
-20. **`Allocator.TempJob`** for per-frame data, **`Allocator.Persistent`** for long-lived data.
-21. **Every NativeContainer has a documented owner and dispose point.**
-22. **ChunkPool** for NativeArray recycling — no per-chunk Persistent allocation.
+16. **`[BurstCompile]` on all hot-path job structs.**
+17. **`Unity.Mathematics` types** — `float3`, `int3`, `math.sin()` not `System.Math`.
+18. **`NativeArray<T>`** not managed arrays for chunk data, mesh data, light data.
+19. **No heap allocation in Burst paths** — no `new`, no boxing, no string ops.
+20. **No try/catch in Burst paths.**
+21. **No interface dispatch in Burst paths** — no virtual calls.
+22. **No `class` references in Burst jobs** — only blittable structs.
+23. **`[ReadOnly]` attribute on job inputs** that are not modified.
+24. **`Allocator.TempJob`** for per-frame data, **`Allocator.Persistent`** for long-lived data.
+25. **Every NativeContainer has a documented owner and dispose point.**
+26. **ChunkPool** for NativeArray recycling — no per-chunk Persistent allocation.
 
 ### Tier 3 Rules
 
-23. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
-24. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
-25. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
+27. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
+28. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
+29. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
 
 ## Key Types
 

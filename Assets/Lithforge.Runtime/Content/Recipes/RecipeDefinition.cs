@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.Content.Items;
 using Lithforge.Voxel.Crafting;
 

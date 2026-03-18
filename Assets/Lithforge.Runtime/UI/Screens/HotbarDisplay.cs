@@ -1,5 +1,6 @@
 using System;
 
+using Lithforge.Item;
 using Lithforge.Runtime.UI.Navigation;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;

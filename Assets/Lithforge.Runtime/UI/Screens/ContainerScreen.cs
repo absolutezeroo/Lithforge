@@ -5,7 +5,7 @@ using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 using UnityEngine;
 using UnityEngine.InputSystem;

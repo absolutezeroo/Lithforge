@@ -1,6 +1,6 @@
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 namespace Lithforge.Runtime.BlockEntity
 {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Item;
 using Lithforge.Runtime.Content.Blocks;
 using Lithforge.Runtime.Content.Items.Affixes;
 using Lithforge.Runtime.Content.Models;
@@ -13,7 +14,7 @@ namespace Lithforge.Runtime.Content.Items
 {
     /// <summary>
     ///     Data-driven definition for an item type. Covers tools, materials, block items, and fuel.
-    ///     Loaded by ContentPipeline and registered into <see cref="Lithforge.Voxel.Item.ItemRegistry" />.
+    ///     Loaded by ContentPipeline and registered into <see cref="ItemRegistry" />.
     ///     Block items are auto-generated from <see cref="Blocks.BlockDefinition" /> but can also be authored manually.
     /// </summary>
     [CreateAssetMenu(fileName = "NewItem", menuName = "Lithforge/Content/Item Definition", order = 3)]

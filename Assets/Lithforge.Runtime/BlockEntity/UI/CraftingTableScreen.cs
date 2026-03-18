@@ -1,3 +1,5 @@
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;

@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 
 using Lithforge.Core.Logging;
+using Lithforge.Network.Chunk;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
-using Lithforge.Voxel.Network;
 
 using Unity.Mathematics;
 

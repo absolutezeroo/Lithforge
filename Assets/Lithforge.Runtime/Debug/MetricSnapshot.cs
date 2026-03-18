@@ -290,25 +290,25 @@ namespace Lithforge.Runtime.Debug
         /// </summary>
         public float GetSectionMs(int index)
         {
-            switch (index)
+            return index switch
             {
-                case 0: return SectionMs0;
-                case 1: return SectionMs1;
-                case 2: return SectionMs2;
-                case 3: return SectionMs3;
-                case 4: return SectionMs4;
-                case 5: return SectionMs5;
-                case 6: return SectionMs6;
-                case 7: return SectionMs7;
-                case 8: return SectionMs8;
-                case 9: return SectionMs9;
-                case 10: return SectionMs10;
-                case 11: return SectionMs11;
-                case 12: return SectionMs12;
-                case 13: return SectionMs13;
-                case 14: return SectionMs14;
-                default: return 0f;
-            }
+                0 => SectionMs0,
+                1 => SectionMs1,
+                2 => SectionMs2,
+                3 => SectionMs3,
+                4 => SectionMs4,
+                5 => SectionMs5,
+                6 => SectionMs6,
+                7 => SectionMs7,
+                8 => SectionMs8,
+                9 => SectionMs9,
+                10 => SectionMs10,
+                11 => SectionMs11,
+                12 => SectionMs12,
+                13 => SectionMs13,
+                14 => SectionMs14,
+                _ => 0f,
+            };
         }
 
         /// <summary>
@@ -316,18 +316,18 @@ namespace Lithforge.Runtime.Debug
         /// </summary>
         public int GetChunkState(int index)
         {
-            switch (index)
+            return index switch
             {
-                case 0: return ChunkState0;
-                case 1: return ChunkState1;
-                case 2: return ChunkState2;
-                case 3: return ChunkState3;
-                case 4: return ChunkState4;
-                case 5: return ChunkState5;
-                case 6: return ChunkState6;
-                case 7: return ChunkState7;
-                default: return 0;
-            }
+                0 => ChunkState0,
+                1 => ChunkState1,
+                2 => ChunkState2,
+                3 => ChunkState3,
+                4 => ChunkState4,
+                5 => ChunkState5,
+                6 => ChunkState6,
+                7 => ChunkState7,
+                _ => 0,
+            };
         }
     }
 }

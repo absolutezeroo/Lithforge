@@ -1,4 +1,5 @@
 using Lithforge.Core.Data;
+using Lithforge.Item;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Item;
 
@@ -17,9 +18,13 @@ namespace Lithforge.Runtime.UI.Widgets
     public sealed partial class SlotWidget : VisualElement
     {
         private readonly Label _count;
+
         private readonly VisualElement _durabilityFill;
+
         private readonly VisualElement _durabilityTrack;
+
         private readonly Image _icon;
+
         private bool _isSelected;
 
         private ItemStack _lastStack;

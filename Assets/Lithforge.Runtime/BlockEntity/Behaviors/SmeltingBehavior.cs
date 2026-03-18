@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 

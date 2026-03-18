@@ -4,7 +4,9 @@ using System.Collections.Generic;
 
 using Lithforge.Core.Data;
 using Lithforge.Core.Validation;
+using Lithforge.Item;
 using Lithforge.Network;
+using Lithforge.Network.Chunk;
 using Lithforge.Network.Client;
 using Lithforge.Network.Message;
 using Lithforge.Network.Server;
@@ -33,7 +35,6 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Liquid;
 using Lithforge.Voxel.Loot;
-using Lithforge.Voxel.Network;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Decoration;

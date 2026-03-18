@@ -154,22 +154,6 @@ Data-driven per-material mining speed overrides. When assigned to an `ItemDefini
 
 Data-driven mining modifier. Implements `IMiningModifier` (Tier 2 interface). Affixes are sorted by `Priority` at load time and applied in sequence to `MiningContext` during block break calculations. Each affix has an `AffixEffectType` and `AffixMiningEffect` that modify speed, damage, or other mining parameters.
 
-### EnchantmentDefinition
-
-`Assets/Lithforge.Runtime/Content/Items/Enchantments/EnchantmentDefinition.cs` — `[CreateAssetMenu]`
-
-Multi-level enchantment data. Each enchantment has an `EnchantmentCategory` and a list of `EnchantmentLevelData` entries defining per-level stat modifiers. Planned for use in the enchanting system (NOT yet wired into gameplay).
-
-### BlockBehavior
-
-`Assets/Lithforge.Runtime/Content/Blocks/BlockBehavior.cs`
-
-Defines a list of `BehaviorAction` subclasses triggered on block events. Available action types:
-- `GiveItemAction` — adds item to player inventory
-- `PlaySoundAction` — plays a sound effect
-- `SetBlockAction` — changes a block in the world
-- `SpawnEntityAction` — spawns an entity at block position
-- `SpawnParticleAction` — emits particles
 
 ### ContainerLayoutSO
 

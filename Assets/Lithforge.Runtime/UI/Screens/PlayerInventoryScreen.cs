@@ -1,5 +1,7 @@
 using System;
 
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;

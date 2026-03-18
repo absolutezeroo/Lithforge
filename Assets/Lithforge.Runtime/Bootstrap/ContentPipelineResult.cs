@@ -10,9 +10,10 @@ using Lithforge.Runtime.Rendering.Atlas;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
+using Lithforge.Item.Crafting;
+using Lithforge.Item;
+using Lithforge.Item.Loot;
 using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
-using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
 
 namespace Lithforge.Runtime.Bootstrap

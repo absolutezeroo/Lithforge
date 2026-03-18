@@ -1,4 +1,4 @@
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 using UnityEngine;
 
 namespace Lithforge.Runtime.Content.Recipes

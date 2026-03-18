@@ -1,4 +1,3 @@
-using Lithforge.Runtime.Content.Items;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -15,12 +14,8 @@ namespace Lithforge.Runtime.Content.Recipes
         [FormerlySerializedAs("_key"),Tooltip("Pattern character")]
         [SerializeField] private char key;
 
-        /// <summary>Direct SO reference to the required item, or null if matched by id or tag.</summary>
-        [FormerlySerializedAs("_item"),Tooltip("Item reference")]
-        [SerializeField] private ItemDefinition item;
-
-        /// <summary>ResourceId string fallback when the SO reference is unset.</summary>
-        [FormerlySerializedAs("_itemId"),Tooltip("Item id (fallback when direct reference not set)")]
+        /// <summary>ResourceId string for the required item, or empty if matched by tag.</summary>
+        [FormerlySerializedAs("_itemId"),Tooltip("Item resource ID")]
         [SerializeField] private string itemId;
 
         /// <summary>Tag ResourceId; when set, any item belonging to this tag satisfies the slot.</summary>
@@ -33,13 +28,7 @@ namespace Lithforge.Runtime.Content.Recipes
             get { return key; }
         }
 
-        /// <summary>Direct SO reference to the required item, or null if matched by id or tag.</summary>
-        public ItemDefinition Item
-        {
-            get { return item; }
-        }
-
-        /// <summary>ResourceId string fallback when the SO reference is unset.</summary>
+        /// <summary>ResourceId string for the required item, or empty if matched by tag.</summary>
         public string ItemId
         {
             get { return itemId; }

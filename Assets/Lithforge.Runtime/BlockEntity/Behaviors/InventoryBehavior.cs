@@ -1,7 +1,7 @@
 using System.IO;
 
 using Lithforge.Core.Data;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 namespace Lithforge.Runtime.BlockEntity.Behaviors
 {

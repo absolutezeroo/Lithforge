@@ -1,5 +1,6 @@
 using Lithforge.Runtime.Content.Tools;
-using Lithforge.Voxel.Crafting;
+using Lithforge.Item.Crafting;
+using Lithforge.Item;
 using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.UI.Container

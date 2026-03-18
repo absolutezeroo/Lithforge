@@ -42,6 +42,7 @@ namespace Lithforge.Runtime.Content.Models
                 if (!visited.Add(current))
                 {
                     UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
+
                     break;
                 }
 
@@ -50,6 +51,7 @@ namespace Lithforge.Runtime.Content.Models
                 if (current.BuiltInParent != BuiltInParentType.None)
                 {
                     terminalType = current.BuiltInParent;
+
                     break;
                 }
 
@@ -133,6 +135,7 @@ namespace Lithforge.Runtime.Content.Models
                 if (!visited.Add(current))
                 {
                     UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
+
                     break;
                 }
 
@@ -141,6 +144,7 @@ namespace Lithforge.Runtime.Content.Models
                 if (current.BuiltInParent != BuiltInParentType.None)
                 {
                     terminalType = current.BuiltInParent;
+
                     break;
                 }
 
@@ -209,6 +213,7 @@ namespace Lithforge.Runtime.Content.Models
                 if (!visitedVars.Add(varName))
                 {
                     UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular texture variable reference: #{varName}");
+
                     break;
                 }
 
@@ -235,23 +240,16 @@ namespace Lithforge.Runtime.Content.Models
             BuiltInParentType parentType,
             Dictionary<string, Texture2D> textures)
         {
-            switch (parentType)
+            return parentType switch
             {
-                case BuiltInParentType.CubeAll:
-                    return ResolveCubeAll(textures);
-                case BuiltInParentType.CubeColumn:
-                    return ResolveCubeColumn(textures);
-                case BuiltInParentType.Cube:
-                    return ResolveCube(textures);
-                case BuiltInParentType.CubeBottomTop:
-                    return ResolveCubeBottomTop(textures);
-                case BuiltInParentType.Orientable:
-                    return ResolveOrientable(textures);
-                case BuiltInParentType.Cross:
-                    return ResolveCross(textures);
-                default:
-                    return ResolveCubeAll(textures);
-            }
+                BuiltInParentType.CubeAll => ResolveCubeAll(textures),
+                BuiltInParentType.CubeColumn => ResolveCubeColumn(textures),
+                BuiltInParentType.Cube => ResolveCube(textures),
+                BuiltInParentType.CubeBottomTop => ResolveCubeBottomTop(textures),
+                BuiltInParentType.Orientable => ResolveOrientable(textures),
+                BuiltInParentType.Cross => ResolveCross(textures),
+                _ => ResolveCubeAll(textures),
+            };
         }
 
         private static ResolvedFaceTextures2D ResolveCubeAll(Dictionary<string, Texture2D> textures)

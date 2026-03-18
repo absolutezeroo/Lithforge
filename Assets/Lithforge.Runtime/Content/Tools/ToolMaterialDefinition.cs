@@ -1,5 +1,6 @@
 using System;
 
+using Lithforge.Item;
 using Lithforge.Voxel.Item;
 
 using UnityEngine;

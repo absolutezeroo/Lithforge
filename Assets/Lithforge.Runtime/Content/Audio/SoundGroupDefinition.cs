@@ -119,15 +119,15 @@ namespace Lithforge.Runtime.Audio
         /// </summary>
         public float GetVolume(SoundEventType eventType)
         {
-            switch (eventType)
+            return eventType switch
             {
-                case SoundEventType.Break: return breakVolume;
-                case SoundEventType.Place: return placeVolume;
-                case SoundEventType.Step: return stepVolume;
-                case SoundEventType.Hit: return hitVolume;
-                case SoundEventType.Fall: return fallVolume;
-                default: return 1.0f;
-            }
+                SoundEventType.Break => breakVolume,
+                SoundEventType.Place => placeVolume,
+                SoundEventType.Step => stepVolume,
+                SoundEventType.Hit => hitVolume,
+                SoundEventType.Fall => fallVolume,
+                _ => 1.0f,
+            };
         }
 
         /// <summary>
@@ -171,15 +171,15 @@ namespace Lithforge.Runtime.Audio
 
         private AudioClip[] GetClips(SoundEventType eventType)
         {
-            switch (eventType)
+            return eventType switch
             {
-                case SoundEventType.Break: return breakClips;
-                case SoundEventType.Place: return placeClips;
-                case SoundEventType.Step: return stepClips;
-                case SoundEventType.Hit: return hitClips;
-                case SoundEventType.Fall: return fallClips;
-                default: return null;
-            }
+                SoundEventType.Break => breakClips,
+                SoundEventType.Place => placeClips,
+                SoundEventType.Step => stepClips,
+                SoundEventType.Hit => hitClips,
+                SoundEventType.Fall => fallClips,
+                _ => null,
+            };
         }
 
         private void OnValidate()

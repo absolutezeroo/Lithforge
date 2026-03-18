@@ -1,6 +1,6 @@
+using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Voxel.Network;
 
 using Unity.Mathematics;
 

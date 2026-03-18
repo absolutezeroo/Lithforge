@@ -12,6 +12,8 @@ using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
+using Lithforge.Item;
+using Lithforge.Item.Loot;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
@@ -446,7 +448,9 @@ namespace Lithforge.Runtime.Input
 
                     // Apply traits after denial checks (GrantHarvest can override)
                     IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
+
                     Array.Sort(traits, s_traitPrioritySort);
+
                     for (int i = 0; i < traits.Length; i++)
                     {
                         ctx = traits[i].Apply(ctx);

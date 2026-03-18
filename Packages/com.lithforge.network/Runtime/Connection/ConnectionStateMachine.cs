@@ -69,29 +69,17 @@ namespace Lithforge.Network.Connection
                 return true;
             }
 
-            switch (from)
+            return from switch
             {
-                case ConnectionState.Disconnected:
-                    return to == ConnectionState.Connecting;
-
-                case ConnectionState.Connecting:
-                    return to == ConnectionState.Handshaking;
-
-                case ConnectionState.Handshaking:
-                    return to == ConnectionState.Loading || to == ConnectionState.Disconnecting;
-
-                case ConnectionState.Loading:
-                    return to == ConnectionState.Playing;
-
-                case ConnectionState.Playing:
-                    return to == ConnectionState.Disconnecting;
-
-                case ConnectionState.Disconnecting:
-                    return false; // Only Disconnected allowed, handled above
-
-                default:
-                    return false;
-            }
+                ConnectionState.Disconnected => to == ConnectionState.Connecting,
+                ConnectionState.Connecting => to == ConnectionState.Handshaking,
+                ConnectionState.Handshaking => to == ConnectionState.Loading || to == ConnectionState.Disconnecting,
+                ConnectionState.Loading => to == ConnectionState.Playing,
+                ConnectionState.Playing => to == ConnectionState.Disconnecting,
+                ConnectionState.Disconnecting => false // Only Disconnected allowed, handled above
+                ,
+                _ => false,
+            };
         }
     }
 }
