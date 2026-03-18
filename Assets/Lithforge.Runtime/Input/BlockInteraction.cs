@@ -12,8 +12,8 @@ using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
-using Lithforge.Voxel.Item;
-using Lithforge.Voxel.Loot;
+using Lithforge.Item;
+using Lithforge.Item.Loot;
 using Lithforge.Voxel.Tag;
 
 using Unity.Mathematics;

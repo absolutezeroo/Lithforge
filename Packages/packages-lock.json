@@ -25,6 +25,15 @@
         "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
+    "com.lithforge.item": {
+      "version": "file:com.lithforge.item",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.lithforge.core": "0.1.0",
+        "com.lithforge.voxel": "0.1.0"
+      }
+    },
     "com.lithforge.meshing": {
       "version": "file:com.lithforge.meshing",
       "depth": 0,

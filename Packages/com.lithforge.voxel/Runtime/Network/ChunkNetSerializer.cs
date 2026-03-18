@@ -85,6 +85,7 @@ namespace Lithforge.Voxel.Network
 
             s_stream.SetLength(0);
             s_stream.Position = 0;
+
             return s_stream;
         }
 

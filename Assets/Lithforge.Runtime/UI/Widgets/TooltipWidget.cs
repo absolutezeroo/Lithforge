@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 
 using Lithforge.Core.Data;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 using UnityEngine;
 using UnityEngine.UIElements;

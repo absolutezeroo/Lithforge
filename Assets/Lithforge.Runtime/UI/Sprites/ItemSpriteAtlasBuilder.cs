@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Lithforge.Core.Data;
 using Lithforge.Runtime.Content.Models;
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 using UnityEngine;
 

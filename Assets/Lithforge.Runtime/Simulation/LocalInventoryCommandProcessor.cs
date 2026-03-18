@@ -1,5 +1,5 @@
 using Lithforge.Voxel.Command;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 namespace Lithforge.Runtime.Simulation
 {

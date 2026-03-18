@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;

@@ -1,0 +1,11 @@
+{
+  "name": "com.lithforge.item",
+  "version": "0.1.0",
+  "displayName": "Lithforge Item System",
+  "description": "Item, inventory, crafting, and loot systems for Lithforge.",
+  "unity": "6000.3",
+  "dependencies": {
+    "com.lithforge.core": "0.1.0",
+    "com.lithforge.voxel": "0.1.0"
+  }
+}

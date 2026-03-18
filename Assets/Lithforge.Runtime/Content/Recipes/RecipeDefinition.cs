@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Lithforge.Voxel.Crafting;
+using Lithforge.Item.Crafting;
 using UnityEngine;
 using UnityEngine.Serialization;
 

@@ -1,7 +1,7 @@
 using System;
 
 using Lithforge.Runtime.Content.Tools;
-using Lithforge.Voxel.Item;
+using Lithforge.Item;
 
 using UnityEngine;
 

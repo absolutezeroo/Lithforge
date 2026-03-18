@@ -7,7 +7,7 @@ namespace Lithforge.Runtime.Content.Loot
     /// <summary>
     /// Data-driven loot table containing one or more pools, each rolled independently.
     /// Referenced by <see cref="Blocks.BlockDefinition"/> to determine what drops when a block is broken.
-    /// Converted to <see cref="Lithforge.Voxel.Loot.LootTableDefinition"/> at load time.
+    /// Converted to <see cref="Lithforge.Item.Loot.LootTableDefinition"/> at load time.
     /// </summary>
     [CreateAssetMenu(fileName = "NewLootTable", menuName = "Lithforge/Content/Loot Table", order = 6)]
     public sealed class LootTable : ScriptableObject
