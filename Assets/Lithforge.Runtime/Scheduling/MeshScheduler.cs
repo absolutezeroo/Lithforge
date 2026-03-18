@@ -437,13 +437,25 @@ namespace Lithforge.Runtime.Scheduling
                 long ta1 = System.Diagnostics.Stopwatch.GetTimestamp();
                 allocAccum += (float)((ta1 - ta0) * 1000.0 / freq);
 
-                // Schedule combined border extraction job on worker thread (Burst-compiled)
+                // Extract liquid neighbor ghost slabs BEFORE scheduling any jobs.
+                // This may call neighbor.LiquidJobHandle.Complete() on the main thread,
+                // which can trigger work-stealing that completes other in-flight jobs
+                // and potentially invalidates this chunk's NativeArrays.
                 long ts0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                JobHandle borderDependency = ScheduleBorderExtractionJob(chunk.Coord, meshData);
-
-                // Extract liquid neighbor ghost slabs for corner level interpolation.
-                // Must complete neighbor liquid jobs before reading their LiquidData.
                 ExtractLiquidBorderSlabs(chunk, meshData);
+
+                // Re-check: completing neighbor liquid jobs may have triggered state
+                // changes or disposals that invalidated this chunk's data.
+                if (!chunk.LightData.IsCreated || !chunk.Data.IsCreated)
+                {
+                    meshData.Dispose();
+                    _chunkManager.SetChunkState(chunk, ChunkState.Generated);
+
+                    continue;
+                }
+
+                // Schedule combined border extraction job on worker thread (Burst-compiled)
+                JobHandle borderDependency = ScheduleBorderExtractionJob(chunk.Coord, meshData);
 
                 GreedyMeshJob meshJob = new GreedyMeshJob
                 {
