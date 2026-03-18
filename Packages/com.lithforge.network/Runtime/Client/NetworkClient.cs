@@ -87,6 +87,7 @@ namespace Lithforge.Network.Client
             Dispatcher.OnDisconnect(OnDisconnected);
             Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
+            Dispatcher.RegisterHandler(MessageType.Ping, OnServerPing);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
 
             _stateMachine.Transition(ConnectionState.Connecting, _lastUpdateTime);
@@ -217,6 +218,18 @@ namespace Lithforge.Network.Client
         {
             PongMessage pong = PongMessage.Deserialize(data, offset, length);
             RoundTripTime = _lastUpdateTime - pong.EchoTimestamp;
+        }
+
+        private void OnServerPing(ConnectionId connectionId, byte[] data, int offset, int length)
+        {
+            PingMessage ping = PingMessage.Deserialize(data, offset, length);
+            PongMessage pong = new()
+            {
+                EchoTimestamp = ping.Timestamp,
+                ServerTick = 0,
+            };
+
+            Send(pong, PipelineId.UnreliableSequenced);
         }
 
         private void OnDisconnectMessage(ConnectionId connectionId, byte[] data, int offset, int length)
