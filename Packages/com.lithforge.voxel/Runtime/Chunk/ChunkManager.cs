@@ -99,7 +99,7 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>
         ///     Called after any block change (both immediate and deferred paths).
         ///     Parameters: worldCoord, newStateId.
-        ///     Used by <see cref="Network.ChunkDirtyTracker" /> for network delta sync.
+        ///     Used by <see cref="Lithforge.Network.Chunk.ChunkDirtyTracker" /> for network delta sync.
         /// </summary>
         public Action<int3, StateId> OnBlockChanged;
 

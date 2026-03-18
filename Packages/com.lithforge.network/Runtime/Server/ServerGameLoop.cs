@@ -7,7 +7,7 @@ using Lithforge.Network.Messages;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Voxel.Network;
+using Lithforge.Network.Chunk;
 using Unity.Mathematics;
 
 namespace Lithforge.Network.Server

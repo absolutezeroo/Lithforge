@@ -32,7 +32,7 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.Item;
 using Lithforge.Voxel.Liquid;
 using Lithforge.Item.Loot;
-using Lithforge.Voxel.Network;
+using Lithforge.Network.Chunk;
 using Lithforge.Voxel.Storage;
 using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Decoration;

@@ -3,7 +3,7 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Unity.Mathematics;
 
-namespace Lithforge.Voxel.Network
+namespace Lithforge.Network.Chunk
 {
     /// <summary>
     /// Tracks per-chunk block changes for network delta batching.

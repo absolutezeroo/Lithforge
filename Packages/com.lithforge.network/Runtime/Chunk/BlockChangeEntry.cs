@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using Lithforge.Voxel.Block;
 using Unity.Mathematics;
 
-namespace Lithforge.Voxel.Network
+namespace Lithforge.Network.Chunk
 {
     /// <summary>
     /// Single block change for network delta sync.

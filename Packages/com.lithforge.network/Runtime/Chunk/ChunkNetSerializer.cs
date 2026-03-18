@@ -11,7 +11,7 @@ using Unity.Mathematics;
 
 using ZstdSharp;
 
-namespace Lithforge.Voxel.Network
+namespace Lithforge.Network.Chunk
 {
     /// <summary>
     ///     Network-specific chunk serialization. Separate from <see cref="Storage.ChunkSerializer" />

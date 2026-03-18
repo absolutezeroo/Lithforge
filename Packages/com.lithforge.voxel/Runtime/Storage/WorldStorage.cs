@@ -8,11 +8,14 @@ using Lithforge.Voxel.BlockEntity;
 
 using Unity.Collections;
 using Unity.Mathematics;
+using Unity.Profiling;
 
 namespace Lithforge.Voxel.Storage
 {
     public sealed class WorldStorage : IDisposable
     {
+        private static readonly ProfilerMarker s_loadChunkMarker = new("WS.LoadChunk");
+        private static readonly ProfilerMarker s_saveChunkMarker = new("WS.SaveChunk");
         private readonly List<RegionFile> _flushCache = new();
         private readonly ILogger _logger;
         private readonly string _regionDir;
@@ -78,25 +81,28 @@ namespace Lithforge.Voxel.Storage
         {
             blockEntities = null;
 
-            try
+            using (s_loadChunkMarker.Auto())
             {
-                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
-                RegionFile region = GetOrOpenRegion(regionCoord);
-
-                byte[] serialized = region.LoadChunk(localX, localZ);
-
-                if (serialized == null)
+                try
                 {
+                    GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                    RegionFile region = GetOrOpenRegion(regionCoord);
+
+                    byte[] serialized = region.LoadChunk(localX, localZ);
+
+                    if (serialized == null)
+                    {
+                        return false;
+                    }
+
+                    return ChunkSerializer.Deserialize(serialized, chunkData, lightData, out blockEntities, blockEntityRegistry);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError($"[WorldStorage] LoadChunk failed for {chunkCoord}: {ex.Message}");
+
                     return false;
                 }
-
-                return ChunkSerializer.Deserialize(serialized, chunkData, lightData, out blockEntities, blockEntityRegistry);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"[WorldStorage] LoadChunk failed for {chunkCoord}: {ex.Message}");
-
-                return false;
             }
         }
 
@@ -117,17 +123,20 @@ namespace Lithforge.Voxel.Storage
             NativeArray<byte> lightData,
             Dictionary<int, IBlockEntity> blockEntities = null)
         {
-            try
+            using (s_saveChunkMarker.Auto())
             {
-                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
-                RegionFile region = GetOrOpenRegion(regionCoord);
+                try
+                {
+                    GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                    RegionFile region = GetOrOpenRegion(regionCoord);
 
-                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData, blockEntities);
-                region.SaveChunk(localX, localZ, serialized);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError($"[WorldStorage] SaveChunk failed for {chunkCoord}: {ex.Message}");
+                    byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData, blockEntities);
+                    region.SaveChunk(localX, localZ, serialized);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError($"[WorldStorage] SaveChunk failed for {chunkCoord}: {ex.Message}");
+                }
             }
         }
 
