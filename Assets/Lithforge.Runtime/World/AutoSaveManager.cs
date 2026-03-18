@@ -99,6 +99,11 @@ namespace Lithforge.Runtime.World
 
         private void SaveMetadata()
         {
+            if (_worldStorage == null)
+            {
+                return;
+            }
+
             _worldMetadata.PlayerState = PlayerStateSerializer.Capture(
                 _playerTransform,
                 _mainCamera,
