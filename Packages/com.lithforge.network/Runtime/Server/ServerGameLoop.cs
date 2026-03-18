@@ -50,6 +50,10 @@ namespace Lithforge.Network.Server
         private readonly IServerSimulation _simulation;
         private readonly ChunkStreamingManager _streamingManager;
 
+        /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
+        private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
+        private IChunkStreamingStrategy _defaultStrategy;
+
         private bool _disposed;
         private int _streamDebugCounter;
         private float _tickAccumulator;
@@ -76,6 +80,7 @@ namespace Lithforge.Network.Server
             IServerChunkProvider chunkProvider,
             ChunkDirtyTracker dirtyTracker,
             ChunkStreamingManager streamingManager,
+            IChunkStreamingStrategy defaultStrategy,
             ILogger logger)
         {
             _server = server;
@@ -85,6 +90,7 @@ namespace Lithforge.Network.Server
             _chunkProvider = chunkProvider;
             _dirtyTracker = dirtyTracker;
             _streamingManager = streamingManager;
+            _defaultStrategy = defaultStrategy;
             _logger = logger;
 
             // Register gameplay message handlers
@@ -95,6 +101,23 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
 
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
+        }
+
+        /// <summary>
+        ///     Sets the default streaming strategy used for peers without a per-connection override.
+        /// </summary>
+        public void SetDefaultStrategy(IChunkStreamingStrategy strategy)
+        {
+            _defaultStrategy = strategy;
+        }
+
+        /// <summary>
+        ///     Registers a per-connection streaming strategy override (e.g. LocalChunkStreamingStrategy
+        ///     for the local peer in always-server mode).
+        /// </summary>
+        public void SetPeerStrategy(ConnectionId connectionId, IChunkStreamingStrategy strategy)
+        {
+            _peerStrategies[connectionId.Value] = strategy;
         }
 
         public uint CurrentTick { get; private set; } = 1;
@@ -606,7 +629,8 @@ namespace Lithforge.Network.Server
                         }
                     }
 
-                    _streamingManager.ProcessForPeer(peer, _server, _chunkProvider, CurrentTick);
+                    IChunkStreamingStrategy strategy = GetStrategyForPeer(peer.ConnectionId);
+                    _streamingManager.ProcessForPeer(peer, strategy, CurrentTick);
 
                     // Check if Loading peer is ready to transition to Playing
                     if (state == ConnectionState.Loading &&
@@ -856,6 +880,16 @@ namespace Lithforge.Network.Server
                     result.Add(allPeers[i]);
                 }
             }
+        }
+
+        private IChunkStreamingStrategy GetStrategyForPeer(ConnectionId connectionId)
+        {
+            if (_peerStrategies.TryGetValue(connectionId.Value, out IChunkStreamingStrategy strategy))
+            {
+                return strategy;
+            }
+
+            return _defaultStrategy;
         }
     }
 }

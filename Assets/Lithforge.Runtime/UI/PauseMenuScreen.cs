@@ -26,7 +26,13 @@ namespace Lithforge.Runtime.UI
         private static readonly Color s_quitButtonHoverColor = new(0.65f, 0.25f, 0.25f, 1f);
         private static readonly Color s_textColor = Color.white;
 
+        private static readonly Color s_lanButtonColor = new(0.18f, 0.35f, 0.18f, 1f);
+        private static readonly Color s_lanButtonHoverColor = new(0.25f, 0.48f, 0.25f, 1f);
+        private static readonly Color s_lanButtonDisabledColor = new(0.15f, 0.25f, 0.15f, 0.6f);
+
         private UIDocument _document;
+        private Button _lanButton;
+        private Action<Action<ushort>> _onOpenToLan;
         private Action _onOptions;
 
         private Action _onPause;
@@ -78,19 +84,25 @@ namespace Lithforge.Runtime.UI
         /// <param name="onResume">Called when Resume button or Escape closes pause (restore game state).</param>
         /// <param name="onOptions">Called when Options button is clicked (hide pause, show settings).</param>
         /// <param name="onQuitToTitle">Called when Save and Quit is clicked.</param>
+        /// <param name="onOpenToLan">
+        ///     Called when Open to LAN is clicked. Null to hide the button.
+        ///     The action receives a callback to invoke with the assigned port on success.
+        /// </param>
         public void Initialize(
             PanelSettings panelSettings,
             SettingsScreen settingsScreen,
             Action onPause,
             Action onResume,
             Action onOptions,
-            Action onQuitToTitle)
+            Action onQuitToTitle,
+            Action<Action<ushort>> onOpenToLan = null)
         {
             _settingsScreen = settingsScreen;
             _onPause = onPause;
             _onResume = onResume;
             _onOptions = onOptions;
             _onQuitToTitle = onQuitToTitle;
+            _onOpenToLan = onOpenToLan;
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.sortingOrder = 400;
@@ -214,6 +226,15 @@ namespace Lithforge.Runtime.UI
             };
             panel.Add(optionsBtn);
 
+            // Open to LAN button (singleplayer only)
+            if (_onOpenToLan != null)
+            {
+                _lanButton = BuildMenuButton(
+                    "Open to LAN", s_lanButtonColor, s_lanButtonHoverColor);
+                _lanButton.clicked += OnOpenToLanClicked;
+                panel.Add(_lanButton);
+            }
+
             Button quitBtn = BuildMenuButton(
                 "Save and Quit to Title", s_quitButtonColor, s_quitButtonHoverColor);
             quitBtn.clicked += () =>
@@ -224,6 +245,25 @@ namespace Lithforge.Runtime.UI
                 }
             };
             panel.Add(quitBtn);
+        }
+
+        private void OnOpenToLanClicked()
+        {
+            if (_onOpenToLan == null || _lanButton == null)
+            {
+                return;
+            }
+
+            // Disable button immediately to prevent double-clicks
+            _lanButton.SetEnabled(false);
+            _lanButton.text = "Opening...";
+            _lanButton.style.backgroundColor = s_lanButtonDisabledColor;
+
+            _onOpenToLan(port =>
+            {
+                _lanButton.text = $"LAN Open (port {port})";
+                _onOpenToLan = null;
+            });
         }
 
         private Button BuildMenuButton(string text, Color normalColor, Color hoverColor)

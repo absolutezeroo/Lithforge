@@ -29,7 +29,9 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public bool ShouldCreate(SessionConfig config)
         {
-            return config.RequiresRendering && config.HasLocalWorld;
+            // In always-server mode, SP and Host use server-driven spawn via GameReady message.
+            // SpawnManager is only needed for DedicatedServer (no rendering, no GameReady handler).
+            return false;
         }
 
         public void Initialize(SessionContext context)

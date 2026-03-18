@@ -1,3 +1,5 @@
+using System;
+
 using Lithforge.Core.Logging;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
@@ -25,6 +27,8 @@ namespace Lithforge.Network.Client
 
         private float _lastUpdateTime;
 
+        private bool _ownsTransport;
+
         private ReliableSendQueue _sendQueue;
 
         private ConnectionId _serverConnectionId;
@@ -42,7 +46,10 @@ namespace Lithforge.Network.Client
 
         public ConnectionState State
         {
-            get { return _stateMachine != null ? _stateMachine.Current : ConnectionState.Disconnected; }
+            get
+            {
+                return _stateMachine != null ? _stateMachine.Current : ConnectionState.Disconnected;
+            }
         }
 
         public ushort LocalPlayerId { get; private set; }
@@ -55,9 +62,14 @@ namespace Lithforge.Network.Client
 
         public MessageDispatcher Dispatcher { get; private set; }
 
+        public Action OnHandshakeComplete { get; set; }
+
         public bool IsPlaying
         {
-            get { return _stateMachine?.Current == ConnectionState.Playing; }
+            get
+            {
+                return _stateMachine?.Current == ConnectionState.Playing;
+            }
         }
 
         public bool IsConnected
@@ -74,11 +86,13 @@ namespace Lithforge.Network.Client
             if (_transport != null)
             {
                 _logger.LogWarning("NetworkClient.Connect called while already connected");
+
                 return;
             }
 
             _lastUpdateTime = currentTime;
             _transport = new NetworkDriverWrapper(_logger);
+            _ownsTransport = true;
             Dispatcher = new MessageDispatcher(_logger);
             _stateMachine = new ConnectionStateMachine();
             _sendQueue = new ReliableSendQueue(_logger);
@@ -94,6 +108,36 @@ namespace Lithforge.Network.Client
             _serverConnectionId = _transport.Connect(address, port);
 
             _logger.LogInfo($"Connecting to {address}:{port}");
+        }
+
+        public void ConnectDirect(INetworkTransport transport, float currentTime)
+        {
+            if (_transport != null)
+            {
+                _logger.LogWarning("NetworkClient.ConnectDirect called while already connected");
+
+                return;
+            }
+
+            _lastUpdateTime = currentTime;
+            _transport = transport;
+            _ownsTransport = false;
+            Dispatcher = new MessageDispatcher(_logger);
+            _stateMachine = new ConnectionStateMachine();
+            _sendQueue = new ReliableSendQueue(_logger);
+
+            Dispatcher.OnConnect(OnConnected);
+            Dispatcher.OnDisconnect(OnDisconnected);
+            Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
+            Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
+            Dispatcher.RegisterHandler(MessageType.Ping, OnServerPing);
+            Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
+
+            _stateMachine.Transition(ConnectionState.Connecting, _lastUpdateTime);
+            // DirectTransportClient.Connect() returns the fixed server connection ID
+            _serverConnectionId = _transport.Connect("localhost", 0);
+
+            _logger.LogInfo("Connecting via direct transport");
         }
 
         public void Update(float currentTime)
@@ -160,8 +204,6 @@ namespace Lithforge.Network.Client
             }
         }
 
-        // --- Event handlers ---
-
         private void OnConnected(ConnectionId connectionId)
         {
             _serverConnectionId = connectionId;
@@ -181,7 +223,9 @@ namespace Lithforge.Network.Client
         private void OnDisconnected(ConnectionId connectionId)
         {
             _logger.LogInfo("Disconnected from server");
+
             _stateMachine.Transition(ConnectionState.Disconnected, _lastUpdateTime);
+
             CleanUp();
         }
 
@@ -190,6 +234,7 @@ namespace Lithforge.Network.Client
             if (_stateMachine.Current != ConnectionState.Handshaking)
             {
                 _logger.LogWarning("Received handshake response in unexpected state");
+
                 return;
             }
 
@@ -198,7 +243,9 @@ namespace Lithforge.Network.Client
             if (!response.Accepted)
             {
                 _logger.LogError($"Handshake rejected: {response.RejectReason}");
+
                 _stateMachine.Transition(ConnectionState.Disconnected, _lastUpdateTime);
+
                 CleanUp();
 
                 return;
@@ -212,11 +259,14 @@ namespace Lithforge.Network.Client
             _logger.LogInfo(
                 $"Handshake accepted: playerId={response.PlayerId}, " +
                 $"serverTick={response.ServerTick}, seed={response.WorldSeed}");
+
+            OnHandshakeComplete?.Invoke();
         }
 
         private void OnPong(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             PongMessage pong = PongMessage.Deserialize(data, offset, length);
+
             RoundTripTime = _lastUpdateTime - pong.EchoTimestamp;
         }
 
@@ -225,8 +275,7 @@ namespace Lithforge.Network.Client
             PingMessage ping = PingMessage.Deserialize(data, offset, length);
             PongMessage pong = new()
             {
-                EchoTimestamp = ping.Timestamp,
-                ServerTick = 0,
+                EchoTimestamp = ping.Timestamp, ServerTick = 0,
             };
 
             Send(pong, PipelineId.UnreliableSequenced);
@@ -235,8 +284,11 @@ namespace Lithforge.Network.Client
         private void OnDisconnectMessage(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             DisconnectMessage msg = DisconnectMessage.Deserialize(data, offset, length);
+
             _logger.LogInfo($"Server disconnected us: {msg.Reason}");
+
             _stateMachine.Transition(ConnectionState.Disconnected, _lastUpdateTime);
+
             CleanUp();
         }
 
@@ -249,7 +301,9 @@ namespace Lithforge.Network.Client
                 if (_stateMachine.IsTimedOut(currentTime, NetworkConstants.HandshakeTimeoutSeconds))
                 {
                     _logger.LogError("Connection timed out during handshake");
+
                     _stateMachine.Transition(ConnectionState.Disconnected, currentTime);
+
                     CleanUp();
                 }
             }
@@ -267,6 +321,7 @@ namespace Lithforge.Network.Client
             if (currentTime - _lastPingTime >= NetworkConstants.PingIntervalSeconds)
             {
                 _lastPingTime = currentTime;
+
                 PingMessage ping = new()
                 {
                     Timestamp = currentTime,
@@ -279,7 +334,11 @@ namespace Lithforge.Network.Client
         private void CleanUp()
         {
             _sendQueue?.Clear();
-            _transport?.Dispose();
+
+            if (_ownsTransport)
+            {
+                _transport?.Dispose();
+            }
 
             _transport = null;
         }

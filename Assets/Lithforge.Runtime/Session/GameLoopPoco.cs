@@ -17,6 +17,8 @@ namespace Lithforge.Runtime.Session
     /// <summary>
     ///     Pure C# replacement for the <c>GameLoop</c> MonoBehaviour.
     ///     Called each frame by <see cref="SessionBridge" />.
+    ///     In always-server mode, all modes (SP/Host/Client) use NetworkClient + ClientWorldSimulation.
+    ///     Server-side work (generation, loading) is handled by <see cref="ServerLoopPoco" />.
     /// </summary>
     public sealed class GameLoopPoco
     {
@@ -33,7 +35,7 @@ namespace Lithforge.Runtime.Session
         private TickAccumulator _tickAccumulator;
 
         /// <summary>
-        ///     Invoked when a client-mode network connection transitions to Disconnected.
+        ///     Invoked when the network connection transitions to Disconnected.
         /// </summary>
         public Action OnClientDisconnected;
 
@@ -44,26 +46,17 @@ namespace Lithforge.Runtime.Session
 
         public int PendingGenerationCount
         {
-            get
-            {
-                return _config.GenerationScheduler?.PendingCount ?? 0;
-            }
+            get { return _config.ServerLoop?.PendingGenerationCount ?? 0; }
         }
 
         public int PendingMeshCount
         {
-            get
-            {
-                return _config.MeshScheduler?.PendingCount ?? 0;
-            }
+            get { return _config.MeshScheduler?.PendingCount ?? 0; }
         }
 
         public int PendingLODMeshCount
         {
-            get
-            {
-                return _config.LODScheduler?.PendingCount ?? 0;
-            }
+            get { return _config.LODScheduler?.PendingCount ?? 0; }
         }
 
         public int TicksThisFrame { get; private set; }
@@ -72,16 +65,10 @@ namespace Lithforge.Runtime.Session
         {
             get
             {
-                // Client mode: SpawnReady is set directly on the physics body
+                // All modes: SpawnReady is set on the physics body
                 // by the GameReady handler in ClientChunkHandlerSubsystem
-                if (_config.IsClientMode)
-                {
-                    return _config.PlayerPhysicsBody != null
-                        && _config.PlayerPhysicsBody.SpawnReady;
-                }
-
-                // Singleplayer/Host: driven by SpawnManager
-                return _config.SpawnManager != null && _config.SpawnManager.IsComplete;
+                return _config.PlayerPhysicsBody != null
+                    && _config.PlayerPhysicsBody.SpawnReady;
             }
         }
 
@@ -90,9 +77,20 @@ namespace Lithforge.Runtime.Session
             _gameState = state;
         }
 
+        /// <summary>
+        ///     Sets the world simulation after deferred initialization.
+        ///     In always-server mode, <see cref="ClientWorldSimulation" /> is created
+        ///     when the handshake completes (after PostInitialize), so this method
+        ///     allows the callback to wire it into the running game loop.
+        /// </summary>
+        public void SetWorldSimulation(IWorldSimulation worldSimulation)
+        {
+            _config.WorldSimulation = worldSimulation;
+        }
+
         public void NotifyRenderDistanceChanged(int renderDistance)
         {
-            _config.GenerationScheduler?.UpdateConfig(renderDistance);
+            _config.ServerLoop?.NotifyRenderDistanceChanged(renderDistance);
             _config.MeshScheduler?.UpdateConfig(renderDistance);
             _config.LODScheduler?.UpdateConfig(renderDistance);
         }
@@ -109,13 +107,20 @@ namespace Lithforge.Runtime.Session
 
             profiler.Begin(FrameProfilerSections.UpdateTotal);
 
-            // ── Pump network transport (client mode) ──
+            // ── Poll server-side generation completions ──
+            if (_config.ServerLoop != null)
+            {
+                profiler.Begin(FrameProfilerSections.PollGen);
+                _config.ServerLoop.PollCompletions();
+                profiler.End(FrameProfilerSections.PollGen);
+            }
+
+            // ── Pump network client (always present in SP/Host/Client) ──
             if (_config.NetworkClient != null)
             {
                 _config.NetworkClient.Update(Time.realtimeSinceStartup);
 
-                if (_config.IsClientMode
-                    && !_clientDisconnectNotified
+                if (!_clientDisconnectNotified
                     && _config.NetworkClient.State == ConnectionState.Disconnected)
                 {
                     _clientDisconnectNotified = true;
@@ -125,7 +130,7 @@ namespace Lithforge.Runtime.Session
                 }
             }
 
-            // ── Tick server game loop (host mode only) ──
+            // ── Tick server game loop (SP + Host) ──
             if (_config.ServerGameLoop != null)
             {
                 _config.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
@@ -165,16 +170,7 @@ namespace Lithforge.Runtime.Session
                 _config.RemotePlayerManager.Tick(Time.deltaTime);
             }
 
-            // ── Async pipeline poll ──
-            if (!_config.IsClientMode)
-            {
-                Profiler.BeginSample("GL.PollGen");
-                profiler.Begin(FrameProfilerSections.PollGen);
-                _config.GenerationScheduler?.PollCompleted();
-                profiler.End(FrameProfilerSections.PollGen);
-                Profiler.EndSample();
-            }
-
+            // ── Async pipeline poll (rendering-side schedulers) ──
             Profiler.BeginSample("GL.PollRelight");
             _config.RelightScheduler?.PollCompleted();
             Profiler.EndSample();
@@ -202,25 +198,25 @@ namespace Lithforge.Runtime.Session
             {
                 _config.Culling?.UpdateFrustum(_config.MainCamera);
 
-                if (!_config.IsClientMode)
+                // Server-side loading and unloading (SP + Host)
+                if (_config.ServerLoop != null)
                 {
-                    Profiler.BeginSample("GL.LoadQueue");
                     profiler.Begin(FrameProfilerSections.LoadQueue);
-                    _config.ChunkManager.UpdateLoadingQueue(
-                        cameraChunkCoord, _config.MainCamera.transform.forward);
+                    _config.ServerLoop.UpdateLoadingAndUnloading();
                     profiler.End(FrameProfilerSections.LoadQueue);
-                    Profiler.EndSample();
+
+                    // Collect server-side unloaded coords
+                    IReadOnlyList<int3> serverUnloads = _config.ServerLoop.UnloadedCoords;
+
+                    for (int i = 0; i < serverUnloads.Count; i++)
+                    {
+                        _unloadedCoords.Add(serverUnloads[i]);
+                    }
                 }
 
+                // Client-side chunk unloads (SP + Host + Client)
                 Profiler.BeginSample("GL.Unload");
                 profiler.Begin(FrameProfilerSections.Unload);
-
-                if (!_config.IsClientMode)
-                {
-                    _config.ChunkManager.UnloadDistantChunks(
-                        cameraChunkCoord, _unloadedCoords,
-                        _config.WorldStorage, _config.UnloadBudgetMs);
-                }
 
                 if (_config.ClientChunkHandler != null)
                 {
@@ -234,11 +230,7 @@ namespace Lithforge.Runtime.Session
                     }
                 }
 
-                if (_config.SpawnManager != null && !_config.SpawnManager.IsComplete)
-                {
-                    _config.SpawnManager.Tick();
-                }
-
+                // Cleanup unloaded coords from all rendering-side subsystems
                 for (int i = 0; i < _unloadedCoords.Count; i++)
                 {
                     int3 coord = _unloadedCoords[i];
@@ -247,11 +239,12 @@ namespace Lithforge.Runtime.Session
                     _config.LiquidScheduler?.OnChunkUnloaded(coord);
                     _config.ChunkMeshStore?.DestroyRenderer(coord);
                     _config.BiomeTintManager?.OnChunkUnloaded(coord);
-                    _config.GenerationScheduler?.CleanupCoord(coord);
                     _config.RelightScheduler?.CleanupCoord(coord);
                     _config.MeshScheduler?.CleanupCoord(coord);
                     _config.LODScheduler?.CleanupCoord(coord);
                 }
+
+                _unloadedCoords.Clear();
 
                 profiler.End(FrameProfilerSections.Unload);
                 Profiler.EndSample();
@@ -260,19 +253,12 @@ namespace Lithforge.Runtime.Session
             // ── Schedule jobs ──
             if (_gameState != GameState.PausedFull)
             {
-                if (!_config.IsClientMode)
+                // Server-side generation scheduling (SP + Host)
+                if (_config.ServerLoop != null)
                 {
-                    Profiler.BeginSample("GL.SchedGen");
                     profiler.Begin(FrameProfilerSections.SchedGen);
-                    _config.GenerationScheduler?.ScheduleJobs();
+                    _config.ServerLoop.ScheduleJobs();
                     profiler.End(FrameProfilerSections.SchedGen);
-                    Profiler.EndSample();
-
-                    Profiler.BeginSample("GL.CrossLight");
-                    profiler.Begin(FrameProfilerSections.CrossLight);
-                    _config.GenerationScheduler?.ProcessCrossChunkLightUpdates();
-                    profiler.End(FrameProfilerSections.CrossLight);
-                    Profiler.EndSample();
                 }
 
                 Profiler.BeginSample("GL.Relight");
@@ -308,8 +294,8 @@ namespace Lithforge.Runtime.Session
             // Audio environment frame-rate updates
             _config.AudioEnvironmentController?.UpdateFrame(Time.deltaTime);
 
-            // Auto-save
-            _config.AutoSaveManager?.Tick(Time.realtimeSinceStartup);
+            // Server-side gameplay ticking (SP + Host)
+            _config.ServerLoop?.TickGameplay(Time.realtimeSinceStartup);
 
             profiler.End(FrameProfilerSections.UpdateTotal);
 
@@ -365,8 +351,7 @@ namespace Lithforge.Runtime.Session
 
         public void Shutdown()
         {
-            _config.LiquidScheduler?.Shutdown();
-            _config.GenerationScheduler?.Shutdown();
+            _config.ServerLoop?.Shutdown();
             _config.RelightScheduler?.Shutdown();
             _config.MeshScheduler?.Shutdown();
             _config.LODScheduler?.Shutdown();

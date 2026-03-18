@@ -16,6 +16,7 @@ namespace Lithforge.Runtime.Simulation
     public sealed class ServerChunkProvider : IServerChunkProvider
     {
         private readonly ChunkManager _chunkManager;
+
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         public ServerChunkProvider(ChunkManager chunkManager, NativeStateRegistry nativeStateRegistry)
@@ -27,6 +28,7 @@ namespace Lithforge.Runtime.Simulation
         public bool IsChunkReady(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
             return chunk != null && chunk.State == ChunkState.Ready;
         }
 
@@ -73,6 +75,13 @@ namespace Lithforge.Runtime.Simulation
             return SpawnUtility.FindSafeSpawnY(
                 _chunkManager.GetBlock, _nativeStateRegistry,
                 worldX, worldZ, chunkYMin, chunkYMax, fallbackY);
+        }
+
+        public bool IsChunkGenerated(int3 coord)
+        {
+            ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+            return chunk != null && chunk.State >= ChunkState.Generated && chunk.Data.IsCreated;
         }
     }
 }

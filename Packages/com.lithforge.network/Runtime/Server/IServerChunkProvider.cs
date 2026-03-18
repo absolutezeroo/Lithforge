@@ -35,5 +35,12 @@ namespace Lithforge.Network.Server
         /// Returns fallbackY if no solid ground is found.
         /// </summary>
         public int FindSafeSpawnY(int worldX, int worldZ, int chunkYMin, int chunkYMax, int fallbackY);
+
+        /// <summary>
+        /// Returns true if the chunk at the given coordinate has completed generation
+        /// (state >= Generated) and has valid voxel data. Used by LocalChunkStreamingStrategy
+        /// for zero-copy local chunk delivery.
+        /// </summary>
+        public bool IsChunkGenerated(int3 coord);
     }
 }

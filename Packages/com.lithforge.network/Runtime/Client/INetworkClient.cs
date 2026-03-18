@@ -1,6 +1,7 @@
 using System;
 
 using Lithforge.Network.Message;
+using Lithforge.Network.Transport;
 
 namespace Lithforge.Network.Client
 {
@@ -51,10 +52,22 @@ namespace Lithforge.Network.Client
         public bool IsConnected { get; }
 
         /// <summary>
+        ///     Fired when the handshake completes successfully and the client enters Loading state.
+        ///     Used by subsystems that need to defer initialization until the handshake is done.
+        /// </summary>
+        public Action OnHandshakeComplete { get; set; }
+
+        /// <summary>
         ///     Initiates a connection to the given server address and port.
         /// </summary>
         /// <param name="currentTime">Current time (e.g. Time.realtimeSinceStartup) used to seed state-machine timestamps.</param>
         public void Connect(string address, ushort port, float currentTime);
+
+        /// <summary>
+        ///     Connects using an externally provided transport (e.g. DirectTransportClient for
+        ///     always-server singleplayer). The transport should already have Connect() called.
+        /// </summary>
+        public void ConnectDirect(INetworkTransport transport, float currentTime);
 
         /// <summary>
         ///     Pumps the transport, processes events, checks timeouts, sends pings.

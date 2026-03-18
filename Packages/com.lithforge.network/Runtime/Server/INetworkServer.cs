@@ -2,6 +2,7 @@ using System;
 
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
+using Lithforge.Network.Transport;
 
 namespace Lithforge.Network.Server
 {
@@ -39,6 +40,12 @@ namespace Lithforge.Network.Server
         ///     Starts the server listening on the given port. Returns true on success.
         /// </summary>
         public bool Start(ushort port);
+
+        /// <summary>
+        ///     Starts the server with an externally provided transport (e.g. CompositeTransport
+        ///     for always-server singleplayer). The transport must already be listening.
+        /// </summary>
+        public bool StartWithTransport(INetworkTransport transport);
 
         /// <summary>
         ///     Pumps the transport, processes events, checks timeouts, sends pings.

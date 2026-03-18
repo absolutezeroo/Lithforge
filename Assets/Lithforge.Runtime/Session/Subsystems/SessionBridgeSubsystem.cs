@@ -36,10 +36,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public string Name
         {
-            get
-            {
-                return "SessionBridge";
-            }
+            get { return "SessionBridge"; }
         }
 
         public IReadOnlyList<Type> Dependencies { get; } = new[]
@@ -78,19 +75,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 config.ChunkMeshStore = chunkMeshStore;
             }
 
-            if (context.TryGet(out WorldStorage worldStorage))
-            {
-                config.WorldStorage = worldStorage;
-            }
-
-            config.UnloadBudgetMs = context.App.Settings.Chunk.UnloadBudgetMs;
-
-            // Schedulers
-            if (context.TryGet(out GenerationScheduler generationScheduler))
-            {
-                config.GenerationScheduler = generationScheduler;
-            }
-
+            // Schedulers (rendering-side only)
             if (context.TryGet(out RelightScheduler relightScheduler))
             {
                 config.RelightScheduler = relightScheduler;
@@ -144,8 +129,6 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
 
             // Network
-            config.IsClientMode = context.Config is SessionConfig.Client;
-
             if (context.TryGet(out INetworkClient networkClient))
             {
                 config.NetworkClient = networkClient;
@@ -173,16 +156,6 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
 
             // Gameplay
-            if (context.TryGet(out SpawnManager spawnManager))
-            {
-                config.SpawnManager = spawnManager;
-            }
-
-            if (context.TryGet(out AutoSaveManager autoSaveManager))
-            {
-                config.AutoSaveManager = autoSaveManager;
-            }
-
             if (context.TryGet(out BlockEntityTickScheduler blockEntityTickScheduler))
             {
                 config.BlockEntityTickScheduler = blockEntityTickScheduler;
@@ -223,6 +196,12 @@ namespace Lithforge.Runtime.Session.Subsystems
                 config.MetricsRegistry = metricsRegistry;
             }
 
+            // Build ServerLoopPoco for SP/Host modes
+            if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
+            {
+                config.ServerLoop = BuildServerLoop(context, player);
+            }
+
             // Create and activate the game loop
             GameLoopPoco gameLoop = new(config);
             SessionBridge bridge = _bridgeObject.AddComponent<SessionBridge>();
@@ -258,6 +237,82 @@ namespace Lithforge.Runtime.Session.Subsystems
 
                 _bridgeObject = null;
             }
+        }
+
+        private static ServerLoopPoco BuildServerLoop(
+            SessionContext context,
+            PlayerTransformHolder player)
+        {
+            ServerLoopConfig slConfig = new();
+
+            if (context.TryGet(out ChunkManager chunkManager))
+            {
+                slConfig.ChunkManager = chunkManager;
+            }
+
+            if (context.TryGet(out WorldStorage worldStorage))
+            {
+                slConfig.WorldStorage = worldStorage;
+            }
+
+            if (context.TryGet(out GenerationScheduler generationScheduler))
+            {
+                slConfig.GenerationScheduler = generationScheduler;
+            }
+
+            if (context.TryGet(out RelightScheduler relightScheduler))
+            {
+                slConfig.RelightScheduler = relightScheduler;
+            }
+
+            if (context.TryGet(out LiquidScheduler liquidScheduler))
+            {
+                slConfig.LiquidScheduler = liquidScheduler;
+            }
+
+            if (context.TryGet(out AutoSaveManager autoSaveManager))
+            {
+                slConfig.AutoSaveManager = autoSaveManager;
+            }
+
+            if (context.TryGet(out BlockEntityTickScheduler blockEntityTickScheduler))
+            {
+                slConfig.BlockEntityTickScheduler = blockEntityTickScheduler;
+            }
+
+            slConfig.UnloadBudgetMs = context.App.Settings.Chunk.UnloadBudgetMs;
+
+            // Server chunk center follows the camera/player position
+            Camera mainCamera = player?.MainCamera;
+
+            slConfig.GetServerChunkCenter = () =>
+            {
+                if (mainCamera == null)
+                {
+                    return Unity.Mathematics.int3.zero;
+                }
+
+                Vector3 pos = mainCamera.transform.position;
+
+                return new Unity.Mathematics.int3(
+                    (int)Unity.Mathematics.math.floor(pos.x / Lithforge.Voxel.Chunk.ChunkConstants.Size),
+                    (int)Unity.Mathematics.math.floor(pos.y / Lithforge.Voxel.Chunk.ChunkConstants.Size),
+                    (int)Unity.Mathematics.math.floor(pos.z / Lithforge.Voxel.Chunk.ChunkConstants.Size));
+            };
+
+            slConfig.GetServerLookAhead = () =>
+            {
+                if (mainCamera == null)
+                {
+                    return Unity.Mathematics.float3.zero;
+                }
+
+                Vector3 fwd = mainCamera.transform.forward;
+
+                return new Unity.Mathematics.float3(fwd.x, fwd.y, fwd.z);
+            };
+
+            return new ServerLoopPoco(slConfig);
         }
     }
 }

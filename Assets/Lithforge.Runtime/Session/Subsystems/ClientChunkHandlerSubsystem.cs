@@ -31,7 +31,8 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public bool ShouldCreate(SessionConfig config)
         {
-            return config is SessionConfig.Client;
+            // All rendering modes need chunk handling (SP/Host via DirectTransport, Client via UTP)
+            return config.RequiresRendering;
         }
 
         public void Initialize(SessionContext context)

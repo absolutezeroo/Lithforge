@@ -17,18 +17,21 @@ namespace Lithforge.Network.Server
     public sealed class NetworkServer : INetworkServer
     {
         private readonly ILogger _logger;
+
         private readonly int _maxConnections;
 
-        // Reusable list for timeout iteration (avoids allocation during Update)
         private readonly List<ConnectionId> _timeoutDisconnectList = new();
-        private bool _disposed;
-        private PeerRegistry _peerRegistry;
-        private ReliableSendQueue _sendQueue;
 
         private float _currentTime;
+
+        private bool _disposed;
+
+        private PeerRegistry _peerRegistry;
+
+        private ReliableSendQueue _sendQueue;
+
         private INetworkTransport _transport;
 
-        /// <summary>Fired after a peer passes handshake validation and enters Loading state.</summary>
         public Action<PeerInfo> OnPeerAccepted;
 
         public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
@@ -57,30 +60,37 @@ namespace Lithforge.Network.Server
         public MessageDispatcher Dispatcher { get; private set; }
 
         public uint CurrentTick { get; set; }
+
         public ulong WorldSeed { get; set; }
 
         public bool Start(ushort port)
         {
-            _transport = new NetworkDriverWrapper(_logger);
-            Dispatcher = new MessageDispatcher(_logger);
-            _peerRegistry = new PeerRegistry();
-            _sendQueue = new ReliableSendQueue(_logger);
+            INetworkTransport transport = new NetworkDriverWrapper(_logger);
 
-            Dispatcher.OnConnect(OnPeerConnected);
-            Dispatcher.OnDisconnect(OnPeerDisconnected);
-            Dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
-            Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
-            Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
-
-            bool success = _transport.Listen(port);
+            bool success = transport.Listen(port);
 
             if (!success)
             {
                 _logger.LogError($"NetworkServer failed to start on port {port}");
+
+                transport.Dispose();
+
                 return false;
             }
 
+            InitCommon(transport);
+
             _logger.LogInfo($"NetworkServer started on port {port}, max connections: {_maxConnections}");
+
+            return true;
+        }
+
+        public bool StartWithTransport(INetworkTransport transport)
+        {
+            InitCommon(transport);
+
+            _logger.LogInfo($"NetworkServer started with external transport, max connections: {_maxConnections}");
+
             return true;
         }
 
@@ -227,6 +237,20 @@ namespace Lithforge.Network.Server
                 _disposed = true;
                 Shutdown();
             }
+        }
+
+        private void InitCommon(INetworkTransport transport)
+        {
+            _transport = transport;
+            Dispatcher = new MessageDispatcher(_logger);
+            _peerRegistry = new PeerRegistry();
+            _sendQueue = new ReliableSendQueue(_logger);
+
+            Dispatcher.OnConnect(OnPeerConnected);
+            Dispatcher.OnDisconnect(OnPeerDisconnected);
+            Dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
+            Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
+            Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
         }
 
         /// <summary>

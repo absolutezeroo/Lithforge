@@ -9,11 +9,8 @@ using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Simulation;
-using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.Tick;
-using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Voxel.Storage;
 
 using UnityEngine;
 
@@ -30,13 +27,7 @@ namespace Lithforge.Runtime.Session
 
         public ChunkMeshStore ChunkMeshStore { get; set; }
 
-        public WorldStorage WorldStorage { get; set; }
-
-        public float UnloadBudgetMs { get; set; }
-
-        // Schedulers
-        public GenerationScheduler GenerationScheduler { get; set; }
-
+        // Schedulers (rendering-side only — generation scheduling moved to ServerLoopPoco)
         public RelightScheduler RelightScheduler { get; set; }
 
         public MeshScheduler MeshScheduler { get; set; }
@@ -63,8 +54,6 @@ namespace Lithforge.Runtime.Session
         public Transform PlayerTransform { get; set; }
 
         // Network
-        public bool IsClientMode { get; set; }
-
         public INetworkClient NetworkClient { get; set; }
 
         public ServerGameLoop ServerGameLoop { get; set; }
@@ -72,6 +61,9 @@ namespace Lithforge.Runtime.Session
         public ClientChunkHandler ClientChunkHandler { get; set; }
 
         public RemotePlayerManager RemotePlayerManager { get; set; }
+
+        // Server-side loop
+        public ServerLoopPoco ServerLoop { get; set; }
 
         // Player rendering
         public PlayerRenderer PlayerRenderer { get; set; }
@@ -81,10 +73,6 @@ namespace Lithforge.Runtime.Session
         public BlockInteraction BlockInteraction { get; set; }
 
         // Gameplay
-        public SpawnManager SpawnManager { get; set; }
-
-        public AutoSaveManager AutoSaveManager { get; set; }
-
         public BlockEntityTickScheduler BlockEntityTickScheduler { get; set; }
 
         public BiomeTintManager BiomeTintManager { get; set; }
