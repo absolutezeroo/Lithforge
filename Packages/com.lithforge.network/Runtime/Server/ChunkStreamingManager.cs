@@ -84,6 +84,7 @@ namespace Lithforge.Network.Server
             // Stream chunks up to rate limit
             int rate = interest.IsInitialLoad ? InitialLoadRate : SteadyStateRate;
             int sent = 0;
+            bool hasSkipped = false;
 
             while (sent < rate && interest.StreamingQueueIndex < interest.StreamingQueue.Count)
             {
@@ -100,7 +101,10 @@ namespace Lithforge.Network.Server
 
                 if (chunkData == null)
                 {
-                    break;
+                    // Chunk not ready — skip for now, but flag for retry
+                    hasSkipped = true;
+                    interest.StreamingQueueIndex++;
+                    continue;
                 }
 
                 ChunkDataMessage msg = new()
@@ -114,12 +118,24 @@ namespace Lithforge.Network.Server
                 sent++;
             }
 
-            // Only clear when ALL chunks have been sent (none skipped)
+            // Queue exhausted — if some chunks were skipped (not ready), reset cursor
+            // to re-scan from the beginning next tick. Already-loaded chunks are skipped
+            // cheaply via the LoadedChunks HashSet check above.
+            // Only fully clear when everything was sent (no skips).
             if (interest.StreamingQueueIndex >= interest.StreamingQueue.Count)
             {
-                interest.StreamingQueue.Clear();
-                interest.StreamingScores.Clear();
-                interest.StreamingQueueIndex = 0;
+                if (hasSkipped)
+                {
+                    // Retry from the start — LoadedChunks filter ensures no duplicates
+                    interest.StreamingQueueIndex = 0;
+                }
+                else
+                {
+                    // All chunks sent successfully — clean slate
+                    interest.StreamingQueue.Clear();
+                    interest.StreamingScores.Clear();
+                    interest.StreamingQueueIndex = 0;
+                }
             }
         }
 
