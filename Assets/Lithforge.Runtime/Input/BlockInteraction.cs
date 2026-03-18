@@ -1,183 +1,155 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Physics;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
+using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.Content.Settings;
-using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.Rendering;
-using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
+using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+using VoxelRaycastHit = Lithforge.Physics.RaycastHit;
 using Random = System.Random;
 
 namespace Lithforge.Runtime.Input
 {
     /// <summary>
-    /// Handles block breaking (left click, progressive mining) and
-    /// block placement (right click) via voxel raycasting.
-    /// Integrates with inventory for item pickup and block placement.
-    /// Attached to the camera GameObject.
+    ///     Handles block breaking (left click, progressive mining) and
+    ///     block placement (right click) via voxel raycasting.
+    ///     Integrates with inventory for item pickup and block placement.
+    ///     Attached to the camera GameObject.
     /// </summary>
     public sealed class BlockInteraction : MonoBehaviour
     {
-        private ChunkManager _chunkManager;
-        private NativeStateRegistry _nativeStateRegistry;
-        private StateRegistry _stateRegistry;
-        private BlockHighlight _blockHighlight;
-        private Func<int3, bool> _isSolidDelegate;
-
-        // Inventory integration
-        private Inventory _inventory;
-        private ItemRegistry _itemRegistry;
-        private LootResolver _lootResolver;
-        private TagRegistry _tagRegistry;
-        private Random _lootRandom;
-
         // Static sort comparison for trait priority ordering
         private static readonly Comparison<IToolTrait> s_traitPrioritySort =
-            (IToolTrait a, IToolTrait b) => a.Priority.CompareTo(b.Priority);
+            (a, b) => a.Priority.CompareTo(b.Priority);
 
         // ToolType → mineable tag mapping (Minecraft-style correct-tool check)
         // Tag names must match the tagName field in Tag assets (e.g. "blocks/mineable_pickaxe")
         private static readonly Dictionary<ToolType, ResourceId> s_toolTagMap =
-            new Dictionary<ToolType, ResourceId>
+            new()
             {
-                { ToolType.Pickaxe, ResourceId.Parse("lithforge:blocks/mineable_pickaxe") },
-                { ToolType.Axe, ResourceId.Parse("lithforge:blocks/mineable_axe") },
-                { ToolType.Shovel, ResourceId.Parse("lithforge:blocks/mineable_shovel") },
+                {
+                    ToolType.Pickaxe, ResourceId.Parse("lithforge:blocks/mineable_pickaxe")
+                },
+                {
+                    ToolType.Axe, ResourceId.Parse("lithforge:blocks/mineable_axe")
+                },
+                {
+                    ToolType.Shovel, ResourceId.Parse("lithforge:blocks/mineable_shovel")
+                },
             };
+
+        private static readonly Key[] s_digitKeys =
+        {
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
+        };
+
+        // Reusable list for dirty chunks
+        private readonly List<int3> _dirtiedChunks = new();
+
+        // Block entity references
+        private BlockEntityTickScheduler _blockEntityTickScheduler;
+        private BlockHighlight _blockHighlight;
+
+        // Audio
+        private BlockSoundPlayer _blockSoundPlayer;
+        private bool _canHarvest;
+        private ChunkManager _chunkManager;
+
+        // Command processor (delegates validation + state mutation to LocalCommandProcessor)
+        private ICommandProcessor _commandProcessor;
+        private int _defaultMaxStackSize;
+        private float _handMiningMultiplier;
 
         // Physics settings
         private float _interactionRange;
-        private float _placeCooldownTime;
-        private float _handMiningMultiplier;
-        private float _toolMiningMultiplier;
+
+        // Inventory integration
+
+        // Mining state
+        private Func<int3, bool> _isSolidDelegate;
+        private ItemRegistry _itemRegistry;
+        private Random _lootRandom;
+        private LootResolver _lootResolver;
         private float _minBreakTime;
-        private int _defaultMaxStackSize;
+        private int3 _miningBlockCoord;
+        private int _miningHitInterval = 4;
+        private int _miningHitTickCounter;
+        private float _miningProgress;
+        private float _miningRequiredTime;
+        private NativeStateRegistry _nativeStateRegistry;
+
+        // Network callback: notifies server when mining begins (for break speed validation)
+        private Action<int3> _onStartDigging;
+
+        // Placement cooldown
+        private float _placeCooldown;
+        private float _placeCooldownTime;
+
+        // Player controller reference (for fly mode scroll-wheel gating)
+        private PlayerController _playerController;
         private float _playerHalfWidth;
         private float _playerHeight;
 
         // Player transform (feet position)
         private Transform _playerTransform;
-
-        // Player controller reference (for fly mode scroll-wheel gating)
-        private PlayerController _playerController;
-
-        // Mining state
-        private bool _isMining;
-        private int3 _miningBlockCoord;
-        private float _miningProgress;
-        private float _miningRequiredTime;
-        private bool _canHarvest;
-
-        // Placement cooldown
-        private float _placeCooldown;
-
-        // Block entity references
-        private BlockEntityTickScheduler _blockEntityTickScheduler;
         private ContainerScreenManager _screenManager;
+        private StateRegistry _stateRegistry;
+        private TagRegistry _tagRegistry;
+        private float _toolMiningMultiplier;
 
         // Tool system registries
         private ToolTraitRegistry _toolTraitRegistry;
 
-        // Audio
-        private BlockSoundPlayer _blockSoundPlayer;
-        private int _miningHitInterval = 4;
-        private int _miningHitTickCounter;
-
-        // Command processor (delegates validation + state mutation to LocalCommandProcessor)
-        private ICommandProcessor _commandProcessor;
-
-        // Network callback: notifies server when mining begins (for break speed validation)
-        private Action<int3> _onStartDigging;
-
-        // Reusable list for dirty chunks
-        private readonly List<int3> _dirtiedChunks = new List<int3>();
 
         /// <summary>
-        /// Sets the command processor used for block placement and break validation.
-        /// When null, falls back to direct ChunkManager calls.
+        ///     Gets the current mining progress as a value from 0 to 1.
         /// </summary>
-        public void SetCommandProcessor(ICommandProcessor processor)
+        public float MiningProgress
         {
-            _commandProcessor = processor;
+            get
+            {
+                if (!IsMining || _miningRequiredTime <= 0f)
+                {
+                    return 0f;
+                }
+
+                return Mathf.Clamp01(_miningProgress / _miningRequiredTime);
+            }
         }
 
         /// <summary>
-        /// Sets a callback invoked when the player begins mining a new block.
-        /// In network mode, this sends a StartDiggingCmd message to the server.
+        ///     True if the player is currently mining a block.
         /// </summary>
-        public void SetStartDiggingCallback(Action<int3> callback)
-        {
-            _onStartDigging = callback;
-        }
-
-        public void Initialize(
-            ChunkManager chunkManager,
-            NativeStateRegistry nativeStateRegistry,
-            StateRegistry stateRegistry,
-            BlockHighlight blockHighlight,
-            Inventory inventory,
-            ItemRegistry itemRegistry,
-            LootResolver lootResolver,
-            TagRegistry tagRegistry,
-            Transform playerTransform,
-            PhysicsSettings physics,
-            PlayerController playerController)
-        {
-            _chunkManager = chunkManager;
-            _nativeStateRegistry = nativeStateRegistry;
-            _stateRegistry = stateRegistry;
-            _blockHighlight = blockHighlight;
-            _inventory = inventory;
-            _itemRegistry = itemRegistry;
-            _lootResolver = lootResolver;
-            _tagRegistry = tagRegistry;
-            _playerTransform = playerTransform;
-            _interactionRange = physics.InteractionRange;
-            _placeCooldownTime = physics.PlaceCooldownTime;
-            _handMiningMultiplier = physics.HandMiningMultiplier;
-            _toolMiningMultiplier = physics.ToolMiningMultiplier;
-            _minBreakTime = physics.MinBreakTime;
-            _defaultMaxStackSize = physics.DefaultMaxStackSize;
-            _playerHalfWidth = physics.PlayerHalfWidth;
-            _playerHeight = physics.PlayerHeight;
-            _playerController = playerController;
-            _lootRandom = new Random(Environment.TickCount);
-            _isSolidDelegate = SolidBlockHelper.CreateDelegate(_chunkManager, _nativeStateRegistry);
-        }
+        public bool IsMining { get; private set; }
 
         /// <summary>
-        /// Sets block entity system references. Call after ContainerScreenManager is initialized.
+        ///     The player inventory managed by this interaction controller.
         /// </summary>
-        public void SetBlockEntityReferences(
-            BlockEntityTickScheduler scheduler,
-            ContainerScreenManager screenManager,
-            ToolTraitRegistry toolTraitRegistry)
-        {
-            _blockEntityTickScheduler = scheduler;
-            _screenManager = screenManager;
-            _toolTraitRegistry = toolTraitRegistry;
-        }
-
-        /// <summary>
-        /// Sets the block sound player for break/place/hit audio.
-        /// </summary>
-        public void SetBlockSoundPlayer(BlockSoundPlayer player, int miningHitInterval)
-        {
-            _blockSoundPlayer = player;
-            _miningHitInterval = miningHitInterval;
-        }
+        public Inventory Inventory { get; private set; }
 
         private void Update()
         {
@@ -233,11 +205,80 @@ namespace Lithforge.Runtime.Input
             }
         }
 
-        private static readonly Key[] s_digitKeys =
+        /// <summary>
+        ///     Sets the command processor used for block placement and break validation.
+        ///     When null, falls back to direct ChunkManager calls.
+        /// </summary>
+        public void SetCommandProcessor(ICommandProcessor processor)
         {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
-        };
+            _commandProcessor = processor;
+        }
+
+        /// <summary>
+        ///     Sets a callback invoked when the player begins mining a new block.
+        ///     In network mode, this sends a StartDiggingCmd message to the server.
+        /// </summary>
+        public void SetStartDiggingCallback(Action<int3> callback)
+        {
+            _onStartDigging = callback;
+        }
+
+        public void Initialize(
+            ChunkManager chunkManager,
+            NativeStateRegistry nativeStateRegistry,
+            StateRegistry stateRegistry,
+            BlockHighlight blockHighlight,
+            Inventory inventory,
+            ItemRegistry itemRegistry,
+            LootResolver lootResolver,
+            TagRegistry tagRegistry,
+            Transform playerTransform,
+            PhysicsSettings physics,
+            PlayerController playerController)
+        {
+            _chunkManager = chunkManager;
+            _nativeStateRegistry = nativeStateRegistry;
+            _stateRegistry = stateRegistry;
+            _blockHighlight = blockHighlight;
+            Inventory = inventory;
+            _itemRegistry = itemRegistry;
+            _lootResolver = lootResolver;
+            _tagRegistry = tagRegistry;
+            _playerTransform = playerTransform;
+            _interactionRange = physics.InteractionRange;
+            _placeCooldownTime = physics.PlaceCooldownTime;
+            _handMiningMultiplier = physics.HandMiningMultiplier;
+            _toolMiningMultiplier = physics.ToolMiningMultiplier;
+            _minBreakTime = physics.MinBreakTime;
+            _defaultMaxStackSize = physics.DefaultMaxStackSize;
+            _playerHalfWidth = physics.PlayerHalfWidth;
+            _playerHeight = physics.PlayerHeight;
+            _playerController = playerController;
+            _lootRandom = new Random(Environment.TickCount);
+            _isSolidDelegate = SolidBlockHelper.CreateDelegate(_chunkManager, _nativeStateRegistry);
+        }
+
+        /// <summary>
+        ///     Sets block entity system references. Call after ContainerScreenManager is initialized.
+        /// </summary>
+        public void SetBlockEntityReferences(
+            BlockEntityTickScheduler scheduler,
+            ContainerScreenManager screenManager,
+            ToolTraitRegistry toolTraitRegistry)
+        {
+            _blockEntityTickScheduler = scheduler;
+            _screenManager = screenManager;
+            _toolTraitRegistry = toolTraitRegistry;
+        }
+
+        /// <summary>
+        ///     Sets the block sound player for break/place/hit audio.
+        /// </summary>
+        public void SetBlockSoundPlayer(BlockSoundPlayer player, int miningHitInterval)
+        {
+            _blockSoundPlayer = player;
+            _miningHitInterval = miningHitInterval;
+        }
 
         private void HandleHotbarSelection(Keyboard keyboard)
         {
@@ -245,7 +286,7 @@ namespace Lithforge.Runtime.Input
             {
                 if (keyboard[s_digitKeys[i]].wasPressedThisFrame)
                 {
-                    _inventory.SelectedSlot = i;
+                    Inventory.SelectedSlot = i;
 
                     return;
                 }
@@ -264,25 +305,25 @@ namespace Lithforge.Runtime.Input
 
             if (scroll > 0.1f)
             {
-                int slot = _inventory.SelectedSlot - 1;
+                int slot = Inventory.SelectedSlot - 1;
 
                 if (slot < 0)
                 {
                     slot = Inventory.HotbarSize - 1;
                 }
 
-                _inventory.SelectedSlot = slot;
+                Inventory.SelectedSlot = slot;
             }
             else if (scroll < -0.1f)
             {
-                int slot = _inventory.SelectedSlot + 1;
+                int slot = Inventory.SelectedSlot + 1;
 
                 if (slot >= Inventory.HotbarSize)
                 {
                     slot = 0;
                 }
 
-                _inventory.SelectedSlot = slot;
+                Inventory.SelectedSlot = slot;
             }
         }
 
@@ -296,7 +337,7 @@ namespace Lithforge.Runtime.Input
             }
 
             // Check if target changed — reset mining on new block
-            if (!_isMining || !_miningBlockCoord.Equals(hit.BlockCoord))
+            if (!IsMining || !_miningBlockCoord.Equals(hit.BlockCoord))
             {
                 StartMining(hit.BlockCoord);
             }
@@ -305,11 +346,11 @@ namespace Lithforge.Runtime.Input
         }
 
         /// <summary>
-        /// Accumulates mining progress at fixed tick rate. Called by MiningTickAdapter.
+        ///     Accumulates mining progress at fixed tick rate. Called by MiningTickAdapter.
         /// </summary>
         public void TickMining(float tickDt)
         {
-            if (!_isMining)
+            if (!IsMining)
             {
                 return;
             }
@@ -342,7 +383,7 @@ namespace Lithforge.Runtime.Input
 
         private void StartMining(int3 blockCoord)
         {
-            _isMining = true;
+            IsMining = true;
             _miningBlockCoord = blockCoord;
             _miningProgress = 0f;
             _miningHitTickCounter = 0;
@@ -358,7 +399,7 @@ namespace Lithforge.Runtime.Input
                 ctx.Material = entry.MaterialType;
                 ctx.RequiredToolLevel = entry.RequiredToolLevel;
 
-                ItemStack heldItem = _inventory.GetSelectedItem();
+                ItemStack heldItem = Inventory.GetSelectedItem();
                 ToolInstance tool = null;
 
                 if (!heldItem.IsEmpty && heldItem.HasComponents)
@@ -405,7 +446,9 @@ namespace Lithforge.Runtime.Input
 
                     // Apply traits after denial checks (GrantHarvest can override)
                     IToolTrait[] traits = tool.GetAllTraits(_toolTraitRegistry);
+
                     Array.Sort(traits, s_traitPrioritySort);
+
                     for (int i = 0; i < traits.Length; i++)
                     {
                         ctx = traits[i].Apply(ctx);
@@ -469,7 +512,7 @@ namespace Lithforge.Runtime.Input
                 stateId.Value < _nativeStateRegistry.States.Length &&
                 _nativeStateRegistry.States[stateId.Value].HasBlockEntity)
             {
-                int3 chunkCoord = new int3(
+                int3 chunkCoord = new(
                     FloorDiv(blockCoord.x, ChunkConstants.Size),
                     FloorDiv(blockCoord.y, ChunkConstants.Size),
                     FloorDiv(blockCoord.z, ChunkConstants.Size));
@@ -478,13 +521,13 @@ namespace Lithforge.Runtime.Input
                 int localZ = blockCoord.z - chunkCoord.z * ChunkConstants.Size;
                 int flatIndex = ChunkData.GetIndex(localX, localY, localZ);
 
-                Lithforge.Runtime.BlockEntity.BlockEntity entity =
+                BlockEntity.BlockEntity entity =
                     _blockEntityTickScheduler.GetEntity(chunkCoord, flatIndex);
 
                 if (entity != null)
                 {
-                    Lithforge.Runtime.BlockEntity.Behaviors.InventoryBehavior entityInv =
-                        entity.GetBehavior<Lithforge.Runtime.BlockEntity.Behaviors.InventoryBehavior>();
+                    InventoryBehavior entityInv =
+                        entity.GetBehavior<InventoryBehavior>();
 
                     if (entityInv != null)
                     {
@@ -497,7 +540,7 @@ namespace Lithforge.Runtime.Input
                                 ItemEntry itemDef = _itemRegistry.Get(slot.ItemId);
                                 int maxStack = itemDef != null
                                     ? itemDef.MaxStackSize : _defaultMaxStackSize;
-                                _inventory.AddItem(slot.ItemId, slot.Count, maxStack);
+                                Inventory.AddItem(slot.ItemId, slot.Count, maxStack);
                             }
                         }
                     }
@@ -519,13 +562,13 @@ namespace Lithforge.Runtime.Input
                         ItemEntry itemDef = _itemRegistry.Get(drop.ItemId);
                         int maxStack = itemDef != null ? itemDef.MaxStackSize : _defaultMaxStackSize;
 
-                        _inventory.AddItem(drop.ItemId, drop.Count, maxStack);
+                        Inventory.AddItem(drop.ItemId, drop.Count, maxStack);
                     }
                 }
             }
 
             // Consume durability of held tool
-            ItemStack heldItem = _inventory.GetSelectedItem();
+            ItemStack heldItem = Inventory.GetSelectedItem();
 
             if (!heldItem.IsEmpty && heldItem.HasComponents)
             {
@@ -540,18 +583,18 @@ namespace Lithforge.Runtime.Input
 
                     ItemStack updated = heldItem;
                     updated.Durability = tool.CurrentDurability;
-                    DataComponentMap updatedMap = new DataComponentMap();
+                    DataComponentMap updatedMap = new();
                     updatedMap.Set(DataComponentTypes.ToolInstanceId,
                         new ToolInstanceComponent(tool));
                     updated.Components = updatedMap;
-                    _inventory.SetSlot(_inventory.SelectedSlot, updated);
+                    Inventory.SetSlot(Inventory.SelectedSlot, updated);
                 }
             }
 
             // Delegate state mutation (set to air) to command processor
             if (_commandProcessor != null)
             {
-                BreakBlockCommand cmd = new BreakBlockCommand();
+                BreakBlockCommand cmd = new();
                 cmd.Tick = 0;
                 cmd.SequenceId = 0;
                 cmd.PlayerId = 0;
@@ -583,7 +626,7 @@ namespace Lithforge.Runtime.Input
                     targetState.Value < _nativeStateRegistry.States.Length &&
                     _nativeStateRegistry.States[targetState.Value].HasBlockEntity)
                 {
-                    int3 chunkCoord = new int3(
+                    int3 chunkCoord = new(
                         FloorDiv(hit.BlockCoord.x, ChunkConstants.Size),
                         FloorDiv(hit.BlockCoord.y, ChunkConstants.Size),
                         FloorDiv(hit.BlockCoord.z, ChunkConstants.Size));
@@ -592,7 +635,7 @@ namespace Lithforge.Runtime.Input
                     int localZ = hit.BlockCoord.z - chunkCoord.z * ChunkConstants.Size;
                     int flatIndex = ChunkData.GetIndex(localX, localY, localZ);
 
-                    Lithforge.Runtime.BlockEntity.BlockEntity entity =
+                    BlockEntity.BlockEntity entity =
                         _blockEntityTickScheduler.GetEntity(chunkCoord, flatIndex);
 
                     if (entity != null && _screenManager != null)
@@ -607,7 +650,7 @@ namespace Lithforge.Runtime.Input
             }
 
             // Get block to place from selected inventory slot
-            ItemStack selectedItem = _inventory.GetSelectedItem();
+            ItemStack selectedItem = Inventory.GetSelectedItem();
 
             if (selectedItem.IsEmpty)
             {
@@ -635,7 +678,7 @@ namespace Lithforge.Runtime.Input
             // Delegate validation (air check, player overlap) and state mutation to command processor
             if (_commandProcessor != null)
             {
-                PlaceBlockCommand cmd = new PlaceBlockCommand();
+                PlaceBlockCommand cmd = new();
                 cmd.Tick = 0;
                 cmd.SequenceId = 0;
                 cmd.PlayerId = 0;
@@ -658,8 +701,8 @@ namespace Lithforge.Runtime.Input
                 if (existing != StateId.Air)
                 {
                     bool isFluid = _nativeStateRegistry.States.IsCreated &&
-                        existing.Value < _nativeStateRegistry.States.Length &&
-                        _nativeStateRegistry.States[existing.Value].IsFluid;
+                                   existing.Value < _nativeStateRegistry.States.Length &&
+                                   _nativeStateRegistry.States[existing.Value].IsFluid;
 
                     if (!isFluid)
                     {
@@ -669,12 +712,12 @@ namespace Lithforge.Runtime.Input
 
                 if (_playerTransform != null)
                 {
-                    float3 feetPos = new float3(
+                    float3 feetPos = new(
                         _playerTransform.position.x,
                         _playerTransform.position.y,
                         _playerTransform.position.z);
 
-                    Aabb playerBox = new Aabb(
+                    Aabb playerBox = new(
                         new float3(feetPos.x - _playerHalfWidth, feetPos.y, feetPos.z - _playerHalfWidth),
                         new float3(feetPos.x + _playerHalfWidth, feetPos.y + _playerHeight, feetPos.z + _playerHalfWidth));
 
@@ -697,14 +740,14 @@ namespace Lithforge.Runtime.Input
             }
 
             // Consume one item from inventory
-            _inventory.RemoveFromSlot(_inventory.SelectedSlot, 1);
+            Inventory.RemoveFromSlot(Inventory.SelectedSlot, 1);
 
             _placeCooldown = _placeCooldownTime;
         }
 
         private StateId FindStateIdForBlock(ResourceId blockId)
         {
-            System.Collections.Generic.IReadOnlyList<StateRegistryEntry> entries =
+            IReadOnlyList<StateRegistryEntry> entries =
                 _stateRegistry.Entries;
 
             for (int i = 0; i < entries.Count; i++)
@@ -737,43 +780,10 @@ namespace Lithforge.Runtime.Input
 
         private void ResetMining()
         {
-            _isMining = false;
+            IsMining = false;
             _miningProgress = 0f;
             _miningRequiredTime = 0f;
             _canHarvest = true;
-        }
-
-
-        /// <summary>
-        /// Gets the current mining progress as a value from 0 to 1.
-        /// </summary>
-        public float MiningProgress
-        {
-            get
-            {
-                if (!_isMining || _miningRequiredTime <= 0f)
-                {
-                    return 0f;
-                }
-
-                return Mathf.Clamp01(_miningProgress / _miningRequiredTime);
-            }
-        }
-
-        /// <summary>
-        /// True if the player is currently mining a block.
-        /// </summary>
-        public bool IsMining
-        {
-            get { return _isMining; }
-        }
-
-        /// <summary>
-        /// The player inventory managed by this interaction controller.
-        /// </summary>
-        public Inventory Inventory
-        {
-            get { return _inventory; }
         }
     }
 }
