@@ -1,28 +1,28 @@
 using Lithforge.Network;
 using Lithforge.Network.Client;
-using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Simulation;
+using Lithforge.Runtime.Tick;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Network
 {
     /// <summary>
-    /// Client-side handler for remote player lifecycle messages. Registers on the
-    /// client's <see cref="MessageDispatcher"/> for SpawnPlayer and DespawnPlayer.
-    /// Routes spawn/despawn to <see cref="RemotePlayerManager"/>.
-    ///
-    /// Remote player state (position/rotation) is routed through
-    /// <see cref="ClientWorldSimulation.SetRemotePlayerStateHandler"/> because
-    /// <see cref="MessageDispatcher"/> supports only one handler per message type,
-    /// and PlayerState is already registered for client-side prediction reconciliation.
+    ///     Client-side handler for remote player lifecycle messages. Registers on the
+    ///     client's <see cref="MessageDispatcher" /> for SpawnPlayer and DespawnPlayer.
+    ///     Routes spawn/despawn to <see cref="RemotePlayerManager" />.
+    ///     Remote player state (position/rotation) is routed through
+    ///     <see cref="ClientWorldSimulation.SetRemotePlayerStateHandler" /> because
+    ///     <see cref="MessageDispatcher" /> supports only one handler per message type,
+    ///     and PlayerState is already registered for client-side prediction reconciliation.
     /// </summary>
     public sealed class ClientRemotePlayerHandler
     {
-        private readonly RemotePlayerManager _remotePlayerManager;
         private readonly ushort _localPlayerId;
+        private readonly RemotePlayerManager _remotePlayerManager;
 
         public ClientRemotePlayerHandler(
             RemotePlayerManager remotePlayerManager,
@@ -38,23 +38,20 @@ namespace Lithforge.Runtime.Network
         }
 
         /// <summary>
-        /// Called by <see cref="ClientWorldSimulation"/> when a PlayerStateMessage
-        /// arrives for a remote player (PlayerId != localPlayerId).
-        /// Converts to a <see cref="RemotePlayerSnapshot"/> and pushes into the
-        /// entity's interpolation buffer.
+        ///     Called by <see cref="ClientWorldSimulation" /> when a PlayerStateMessage
+        ///     arrives for a remote player (PlayerId != localPlayerId).
+        ///     Converts to a <see cref="RemotePlayerSnapshot" /> and pushes into the
+        ///     entity's interpolation buffer.
         /// </summary>
         public void OnRemotePlayerState(PlayerStateMessage msg)
         {
             RemotePlayerSnapshot snapshot = new()
             {
-                Position = new float3(msg.PositionX, msg.PositionY, msg.PositionZ),
-                Yaw = msg.Yaw,
-                Pitch = msg.Pitch,
-                Flags = msg.Flags,
+                Position = new float3(msg.PositionX, msg.PositionY, msg.PositionZ), Yaw = msg.Yaw, Pitch = msg.Pitch, Flags = msg.Flags,
             };
 
             // Use ServerTick as the timestamp for interpolation
-            float serverTimestamp = msg.ServerTick * Lithforge.Runtime.Tick.FixedTickRate.TickDeltaTime;
+            float serverTimestamp = msg.ServerTick * FixedTickRate.TickDeltaTime;
             _remotePlayerManager.PushSnapshot(msg.PlayerId, serverTimestamp, snapshot);
         }
 

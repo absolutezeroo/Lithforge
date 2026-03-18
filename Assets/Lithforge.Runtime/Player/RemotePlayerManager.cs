@@ -1,21 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+
 using Lithforge.Runtime.Simulation;
+
 using Unity.Mathematics;
+
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Manages all remote player entities: spawn/despawn lifecycle, snapshot routing,
-    /// timeout sweeps, interpolation sampling, animation, and GPU draw calls.
-    ///
-    /// Static model geometry (vertex/index/args buffers) is shared across all entities.
-    /// Per-entity cost is a 384-byte transform buffer, a skin texture, and a name tag mesh.
-    ///
-    /// Owner: GameLoop (via LithforgeBootstrap). Lifetime: game session.
+    ///     Manages all remote player entities: spawn/despawn lifecycle, snapshot routing,
+    ///     timeout sweeps, interpolation sampling, animation, and GPU draw calls.
+    ///     Static model geometry (vertex/index/args buffers) is shared across all entities.
+    ///     Per-entity cost is a 384-byte transform buffer, a skin texture, and a name tag mesh.
+    ///     Owner: GameLoop (via LithforgeBootstrap). Lifetime: game session.
     /// </summary>
     public sealed class RemotePlayerManager : IDisposable
     {
@@ -27,31 +27,31 @@ namespace Lithforge.Runtime.Player
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
         private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
-        // Shared static GPU buffers (built once from PlayerModelMeshBuilder)
-        private readonly GraphicsBuffer _sharedVertexBuffer;
-        private readonly GraphicsBuffer _sharedIndexBuffer;
-        private readonly GraphicsBuffer _sharedArgsBuffer;
-
         // Shared materials
         private readonly Material _baseModelMaterial;
-        private readonly Material _overlayModelMaterial;
+
+        // Entities
+        private readonly Dictionary<ushort, RemotePlayerEntity> _entities = new();
         private readonly Material _nameTagMaterial;
+        private readonly Material _overlayModelMaterial;
+        private readonly GraphicsBuffer _sharedArgsBuffer;
+        private readonly GraphicsBuffer _sharedIndexBuffer;
+
+        // Shared static GPU buffers (built once from PlayerModelMeshBuilder)
+        private readonly GraphicsBuffer _sharedVertexBuffer;
 
         // Skin loader
         private readonly SkinLoader _skinLoader;
 
-        // Entities
-        private readonly Dictionary<ushort, RemotePlayerEntity> _entities = new();
-
         // Timeout sweep cache (fill pattern)
         private readonly List<ushort> _timedOutIds = new();
+
+        private bool _disposed;
 
         // Render time: offset so _renderTime aligns with server-tick-based timestamps
         private float _renderTime;
         private bool _renderTimeInitialized;
         private float _renderTimeOffset;
-
-        private bool _disposed;
 
         public RemotePlayerManager(
             Material baseModelMaterial,
@@ -90,7 +90,7 @@ namespace Lithforge.Runtime.Player
             // Base layer: all 6 parts (third-person, 216 indices)
             args[0] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
+                indexCountPerInstance = PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 instanceCount = 1,
                 startIndex = 0,
                 baseVertexIndex = 0,
@@ -100,9 +100,9 @@ namespace Lithforge.Runtime.Player
             // Overlay layer: all 6 parts (third-person, 216 indices)
             args[1] = new GraphicsBuffer.IndirectDrawIndexedArgs
             {
-                indexCountPerInstance = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
+                indexCountPerInstance = PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 instanceCount = 1,
-                startIndex = (uint)PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
+                startIndex = PlayerModelMeshBuilder.ThirdPersonLayerIndexCount,
                 baseVertexIndex = 0,
                 startInstance = 0,
             };
@@ -111,17 +111,38 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Number of currently tracked remote player entities.
+        ///     Number of currently tracked remote player entities.
         /// </summary>
         public int EntityCount
         {
             get { return _entities.Count; }
         }
 
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            foreach (KeyValuePair<ushort, RemotePlayerEntity> kvp in _entities)
+            {
+                kvp.Value.Dispose();
+            }
+
+            _entities.Clear();
+
+            _sharedVertexBuffer?.Dispose();
+            _sharedIndexBuffer?.Dispose();
+            _sharedArgsBuffer?.Dispose();
+        }
+
         /// <summary>
-        /// Spawns a new remote player entity. If an entity with the same ID already exists,
-        /// the old one is disposed and replaced. Seeds the initial snapshot with the current
-        /// calibrated render time so interpolation works from the first frame.
+        ///     Spawns a new remote player entity. If an entity with the same ID already exists,
+        ///     the old one is disposed and replaced. Seeds the initial snapshot with the current
+        ///     calibrated render time so interpolation works from the first frame.
         /// </summary>
         public void SpawnPlayer(
             ushort playerId,
@@ -172,8 +193,8 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Despawns and disposes the remote player entity with the given ID.
-        /// No-op if the entity does not exist.
+        ///     Despawns and disposes the remote player entity with the given ID.
+        ///     No-op if the entity does not exist.
         /// </summary>
         public void DespawnPlayer(ushort playerId)
         {
@@ -190,10 +211,10 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Pushes a new snapshot into a remote player's interpolation buffer.
-        /// On the first snapshot received, calibrates the render clock offset so
-        /// that <c>_renderTime</c> aligns with server-tick-based timestamps.
-        /// No-op if the entity does not exist.
+        ///     Pushes a new snapshot into a remote player's interpolation buffer.
+        ///     On the first snapshot received, calibrates the render clock offset so
+        ///     that <c>_renderTime</c> aligns with server-tick-based timestamps.
+        ///     No-op if the entity does not exist.
         /// </summary>
         public void PushSnapshot(ushort playerId, float serverTimestamp, RemotePlayerSnapshot snapshot)
         {
@@ -216,9 +237,9 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Advances timeout timers and despawns entities that have not received
-        /// a snapshot within <see cref="RemotePlayerEntity.TimeoutSeconds"/>.
-        /// Call from Update each frame.
+        ///     Advances timeout timers and despawns entities that have not received
+        ///     a snapshot within <see cref="RemotePlayerEntity.TimeoutSeconds" />.
+        ///     Call from Update each frame.
         /// </summary>
         public void Tick(float deltaTime)
         {
@@ -254,9 +275,9 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Samples interpolation buffers, updates animations, uploads transforms,
-        /// and issues GPU draw calls for all remote player entities.
-        /// Call from LateUpdate after chunk rendering.
+        ///     Samples interpolation buffers, updates animations, uploads transforms,
+        ///     and issues GPU draw calls for all remote player entities.
+        ///     Call from LateUpdate after chunk rendering.
         /// </summary>
         public void RenderAll(Camera mainCamera)
         {
@@ -274,7 +295,7 @@ namespace Lithforge.Runtime.Player
 
                 // Sample interpolation buffer using calibrated render time
                 if (!entity.SnapshotBuffer.Sample(
-                    calibratedRenderTime, out RemotePlayerSnapshot from, out RemotePlayerSnapshot to, out float alpha))
+                        calibratedRenderTime, out RemotePlayerSnapshot from, out RemotePlayerSnapshot to, out float alpha))
                 {
                     continue;
                 }
@@ -318,9 +339,7 @@ namespace Lithforge.Runtime.Player
                     entity.BaseModelParams,
                     MeshTopology.Triangles,
                     _sharedIndexBuffer,
-                    _sharedArgsBuffer,
-                    1,
-                    0);
+                    _sharedArgsBuffer);
 
                 // Draw overlay model layer
                 entity.OverlayModelParams.matProps.SetBuffer(s_playerVertexBufferId, _sharedVertexBuffer);
@@ -361,27 +380,6 @@ namespace Lithforge.Runtime.Player
                         entity.NameTagParams.matProps);
                 }
             }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-
-            foreach (KeyValuePair<ushort, RemotePlayerEntity> kvp in _entities)
-            {
-                kvp.Value.Dispose();
-            }
-
-            _entities.Clear();
-
-            _sharedVertexBuffer?.Dispose();
-            _sharedIndexBuffer?.Dispose();
-            _sharedArgsBuffer?.Dispose();
         }
     }
 }

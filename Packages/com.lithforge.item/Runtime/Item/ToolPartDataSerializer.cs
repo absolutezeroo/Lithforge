@@ -1,11 +1,13 @@
 using System.IO;
-using Lithforge.Core.Data;
 
-namespace Lithforge.Item
+using Lithforge.Core.Data;
+using Lithforge.Item;
+
+namespace Lithforge.Voxel.Item
 {
     /// <summary>
-    /// Serializes/deserializes ToolPartData to/from byte[] for component storage.
-    /// Format: [byte version=1] [byte partType] [string materialId]
+    ///     Serializes/deserializes ToolPartData to/from byte[] for component storage.
+    ///     Format: [byte version=1] [byte partType] [string materialId]
     /// </summary>
     public static class ToolPartDataSerializer
     {
@@ -45,8 +47,7 @@ namespace Lithforge.Item
 
                     return new ToolPartData
                     {
-                        PartType = partType,
-                        MaterialId = materialId,
+                        PartType = partType, MaterialId = materialId,
                     };
                 }
             }

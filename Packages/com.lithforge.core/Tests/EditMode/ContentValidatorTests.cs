@@ -1,4 +1,5 @@
 using Lithforge.Core.Validation;
+
 using NUnit.Framework;
 
 namespace Lithforge.Core.Tests
@@ -6,13 +7,12 @@ namespace Lithforge.Core.Tests
     [TestFixture]
     public sealed class ContentValidatorTests
     {
-        private ContentValidator _validator;
-
         [SetUp]
         public void SetUp()
         {
             _validator = new ContentValidator();
         }
+        private ContentValidator _validator;
 
         [Test]
         public void ValidateResourceId_ValidFormat_ReturnsValid()
@@ -90,7 +90,12 @@ namespace Lithforge.Core.Tests
         {
             ValidationResult result = new();
             _validator.ValidateEnumField(result, "render_layer", "opaque",
-                new string[] { "opaque", "cutout", "translucent" }, "test");
+                new[]
+                {
+                    "opaque",
+                    "cutout",
+                    "translucent",
+                }, "test");
 
             Assert.IsTrue(result.IsValid);
         }
@@ -100,7 +105,12 @@ namespace Lithforge.Core.Tests
         {
             ValidationResult result = new();
             _validator.ValidateEnumField(result, "render_layer", "invalid",
-                new string[] { "opaque", "cutout", "translucent" }, "test");
+                new[]
+                {
+                    "opaque",
+                    "cutout",
+                    "translucent",
+                }, "test");
 
             Assert.IsFalse(result.IsValid);
         }

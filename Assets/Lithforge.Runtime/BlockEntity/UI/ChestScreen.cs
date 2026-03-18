@@ -14,16 +14,25 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class ChestScreen : ContainerScreen
     {
-        private BlockEntityContainerAdapter _chestAdapter;
-        private ChestBlockEntity _currentChest;
-        private InventoryContainerAdapter _hotbarAdapter;
-        private InventoryContainerAdapter _mainAdapter;
-
         private static readonly Key[] s_numberKeys =
         {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
         };
+        private BlockEntityContainerAdapter _chestAdapter;
+
+        private ChestBlockEntity _currentChest;
+
+        private InventoryContainerAdapter _hotbarAdapter;
+
+        private InventoryContainerAdapter _mainAdapter;
 
         private void Update()
         {

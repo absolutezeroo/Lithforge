@@ -1,24 +1,38 @@
+using System;
 using System.IO;
+
 using Lithforge.Item;
+using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.BlockEntity.Behaviors
 {
     /// <summary>
-    /// Tracks fuel burn state for furnace-like block entities.
-    /// Reads the fuel slot (slot 1) from InventoryBehavior and consumes fuel items
-    /// when burn time runs out and smelting is possible.
+    ///     Tracks fuel burn state for furnace-like block entities.
+    ///     Reads the fuel slot (slot 1) from InventoryBehavior and consumes fuel items
+    ///     when burn time runs out and smelting is possible.
     /// </summary>
     public sealed class FuelBurnBehavior : BlockEntityBehavior
     {
-        private readonly InventoryBehavior _inventory;
-        private readonly ItemRegistry _itemRegistry;
+        private const int VersionSentinel = int.MinValue + 10;
+
         private readonly int _fuelSlotIndex;
+        private readonly InventoryBehavior _inventory;
+
+        private readonly ItemRegistry _itemRegistry;
 
         private float _burnTimeRemaining;
+
         private float _maxBurnTime;
 
+        public FuelBurnBehavior(InventoryBehavior inventory, ItemRegistry itemRegistry, int fuelSlotIndex)
+        {
+            _inventory = inventory;
+            _itemRegistry = itemRegistry;
+            _fuelSlotIndex = fuelSlotIndex;
+        }
+
         /// <summary>
-        /// True if fuel is currently burning (burn time remaining > 0).
+        ///     True if fuel is currently burning (burn time remaining > 0).
         /// </summary>
         public bool IsFueled
         {
@@ -26,8 +40,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         }
 
         /// <summary>
-        /// Progress of current fuel burn (0 = just started, 1 = fully consumed).
-        /// Returns 0 if not burning.
+        ///     Progress of current fuel burn (0 = just started, 1 = fully consumed).
+        ///     Returns 0 if not burning.
         /// </summary>
         public float BurnProgress
         {
@@ -38,15 +52,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     return 0f;
                 }
 
-                return 1f - (_burnTimeRemaining / _maxBurnTime);
+                return 1f - _burnTimeRemaining / _maxBurnTime;
             }
-        }
-
-        public FuelBurnBehavior(InventoryBehavior inventory, ItemRegistry itemRegistry, int fuelSlotIndex)
-        {
-            _inventory = inventory;
-            _itemRegistry = itemRegistry;
-            _fuelSlotIndex = fuelSlotIndex;
         }
 
         public override void Tick(float deltaTime)
@@ -63,9 +70,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         }
 
         /// <summary>
-        /// Attempts to consume one fuel item if not currently burning.
-        /// Called by SmeltingBehavior when it needs fuel to continue.
-        /// Returns true if fuel was consumed.
+        ///     Attempts to consume one fuel item if not currently burning.
+        ///     Called by SmeltingBehavior when it needs fuel to continue.
+        ///     Returns true if fuel was consumed.
         /// </summary>
         public bool TryConsumeFuel()
         {
@@ -107,8 +114,6 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             return true;
         }
 
-        private const int VersionSentinel = int.MinValue + 10;
-
         public override void Serialize(BinaryWriter writer)
         {
             writer.Write(VersionSentinel);
@@ -135,8 +140,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
         private static float ReinterpretIntAsFloat(int value)
         {
-            byte[] bytes = System.BitConverter.GetBytes(value);
-            return System.BitConverter.ToSingle(bytes, 0);
+            byte[] bytes = BitConverter.GetBytes(value);
+            return BitConverter.ToSingle(bytes, 0);
         }
     }
 }

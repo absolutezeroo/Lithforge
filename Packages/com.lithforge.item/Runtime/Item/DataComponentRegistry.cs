@@ -5,8 +5,8 @@ using System.IO;
 namespace Lithforge.Item
 {
     /// <summary>
-    /// Static registry mapping int IDs to component types and their serializers.
-    /// Initialized once during ContentPipeline.Build().
+    ///     Static registry mapping int IDs to component types and their serializers.
+    ///     Initialized once during ContentPipeline.Build().
     /// </summary>
     public static class DataComponentRegistry
     {
@@ -15,23 +15,23 @@ namespace Lithforge.Item
         private static readonly Dictionary<Type, int> s_typeToId = new();
 
         /// <summary>
-        /// Registers a component type with its serializer/deserializer.
+        ///     Registers a component type with its serializer/deserializer.
         /// </summary>
         public static void Register<T>(DataComponentType<T> componentType) where T : class, IDataComponent
         {
             ComponentEntry entry = new(
                 componentType.Id,
                 typeof(T),
-                (BinaryWriter w, IDataComponent c) => componentType.Serializer(w, (T)c),
-                (BinaryReader r) => componentType.Deserializer(r));
+                (w, c) => componentType.Serializer(w, (T)c),
+                r => componentType.Deserializer(r));
 
             s_entries[componentType.Id] = entry;
             s_typeToId[typeof(T)] = componentType.Id;
         }
 
         /// <summary>
-        /// Writes all components in the map with type tags.
-        /// Format: [byte: count] per component: [ushort: typeId] [int: dataLen] [byte[]: data]
+        ///     Writes all components in the map with type tags.
+        ///     Format: [byte: count] per component: [ushort: typeId] [int: dataLen] [byte[]: data]
         /// </summary>
         public static void Serialize(DataComponentMap map, BinaryWriter writer)
         {
@@ -74,7 +74,7 @@ namespace Lithforge.Item
         }
 
         /// <summary>
-        /// Reads tagged components from a binary stream.
+        ///     Reads tagged components from a binary stream.
         /// </summary>
         public static DataComponentMap Deserialize(BinaryReader reader)
         {
@@ -114,8 +114,8 @@ namespace Lithforge.Item
         }
 
         /// <summary>
-        /// Looks up the type ID for a component instance.
-        /// Returns -1 if the type is not registered.
+        ///     Looks up the type ID for a component instance.
+        ///     Returns -1 if the type is not registered.
         /// </summary>
         public static int GetTypeId(IDataComponent component)
         {
@@ -135,7 +135,7 @@ namespace Lithforge.Item
         }
 
         /// <summary>
-        /// Serializes a single component to a BinaryWriter.
+        ///     Serializes a single component to a BinaryWriter.
         /// </summary>
         public static void SerializeComponent(IDataComponent component, BinaryWriter writer)
         {
@@ -148,7 +148,7 @@ namespace Lithforge.Item
         }
 
         /// <summary>
-        /// Deserializes a single component from a BinaryReader given its type ID.
+        ///     Deserializes a single component from a BinaryReader given its type ID.
         /// </summary>
         public static IDataComponent DeserializeComponent(int typeId, BinaryReader reader)
         {
@@ -162,10 +162,10 @@ namespace Lithforge.Item
 
         private sealed class ComponentEntry
         {
-            public int Id;
+            public readonly Func<BinaryReader, IDataComponent> DeserializeFunc;
+            public readonly Action<BinaryWriter, IDataComponent> SerializeFunc;
             public Type ComponentType;
-            public Action<BinaryWriter, IDataComponent> SerializeFunc;
-            public Func<BinaryReader, IDataComponent> DeserializeFunc;
+            public int Id;
 
             public ComponentEntry(
                 int id,

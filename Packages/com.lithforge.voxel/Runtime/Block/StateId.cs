@@ -4,8 +4,8 @@ using System.Runtime.InteropServices;
 namespace Lithforge.Voxel.Block
 {
     /// <summary>
-    /// Index into the global StateRegistry. Blittable, Burst-compatible.
-    /// Value 0 is always AIR — this invariant is hardcoded and cannot be overridden.
+    ///     Index into the global StateRegistry. Blittable, Burst-compatible.
+    ///     Value 0 is always AIR — this invariant is hardcoded and cannot be overridden.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public readonly struct StateId : IEquatable<StateId>

@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Biome;
+
 using Unity.Collections;
 using Unity.Mathematics;
 
@@ -8,16 +9,10 @@ namespace Lithforge.WorldGen.Decoration
 {
     public sealed class DecorationStage
     {
-        private readonly NativeArray<NativeBiomeData> _biomeData;
-        private readonly TreeBlock[][] _treeTemplates;
         private readonly StateId _airId;
+        private readonly NativeArray<NativeBiomeData> _biomeData;
         private readonly int _seaLevel;
-        private readonly PendingDecorationStore _pendingStore;
-
-        public PendingDecorationStore PendingStore
-        {
-            get { return _pendingStore; }
-        }
+        private readonly TreeBlock[][] _treeTemplates;
 
         public DecorationStage(
             NativeArray<NativeBiomeData> biomeData,
@@ -27,16 +22,18 @@ namespace Lithforge.WorldGen.Decoration
             int seaLevel)
         {
             _biomeData = biomeData;
-            _treeTemplates = new TreeBlock[][]
+            _treeTemplates = new[]
             {
-                TreeTemplate.OakTree(oakLogId, oakLeavesId),     // index 0: oak (default)
-                TreeTemplate.BirchTree(oakLogId, oakLeavesId),   // index 1: birch (tall/narrow)
-                TreeTemplate.SpruceTree(oakLogId, oakLeavesId),  // index 2: spruce (conical)
+                TreeTemplate.OakTree(oakLogId, oakLeavesId),    // index 0: oak (default)
+                TreeTemplate.BirchTree(oakLogId, oakLeavesId),  // index 1: birch (tall/narrow)
+                TreeTemplate.SpruceTree(oakLogId, oakLeavesId), // index 2: spruce (conical)
             };
             _airId = airId;
             _seaLevel = seaLevel;
-            _pendingStore = new PendingDecorationStore();
+            PendingStore = new PendingDecorationStore();
         }
+
+        public PendingDecorationStore PendingStore { get; }
 
         public void Decorate(
             int3 chunkCoord,
@@ -47,7 +44,7 @@ namespace Lithforge.WorldGen.Decoration
             long seed)
         {
             // Apply any pending decorations from neighboring chunks
-            _pendingStore.ApplyPending(chunkCoord, chunkData);
+            PendingStore.ApplyPending(chunkCoord, chunkData);
 
             int chunkWorldX = chunkCoord.x * ChunkConstants.Size;
             int chunkWorldY = chunkCoord.y * ChunkConstants.Size;
@@ -156,14 +153,13 @@ namespace Lithforge.WorldGen.Decoration
                         (int)math.floor((float)worldZ / ChunkConstants.Size));
 
                     int3 targetLocal = new(
-                        ((worldX % ChunkConstants.Size) + ChunkConstants.Size) % ChunkConstants.Size,
-                        ((worldY % ChunkConstants.Size) + ChunkConstants.Size) % ChunkConstants.Size,
-                        ((worldZ % ChunkConstants.Size) + ChunkConstants.Size) % ChunkConstants.Size);
+                        (worldX % ChunkConstants.Size + ChunkConstants.Size) % ChunkConstants.Size,
+                        (worldY % ChunkConstants.Size + ChunkConstants.Size) % ChunkConstants.Size,
+                        (worldZ % ChunkConstants.Size + ChunkConstants.Size) % ChunkConstants.Size);
 
-                    _pendingStore.Add(targetChunk, new PendingBlock
+                    PendingStore.Add(targetChunk, new PendingBlock
                     {
-                        LocalPosition = targetLocal,
-                        State = block.State,
+                        LocalPosition = targetLocal, State = block.State,
                     });
                 }
             }
@@ -181,7 +177,7 @@ namespace Lithforge.WorldGen.Decoration
             uint h = (uint)(seed & 0xFFFFFFFF);
             h ^= (uint)x * 374761393u;
             h ^= (uint)z * 668265263u;
-            h = (h ^ (h >> 13)) * 1274126177u;
+            h = (h ^ h >> 13) * 1274126177u;
             h ^= h >> 16;
 
             return h;

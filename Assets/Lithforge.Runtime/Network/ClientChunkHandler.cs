@@ -1,41 +1,42 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Network;
+using Lithforge.Network.Chunk;
 using Lithforge.Network.Client;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Network.Chunk;
+
 using Unity.Collections;
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Network
 {
     /// <summary>
-    /// Client-side handler for chunk lifecycle messages from the server.
-    /// Registers on the client's <see cref="MessageDispatcher"/> and processes
-    /// ChunkData, ChunkUnload, BlockChange, MultiBlockChange, and GameReady messages.
-    /// Owns persistent NativeArray buffers for deserialization to avoid per-chunk allocation.
-    ///
-    /// Chunk unloads are queued rather than applied immediately, because the full
-    /// cleanup chain (mesh store, schedulers, biome tint) lives in GameLoop.
-    /// Call <see cref="DrainPendingUnloads"/> from GameLoop each frame.
+    ///     Client-side handler for chunk lifecycle messages from the server.
+    ///     Registers on the client's <see cref="MessageDispatcher" /> and processes
+    ///     ChunkData, ChunkUnload, BlockChange, MultiBlockChange, and GameReady messages.
+    ///     Owns persistent NativeArray buffers for deserialization to avoid per-chunk allocation.
+    ///     Chunk unloads are queued rather than applied immediately, because the full
+    ///     cleanup chain (mesh store, schedulers, biome tint) lives in GameLoop.
+    ///     Call <see cref="DrainPendingUnloads" /> from GameLoop each frame.
     /// </summary>
     public sealed class ClientChunkHandler : IDisposable
     {
         private readonly ChunkManager _chunkManager;
-        private readonly Action<GameReadyMessage> _onGameReady;
-
-        private NativeArray<StateId> _deserializeVoxelBuffer;
-        private NativeArray<byte> _deserializeLightBuffer;
-        private bool _disposed;
 
         // Cached list for multi-block change deserialization
         private readonly List<int3> _dirtiedChunksCache = new();
+        private readonly Action<GameReadyMessage> _onGameReady;
 
         // Pending unloads — queued by network handler, drained by GameLoop
         private readonly List<int3> _pendingUnloads = new();
+        private NativeArray<byte> _deserializeLightBuffer;
+
+        private NativeArray<StateId> _deserializeVoxelBuffer;
+        private bool _disposed;
 
         public ClientChunkHandler(
             ChunkManager chunkManager,
@@ -58,10 +59,28 @@ namespace Lithforge.Runtime.Network
             dispatcher.RegisterHandler(MessageType.GameReady, OnGameReady);
         }
 
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+
+                if (_deserializeVoxelBuffer.IsCreated)
+                {
+                    _deserializeVoxelBuffer.Dispose();
+                }
+
+                if (_deserializeLightBuffer.IsCreated)
+                {
+                    _deserializeLightBuffer.Dispose();
+                }
+            }
+        }
+
         /// <summary>
-        /// Drains any pending chunk unload coordinates into the provided list.
-        /// GameLoop calls this each frame and runs the full cleanup chain
-        /// (mesh store, schedulers, etc.) for each coordinate.
+        ///     Drains any pending chunk unload coordinates into the provided list.
+        ///     GameLoop calls this each frame and runs the full cleanup chain
+        ///     (mesh store, schedulers, etc.) for each coordinate.
         /// </summary>
         public void DrainPendingUnloads(List<int3> result)
         {
@@ -152,24 +171,6 @@ namespace Lithforge.Runtime.Network
         {
             GameReadyMessage msg = GameReadyMessage.Deserialize(data, offset, length);
             _onGameReady?.Invoke(msg);
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-
-                if (_deserializeVoxelBuffer.IsCreated)
-                {
-                    _deserializeVoxelBuffer.Dispose();
-                }
-
-                if (_deserializeLightBuffer.IsCreated)
-                {
-                    _deserializeLightBuffer.Dispose();
-                }
-            }
         }
     }
 }

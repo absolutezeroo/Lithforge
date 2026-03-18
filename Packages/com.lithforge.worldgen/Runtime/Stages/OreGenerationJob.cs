@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Ore;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -44,10 +45,10 @@ namespace Lithforge.WorldGen.Stages
                 }
 
                 // Deterministic seed per ore per chunk
-                uint oreSeed = (uint)(Seed ^ ((long)oreIdx * 73856093L)
-                    ^ ((long)ChunkCoord.x * 19349663L)
-                    ^ ((long)ChunkCoord.y * 83492791L)
-                    ^ ((long)ChunkCoord.z * 50331653L));
+                uint oreSeed = (uint)(Seed ^ oreIdx * 73856093L
+                                           ^ ChunkCoord.x * 19349663L
+                                           ^ ChunkCoord.y * 83492791L
+                                           ^ ChunkCoord.z * 50331653L);
 
                 Random rng = new(math.max(1u, oreSeed));
 
@@ -89,7 +90,7 @@ namespace Lithforge.WorldGen.Stages
                 return;
             }
 
-            int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+            int index = Voxel.Chunk.ChunkData.GetIndex(x, y, z);
             StateId current = ChunkData[index];
 
             if (current.Equals(config.ReplaceStateId) || current.Equals(StoneId))
@@ -117,7 +118,7 @@ namespace Lithforge.WorldGen.Stages
                         }
 
                         // Probability decreases with distance from center
-                        float chance = 1.0f - (dist / (radius + 0.5f));
+                        float chance = 1.0f - dist / (radius + 0.5f);
 
                         if (rng.NextFloat() > chance)
                         {

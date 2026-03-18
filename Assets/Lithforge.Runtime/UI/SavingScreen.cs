@@ -1,3 +1,7 @@
+using System;
+
+using Lithforge.Runtime.UI.Navigation;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -8,7 +12,7 @@ namespace Lithforge.Runtime.UI
     ///     Matches the LoadingScreen visual style (dirt-brown background, progress bar, status text).
     ///     Progress is pushed via SetProgress from the QuitToTitleCoroutine — not polled.
     /// </summary>
-    public sealed class SavingScreen : MonoBehaviour
+    public sealed class SavingScreen : MonoBehaviour, IScreen
     {
         private const int BarWidth = 400;
         private const int BarHeight = 20;
@@ -21,6 +25,34 @@ namespace Lithforge.Runtime.UI
         private UIDocument _document;
         private VisualElement _progressFill;
         private Label _statusLabel;
+
+        public string ScreenName { get { return ScreenNames.Saving; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.Flex;
+            }
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.None;
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // Saving screen does not respond to Escape
+            return true;
+        }
 
         public void Initialize(PanelSettings panelSettings)
         {

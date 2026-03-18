@@ -1,34 +1,37 @@
+using System;
 using System.IO;
-using Lithforge.Item.Crafting;
+
 using Lithforge.Item;
+using Lithforge.Item.Crafting;
+using Lithforge.Voxel.Crafting;
+using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.BlockEntity.Behaviors
 {
     /// <summary>
-    /// Tracks smelting progress for furnace-like block entities.
-    /// Reads input from slot 0, writes output to slot 2 (furnace layout: input=0, fuel=1, output=2).
-    /// Advances progress only when FuelBurnBehavior.IsFueled is true and a valid recipe exists.
+    ///     Tracks smelting progress for furnace-like block entities.
+    ///     Reads input from slot 0, writes output to slot 2 (furnace layout: input=0, fuel=1, output=2).
+    ///     Advances progress only when FuelBurnBehavior.IsFueled is true and a valid recipe exists.
     /// </summary>
     public sealed class SmeltingBehavior : BlockEntityBehavior
     {
         private const float SmeltDuration = 10f; // seconds to smelt one item
+
         private const int InputSlotIndex = 0;
+
         private const int OutputSlotIndex = 2;
 
-        private readonly InventoryBehavior _inventory;
+        private const int VersionSentinel = int.MinValue + 11;
+
         private readonly FuelBurnBehavior _fuelBurn;
-        private readonly SmeltingRecipeRegistry _recipeRegistry;
+
+        private readonly InventoryBehavior _inventory;
+
         private readonly ItemRegistry _itemRegistry;
 
-        private float _smeltProgress;
+        private readonly SmeltingRecipeRegistry _recipeRegistry;
 
-        /// <summary>
-        /// Progress of current smelt operation (0 to 1).
-        /// </summary>
-        public float SmeltProgress
-        {
-            get { return _smeltProgress / SmeltDuration; }
-        }
+        private float _smeltProgress;
 
         public SmeltingBehavior(
             InventoryBehavior inventory,
@@ -40,6 +43,14 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             _fuelBurn = fuelBurn;
             _recipeRegistry = recipeRegistry;
             _itemRegistry = itemRegistry;
+        }
+
+        /// <summary>
+        ///     Progress of current smelt operation (0 to 1).
+        /// </summary>
+        public float SmeltProgress
+        {
+            get { return _smeltProgress / SmeltDuration; }
         }
 
         public override void Tick(float deltaTime)
@@ -117,8 +128,6 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
-        private const int VersionSentinel = int.MinValue + 11;
-
         public override void Serialize(BinaryWriter writer)
         {
             writer.Write(VersionSentinel);
@@ -142,8 +151,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
         private static float ReinterpretIntAsFloat(int value)
         {
-            byte[] bytes = System.BitConverter.GetBytes(value);
-            return System.BitConverter.ToSingle(bytes, 0);
+            byte[] bytes = BitConverter.GetBytes(value);
+            return BitConverter.ToSingle(bytes, 0);
         }
     }
 }

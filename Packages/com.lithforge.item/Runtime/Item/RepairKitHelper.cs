@@ -1,5 +1,6 @@
 using Lithforge.Core.Data;
 using Lithforge.Item.Crafting;
+using Lithforge.Voxel.Item;
 
 namespace Lithforge.Item
 {

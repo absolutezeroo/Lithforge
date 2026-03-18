@@ -1,48 +1,46 @@
 using System.Collections.Generic;
+
 using Lithforge.Meshing;
 using Lithforge.Meshing.Atlas;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+
 using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.Scheduling
 {
     /// <summary>
-    /// Owns the LOD mesh job queue: assigning LOD levels based on camera distance,
-    /// scheduling downsample + mesh jobs, polling for completion, and disposing resources.
-    /// Handles both first-time LOD meshing (Generated chunks) and LOD transitions (Ready chunks).
+    ///     Owns the LOD mesh job queue: assigning LOD levels based on camera distance,
+    ///     scheduling downsample + mesh jobs, polling for completion, and disposing resources.
+    ///     Handles both first-time LOD meshing (Generated chunks) and LOD transitions (Ready chunks).
     /// </summary>
     public sealed class LODScheduler
     {
-        private readonly List<PendingLODMesh> _pendingLODMeshes = new();
-        private readonly List<PendingLODMesh> _pendingLODDisposals = new();
         private readonly ChunkManager _chunkManager;
-        private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly NativeAtlasLookup _nativeAtlasLookup;
         private readonly ChunkMeshStore _chunkMeshStore;
-        private readonly ChunkCulling _culling;
-        private readonly IPipelineStats _pipelineStats;
-        private int _maxLODMeshesPerFrame;
-        private int _maxLODCompletionsPerFrame;
         private readonly float _completionBudgetMs;
-        private int _lod1Distance;
-        private int _lod2Distance;
-        private int _lod3Distance;
+        private readonly ChunkCulling _culling;
+        private readonly List<ManagedChunk> _generatedChunksCache = new();
+        private readonly List<ManagedChunk> _generatedLODCache = new();
+        private readonly NativeAtlasLookup _nativeAtlasLookup;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+        private readonly List<PendingLODMesh> _pendingLODDisposals = new();
+        private readonly List<PendingLODMesh> _pendingLODMeshes = new();
+        private readonly IPipelineStats _pipelineStats;
 
         // Reusable caches to avoid per-frame allocation
         private readonly List<ManagedChunk> _readyChunksCache = new();
-        private readonly List<ManagedChunk> _generatedLODCache = new();
-        private readonly List<ManagedChunk> _generatedChunksCache = new();
-
-        public int PendingCount
-        {
-            get { return _pendingLODMeshes.Count; }
-        }
+        private int _lod1Distance;
+        private int _lod2Distance;
+        private int _lod3Distance;
+        private int _maxLODCompletionsPerFrame;
+        private int _maxLODMeshesPerFrame;
 
         public LODScheduler(
             ChunkManager chunkManager,
@@ -70,6 +68,11 @@ namespace Lithforge.Runtime.Scheduling
             _lod1Distance = lod1Distance;
             _lod2Distance = lod2Distance;
             _lod3Distance = lod3Distance;
+        }
+
+        public int PendingCount
+        {
+            get { return _pendingLODMeshes.Count; }
         }
 
         public void UpdateConfig(int renderDistance)
@@ -144,9 +147,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Assigns LOD levels to both Ready and Generated chunks based on camera distance.
-        /// Must be called before MeshScheduler.ScheduleJobs and LODScheduler.ScheduleJobs
-        /// so that chunks get their LOD level before the schedulers decide who to mesh.
+        ///     Assigns LOD levels to both Ready and Generated chunks based on camera distance.
+        ///     Must be called before MeshScheduler.ScheduleJobs and LODScheduler.ScheduleJobs
+        ///     so that chunks get their LOD level before the schedulers decide who to mesh.
         /// </summary>
         public void UpdateLODLevels(int3 cameraChunkCoord)
         {
@@ -159,11 +162,11 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Schedules LOD mesh jobs from two sources:
-        /// 1. Generated chunks with LODLevel > 0 (first-time LOD mesh)
-        /// 2. Ready chunks with changed LOD level (LOD transition)
-        /// MUST be called after UpdateLODLevels() in the same frame,
-        /// as it reuses _readyChunksCache populated there.
+        ///     Schedules LOD mesh jobs from two sources:
+        ///     1. Generated chunks with LODLevel > 0 (first-time LOD mesh)
+        ///     2. Ready chunks with changed LOD level (LOD transition)
+        ///     MUST be called after UpdateLODLevels() in the same frame,
+        ///     as it reuses _readyChunksCache populated there.
         /// </summary>
         public void ScheduleJobs()
         {
@@ -262,9 +265,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Drains the lazy disposal queue for LOD mesh jobs. Jobs that were in-flight
-        /// when their chunk was unloaded are polled here — once complete, their TempJob
-        /// data is disposed. Called at the start of PollCompleted each frame.
+        ///     Drains the lazy disposal queue for LOD mesh jobs. Jobs that were in-flight
+        ///     when their chunk was unloaded are polled here — once complete, their TempJob
+        ///     data is disposed. Called at the start of PollCompleted each frame.
         /// </summary>
         private void PollPendingLODDisposals()
         {
@@ -343,10 +346,7 @@ namespace Lithforge.Runtime.Scheduling
 
             VoxelDownsampleJob downsampleJob = new()
             {
-                SourceData = chunk.Data,
-                StateTable = _nativeStateRegistry.States,
-                Scale = scale,
-                OutputData = lodData.DownsampledData,
+                SourceData = chunk.Data, StateTable = _nativeStateRegistry.States, Scale = scale, OutputData = lodData.DownsampledData,
             };
 
             JobHandle downsampleHandle = downsampleJob.Schedule();
@@ -370,10 +370,7 @@ namespace Lithforge.Runtime.Scheduling
 
             _pendingLODMeshes.Add(new PendingLODMesh
             {
-                Coord = chunk.Coord,
-                Handle = meshHandle,
-                Data = lodData,
-                LODLevel = lodLevel,
+                Coord = chunk.Coord, Handle = meshHandle, Data = lodData, LODLevel = lodLevel,
             });
             _pipelineStats.IncrLODScheduled();
         }

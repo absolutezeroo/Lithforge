@@ -14,6 +14,8 @@ using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
 using Lithforge.Item;
 using Lithforge.Item.Loot;
+using Lithforge.Voxel.Item;
+using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
 
 using Unity.Mathematics;

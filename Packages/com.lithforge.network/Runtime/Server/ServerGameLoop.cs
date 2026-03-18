@@ -1,28 +1,29 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Logging;
+using Lithforge.Network.Chunk;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Network.Chunk;
+using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Network.Server
 {
     /// <summary>
-    /// Server-authoritative 6-phase tick loop running at 30 TPS.
-    /// Owns no Tier 3 types — accesses gameplay simulation via <see cref="IServerSimulation"/>
-    /// and chunk data via <see cref="IServerChunkProvider"/>.
-    ///
-    /// Phase 1: Drain network input (NetworkServer.Update)
-    /// Phase 2: Process player inputs (movement + block commands)
-    /// Phase 3: Simulate world (non-player tick systems)
-    /// Phase 4: Gather dirty state (ChunkDirtyTracker.FlushAll)
-    /// Phase 5: Broadcast updates (player states, block changes, chunk streaming)
-    /// Phase 6: Flush network output (implicit — UTP batches within frame)
+    ///     Server-authoritative 6-phase tick loop running at 30 TPS.
+    ///     Owns no Tier 3 types — accesses gameplay simulation via <see cref="IServerSimulation" />
+    ///     and chunk data via <see cref="IServerChunkProvider" />.
+    ///     Phase 1: Drain network input (NetworkServer.Update)
+    ///     Phase 2: Process player inputs (movement + block commands)
+    ///     Phase 3: Simulate world (non-player tick systems)
+    ///     Phase 4: Gather dirty state (ChunkDirtyTracker.FlushAll)
+    ///     Phase 5: Broadcast updates (player states, block changes, chunk streaming)
+    ///     Phase 6: Flush network output (implicit — UTP batches within frame)
     /// </summary>
     public sealed class ServerGameLoop : IDisposable
     {
@@ -30,30 +31,27 @@ namespace Lithforge.Network.Server
         private const float MaxAccumulatedTime = TickDt * 5f;
         private const float MaxReachDistance = 6f;
         private const int DefaultViewRadius = 10;
+        private readonly IServerBlockProcessor _blockProcessor;
+        private readonly IServerChunkProvider _chunkProvider;
+        private readonly List<int3> _dirtiedChunksCache = new();
+        private readonly ChunkDirtyTracker _dirtyTracker;
+        private readonly List<ushort> _hostDespawnCache = new();
+
+        // Host-local entity tracking (mirrors SpawnedRemotePlayers on network peers)
+        private readonly HashSet<ushort> _hostSpawnedPlayers = new();
+        private readonly List<PeerInfo> _loadingPeersCache = new();
+        private readonly ILogger _logger;
+
+        // Cached collections (fill pattern, reused every tick)
+        private readonly List<PeerInfo> _playingPeersCache = new();
 
         private readonly INetworkServer _server;
         private readonly NetworkServer _serverImpl;
         private readonly IServerSimulation _simulation;
-        private readonly IServerBlockProcessor _blockProcessor;
-        private readonly IServerChunkProvider _chunkProvider;
-        private readonly ChunkDirtyTracker _dirtyTracker;
         private readonly ChunkStreamingManager _streamingManager;
-        private readonly ILogger _logger;
 
-        private uint _currentTick = 1;
-        private float _tickAccumulator;
         private bool _disposed;
-
-        // Cached collections (fill pattern, reused every tick)
-        private readonly List<PeerInfo> _playingPeersCache = new();
-        private readonly List<PeerInfo> _loadingPeersCache = new();
-        private readonly List<int3> _dirtiedChunksCache = new();
-
-        // Host-local callbacks: let the host see remote players without a NetworkClient.
-        // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
-
-        /// <summary>Fires when a remote player enters the host's view.</summary>
-        public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
+        private float _tickAccumulator;
 
         /// <summary>Fires when a remote player leaves the host's view.</summary>
         public Action<DespawnPlayerMessage> OnHostDespawnPlayer;
@@ -61,14 +59,11 @@ namespace Lithforge.Network.Server
         /// <summary>Fires each tick with a remote player's authoritative state.</summary>
         public Action<PlayerStateMessage> OnHostPlayerState;
 
-        // Host-local entity tracking (mirrors SpawnedRemotePlayers on network peers)
-        private readonly HashSet<ushort> _hostSpawnedPlayers = new();
-        private readonly List<ushort> _hostDespawnCache = new();
+        // Host-local callbacks: let the host see remote players without a NetworkClient.
+        // Uses existing message structs (Tier 2) to avoid primitive-soup signatures.
 
-        public uint CurrentTick
-        {
-            get { return _currentTick; }
-        }
+        /// <summary>Fires when a remote player enters the host's view.</summary>
+        public Action<SpawnPlayerMessage> OnHostSpawnPlayer;
 
         public ServerGameLoop(
             NetworkServer server,
@@ -96,10 +91,25 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
         }
 
+        public uint CurrentTick { get; private set; } = 1;
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                _hostSpawnedPlayers.Clear();
+                _hostDespawnCache.Clear();
+                OnHostSpawnPlayer = null;
+                OnHostDespawnPlayer = null;
+                OnHostPlayerState = null;
+            }
+        }
+
         /// <summary>
-        /// Called once per frame. Accumulates time and runs 0-5 ticks per call.
-        /// For a dedicated server, call from the main loop with wall-clock delta.
-        /// For a listen server, call from GameLoop.Update().
+        ///     Called once per frame. Accumulates time and runs 0-5 ticks per call.
+        ///     For a dedicated server, call from the main loop with wall-clock delta.
+        ///     For a listen server, call from GameLoop.Update().
         /// </summary>
         public void Update(float deltaTime, float currentTime)
         {
@@ -122,7 +132,7 @@ namespace Lithforge.Network.Server
         {
             // Phase 1: Drain network input
             _server.Update(currentTime);
-            _server.CurrentTick = _currentTick;
+            _server.CurrentTick = CurrentTick;
 
             // Phase 2: Process player inputs
             GatherPeersByState(_playingPeersCache, ConnectionState.Playing);
@@ -141,7 +151,7 @@ namespace Lithforge.Network.Server
             ProcessChunkStreaming(currentTime);
 
             // Phase 6: implicit — UTP batches sends within frame
-            _currentTick++;
+            CurrentTick++;
         }
 
         // ── Phase 2: Process player inputs ──
@@ -166,7 +176,7 @@ namespace Lithforge.Network.Server
                 byte flags;
                 ushort seqId;
 
-                if (interest.MoveBuffer.TryGet(_currentTick, out MoveCommand moveCmd))
+                if (interest.MoveBuffer.TryGet(CurrentTick, out MoveCommand moveCmd))
                 {
                     yaw = moveCmd.LookDir.x;
                     pitch = moveCmd.LookDir.y;
@@ -202,13 +212,13 @@ namespace Lithforge.Network.Server
         private void ProcessBlockCommands(PeerInfo peer, PlayerInterestState interest, PlayerPhysicsState playerState)
         {
             ushort playerId = peer.AssignedPlayerId;
-            _blockProcessor.RefillRateLimitTokens(playerId, _currentTick * TickDt);
+            _blockProcessor.RefillRateLimitTokens(playerId, CurrentTick * TickDt);
 
             // Process StartDigging commands first (must precede break commands in same tick)
             for (int i = 0; i < interest.PendingStartDiggingCommands.Count; i++)
             {
                 StartDiggingCommand cmd = interest.PendingStartDiggingCommands[i];
-                _blockProcessor.StartDigging(playerId, cmd.Position, playerState.Position, _currentTick);
+                _blockProcessor.StartDigging(playerId, cmd.Position, playerState.Position, CurrentTick);
             }
 
             interest.PendingStartDiggingCommands.Clear();
@@ -219,7 +229,7 @@ namespace Lithforge.Network.Server
                 BreakBlockCommand cmd = interest.PendingBreakCommands[i];
 
                 BlockProcessResult result = _blockProcessor.TryBreakBlock(
-                    playerId, cmd.Position, playerState.Position, _currentTick);
+                    playerId, cmd.Position, playerState.Position, CurrentTick);
 
                 AcknowledgeBlockChangeMessage ack = new()
                 {
@@ -283,7 +293,7 @@ namespace Lithforge.Network.Server
                 PlayerStateMessage msg = new()
                 {
                     PlayerId = peer.AssignedPlayerId,
-                    ServerTick = _currentTick,
+                    ServerTick = CurrentTick,
                     LastProcessedSeqId = interest.LastProcessedSequenceId,
                     PositionX = state.Position.x,
                     PositionY = state.Position.y,
@@ -328,10 +338,10 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Detects spawn/despawn edges for remote player entities by comparing each
-        /// observer's <see cref="PlayerInterestState.SpawnedRemotePlayers"/> against
-        /// the current interest region. Sends <see cref="SpawnPlayerMessage"/> when a
-        /// player enters and <see cref="DespawnPlayerMessage"/> when they leave.
+        ///     Detects spawn/despawn edges for remote player entities by comparing each
+        ///     observer's <see cref="PlayerInterestState.SpawnedRemotePlayers" /> against
+        ///     the current interest region. Sends <see cref="SpawnPlayerMessage" /> when a
+        ///     player enters and <see cref="DespawnPlayerMessage" /> when they leave.
         /// </summary>
         private void BroadcastPlayerPresenceChanges()
         {
@@ -451,7 +461,10 @@ namespace Lithforge.Network.Server
                 for (int i = 0; i < _hostDespawnCache.Count; i++)
                 {
                     ushort id = _hostDespawnCache[i];
-                    OnHostDespawnPlayer?.Invoke(new DespawnPlayerMessage { PlayerId = id });
+                    OnHostDespawnPlayer?.Invoke(new DespawnPlayerMessage
+                    {
+                        PlayerId = id,
+                    });
                     _hostSpawnedPlayers.Remove(id);
                 }
             }
@@ -480,10 +493,7 @@ namespace Lithforge.Network.Server
                     BlockChangeEntry change = changes[0];
                     BlockChangeMessage msg = new()
                     {
-                        PositionX = change.Position.x,
-                        PositionY = change.Position.y,
-                        PositionZ = change.Position.z,
-                        NewState = change.NewState.Value,
+                        PositionX = change.Position.x, PositionY = change.Position.y, PositionZ = change.Position.z, NewState = change.NewState.Value,
                     };
 
                     // Send to all players who have this chunk loaded
@@ -531,7 +541,7 @@ namespace Lithforge.Network.Server
 
                 if (state == ConnectionState.Loading || state == ConnectionState.Playing)
                 {
-                    _streamingManager.ProcessForPeer(peer, _server, _chunkProvider, _currentTick);
+                    _streamingManager.ProcessForPeer(peer, _server, _chunkProvider, CurrentTick);
 
                     // Check if Loading peer is ready to transition to Playing
                     if (state == ConnectionState.Loading &&
@@ -563,13 +573,13 @@ namespace Lithforge.Network.Server
                 SpawnY = interest.SpawnPosition.y,
                 SpawnZ = interest.SpawnPosition.z,
                 TimeOfDay = _simulation.GetTimeOfDay(),
-                ServerTick = _currentTick,
+                ServerTick = CurrentTick,
             };
 
             _server.SendTo(peer.ConnectionId, msg, PipelineId.ReliableSequenced);
 
             _logger.LogInfo(
-                $"Player {peer.AssignedPlayerId} ({peer.PlayerName}) transitioned to Playing at tick {_currentTick}");
+                $"Player {peer.AssignedPlayerId} ({peer.PlayerName}) transitioned to Playing at tick {CurrentTick}");
         }
 
         // ── Message handlers ──
@@ -588,7 +598,7 @@ namespace Lithforge.Network.Server
 
             MoveCommand cmd = new()
             {
-                Tick = _currentTick,
+                Tick = CurrentTick,
                 SequenceId = msg.SequenceId,
                 PlayerId = peer.AssignedPlayerId,
                 Position = float3.zero, // Server computes position authoritatively
@@ -596,7 +606,7 @@ namespace Lithforge.Network.Server
                 Flags = msg.Flags,
             };
 
-            peer.InterestState.MoveBuffer.Add(_currentTick, cmd);
+            peer.InterestState.MoveBuffer.Add(CurrentTick, cmd);
         }
 
         private void OnPlaceBlockCmd(ConnectionId connId, byte[] data, int offset, int length)
@@ -613,7 +623,7 @@ namespace Lithforge.Network.Server
 
             PlaceBlockCommand cmd = new()
             {
-                Tick = _currentTick,
+                Tick = CurrentTick,
                 SequenceId = msg.SequenceId,
                 PlayerId = peer.AssignedPlayerId,
                 Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
@@ -638,10 +648,7 @@ namespace Lithforge.Network.Server
 
             BreakBlockCommand cmd = new()
             {
-                Tick = _currentTick,
-                SequenceId = msg.SequenceId,
-                PlayerId = peer.AssignedPlayerId,
-                Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                Tick = CurrentTick, SequenceId = msg.SequenceId, PlayerId = peer.AssignedPlayerId, Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
             };
 
             peer.InterestState.PendingBreakCommands.Add(cmd);
@@ -661,10 +668,7 @@ namespace Lithforge.Network.Server
 
             StartDiggingCommand cmd = new()
             {
-                Tick = _currentTick,
-                SequenceId = msg.SequenceId,
-                PlayerId = peer.AssignedPlayerId,
-                Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                Tick = CurrentTick, SequenceId = msg.SequenceId, PlayerId = peer.AssignedPlayerId, Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
             };
 
             peer.InterestState.PendingStartDiggingCommands.Add(cmd);
@@ -673,8 +677,8 @@ namespace Lithforge.Network.Server
         // ── Player lifecycle ──
 
         /// <summary>
-        /// Called when a new player's handshake is accepted. Creates the physics body
-        /// and initializes chunk streaming.
+        ///     Called when a new player's handshake is accepted. Creates the physics body
+        ///     and initializes chunk streaming.
         /// </summary>
         public void OnPlayerAccepted(PeerInfo peer, float3 spawnPosition)
         {
@@ -694,8 +698,8 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// Called when a player disconnects. Removes the physics body, cancels any
-        /// in-progress digging, and notifies all observers to despawn the remote entity.
+        ///     Called when a player disconnects. Removes the physics body, cancels any
+        ///     in-progress digging, and notifies all observers to despawn the remote entity.
         /// </summary>
         public void OnPlayerDisconnected(ushort playerId)
         {
@@ -729,7 +733,10 @@ namespace Lithforge.Network.Server
             // Notify host-local listener
             if (_hostSpawnedPlayers.Remove(playerId))
             {
-                OnHostDespawnPlayer?.Invoke(new DespawnPlayerMessage { PlayerId = playerId });
+                OnHostDespawnPlayer?.Invoke(new DespawnPlayerMessage
+                {
+                    PlayerId = playerId,
+                });
             }
         }
 
@@ -746,19 +753,6 @@ namespace Lithforge.Network.Server
                 {
                     result.Add(allPeers[i]);
                 }
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-                _hostSpawnedPlayers.Clear();
-                _hostDespawnCache.Clear();
-                OnHostSpawnPlayer = null;
-                OnHostDespawnPlayer = null;
-                OnHostPlayerState = null;
             }
         }
     }

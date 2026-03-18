@@ -2,7 +2,9 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -12,11 +14,6 @@ namespace Lithforge.WorldGen.Tests
     [TestFixture]
     public sealed class SurfaceBuilderJobTests
     {
-        private StateId _stoneId;
-        private StateId _grassId;
-        private StateId _dirtId;
-        private StateId _sandId;
-
         [SetUp]
         public void SetUp()
         {
@@ -25,6 +22,10 @@ namespace Lithforge.WorldGen.Tests
             _dirtId = new StateId(4);
             _sandId = new StateId(5);
         }
+        private StateId _stoneId;
+        private StateId _grassId;
+        private StateId _dirtId;
+        private StateId _sandId;
 
         private NativeBiomeData CreatePlainsBiome()
         {
@@ -50,11 +51,11 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_GrassOnTop_WhenAboveSeaLevel()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<int> heightMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<byte> biomeMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<NativeBiomeData> biomeData = new(
                 1, Allocator.TempJob);
 
@@ -124,11 +125,11 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_UnderwaterBlock_WhenBelowSeaLevel()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<int> heightMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<byte> biomeMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<NativeBiomeData> biomeData = new(
                 1, Allocator.TempJob);
 
@@ -186,11 +187,11 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_OnlyReplacesStone()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<int> heightMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<byte> biomeMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<NativeBiomeData> biomeData = new(
                 1, Allocator.TempJob);
 

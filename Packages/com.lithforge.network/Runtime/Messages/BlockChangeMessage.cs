@@ -3,10 +3,10 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client single block change notification. Sent on reliable sequenced pipeline.
-    /// Used when exactly one block changed in a chunk this tick (for 2+ changes,
-    /// use <see cref="MultiBlockChangeMessage"/>).
-    /// Wire format: [PositionX:4][PositionY:4][PositionZ:4][StateId:2] = 14 bytes.
+    ///     Server→Client single block change notification. Sent on reliable sequenced pipeline.
+    ///     Used when exactly one block changed in a chunk this tick (for 2+ changes,
+    ///     use <see cref="MultiBlockChangeMessage" />).
+    ///     Wire format: [PositionX:4][PositionY:4][PositionZ:4][StateId:2] = 14 bytes.
     /// </summary>
     public struct BlockChangeMessage : INetworkMessage
     {

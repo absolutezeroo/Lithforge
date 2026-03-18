@@ -1,9 +1,12 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Item.Crafting;
+using Lithforge.Voxel.Crafting;
+
 using NUnit.Framework;
 
-namespace Lithforge.Item.Tests
+namespace Lithforge.Voxel.Tests
 {
     [TestFixture]
     public sealed class CraftingEngineTests
@@ -22,11 +25,22 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shaped,
                 ResultItem = s_craftingTable,
                 ResultCount = 1,
-                Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } },
+                Pattern = new List<string>
+                {
+                    "##", "##",
+                },
+                Keys = new Dictionary<char, ResourceId>
+                {
+                    {
+                        '#', s_plank
+                    },
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             CraftingGrid grid = new(3, 3);
             grid.SetSlot(0, 0, s_plank);
@@ -48,11 +62,22 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shaped,
                 ResultItem = s_craftingTable,
                 ResultCount = 1,
-                Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } },
+                Pattern = new List<string>
+                {
+                    "##", "##",
+                },
+                Keys = new Dictionary<char, ResourceId>
+                {
+                    {
+                        '#', s_plank
+                    },
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             CraftingGrid grid = new(3, 3);
             grid.SetSlot(0, 0, s_plank);
@@ -72,11 +97,22 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shaped,
                 ResultItem = s_craftingTable,
                 ResultCount = 1,
-                Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } },
+                Pattern = new List<string>
+                {
+                    "##", "##",
+                },
+                Keys = new Dictionary<char, ResourceId>
+                {
+                    {
+                        '#', s_plank
+                    },
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             // Place pattern offset to bottom-right corner
             CraftingGrid grid = new(3, 3);
@@ -99,10 +135,16 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shapeless,
                 ResultItem = s_stick,
                 ResultCount = 4,
-                Ingredients = new List<ResourceId> { s_plank, s_plank },
+                Ingredients = new List<ResourceId>
+                {
+                    s_plank, s_plank,
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             CraftingGrid grid = new(3, 3);
             grid.SetSlot(2, 2, s_plank);
@@ -123,10 +165,16 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shapeless,
                 ResultItem = s_stick,
                 ResultCount = 4,
-                Ingredients = new List<ResourceId> { s_plank, s_plank },
+                Ingredients = new List<ResourceId>
+                {
+                    s_plank, s_plank,
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             CraftingGrid grid = new(3, 3);
             grid.SetSlot(0, 0, s_plank);
@@ -144,10 +192,16 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shapeless,
                 ResultItem = s_stick,
                 ResultCount = 4,
-                Ingredients = new List<ResourceId> { s_plank, s_plank },
+                Ingredients = new List<ResourceId>
+                {
+                    s_plank, s_plank,
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             CraftingGrid grid = new(3, 3);
             grid.SetSlot(0, 0, s_plank);
@@ -166,11 +220,22 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shaped,
                 ResultItem = s_craftingTable,
                 ResultCount = 1,
-                Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } },
+                Pattern = new List<string>
+                {
+                    "##", "##",
+                },
+                Keys = new Dictionary<char, ResourceId>
+                {
+                    {
+                        '#', s_plank
+                    },
+                },
             };
 
-            CraftingEngine engine = new(new List<RecipeEntry> { recipe });
+            CraftingEngine engine = new(new List<RecipeEntry>
+            {
+                recipe,
+            });
 
             CraftingGrid grid = new(3, 3);
 
@@ -187,8 +252,16 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shaped,
                 ResultItem = s_craftingTable,
                 ResultCount = 1,
-                Pattern = new List<string> { "##", "##" },
-                Keys = new Dictionary<char, ResourceId> { { '#', s_plank } },
+                Pattern = new List<string>
+                {
+                    "##", "##",
+                },
+                Keys = new Dictionary<char, ResourceId>
+                {
+                    {
+                        '#', s_plank
+                    },
+                },
             };
 
             RecipeEntry pickaxeRecipe = new(new ResourceId("lithforge", "stone_pickaxe_recipe"))
@@ -196,16 +269,26 @@ namespace Lithforge.Item.Tests
                 Type = RecipeType.Shaped,
                 ResultItem = s_stonePickaxe,
                 ResultCount = 1,
-                Pattern = new List<string> { "###", " | ", " | " },
+                Pattern = new List<string>
+                {
+                    "###", " | ", " | ",
+                },
                 Keys = new Dictionary<char, ResourceId>
                 {
-                    { '#', s_cobblestone },
-                    { '|', s_stick },
+                    {
+                        '#', s_cobblestone
+                    },
+                    {
+                        '|', s_stick
+                    },
                 },
             };
 
             CraftingEngine engine = new(
-                new List<RecipeEntry> { tableRecipe, pickaxeRecipe });
+                new List<RecipeEntry>
+                {
+                    tableRecipe, pickaxeRecipe,
+                });
 
             CraftingGrid grid = new(3, 3);
             grid.SetSlot(0, 0, s_cobblestone);
@@ -225,9 +308,7 @@ namespace Lithforge.Item.Tests
         {
             List<RecipeEntry> recipes = new()
             {
-                new RecipeEntry(new ResourceId("lithforge", "r1")),
-                new RecipeEntry(new ResourceId("lithforge", "r2")),
-                new RecipeEntry(new ResourceId("lithforge", "r3")),
+                new RecipeEntry(new ResourceId("lithforge", "r1")), new RecipeEntry(new ResourceId("lithforge", "r2")), new RecipeEntry(new ResourceId("lithforge", "r3")),
             };
 
             CraftingEngine engine = new(recipes);

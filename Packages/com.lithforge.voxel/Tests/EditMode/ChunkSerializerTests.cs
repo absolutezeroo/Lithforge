@@ -1,7 +1,12 @@
+using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Storage;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 
 namespace Lithforge.Voxel.Tests
@@ -15,11 +20,11 @@ namespace Lithforge.Voxel.Tests
             NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> originalLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<StateId> restored = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> restoredLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
@@ -32,7 +37,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -59,9 +64,9 @@ namespace Lithforge.Voxel.Tests
             NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<StateId> restored = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> restoredLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
@@ -73,7 +78,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -98,13 +103,13 @@ namespace Lithforge.Voxel.Tests
         public void RoundTrip_LightData_PreservesNibbles()
         {
             NativeArray<StateId> original = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<StateId> restored = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> restoredLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
@@ -112,12 +117,12 @@ namespace Lithforge.Voxel.Tests
                 for (int i = 0; i < ChunkConstants.Volume; i++)
                 {
                     byte sun = (byte)(i % 16);
-                    byte block = (byte)((i / 16) % 16);
-                    originalLight[i] = (byte)((sun << 4) | block);
+                    byte block = (byte)(i / 16 % 16);
+                    originalLight[i] = (byte)(sun << 4 | block);
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -140,14 +145,21 @@ namespace Lithforge.Voxel.Tests
         public void Deserialize_InvalidMagic_ReturnsFalse()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
-                byte[] badData = new byte[] { 0, 0, 0, 0, 1 };
-                bool success = ChunkSerializer.Deserialize(badData, chunkData, lightData, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                byte[] badData =
+                {
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                };
+                bool success = ChunkSerializer.Deserialize(badData, chunkData, lightData, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsFalse(success, "Invalid magic should return false");
             }
@@ -162,13 +174,13 @@ namespace Lithforge.Voxel.Tests
         public void RoundTrip_WithLightData_PreservesBitExact()
         {
             NativeArray<StateId> original = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> originalLight = new(
                 ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<StateId> restored = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> restoredLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
@@ -176,13 +188,13 @@ namespace Lithforge.Voxel.Tests
                 for (int i = 0; i < ChunkConstants.Volume; i++)
                 {
                     original[i] = new StateId((ushort)(i % 5 + 1));
-                    byte sun = (byte)((i * 7) % 16);
-                    byte block = (byte)((i * 3) % 16);
-                    originalLight[i] = (byte)((sun << 4) | block);
+                    byte sun = (byte)(i * 7 % 16);
+                    byte block = (byte)(i * 3 % 16);
+                    originalLight[i] = (byte)(sun << 4 | block);
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -209,11 +221,11 @@ namespace Lithforge.Voxel.Tests
             NativeArray<StateId> original = new(
                 ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> originalLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<StateId> restored = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> restoredLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
@@ -224,7 +236,7 @@ namespace Lithforge.Voxel.Tests
                 }
 
                 byte[] serialized = ChunkSerializer.Serialize(original, originalLight);
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsTrue(success, "Deserialization should succeed");
 
@@ -247,13 +259,13 @@ namespace Lithforge.Voxel.Tests
         public void Deserialize_CorruptedCrc_ReturnsFalse()
         {
             NativeArray<StateId> original = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> originalLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<StateId> restored = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> restoredLight = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {
@@ -263,7 +275,7 @@ namespace Lithforge.Voxel.Tests
                 int midpoint = serialized.Length / 2;
                 serialized[midpoint] = (byte)(serialized[midpoint] ^ 0xFF);
 
-                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out System.Collections.Generic.Dictionary<int, Lithforge.Voxel.BlockEntity.IBlockEntity> _, null);
+                bool success = ChunkSerializer.Deserialize(serialized, restored, restoredLight, out Dictionary<int, IBlockEntity> _);
 
                 Assert.IsFalse(success, "Corrupted CRC should cause deserialization to return false");
             }
@@ -280,9 +292,9 @@ namespace Lithforge.Voxel.Tests
         public void Serialize_Compression_SmallerThanRaw()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             try
             {

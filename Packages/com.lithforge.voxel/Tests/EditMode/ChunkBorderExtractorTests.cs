@@ -1,6 +1,8 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 
 namespace Lithforge.Voxel.Tests
@@ -8,16 +10,13 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class ChunkBorderExtractorTests
     {
-        private NativeArray<StateId> _chunkData;
-        private NativeArray<StateId> _output;
-
         [SetUp]
         public void SetUp()
         {
             _chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             _output = new NativeArray<StateId>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
         }
 
         [TearDown]
@@ -26,6 +25,8 @@ namespace Lithforge.Voxel.Tests
             if (_chunkData.IsCreated) { _chunkData.Dispose(); }
             if (_output.IsCreated) { _output.Dispose(); }
         }
+        private NativeArray<StateId> _chunkData;
+        private NativeArray<StateId> _output;
 
         [Test]
         public void ExtractPosX_ReturnsX31Plane()

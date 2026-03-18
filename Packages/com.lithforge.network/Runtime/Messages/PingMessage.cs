@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Bidirectional ping message for RTT measurement.
-    /// Sent on unreliable sequenced pipeline every PingIntervalSeconds.
-    /// Wire format: [Timestamp:4]
+    ///     Bidirectional ping message for RTT measurement.
+    ///     Sent on unreliable sequenced pipeline every PingIntervalSeconds.
+    ///     Wire format: [Timestamp:4]
     /// </summary>
     public struct PingMessage : INetworkMessage
     {

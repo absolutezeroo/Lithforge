@@ -1,23 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using Lithforge.Core.Data;
 using Lithforge.Item;
 using Lithforge.Voxel.Storage;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.World
 {
     /// <summary>
-    /// Snapshots and restores player state (position, rotation, inventory, time of day)
-    /// so sessions can survive save/load round-trips through <see cref="WorldMetadata"/>.
+    ///     Snapshots and restores player state (position, rotation, inventory, time of day)
+    ///     so sessions can survive save/load round-trips through <see cref="WorldMetadata" />.
     /// </summary>
     public static class PlayerStateSerializer
     {
         /// <summary>
-        /// Takes a snapshot of the player's current world state and packs it into
-        /// a serializable <see cref="WorldPlayerState"/> for persistence.
-        /// Only non-empty inventory slots are stored to keep save files compact.
+        ///     Takes a snapshot of the player's current world state and packs it into
+        ///     a serializable <see cref="WorldPlayerState" /> for persistence.
+        ///     Only non-empty inventory slots are stored to keep save files compact.
         /// </summary>
         public static WorldPlayerState Capture(
             Transform playerTransform,
@@ -117,9 +119,9 @@ namespace Lithforge.Runtime.World
         }
 
         /// <summary>
-        /// Applies a previously captured state back onto the player, camera, and inventory.
-        /// Items whose <see cref="ResourceId"/> no longer exists in the registry are silently
-        /// dropped with a warning, so saves remain forward-compatible across content changes.
+        ///     Applies a previously captured state back onto the player, camera, and inventory.
+        ///     Items whose <see cref="ResourceId" /> no longer exists in the registry are silently
+        ///     dropped with a warning, so saves remain forward-compatible across content changes.
         /// </summary>
         public static void Restore(
             WorldPlayerState state,

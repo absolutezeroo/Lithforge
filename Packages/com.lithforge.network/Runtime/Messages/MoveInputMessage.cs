@@ -3,11 +3,11 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Client→Server movement input. Sent every tick on unreliable sequenced pipeline.
-    /// The server reconstructs InputSnapshot from the flags and look direction,
-    /// then runs player physics authoritatively.
-    /// Wire format: [SequenceId:2][Yaw:4][Pitch:4][Flags:1] = 11 bytes.
-    /// PlayerId is NOT on the wire — the server derives it from the ConnectionId.
+    ///     Client→Server movement input. Sent every tick on unreliable sequenced pipeline.
+    ///     The server reconstructs InputSnapshot from the flags and look direction,
+    ///     then runs player physics authoritatively.
+    ///     Wire format: [SequenceId:2][Yaw:4][Pitch:4][Flags:1] = 11 bytes.
+    ///     PlayerId is NOT on the wire — the server derives it from the ConnectionId.
     /// </summary>
     public struct MoveInputMessage : INetworkMessage
     {

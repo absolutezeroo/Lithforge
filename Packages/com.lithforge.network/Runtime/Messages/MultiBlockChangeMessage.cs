@@ -1,18 +1,20 @@
 using System;
+
 using Lithforge.Network.Message;
 
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client batched block change notification. Sent on reliable sequenced pipeline.
-    /// The payload is the raw output of <see cref="Lithforge.Network.Chunk.ChunkNetSerializer.SerializeBlockChangeBatch"/>.
-    /// Used when 2+ blocks changed in a chunk section this tick.
-    /// Wire format: raw batch bytes (variable length).
+    ///     Server→Client batched block change notification. Sent on reliable sequenced pipeline.
+    ///     The payload is the raw output of
+    ///     <see cref="Lithforge.Voxel.Network.ChunkNetSerializer.SerializeBlockChangeBatch" />.
+    ///     Used when 2+ blocks changed in a chunk section this tick.
+    ///     Wire format: raw batch bytes (variable length).
     /// </summary>
     public struct MultiBlockChangeMessage : INetworkMessage
     {
         /// <summary>
-        /// Raw serialized batch data from ChunkNetSerializer.SerializeBlockChangeBatch.
+        ///     Raw serialized batch data from ChunkNetSerializer.SerializeBlockChangeBatch.
         /// </summary>
         public byte[] BatchData;
 

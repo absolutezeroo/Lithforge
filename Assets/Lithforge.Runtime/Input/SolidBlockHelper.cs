@@ -1,17 +1,19 @@
 using System;
+
 using Lithforge.Physics;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Input
 {
     /// <summary>
-    /// Shared utility for checking whether a voxel at a world coordinate is solid.
-    /// Used by both PlayerController and BlockInteraction.
-    /// Provides both a managed delegate (for VoxelRaycast) and a Burst-compatible
-    /// <see cref="SolidBlockQuery"/> struct (for VoxelCollider).
+    ///     Shared utility for checking whether a voxel at a world coordinate is solid.
+    ///     Used by both PlayerController and BlockInteraction.
+    ///     Provides both a managed delegate (for VoxelRaycast) and a Burst-compatible
+    ///     <see cref="SolidBlockQuery" /> struct (for VoxelCollider).
     /// </summary>
     internal static class SolidBlockHelper
     {
@@ -34,20 +36,20 @@ namespace Lithforge.Runtime.Input
         }
 
         /// <summary>
-        /// Creates a cached delegate for the IsSolid check. Call once during initialization
-        /// and store the result to avoid per-frame delegate allocation.
+        ///     Creates a cached delegate for the IsSolid check. Call once during initialization
+        ///     and store the result to avoid per-frame delegate allocation.
         /// </summary>
         public static Func<int3, bool> CreateDelegate(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry)
         {
-            return (int3 coord) => IsSolid(coord, chunkManager, nativeStateRegistry);
+            return coord => IsSolid(coord, chunkManager, nativeStateRegistry);
         }
 
         /// <summary>
-        /// Builds a Burst-compatible <see cref="SolidBlockQuery"/> pre-filled with solidity
-        /// data for the broad-phase region of a collision resolve call.
-        /// The returned SolidMap uses Allocator.Temp and must be disposed by the caller.
+        ///     Builds a Burst-compatible <see cref="SolidBlockQuery" /> pre-filled with solidity
+        ///     data for the broad-phase region of a collision resolve call.
+        ///     The returned SolidMap uses Allocator.Temp and must be disposed by the caller.
         /// </summary>
         public static SolidBlockQuery Build(
             float3 position,
@@ -80,7 +82,10 @@ namespace Lithforge.Runtime.Input
                 }
             }
 
-            return new SolidBlockQuery { SolidMap = solidMap };
+            return new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
         }
     }
 }

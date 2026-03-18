@@ -1,28 +1,30 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Voxel.Block;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Builds vertex and index data for held items in first-person view.
-    /// Block items are rendered as a 6-face cube with atlas textures.
-    /// Flat items are rendered as a 2-face quad with the item sprite.
-    /// Display transforms are read from BlockModel assets via ItemDisplayTransformLookup.
+    ///     Builds vertex and index data for held items in first-person view.
+    ///     Block items are rendered as a 6-face cube with atlas textures.
+    ///     Flat items are rendered as a 2-face quad with the item sprite.
+    ///     Display transforms are read from BlockModel assets via ItemDisplayTransformLookup.
     /// </summary>
     public static class HeldItemMeshBuilder
     {
         /// <summary>
-        /// Main hand attachment point in pivot-relative space.
-        /// (0, -7, 1)/16 = centered on arm width, 7 model units below pivot, 1 unit forward.
+        ///     Main hand attachment point in pivot-relative space.
+        ///     (0, -7, 1)/16 = centered on arm width, 7 model units below pivot, 1 unit forward.
         /// </summary>
         private static readonly float3 s_mainHandLocator = new float3(0f, -7f, 1f) / 16f;
 
         /// <summary>
-        /// Builds a 6-face cube for a held block item.
-        /// The displayMatrix comes from the item's BlockModel parent chain
-        /// (resolved via ItemDisplayTransformLookup during the content pipeline).
+        ///     Builds a 6-face cube for a held block item.
+        ///     The displayMatrix comes from the item's BlockModel parent chain
+        ///     (resolved via ItemDisplayTransformLookup during the content pipeline).
         /// </summary>
         public static void BuildBlockItem(
             StateRegistry stateRegistry,
@@ -160,10 +162,10 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Builds a 2-face quad for a flat held item (tools, sticks, etc.).
-        /// The quad faces forward from the hand with both sides visible.
-        /// The displayMatrix comes from the item's BlockModel parent chain
-        /// (resolved via ItemDisplayTransformLookup during the content pipeline).
+        ///     Builds a 2-face quad for a flat held item (tools, sticks, etc.).
+        ///     The quad faces forward from the hand with both sides visible.
+        ///     The displayMatrix comes from the item's BlockModel parent chain
+        ///     (resolved via ItemDisplayTransformLookup during the content pipeline).
         /// </summary>
         public static void BuildFlatItem(
             float4x4 displayMatrix,
@@ -180,7 +182,7 @@ namespace Lithforge.Runtime.Player
 
             // Unit quad: 1x1 block centered at origin, bottom at y=0
             // (Minecraft item sprites are 16x16 pixels = 1x1 block)
-            float3[] quadVerts = new float3[]
+            float3[] quadVerts =
             {
                 new(-0.5f, 1f, 0f),
                 new(0.5f, 1f, 0f),
@@ -217,40 +219,58 @@ namespace Lithforge.Runtime.Player
             }
 
             // Front face indices
-            indices[0] = 0; indices[1] = 1; indices[2] = 2;
-            indices[3] = 0; indices[4] = 2; indices[5] = 3;
+            indices[0] = 0;
+            indices[1] = 1;
+            indices[2] = 2;
+            indices[3] = 0;
+            indices[4] = 2;
+            indices[5] = 3;
 
             // Back face indices (reversed winding)
-            indices[6] = 4; indices[7] = 6; indices[8] = 5;
-            indices[9] = 4; indices[10] = 7; indices[11] = 6;
+            indices[6] = 4;
+            indices[7] = 6;
+            indices[8] = 5;
+            indices[9] = 4;
+            indices[10] = 7;
+            indices[11] = 6;
         }
 
         private static float2 GetBlockFaceUV(int vertexIndex)
         {
-            return vertexIndex switch
+            switch (vertexIndex)
             {
-                0 => new float2(0f, 0f),
-                1 => new float2(1f, 0f),
-                2 => new float2(1f, 1f),
-                3 => new float2(0f, 1f),
-                _ => float2.zero,
-            };
+                case 0:
+                    return new float2(0f, 0f);
+                case 1:
+                    return new float2(1f, 0f);
+                case 2:
+                    return new float2(1f, 1f);
+                case 3:
+                    return new float2(0f, 1f);
+                default:
+                    return float2.zero;
+            }
         }
 
         private static float2 GetItemQuadUV(int vertexIndex)
         {
-            return vertexIndex switch
+            switch (vertexIndex)
             {
-                0 => new float2(0f, 1f),
-                1 => new float2(1f, 1f),
-                2 => new float2(1f, 0f),
-                3 => new float2(0f, 0f),
-                _ => float2.zero,
-            };
+                case 0:
+                    return new float2(0f, 1f);
+                case 1:
+                    return new float2(1f, 1f);
+                case 2:
+                    return new float2(1f, 0f);
+                case 3:
+                    return new float2(0f, 0f);
+                default:
+                    return float2.zero;
+            }
         }
 
         /// <summary>
-        /// Finds a StateRegistryEntry by block ResourceId. O(n) scan, called infrequently.
+        ///     Finds a StateRegistryEntry by block ResourceId. O(n) scan, called infrequently.
         /// </summary>
         private static StateRegistryEntry FindEntryByBlockId(
             IReadOnlyList<StateRegistryEntry> entries, ResourceId blockId)

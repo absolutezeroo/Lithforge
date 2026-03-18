@@ -3,9 +3,9 @@ using System.Collections.Generic;
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Maps sound group names (e.g. "stone", "wood") to their
-    /// <see cref="SoundGroupDefinition"/> ScriptableObjects.
-    /// Built once during ContentPipeline Phase 17.
+    ///     Maps sound group names (e.g. "stone", "wood") to their
+    ///     <see cref="SoundGroupDefinition" /> ScriptableObjects.
+    ///     Built once during ContentPipeline Phase 17.
     /// </summary>
     public sealed class SoundGroupRegistry
     {
@@ -13,8 +13,13 @@ namespace Lithforge.Runtime.Audio
 
         private readonly HashSet<string> _warnedGroups = new();
 
+        public int Count
+        {
+            get { return _groups.Count; }
+        }
+
         /// <summary>
-        /// Registers a sound group definition. Duplicate names overwrite silently.
+        ///     Registers a sound group definition. Duplicate names overwrite silently.
         /// </summary>
         public void Register(string groupName, SoundGroupDefinition definition)
         {
@@ -22,8 +27,8 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Looks up the definition for a sound group name.
-        /// Returns null if the group is not registered (caller should handle gracefully).
+        ///     Looks up the definition for a sound group name.
+        ///     Returns null if the group is not registered (caller should handle gracefully).
         /// </summary>
         public SoundGroupDefinition Get(string groupName)
         {
@@ -44,11 +49,6 @@ namespace Lithforge.Runtime.Audio
             }
 
             return null;
-        }
-
-        public int Count
-        {
-            get { return _groups.Count; }
         }
     }
 }

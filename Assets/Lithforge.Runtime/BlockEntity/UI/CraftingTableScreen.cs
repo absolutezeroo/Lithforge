@@ -1,32 +1,79 @@
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Item.Crafting;
-using Lithforge.Item;
+using Lithforge.Voxel.Crafting;
+using Lithforge.Voxel.Item;
+
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    /// Screen for the crafting table block entity. Shows a 3x3 crafting grid,
-    /// output slot, player inventory and hotbar. Escape key closes.
-    /// The grid is local to the screen — no persistent state on the entity.
+    ///     Screen for the crafting table block entity. Shows a 3x3 crafting grid,
+    ///     output slot, player inventory and hotbar. Escape key closes.
+    ///     The grid is local to the screen — no persistent state on the entity.
     /// </summary>
     public sealed class CraftingTableScreen : ContainerScreen
     {
-        private CraftingGrid _craftingGrid;
-
-        private CraftingGridContainerAdapter _craftAdapter;
-        private CraftingOutputContainerAdapter _outputAdapter;
-        private InventoryContainerAdapter _hotbarAdapter;
-        private InventoryContainerAdapter _mainAdapter;
-
         private static readonly Key[] s_numberKeys =
         {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
         };
+
+        private CraftingGridContainerAdapter _craftAdapter;
+        private CraftingGrid _craftingGrid;
+
+        private InventoryContainerAdapter _hotbarAdapter;
+
+        private InventoryContainerAdapter _mainAdapter;
+
+        private CraftingOutputContainerAdapter _outputAdapter;
+
+        private void Update()
+        {
+            if (Context == null)
+            {
+                return;
+            }
+
+            if (IsOpen && Keyboard.current != null &&
+                (Keyboard.current.escapeKey.wasPressedThisFrame ||
+                 Keyboard.current.eKey.wasPressedThisFrame))
+            {
+                Close();
+                return;
+            }
+
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            if (IsInGracePeriod())
+            {
+                RefreshAllSlots();
+                return;
+            }
+
+            if (Keyboard.current != null)
+            {
+                HandleNumberKeys(Keyboard.current);
+            }
+
+            RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
+        }
 
         public void Initialize(ScreenContext context)
         {
@@ -95,8 +142,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 if (evt.button == 0)
                 {
                     bool isShift = Keyboard.current != null &&
-                        (Keyboard.current.leftShiftKey.isPressed ||
-                         Keyboard.current.rightShiftKey.isPressed);
+                                   (Keyboard.current.leftShiftKey.isPressed ||
+                                    Keyboard.current.rightShiftKey.isPressed);
 
                     if (isShift)
                     {
@@ -109,6 +156,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 evt.StopPropagation();
+
                 return;
             }
 
@@ -129,6 +177,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 evt.StopPropagation();
+
                 return;
             }
 
@@ -192,41 +241,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
-        private void Update()
-        {
-            if (Context == null)
-            {
-                return;
-            }
-
-            if (IsOpen && Keyboard.current != null &&
-                (Keyboard.current.escapeKey.wasPressedThisFrame ||
-                 Keyboard.current.eKey.wasPressedThisFrame))
-            {
-                Close();
-                return;
-            }
-
-            if (!IsOpen)
-            {
-                return;
-            }
-
-            if (IsInGracePeriod())
-            {
-                RefreshAllSlots();
-                return;
-            }
-
-            if (Keyboard.current != null)
-            {
-                HandleNumberKeys(Keyboard.current);
-            }
-
-            RefreshAllSlots();
-            UpdateTooltipKeyRefresh();
-        }
-
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;
@@ -245,6 +259,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 Interaction.NumberKeySwap(hoveredContainer, hoveredIndex, _hotbarAdapter, i);
+
                 return;
             }
         }

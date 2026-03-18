@@ -1,5 +1,5 @@
-using Lithforge.Network;
 using Lithforge.Network.Connection;
+
 using NUnit.Framework;
 
 namespace Lithforge.Network.Tests

@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 namespace Lithforge.Core.Data
 {
     /// <summary>
-    /// Immutable "namespace:path" identifier for all registered content.
-    /// Format: lowercase alphanumeric with underscores and forward slashes.
-    /// Example: "lithforge:stone", "lithforge:oak_log"
+    ///     Immutable "namespace:path" identifier for all registered content.
+    ///     Format: lowercase alphanumeric with underscores and forward slashes.
+    ///     Example: "lithforge:stone", "lithforge:oak_log"
     /// </summary>
     public readonly struct ResourceId : IEquatable<ResourceId>
     {
@@ -19,7 +19,7 @@ namespace Lithforge.Core.Data
         public string Name { get; }
 
         /// <summary>
-        /// Creates a new identifier from explicit namespace and name parts.
+        ///     Creates a new identifier from explicit namespace and name parts.
         /// </summary>
         /// <param name="ns">Content namespace (lowercase alphanumeric + underscores).</param>
         /// <param name="name">Content name within the namespace.</param>
@@ -40,7 +40,7 @@ namespace Lithforge.Core.Data
         }
 
         /// <summary>
-        /// Parses a "namespace:name" string into a ResourceId.
+        ///     Parses a "namespace:name" string into a ResourceId.
         /// </summary>
         /// <param name="raw">The colon-delimited string to parse.</param>
         /// <returns>The parsed identifier.</returns>
@@ -91,7 +91,7 @@ namespace Lithforge.Core.Data
         public bool Equals(ResourceId other)
         {
             return string.Equals(Namespace, other.Namespace, StringComparison.Ordinal)
-                && string.Equals(Name, other.Name, StringComparison.Ordinal);
+                   && string.Equals(Name, other.Name, StringComparison.Ordinal);
         }
 
         public override bool Equals(object obj)

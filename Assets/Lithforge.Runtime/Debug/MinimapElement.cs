@@ -1,21 +1,20 @@
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Debug
 {
     /// <summary>
-    /// UI Toolkit element that paints a chunk state minimap using Painter2D.
-    /// Each cell is a colored quad representing a chunk's state in the XZ plane
-    /// at the camera's Y level. Camera chunk is marked white.
+    ///     UI Toolkit element that paints a chunk state minimap using Painter2D.
+    ///     Each cell is a colored quad representing a chunk's state in the XZ plane
+    ///     at the camera's Y level. Camera chunk is marked white.
     /// </summary>
     public sealed class MinimapElement : VisualElement
     {
-        private ChunkManager _chunkManager;
-        private Camera _mainCamera;
-
-        private static readonly Color[] s_stateColors = new Color[]
+        private static readonly Color[] s_stateColors =
         {
             new(0.08f, 0.08f, 0.08f, 1f), // Unloaded
             new(0.31f, 0.31f, 0.31f, 1f), // Loading
@@ -26,6 +25,8 @@ namespace Lithforge.Runtime.Debug
             new(0.78f, 0.78f, 0f, 1f),    // Meshing
             new(0f, 0.71f, 0f, 1f),       // Ready
         };
+        private ChunkManager _chunkManager;
+        private Camera _mainCamera;
 
         public MinimapElement()
         {

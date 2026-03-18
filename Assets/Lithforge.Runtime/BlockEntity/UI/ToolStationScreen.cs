@@ -1,13 +1,15 @@
 using System;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
-using Lithforge.Item.Crafting;
-using Lithforge.Item;
+using Lithforge.Voxel.Crafting;
+using Lithforge.Voxel.Item;
 
 using UnityEngine;
 using UnityEngine.InputSystem;

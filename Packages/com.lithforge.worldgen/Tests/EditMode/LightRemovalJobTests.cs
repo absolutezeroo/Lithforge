@@ -2,34 +2,38 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Tests
 {
     [TestFixture]
     public sealed class LightRemovalJobTests
     {
-        private NativeArray<StateId> _chunkData;
-        private NativeArray<BlockStateCompact> _stateTable;
-        private NativeArray<byte> _lightData;
-        private NativeArray<int> _heightMap;
-
         [SetUp]
         public void SetUp()
         {
             _chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             _lightData = new NativeArray<byte>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             _heightMap = new NativeArray<int>(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
 
             // State 0 = air (transparent), State 1 = stone (opaque)
             _stateTable = new NativeArray<BlockStateCompact>(2, Allocator.TempJob);
-            _stateTable[0] = new BlockStateCompact { Flags = 0 }; // air: transparent
-            _stateTable[1] = new BlockStateCompact { Flags = BlockStateCompact.FlagOpaque }; // stone: opaque
+            _stateTable[0] = new BlockStateCompact
+            {
+                Flags = 0,
+            }; // air: transparent
+            _stateTable[1] = new BlockStateCompact
+            {
+                Flags = BlockStateCompact.FlagOpaque,
+            }; // stone: opaque
         }
 
         [TearDown]
@@ -55,6 +59,10 @@ namespace Lithforge.WorldGen.Tests
                 _heightMap.Dispose();
             }
         }
+        private NativeArray<StateId> _chunkData;
+        private NativeArray<BlockStateCompact> _stateTable;
+        private NativeArray<byte> _lightData;
+        private NativeArray<int> _heightMap;
 
         [Test]
         public void PlaceOpaqueBlock_ZeroesSunlightAtPosition()
@@ -278,9 +286,7 @@ namespace Lithforge.WorldGen.Tests
 
             NativeBorderLightEntry seed = new()
             {
-                LocalPosition = new Unity.Mathematics.int3(0, 5, 5),
-                PackedLight = LightUtils.Pack(15, 0),
-                Face = 1, // -X face
+                LocalPosition = new int3(0, 5, 5), PackedLight = LightUtils.Pack(15, 0), Face = 1, // -X face
             };
 
             NativeArray<NativeBorderLightEntry> borderSeeds = new(1, Allocator.TempJob);

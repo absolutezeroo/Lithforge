@@ -2,18 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+
 using K4os.Compression.LZ4;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 
 namespace Lithforge.Voxel.Storage
 {
     public static class ChunkSerializer
     {
-        private static readonly byte[] s_magic = { (byte)'L', (byte)'F', (byte)'C', (byte)'H' };
         private const byte Version = 3;
+        private static readonly byte[] s_magic =
+        {
+            (byte)'L',
+            (byte)'F',
+            (byte)'C',
+            (byte)'H',
+        };
 
         [ThreadStatic] private static byte[] s_voxelBuffer;
         [ThreadStatic] private static byte[] s_lightBuffer;
@@ -74,7 +83,7 @@ namespace Lithforge.Voxel.Storage
                 s_voxelBuffer[i * 2 + 1] = (byte)(idx >> 8);
             }
 
-            byte[] voxelCompressed = LZ4Pickler.Pickle(s_voxelBuffer, LZ4Level.L00_FAST);
+            byte[] voxelCompressed = LZ4Pickler.Pickle(s_voxelBuffer);
             writer.Write(voxelCompressed.Length);
             writer.Write(voxelCompressed);
 
@@ -88,7 +97,7 @@ namespace Lithforge.Voxel.Storage
 
                 lightData.CopyTo(s_lightBuffer);
 
-                byte[] lightCompressed = LZ4Pickler.Pickle(s_lightBuffer, LZ4Level.L00_FAST);
+                byte[] lightCompressed = LZ4Pickler.Pickle(s_lightBuffer);
                 writer.Write(lightCompressed.Length);
                 writer.Write(lightCompressed);
             }
@@ -114,8 +123,8 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        /// Serializes chunk data from raw byte[] snapshots (used by AsyncChunkSaver worker thread).
-        /// voxelSnapshot contains StateId values as little-endian ushorts (2 bytes each).
+        ///     Serializes chunk data from raw byte[] snapshots (used by AsyncChunkSaver worker thread).
+        ///     voxelSnapshot contains StateId values as little-endian ushorts (2 bytes each).
         /// </summary>
         public static byte[] Serialize(
             byte[] voxelSnapshot,
@@ -143,7 +152,7 @@ namespace Lithforge.Voxel.Storage
 
             for (int i = 0; i < voxelCount; i++)
             {
-                ushort val = (ushort)(voxelSnapshot[i * 2] | (voxelSnapshot[i * 2 + 1] << 8));
+                ushort val = (ushort)(voxelSnapshot[i * 2] | voxelSnapshot[i * 2 + 1] << 8);
 
                 if (!paletteMap.ContainsKey(val))
                 {
@@ -168,20 +177,20 @@ namespace Lithforge.Voxel.Storage
 
             for (int i = 0; i < voxelCount; i++)
             {
-                ushort val = (ushort)(voxelSnapshot[i * 2] | (voxelSnapshot[i * 2 + 1] << 8));
+                ushort val = (ushort)(voxelSnapshot[i * 2] | voxelSnapshot[i * 2 + 1] << 8);
                 ushort idx = paletteMap[val];
                 s_voxelBuffer[i * 2] = (byte)(idx & 0xFF);
                 s_voxelBuffer[i * 2 + 1] = (byte)(idx >> 8);
             }
 
-            byte[] voxelCompressed = LZ4Pickler.Pickle(s_voxelBuffer, LZ4Level.L00_FAST);
+            byte[] voxelCompressed = LZ4Pickler.Pickle(s_voxelBuffer);
             writer.Write(voxelCompressed.Length);
             writer.Write(voxelCompressed);
 
             // Compress light data with LZ4
             if (lightSnapshot != null && lightSnapshot.Length > 0)
             {
-                byte[] lightCompressed = LZ4Pickler.Pickle(lightSnapshot, LZ4Level.L00_FAST);
+                byte[] lightCompressed = LZ4Pickler.Pickle(lightSnapshot);
                 writer.Write(lightCompressed.Length);
                 writer.Write(lightCompressed);
             }
@@ -214,7 +223,7 @@ namespace Lithforge.Voxel.Storage
 
                 foreach (KeyValuePair<int, IBlockEntity> kvp in blockEntities)
                 {
-                    writer.Write(kvp.Key); // flat index
+                    writer.Write(kvp.Key);          // flat index
                     writer.Write(kvp.Value.TypeId); // type ID string
 
                     // Length-prefixed entity payload
@@ -256,9 +265,9 @@ namespace Lithforge.Voxel.Storage
 
             int payloadLength = data.Length - 4;
             uint storedCrc = (uint)(data[payloadLength] |
-                (data[payloadLength + 1] << 8) |
-                (data[payloadLength + 2] << 16) |
-                (data[payloadLength + 3] << 24));
+                                    data[payloadLength + 1] << 8 |
+                                    data[payloadLength + 2] << 16 |
+                                    data[payloadLength + 3] << 24);
             uint computedCrc = Crc32.Compute(data, 0, payloadLength);
 
             if (storedCrc != computedCrc)
@@ -309,7 +318,7 @@ namespace Lithforge.Voxel.Storage
 
                 for (int i = 0; i < chunkData.Length; i++)
                 {
-                    ushort paletteIdx = (ushort)(voxelRaw[i * 2] | (voxelRaw[i * 2 + 1] << 8));
+                    ushort paletteIdx = (ushort)(voxelRaw[i * 2] | voxelRaw[i * 2 + 1] << 8);
 
                     if (paletteIdx >= paletteCount)
                     {
@@ -370,7 +379,7 @@ namespace Lithforge.Voxel.Storage
                         // Skip entity data if no registry provided
                         for (int i = 0; i < entityCount; i++)
                         {
-                            reader.ReadInt32(); // flatIndex
+                            reader.ReadInt32();  // flatIndex
                             reader.ReadString(); // typeId
                             int payloadLen = reader.ReadInt32();
                             reader.ReadBytes(payloadLen);

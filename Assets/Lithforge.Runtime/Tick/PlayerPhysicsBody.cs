@@ -4,128 +4,60 @@ using Lithforge.Runtime.Input;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Tick
 {
     /// <summary>
-    /// Pure simulation body for the player: movement, gravity, collision, fly mode, swimming.
-    /// Operates entirely at fixed tick rate — no reference to Time.deltaTime.
-    ///
-    /// Position convention: PreviousPosition and CurrentPosition represent the
-    /// player's feet (bottom-center of AABB), as float3 in world space.
-    /// LateUpdate interpolation blends between them using TickAccumulator.Alpha.
+    ///     Pure simulation body for the player: movement, gravity, collision, fly mode, swimming.
+    ///     Operates entirely at fixed tick rate — no reference to Time.deltaTime.
+    ///     Position convention: PreviousPosition and CurrentPosition represent the
+    ///     player's feet (bottom-center of AABB), as float3 in world space.
+    ///     LateUpdate interpolation blends between them using TickAccumulator.Alpha.
     /// </summary>
     public sealed class PlayerPhysicsBody
     {
-        // Physics settings
-        private readonly float _walkSpeed;
-        private readonly float _sprintSpeed;
+        // Fly mode constants
+        private const float MinFlySpeed = 1f;
+        private const float MaxFlySpeed = 150f;
+        private const float FlySpeedScrollFactor = 1.2f;
+
+        // World access
+        private readonly ChunkManager _chunkManager;
         private readonly float _gravity;
-        private readonly float _maxFallSpeed;
         private readonly float _jumpSpeed;
+        private readonly float _maxFallSpeed;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+        private readonly float _playerEyeHeight;
         private readonly float _playerHalfWidth;
         private readonly float _playerHeight;
-        private readonly float _playerEyeHeight;
+        private readonly float _sprintSpeed;
 
         // Swim settings
         private readonly float _swimAcceleration;
         private readonly float _swimDrag;
         private readonly float _swimGravity;
         private readonly float _swimUpSpeed;
+        // Physics settings
+        private readonly float _walkSpeed;
+        private float3 _currentPosition;
 
-        // World access
-        private readonly ChunkManager _chunkManager;
-        private readonly NativeStateRegistry _nativeStateRegistry;
+        // Fly mode state
+        private float _horizontalSpeedX;
+        private float _horizontalSpeedZ;
 
-        // Fly mode constants
-        private const float MinFlySpeed = 1f;
-        private const float MaxFlySpeed = 150f;
-        private const float FlySpeedScrollFactor = 1.2f;
+        // Swim state
+        private float _pitch;
 
         // Interpolation positions — read by GameLoop.LateUpdate()
-        private float3 _previousPosition;
-        private float3 _currentPosition;
+
+        // Spawn guard
 
         // Physics state
         private float _verticalSpeed;
-        private float _horizontalSpeedX;
-        private float _horizontalSpeedZ;
-        private float _yaw;
-        private float _pitch;
-        private bool _onGround;
-        private bool _isSprinting;
-
-        // Swim state
-        private bool _inWater;
-        private bool _submerged;
         private bool _wasInWater;
-
-        // Fly mode state
-        private bool _flyMode;
-        private bool _noclip;
-        private float _flySpeed = 10f;
-
-        // Spawn guard
-        private bool _spawnReady;
-
-        public float3 PreviousPosition
-        {
-            get { return _previousPosition; }
-        }
-
-        public float3 CurrentPosition
-        {
-            get { return _currentPosition; }
-        }
-
-        public bool OnGround
-        {
-            get { return _onGround; }
-        }
-
-        public bool IsFlying
-        {
-            get { return _flyMode; }
-        }
-
-        public bool IsNoclip
-        {
-            get { return _noclip; }
-        }
-
-        public bool IsSprinting
-        {
-            get { return _isSprinting; }
-        }
-
-        public bool IsInWater
-        {
-            get { return _inWater; }
-        }
-
-        public bool IsSubmerged
-        {
-            get { return _submerged; }
-        }
-
-        public float FlySpeed
-        {
-            get { return _flySpeed; }
-        }
-
-        public bool SpawnReady
-        {
-            get { return _spawnReady; }
-            set { _spawnReady = value; }
-        }
-
-        /// <summary>
-        /// When true, tick methods are skipped and GameLoop does not interpolate position.
-        /// Used by BenchmarkRunner to control the player transform directly at frame rate.
-        /// Call Teleport() after clearing this to sync position back to the physics body.
-        /// </summary>
-        public bool ExternallyControlled { get; set; }
+        private float _yaw;
 
         public PlayerPhysicsBody(
             float3 startPosition,
@@ -134,7 +66,7 @@ namespace Lithforge.Runtime.Tick
             PhysicsSettings physics)
         {
             _currentPosition = startPosition;
-            _previousPosition = startPosition;
+            PreviousPosition = startPosition;
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _walkSpeed = physics.WalkSpeed;
@@ -151,37 +83,67 @@ namespace Lithforge.Runtime.Tick
             _swimUpSpeed = physics.SwimUpSpeed;
         }
 
+        public float3 PreviousPosition { get; private set; }
+
+        public float3 CurrentPosition
+        {
+            get { return _currentPosition; }
+        }
+
+        public bool OnGround { get; private set; }
+
+        public bool IsFlying { get; private set; }
+
+        public bool IsNoclip { get; private set; }
+
+        public bool IsSprinting { get; private set; }
+
+        public bool IsInWater { get; private set; }
+
+        public bool IsSubmerged { get; private set; }
+
+        public float FlySpeed { get; private set; } = 10f;
+
+        public bool SpawnReady { get; set; }
+
         /// <summary>
-        /// Programmatic fly mode setter, used by BenchmarkRunner.
+        ///     When true, tick methods are skipped and GameLoop does not interpolate position.
+        ///     Used by BenchmarkRunner to control the player transform directly at frame rate.
+        ///     Call Teleport() after clearing this to sync position back to the physics body.
+        /// </summary>
+        public bool ExternallyControlled { get; set; }
+
+        /// <summary>
+        ///     Programmatic fly mode setter, used by BenchmarkRunner.
         /// </summary>
         public void SetFlyMode(bool fly, bool noclip, float speed)
         {
-            _flyMode = fly;
-            _noclip = fly && noclip;
-            _flySpeed = math.clamp(speed, MinFlySpeed, MaxFlySpeed);
+            IsFlying = fly;
+            IsNoclip = fly && noclip;
+            FlySpeed = math.clamp(speed, MinFlySpeed, MaxFlySpeed);
             _verticalSpeed = 0f;
 
             if (fly)
             {
-                _onGround = false;
+                OnGround = false;
             }
         }
 
         /// <summary>
-        /// Sets the current position directly, used during teleport (spawn, benchmark).
-        /// Also sets previous position to avoid interpolation jump.
+        ///     Sets the current position directly, used during teleport (spawn, benchmark).
+        ///     Also sets previous position to avoid interpolation jump.
         /// </summary>
         public void Teleport(float3 position)
         {
             _currentPosition = position;
-            _previousPosition = position;
+            PreviousPosition = position;
             _verticalSpeed = 0f;
         }
 
         /// <summary>
-        /// Sets velocity state for server reconciliation. The velocity in PlayerPhysicsState
-        /// stores vertical speed in the Y component; horizontal speeds are derived from input
-        /// each tick so they do not need explicit restoration.
+        ///     Sets velocity state for server reconciliation. The velocity in PlayerPhysicsState
+        ///     stores vertical speed in the Y component; horizontal speeds are derived from input
+        ///     each tick so they do not need explicit restoration.
         /// </summary>
         public void SetVelocity(float3 velocity)
         {
@@ -189,20 +151,20 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Restores physics mode flags from a server-authoritative PlayerPhysicsState.
-        /// Used during prediction reconciliation to snap to the server's mode state.
-        /// Bit 0 = OnGround, Bit 1 = IsFlying, Bit 2 = IsNoclip.
+        ///     Restores physics mode flags from a server-authoritative PlayerPhysicsState.
+        ///     Used during prediction reconciliation to snap to the server's mode state.
+        ///     Bit 0 = OnGround, Bit 1 = IsFlying, Bit 2 = IsNoclip.
         /// </summary>
         public void SetFlags(byte flags)
         {
-            _onGround = (flags & 1) != 0;
-            _flyMode = (flags & 2) != 0;
-            _noclip = (flags & 4) != 0;
+            OnGround = (flags & 1) != 0;
+            IsFlying = (flags & 2) != 0;
+            IsNoclip = (flags & 4) != 0;
         }
 
         /// <summary>
-        /// Sets position without resetting previous position (unlike Teleport).
-        /// Used during reconciliation replay where interpolation continuity is managed externally.
+        ///     Sets position without resetting previous position (unlike Teleport).
+        ///     Used during reconciliation replay where interpolation continuity is managed externally.
         /// </summary>
         public void SetPosition(float3 position)
         {
@@ -210,10 +172,10 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Called once per fixed tick by GameLoop with the current input snapshot.
-        /// All input reads come from the snapshot — no direct Keyboard/Mouse access.
-        /// Forward/right vectors are computed from <see cref="InputSnapshot.Yaw"/>
-        /// using trig, removing the dependency on Transform.forward.
+        ///     Called once per fixed tick by GameLoop with the current input snapshot.
+        ///     All input reads come from the snapshot — no direct Keyboard/Mouse access.
+        ///     Forward/right vectors are computed from <see cref="InputSnapshot.Yaw" />
+        ///     using trig, removing the dependency on Transform.forward.
         /// </summary>
         public void TickWithSnapshot(float tickDt, in InputSnapshot snapshot)
         {
@@ -222,7 +184,7 @@ namespace Lithforge.Runtime.Tick
                 return;
             }
 
-            if (!_spawnReady)
+            if (!SpawnReady)
             {
                 return;
             }
@@ -234,66 +196,66 @@ namespace Lithforge.Runtime.Tick
             // Toggle fly mode (edge input from snapshot)
             if (snapshot.FlyTogglePressed)
             {
-                _flyMode = !_flyMode;
+                IsFlying = !IsFlying;
                 _verticalSpeed = 0f;
 
-                if (_flyMode)
+                if (IsFlying)
                 {
-                    _onGround = false;
+                    OnGround = false;
                 }
                 else
                 {
-                    _noclip = false;
+                    IsNoclip = false;
                 }
             }
 
             // Toggle noclip (edge input from snapshot)
-            if (snapshot.NoclipTogglePressed && _flyMode)
+            if (snapshot.NoclipTogglePressed && IsFlying)
             {
-                _noclip = !_noclip;
+                IsNoclip = !IsNoclip;
             }
 
             // Fly speed adjustment via scroll (accumulated in snapshot)
-            if (_flyMode && snapshot.ScrollDelta != 0)
+            if (IsFlying && snapshot.ScrollDelta != 0)
             {
                 if (snapshot.ScrollDelta > 0)
                 {
-                    _flySpeed = math.clamp(
-                        _flySpeed * FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
+                    FlySpeed = math.clamp(
+                        FlySpeed * FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
                 }
                 else
                 {
-                    _flySpeed = math.clamp(
-                        _flySpeed / FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
+                    FlySpeed = math.clamp(
+                        FlySpeed / FlySpeedScrollFactor, MinFlySpeed, MaxFlySpeed);
                 }
             }
 
             // Snapshot previous position for interpolation
-            _previousPosition = _currentPosition;
+            PreviousPosition = _currentPosition;
 
             // Detect water at feet and eye level
             UpdateWaterState();
 
             // Seed swim velocity when entering water so the player doesn't hit a wall
-            if (_inWater && !_wasInWater && !_flyMode)
+            if (IsInWater && !_wasInWater && !IsFlying)
             {
                 float yawRad = math.radians(snapshot.Yaw);
                 float forwardX = math.sin(yawRad);
                 float forwardZ = math.cos(yawRad);
 
-                float entrySpeed = _isSprinting ? _sprintSpeed : _walkSpeed;
+                float entrySpeed = IsSprinting ? _sprintSpeed : _walkSpeed;
 
                 _horizontalSpeedX = forwardX * entrySpeed * 0.65f;
                 _horizontalSpeedZ = forwardZ * entrySpeed * 0.65f;
             }
 
-            _wasInWater = _inWater;
+            _wasInWater = IsInWater;
 
-            if (_flyMode)
+            if (IsFlying)
             {
                 TickFlyFromSnapshot(in snapshot, tickDt);
             }
-            else if (_inWater)
+            else if (IsInWater)
             {
                 TickSwimFromSnapshot(in snapshot, tickDt);
             }
@@ -320,10 +282,10 @@ namespace Lithforge.Runtime.Tick
             }
 
             // Jump — edge input from snapshot
-            if (snapshot.JumpPressed && _onGround)
+            if (snapshot.JumpPressed && OnGround)
             {
                 _verticalSpeed = _jumpSpeed;
-                _onGround = false;
+                OnGround = false;
             }
 
             displacement.y = _verticalSpeed * dt;
@@ -338,7 +300,7 @@ namespace Lithforge.Runtime.Tick
 
             query.SolidMap.Dispose();
 
-            _onGround = result.OnGround;
+            OnGround = result.OnGround;
 
             if (result.OnGround && _verticalSpeed < 0f)
             {
@@ -354,19 +316,19 @@ namespace Lithforge.Runtime.Tick
         private void TickFlyFromSnapshot(in InputSnapshot snapshot, float dt)
         {
             float3 displacement = ComputeHorizontalFromSnapshot(
-                in snapshot, dt, _flySpeed, _flySpeed);
+                in snapshot, dt, FlySpeed, FlySpeed);
 
             if (snapshot.JumpHeld)
             {
-                displacement.y += _flySpeed * dt;
+                displacement.y += FlySpeed * dt;
             }
 
             if (snapshot.Sprint)
             {
-                displacement.y -= _flySpeed * dt;
+                displacement.y -= FlySpeed * dt;
             }
 
-            if (_noclip)
+            if (IsNoclip)
             {
                 _currentPosition += displacement;
             }
@@ -381,18 +343,18 @@ namespace Lithforge.Runtime.Tick
                     _playerHalfWidth, _playerHeight, query);
 
                 query.SolidMap.Dispose();
-                _onGround = result.OnGround;
+                OnGround = result.OnGround;
             }
         }
 
         /// <summary>
-        /// Computes horizontal movement from InputSnapshot fields and yaw.
-        /// Forward/right are derived from snapshot.Yaw using trig (no Transform read).
+        ///     Computes horizontal movement from InputSnapshot fields and yaw.
+        ///     Forward/right are derived from snapshot.Yaw using trig (no Transform read).
         /// </summary>
         private float3 ComputeHorizontalFromSnapshot(
             in InputSnapshot snapshot, float dt, float normalSpeed, float fastSpeed)
         {
-            _isSprinting = snapshot.Sprint && !_flyMode;
+            IsSprinting = snapshot.Sprint && !IsFlying;
             float speed = snapshot.Sprint ? fastSpeed : normalSpeed;
 
             // Derive forward/right from yaw (degrees) — no Transform.forward dependency
@@ -431,10 +393,10 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Checks the block at feet position and eye position for fluid.
-        /// Uses LiquidData first, falls back to BlockStateCompact.IsFluid
-        /// for chunks where LiquidData hasn't been initialized yet.
-        /// Sets _inWater (feet in water) and _submerged (eyes in water).
+        ///     Checks the block at feet position and eye position for fluid.
+        ///     Uses LiquidData first, falls back to BlockStateCompact.IsFluid
+        ///     for chunks where LiquidData hasn't been initialized yet.
+        ///     Sets _inWater (feet in water) and _submerged (eyes in water).
         /// </summary>
         private void UpdateWaterState()
         {
@@ -448,8 +410,8 @@ namespace Lithforge.Runtime.Tick
                 (int)math.floor(_currentPosition.y + _playerEyeHeight),
                 (int)math.floor(_currentPosition.z));
 
-            _inWater = IsBlockFluid(feetBlock);
-            _submerged = IsBlockFluid(eyeBlock);
+            IsInWater = IsBlockFluid(feetBlock);
+            IsSubmerged = IsBlockFluid(eyeBlock);
         }
 
         private bool IsBlockFluid(int3 worldCoord)
@@ -479,8 +441,8 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Swim physics: reduced acceleration, higher drag, lower gravity, buoyancy via jump.
-        /// Minecraft-style parameters: accel 0.02, drag 0.8, gravity 0.02 down per tick.
+        ///     Swim physics: reduced acceleration, higher drag, lower gravity, buoyancy via jump.
+        ///     Minecraft-style parameters: accel 0.02, drag 0.8, gravity 0.02 down per tick.
         /// </summary>
         private void TickSwimFromSnapshot(in InputSnapshot snapshot, float dt)
         {
@@ -550,7 +512,7 @@ namespace Lithforge.Runtime.Tick
 
             query.SolidMap.Dispose();
 
-            _onGround = result.OnGround;
+            OnGround = result.OnGround;
 
             if (result.OnGround && _verticalSpeed < 0f)
             {
@@ -562,28 +524,28 @@ namespace Lithforge.Runtime.Tick
                 _verticalSpeed = 0f;
             }
 
-            _isSprinting = snapshot.Sprint;
+            IsSprinting = snapshot.Sprint;
         }
 
         /// <summary>
-        /// Returns a blittable snapshot of the current physics state.
-        /// Used for multiplayer state synchronization and client-side prediction.
+        ///     Returns a blittable snapshot of the current physics state.
+        ///     Used for multiplayer state synchronization and client-side prediction.
         /// </summary>
         public PlayerPhysicsState GetState()
         {
             byte flags = 0;
 
-            if (_onGround)
+            if (OnGround)
             {
                 flags |= 1;
             }
 
-            if (_flyMode)
+            if (IsFlying)
             {
                 flags |= 2;
             }
 
-            if (_noclip)
+            if (IsNoclip)
             {
                 flags |= 4;
             }

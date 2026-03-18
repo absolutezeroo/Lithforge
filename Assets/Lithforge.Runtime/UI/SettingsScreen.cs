@@ -4,6 +4,7 @@ using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
+using Lithforge.Runtime.UI.Navigation;
 using Lithforge.Voxel.Chunk;
 
 using UnityEngine;
@@ -15,10 +16,9 @@ namespace Lithforge.Runtime.UI
 {
     /// <summary>
     ///     In-game settings screen built with UI Toolkit.
-    ///     Opened with Escape key (when cursor is locked) or via pause menu.
-    ///     All settings apply live as sliders are dragged.
+    ///     Opened via pause menu or main menu. All settings apply live as sliders are dragged.
     /// </summary>
-    public sealed class SettingsScreen : MonoBehaviour
+    public sealed class SettingsScreen : MonoBehaviour, IScreen
     {
         private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
         private float _ambientVolume;
@@ -57,6 +57,31 @@ namespace Lithforge.Runtime.UI
         ///     instead of re-locking the cursor directly.
         /// </summary>
         public bool OpenedFromPause { get; set; }
+
+        public string ScreenName { get { return ScreenNames.Settings; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return true; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            Open();
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // Close settings — let ScreenManager pop this screen
+            return false;
+        }
 
         public void Initialize(
             ChunkManager chunkManager,

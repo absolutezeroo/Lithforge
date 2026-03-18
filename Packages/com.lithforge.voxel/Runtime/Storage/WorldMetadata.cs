@@ -151,14 +151,12 @@ namespace Lithforge.Voxel.Storage
                 string json = File.ReadAllText(filePath);
                 JObject root = JObject.Parse(json);
 
-                WorldMetadata meta = new()
-                {
-                    Seed = root["seed"]?.Value<long>() ?? 0,
-                    DataVersion = root["data_version"]?.Value<int>() ?? root["version"]?.Value<int>() ?? 1,
-                    ContentHash = root["content_hash"]?.Value<string>() ?? "",
-                    DisplayName = root["display_name"]?.Value<string>() ?? "",
-                    GameMode = (GameMode)(root["game_mode"]?.Value<int>() ?? 0),
-                };
+                WorldMetadata meta = new();
+                meta.Seed = root["seed"]?.Value<long>() ?? 0;
+                meta.DataVersion = root["data_version"]?.Value<int>() ?? root["version"]?.Value<int>() ?? 1;
+                meta.ContentHash = root["content_hash"]?.Value<string>() ?? "";
+                meta.DisplayName = root["display_name"]?.Value<string>() ?? "";
+                meta.GameMode = (GameMode)(root["game_mode"]?.Value<int>() ?? 0);
 
                 string creationStr = root["creation_date"]?.Value<string>();
 
@@ -181,16 +179,14 @@ namespace Lithforge.Voxel.Storage
                 {
                     JObject playerObj = (JObject)playerToken;
 
-                    WorldPlayerState playerState = new()
-                    {
-                        PosX = playerObj["pos_x"]?.Value<float>() ?? 0f,
-                        PosY = playerObj["pos_y"]?.Value<float>() ?? 0f,
-                        PosZ = playerObj["pos_z"]?.Value<float>() ?? 0f,
-                        RotX = playerObj["rot_x"]?.Value<float>() ?? 0f,
-                        RotY = playerObj["rot_y"]?.Value<float>() ?? 0f,
-                        TimeOfDay = playerObj["time_of_day"]?.Value<double>() ?? 0.0,
-                        SelectedSlot = playerObj["selected_slot"]?.Value<int>() ?? 0,
-                    };
+                    WorldPlayerState playerState = new();
+                    playerState.PosX = playerObj["pos_x"]?.Value<float>() ?? 0f;
+                    playerState.PosY = playerObj["pos_y"]?.Value<float>() ?? 0f;
+                    playerState.PosZ = playerObj["pos_z"]?.Value<float>() ?? 0f;
+                    playerState.RotX = playerObj["rot_x"]?.Value<float>() ?? 0f;
+                    playerState.RotY = playerObj["rot_y"]?.Value<float>() ?? 0f;
+                    playerState.TimeOfDay = playerObj["time_of_day"]?.Value<double>() ?? 0.0;
+                    playerState.SelectedSlot = playerObj["selected_slot"]?.Value<int>() ?? 0;
 
                     JArray slotsArray = playerObj["slots"] as JArray;
 
@@ -204,14 +200,12 @@ namespace Lithforge.Voxel.Storage
 
                             if (slotObj != null)
                             {
-                                SavedItemStack saved = new()
-                                {
-                                    Slot = slotObj["slot"]?.Value<int>() ?? 0,
-                                    Ns = slotObj["ns"]?.Value<string>() ?? "",
-                                    Name = slotObj["name"]?.Value<string>() ?? "",
-                                    Count = slotObj["count"]?.Value<int>() ?? 0,
-                                    Durability = slotObj["durability"]?.Value<int>() ?? -1,
-                                };
+                                SavedItemStack saved = new();
+                                saved.Slot = slotObj["slot"]?.Value<int>() ?? 0;
+                                saved.Ns = slotObj["ns"]?.Value<string>() ?? "";
+                                saved.Name = slotObj["name"]?.Value<string>() ?? "";
+                                saved.Count = slotObj["count"]?.Value<int>() ?? 0;
+                                saved.Durability = slotObj["durability"]?.Value<int>() ?? -1;
 
                                 // New format: components array
                                 JArray compsArray = slotObj["components"] as JArray;

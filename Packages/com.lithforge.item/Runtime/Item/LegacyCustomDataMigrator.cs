@@ -1,14 +1,16 @@
+using Lithforge.Voxel.Item;
+
 namespace Lithforge.Item
 {
     /// <summary>
-    /// Migrates legacy byte[] CustomData to typed DataComponentMap.
-    /// Tries ToolInstance deserializer first, then ToolPartData.
+    ///     Migrates legacy byte[] CustomData to typed DataComponentMap.
+    ///     Tries ToolInstance deserializer first, then ToolPartData.
     /// </summary>
     public static class LegacyCustomDataMigrator
     {
         /// <summary>
-        /// Attempts to migrate raw CustomData bytes into a DataComponentMap
-        /// by trying known serializers. Returns null if migration fails.
+        ///     Attempts to migrate raw CustomData bytes into a DataComponentMap
+        ///     by trying known serializers. Returns null if migration fails.
         /// </summary>
         public static DataComponentMap Migrate(byte[] customData)
         {

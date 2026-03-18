@@ -1,15 +1,17 @@
+using System;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Core.Validation
 {
     /// <summary>
-    /// Validates content definitions against expected rules.
-    /// Collects all errors and warnings into a ValidationResult.
+    ///     Validates content definitions against expected rules.
+    ///     Collects all errors and warnings into a ValidationResult.
     /// </summary>
     public sealed class ContentValidator
     {
         /// <summary>
-        /// Validates a ResourceId string format.
+        ///     Validates a ResourceId string format.
         /// </summary>
         public ValidationResult ValidateResourceId(string raw)
         {
@@ -32,7 +34,7 @@ namespace Lithforge.Core.Validation
         }
 
         /// <summary>
-        /// Validates that a required field is present and non-null.
+        ///     Validates that a required field is present and non-null.
         /// </summary>
         public void ValidateRequiredField(ValidationResult result, string fieldName, object value, string context)
         {
@@ -43,7 +45,7 @@ namespace Lithforge.Core.Validation
         }
 
         /// <summary>
-        /// Validates that a numeric value is within a given range.
+        ///     Validates that a numeric value is within a given range.
         /// </summary>
         public void ValidateRange(
             ValidationResult result,
@@ -61,7 +63,7 @@ namespace Lithforge.Core.Validation
         }
 
         /// <summary>
-        /// Validates that an enum-like string field has an allowed value.
+        ///     Validates that an enum-like string field has an allowed value.
         /// </summary>
         public void ValidateEnumField(
             ValidationResult result,
@@ -79,7 +81,7 @@ namespace Lithforge.Core.Validation
 
             for (int i = 0; i < allowedValues.Length; i++)
             {
-                if (string.Equals(value, allowedValues[i], System.StringComparison.Ordinal))
+                if (string.Equals(value, allowedValues[i], StringComparison.Ordinal))
                 {
                     found = true;
 

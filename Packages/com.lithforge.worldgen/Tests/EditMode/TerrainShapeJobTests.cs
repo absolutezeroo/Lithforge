@@ -4,7 +4,9 @@ using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -14,11 +16,6 @@ namespace Lithforge.WorldGen.Tests
     [TestFixture]
     public sealed class TerrainShapeJobTests
     {
-        private StateId _stoneId;
-        private StateId _waterId;
-        private StateId _airId;
-        private NativeNoiseConfig _flatTerrainNoise;
-
         [SetUp]
         public void SetUp()
         {
@@ -35,6 +32,10 @@ namespace Lithforge.WorldGen.Tests
                 SeedOffset = 0,
             };
         }
+        private StateId _stoneId;
+        private StateId _waterId;
+        private StateId _airId;
+        private NativeNoiseConfig _flatTerrainNoise;
 
         private NativeArray<ClimateData> CreateUniformClimateMap(
             float temperature, float humidity, float continentalness, float erosion)
@@ -44,10 +45,7 @@ namespace Lithforge.WorldGen.Tests
 
             ClimateData uniform = new()
             {
-                Temperature = temperature,
-                Humidity = humidity,
-                Continentalness = continentalness,
-                Erosion = erosion,
+                Temperature = temperature, Humidity = humidity, Continentalness = continentalness, Erosion = erosion,
             };
 
             for (int i = 0; i < ChunkConstants.SizeSquared; i++)
@@ -86,11 +84,11 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_FlatConfig_StoneBelow_AirAbove()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<int> heightMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
             NativeArray<byte> biomeMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<ClimateData> climateMap = CreateUniformClimateMap(0.5f, 0.5f, 0.5f, 0.5f);
             NativeArray<NativeBiomeData> biomeData = CreateSingleBiome(0.0f, 0.0f);
 
@@ -148,11 +146,11 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_HeightMapPopulated()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<int> heightMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<byte> biomeMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
             NativeArray<ClimateData> climateMap = CreateUniformClimateMap(0.5f, 0.5f, 0.5f, 0.5f);
             NativeArray<NativeBiomeData> biomeData = CreateSingleBiome(0.0f, 0.0f);
 
@@ -196,11 +194,11 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_BiomeBlending_DominantBiomeSelected()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<int> heightMap = new(
                 ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
             NativeArray<byte> biomeMap = new(
-                ChunkConstants.SizeSquared, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.TempJob);
 
             // Climate at (0.8, 0.1, 0.5, 0.5) — hot, dry — should select desert (biome 2)
             NativeArray<ClimateData> climateMap = CreateUniformClimateMap(0.8f, 0.1f, 0.5f, 0.5f);
@@ -214,11 +212,16 @@ namespace Lithforge.WorldGen.Tests
                 biomeData[0] = new NativeBiomeData
                 {
                     BiomeId = 0,
-                    TemperatureCenter = 0.5f, HumidityCenter = 0.5f,
-                    ContinentalnessCenter = 0.5f, ErosionCenter = 0.5f,
-                    BaseHeight = 4.0f, HeightAmplitude = 0.0f,
-                    TopBlock = new StateId(3), FillerBlock = new StateId(4),
-                    StoneBlock = _stoneId, UnderwaterBlock = new StateId(4),
+                    TemperatureCenter = 0.5f,
+                    HumidityCenter = 0.5f,
+                    ContinentalnessCenter = 0.5f,
+                    ErosionCenter = 0.5f,
+                    BaseHeight = 4.0f,
+                    HeightAmplitude = 0.0f,
+                    TopBlock = new StateId(3),
+                    FillerBlock = new StateId(4),
+                    StoneBlock = _stoneId,
+                    UnderwaterBlock = new StateId(4),
                     FillerDepth = 3,
                 };
 
@@ -226,11 +229,16 @@ namespace Lithforge.WorldGen.Tests
                 biomeData[1] = new NativeBiomeData
                 {
                     BiomeId = 1,
-                    TemperatureCenter = 0.5f, HumidityCenter = 0.75f,
-                    ContinentalnessCenter = 0.5f, ErosionCenter = 0.5f,
-                    BaseHeight = 6.0f, HeightAmplitude = 0.0f,
-                    TopBlock = new StateId(3), FillerBlock = new StateId(4),
-                    StoneBlock = _stoneId, UnderwaterBlock = new StateId(4),
+                    TemperatureCenter = 0.5f,
+                    HumidityCenter = 0.75f,
+                    ContinentalnessCenter = 0.5f,
+                    ErosionCenter = 0.5f,
+                    BaseHeight = 6.0f,
+                    HeightAmplitude = 0.0f,
+                    TopBlock = new StateId(3),
+                    FillerBlock = new StateId(4),
+                    StoneBlock = _stoneId,
+                    UnderwaterBlock = new StateId(4),
                     FillerDepth = 3,
                 };
 
@@ -238,11 +246,16 @@ namespace Lithforge.WorldGen.Tests
                 biomeData[2] = new NativeBiomeData
                 {
                     BiomeId = 2,
-                    TemperatureCenter = 0.85f, HumidityCenter = 0.15f,
-                    ContinentalnessCenter = 0.5f, ErosionCenter = 0.5f,
-                    BaseHeight = 0.0f, HeightAmplitude = 0.0f,
-                    TopBlock = new StateId(5), FillerBlock = new StateId(7),
-                    StoneBlock = _stoneId, UnderwaterBlock = new StateId(5),
+                    TemperatureCenter = 0.85f,
+                    HumidityCenter = 0.15f,
+                    ContinentalnessCenter = 0.5f,
+                    ErosionCenter = 0.5f,
+                    BaseHeight = 0.0f,
+                    HeightAmplitude = 0.0f,
+                    TopBlock = new StateId(5),
+                    FillerBlock = new StateId(7),
+                    StoneBlock = _stoneId,
+                    UnderwaterBlock = new StateId(5),
                     FillerDepth = 4,
                 };
 

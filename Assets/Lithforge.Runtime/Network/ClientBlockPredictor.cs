@@ -42,7 +42,7 @@ namespace Lithforge.Runtime.Network
         ///     Sends a StartDigging notification to the server. This must be called
         ///     when the player begins mining a block so the server can track timing
         ///     for break speed validation. No local prediction is needed — the actual
-        ///     break is predicted when mining completes via <see cref="PredictBreak"/>.
+        ///     break is predicted when mining completes via <see cref="PredictBreak" />.
         /// </summary>
         public void SendStartDigging(int3 position)
         {
@@ -50,10 +50,7 @@ namespace Lithforge.Runtime.Network
 
             StartDiggingCmdMessage msg = new()
             {
-                SequenceId = seqId,
-                PositionX = position.x,
-                PositionY = position.y,
-                PositionZ = position.z,
+                SequenceId = seqId, PositionX = position.x, PositionY = position.y, PositionZ = position.z,
             };
 
             _networkClient.Send(msg, PipelineId.ReliableSequenced);

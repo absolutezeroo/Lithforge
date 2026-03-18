@@ -2,10 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+
 using Lithforge.Core.Logging;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.BlockEntity;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Collections;
 using Unity.Mathematics;
 
@@ -13,28 +15,20 @@ namespace Lithforge.Voxel.Storage
 {
     public sealed class AsyncChunkSaver : IDisposable
     {
-        private struct SaveRequest
-        {
-            public int3 Coord;
-            public byte[] VoxelSnapshot;
-            public byte[] LightSnapshot;
-            public Dictionary<int, IBlockEntity> BlockEntities;
-        }
-
-        private readonly ConcurrentQueue<SaveRequest> _queue = new();
-        private readonly WorldStorage _worldStorage;
-        private readonly Thread _workerThread;
-        private readonly ManualResetEventSlim _workAvailable = new(false);
-        private readonly ILogger _logger;
-        private volatile bool _shutdownRequested;
-        private bool _disposed;
-        private int _pendingCount;
-
-        private readonly ConcurrentBag<byte[]> _voxelBufferPool = new();
-        private readonly ConcurrentBag<byte[]> _lightBufferPool = new();
-
         private static readonly int s_voxelBufferSize = ChunkConstants.Volume * 2;
         private static readonly int s_lightBufferSize = ChunkConstants.Volume;
+        private readonly ConcurrentBag<byte[]> _lightBufferPool = new();
+        private readonly ILogger _logger;
+
+        private readonly ConcurrentQueue<SaveRequest> _queue = new();
+
+        private readonly ConcurrentBag<byte[]> _voxelBufferPool = new();
+        private readonly ManualResetEventSlim _workAvailable = new(false);
+        private readonly Thread _workerThread;
+        private readonly WorldStorage _worldStorage;
+        private bool _disposed;
+        private int _pendingCount;
+        private volatile bool _shutdownRequested;
 
         public AsyncChunkSaver(WorldStorage worldStorage, ILogger logger = null)
         {
@@ -42,15 +36,28 @@ namespace Lithforge.Voxel.Storage
             _logger = logger;
             _workerThread = new Thread(WorkerLoop)
             {
-                Name = "ChunkSaver",
-                IsBackground = true,
+                Name = "ChunkSaver", IsBackground = true,
             };
             _workerThread.Start();
         }
 
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _shutdownRequested = true;
+            _workAvailable.Set();
+            _workerThread.Join();
+            _workAvailable.Dispose();
+        }
+
         /// <summary>
-        /// Copies chunk data to pooled byte[] buffers and enqueues a save request.
-        /// Must be called BEFORE the NativeArrays are disposed.
+        ///     Copies chunk data to pooled byte[] buffers and enqueues a save request.
+        ///     Must be called BEFORE the NativeArrays are disposed.
         /// </summary>
         public void EnqueueSave(
             int3 coord,
@@ -88,18 +95,15 @@ namespace Lithforge.Voxel.Storage
 
             _queue.Enqueue(new SaveRequest
             {
-                Coord = coord,
-                VoxelSnapshot = voxelSnapshot,
-                LightSnapshot = lightSnapshot,
-                BlockEntities = entitiesCopy,
+                Coord = coord, VoxelSnapshot = voxelSnapshot, LightSnapshot = lightSnapshot, BlockEntities = entitiesCopy,
             });
 
             _workAvailable.Set();
         }
 
         /// <summary>
-        /// Blocks until all enqueued save requests have been processed.
-        /// Called before FlushAll to ensure region caches are up to date.
+        ///     Blocks until all enqueued save requests have been processed.
+        ///     Called before FlushAll to ensure region caches are up to date.
         /// </summary>
         public void Flush()
         {
@@ -108,20 +112,6 @@ namespace Lithforge.Voxel.Storage
                 _workAvailable.Set();
                 Thread.Sleep(1);
             }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            _shutdownRequested = true;
-            _workAvailable.Set();
-            _workerThread.Join();
-            _workAvailable.Dispose();
         }
 
         private void WorkerLoop()
@@ -199,6 +189,14 @@ namespace Lithforge.Voxel.Storage
         private void ReturnLightBuffer(byte[] buffer)
         {
             _lightBufferPool.Add(buffer);
+        }
+
+        private struct SaveRequest
+        {
+            public int3 Coord;
+            public byte[] VoxelSnapshot;
+            public byte[] LightSnapshot;
+            public Dictionary<int, IBlockEntity> BlockEntities;
         }
     }
 }

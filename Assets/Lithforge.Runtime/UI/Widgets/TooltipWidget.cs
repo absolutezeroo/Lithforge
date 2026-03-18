@@ -3,6 +3,7 @@ using System.Text;
 
 using Lithforge.Core.Data;
 using Lithforge.Item;
+using Lithforge.Voxel.Item;
 
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -20,13 +21,13 @@ namespace Lithforge.Runtime.UI.Widgets
         private readonly Label _hintLabel;
         private readonly Label _materialBreakdownLabel;
         private readonly Label _nameLabel;
-        private readonly Label _statsLabel;
-        private readonly Label _traitsLabel;
-        private readonly Label _typeLabel;
+        private readonly StringBuilder _sb = new(256);
 
         // Reusable collections to avoid per-frame allocation
         private readonly HashSet<string> _seenTraits = new();
-        private readonly StringBuilder _sb = new(256);
+        private readonly Label _statsLabel;
+        private readonly Label _traitsLabel;
+        private readonly Label _typeLabel;
 
         public TooltipWidget()
         {
@@ -129,7 +130,7 @@ namespace Lithforge.Runtime.UI.Widgets
                     matName = FormatFullName(tool.Parts[0].MaterialId.Name) + " ";
                 }
 
-                _nameLabel.text = matName + tool.ToolType.ToString();
+                _nameLabel.text = matName + tool.ToolType;
             }
             else if (isToolPart)
             {
@@ -331,7 +332,7 @@ namespace Lithforge.Runtime.UI.Widgets
             else if (tool.MaxDurability > 0)
             {
                 _sb.Append("Durability: ").Append(tool.CurrentDurability)
-                    .Append(" / ").Append(tool.MaxDurability).Append('\n');
+                   .Append(" / ").Append(tool.MaxDurability).Append('\n');
             }
 
             if (tool.BaseDamage > 0)
@@ -479,7 +480,7 @@ namespace Lithforge.Runtime.UI.Widgets
             if (partData.PartType == ToolPartType.RepairKit)
             {
                 _sb.Append("Repairs: ").Append(FormatFullName(partData.MaterialId.Name))
-                    .Append(" tools\n");
+                   .Append(" tools\n");
             }
 
             AppendPartMaterialStats(partData.PartType, mat);
@@ -586,7 +587,14 @@ namespace Lithforge.Runtime.UI.Widgets
 
         private static string FormatToolLevel(int level)
         {
-            string[] tierNames = { "Wood", "Stone", "Iron", "Diamond", "Netherite" };
+            string[] tierNames =
+            {
+                "Wood",
+                "Stone",
+                "Iron",
+                "Diamond",
+                "Netherite",
+            };
 
             if (level >= 0 && level < tierNames.Length)
             {
@@ -603,7 +611,19 @@ namespace Lithforge.Runtime.UI.Widgets
                 return number.ToString();
             }
 
-            string[] roman = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
+            string[] roman =
+            {
+                "I",
+                "II",
+                "III",
+                "IV",
+                "V",
+                "VI",
+                "VII",
+                "VIII",
+                "IX",
+                "X",
+            };
             return roman[number - 1];
         }
 

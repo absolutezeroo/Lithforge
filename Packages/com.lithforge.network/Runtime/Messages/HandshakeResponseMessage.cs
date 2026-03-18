@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client handshake response. Sent on reliable pipeline after validating
-    /// the client's HandshakeRequest.
-    /// Wire format: [Accepted:1][RejectReason:1][PlayerId:2][ServerTick:4][WorldSeed:8]
+    ///     Server→Client handshake response. Sent on reliable pipeline after validating
+    ///     the client's HandshakeRequest.
+    ///     Wire format: [Accepted:1][RejectReason:1][PlayerId:2][ServerTick:4][WorldSeed:8]
     /// </summary>
     public struct HandshakeResponseMessage : INetworkMessage
     {

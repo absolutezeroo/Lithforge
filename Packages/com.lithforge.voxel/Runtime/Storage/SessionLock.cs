@@ -66,10 +66,10 @@ namespace Lithforge.Voxel.Storage
             try
             {
                 using (FileStream fs = new(
-                    lockPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.None))
+                           lockPath,
+                           FileMode.Open,
+                           FileAccess.Read,
+                           FileShare.None))
                 {
                     // If we can open exclusively, it's not locked
                     return false;
@@ -95,10 +95,10 @@ namespace Lithforge.Voxel.Storage
             {
                 // Try to read the lock file non-exclusively
                 using (FileStream fs = new(
-                    lockPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.ReadWrite))
+                           lockPath,
+                           FileMode.Open,
+                           FileAccess.Read,
+                           FileShare.ReadWrite))
                 using (StreamReader reader = new(fs))
                 {
                     string timestampLine = reader.ReadLine();

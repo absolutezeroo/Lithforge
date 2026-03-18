@@ -99,7 +99,7 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>
         ///     Called after any block change (both immediate and deferred paths).
         ///     Parameters: worldCoord, newStateId.
-        ///     Used by <see cref="Lithforge.Network.Chunk.ChunkDirtyTracker" /> for network delta sync.
+        ///     Used by <see cref="Network.ChunkDirtyTracker" /> for network delta sync.
         /// </summary>
         public Action<int3, StateId> OnBlockChanged;
 
@@ -403,11 +403,9 @@ namespace Lithforge.Voxel.Chunk
                 NativeArray<StateId> data = _pool.Checkout();
                 ManagedChunk chunk = new(coord, data);
                 _chunks[coord] = chunk;
-
                 RegisterChunk(chunk);
                 SetChunkState(chunk, ChunkState.Generating);
                 result.Add(chunk);
-
                 created++;
             }
 
@@ -784,6 +782,9 @@ namespace Lithforge.Voxel.Chunk
                     chunk.ActiveJobHandle.Complete();
                 }
 
+                // LiquidSimJob reads BlockData as [ReadOnly].
+                chunk.LiquidJobHandle.Complete();
+
                 // Neighbor mesh jobs read this chunk's Data as border slices via
                 // ExtractAllBordersJob. Complete them to release safety locks.
                 for (int face = 0; face < 6; face++)
@@ -1157,13 +1158,10 @@ namespace Lithforge.Voxel.Chunk
             NativeArray<StateId> data = _pool.Checkout();
             NativeArray<StateId>.Copy(voxelData, data);
 
+            ManagedChunk chunk = new(coord, data);
             // Owner: ManagedChunk. Disposed by ChunkManager.UnloadChunk or UnloadDistantChunks.
-            ManagedChunk chunk = new(coord, data)
-            {
-                LightData = new NativeArray<byte>(
-                    ChunkConstants.Volume, Allocator.Persistent),
-            };
-
+            chunk.LightData = new NativeArray<byte>(
+                ChunkConstants.Volume, Allocator.Persistent);
             NativeArray<byte>.Copy(lightData, chunk.LightData);
 
             _chunks[coord] = chunk;

@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using NUnit.Framework;
-using Unity.Collections;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Voxel.Tests
@@ -10,9 +12,6 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class ChunkManagerTests
     {
-        private ChunkPool _pool;
-        private ChunkManager _chunkManager;
-
         [SetUp]
         public void SetUp()
         {
@@ -26,6 +25,8 @@ namespace Lithforge.Voxel.Tests
             _chunkManager.Dispose();
             _pool.Dispose();
         }
+        private ChunkPool _pool;
+        private ChunkManager _chunkManager;
 
         [Test]
         public void UpdateLoadingQueue_CreatesCorrectCoords()

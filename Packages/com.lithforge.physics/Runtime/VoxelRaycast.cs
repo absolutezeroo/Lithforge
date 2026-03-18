@@ -1,20 +1,20 @@
 using System;
 using System.Runtime.CompilerServices;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Physics
 {
     /// <summary>
-    /// DDA (Digital Differential Analyzer) voxel raycast.
-    /// Traverses voxels along a ray and returns the first solid block hit.
-    ///
-    /// Called on the main thread only — uses managed delegates for block access.
-    /// Typically completes in 5-15 DDA steps at interaction range (5 blocks).
+    ///     DDA (Digital Differential Analyzer) voxel raycast.
+    ///     Traverses voxels along a ray and returns the first solid block hit.
+    ///     Called on the main thread only — uses managed delegates for block access.
+    ///     Typically completes in 5-15 DDA steps at interaction range (5 blocks).
     /// </summary>
     public static class VoxelRaycast
     {
         /// <summary>
-        /// Casts a ray through the voxel grid and returns the first solid block hit.
+        ///     Casts a ray through the voxel grid and returns the first solid block hit.
         /// </summary>
         /// <param name="origin">Ray origin in world space.</param>
         /// <param name="direction">Ray direction (does not need to be normalized).</param>
@@ -124,8 +124,8 @@ namespace Lithforge.Physics
         }
 
         /// <summary>
-        /// Computes the parametric distance from position to the next voxel boundary
-        /// along a single axis.
+        ///     Computes the parametric distance from position to the next voxel boundary
+        ///     along a single axis.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float ComputeInitialT(float pos, float dir, int step)

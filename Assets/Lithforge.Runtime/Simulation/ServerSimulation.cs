@@ -1,25 +1,27 @@
 using System;
+
 using Lithforge.Network.Server;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Tick;
 using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    /// Tier 3 implementation of <see cref="IServerSimulation"/>. Bridges the network
-    /// package's <see cref="ServerGameLoop"/> to the runtime's <see cref="PlayerPhysicsManager"/>
-    /// and <see cref="TickRegistry"/>. Reconstructs <see cref="InputSnapshot"/> from
-    /// wire-format input flags for authoritative physics simulation.
+    ///     Tier 3 implementation of <see cref="IServerSimulation" />. Bridges the network
+    ///     package's <see cref="ServerGameLoop" /> to the runtime's <see cref="PlayerPhysicsManager" />
+    ///     and <see cref="TickRegistry" />. Reconstructs <see cref="InputSnapshot" /> from
+    ///     wire-format input flags for authoritative physics simulation.
     /// </summary>
     public sealed class ServerSimulation : IServerSimulation
     {
+        private readonly ServerBlockProcessor _blockProcessor;
+        private readonly PhysicsSettings _physicsSettings;
         private readonly PlayerPhysicsManager _playerPhysicsManager;
         private readonly TickRegistry _tickRegistry;
-        private readonly PhysicsSettings _physicsSettings;
         private readonly Func<float> _timeOfDayProvider;
-        private readonly ServerBlockProcessor _blockProcessor;
 
         public ServerSimulation(
             PlayerPhysicsManager playerPhysicsManager,

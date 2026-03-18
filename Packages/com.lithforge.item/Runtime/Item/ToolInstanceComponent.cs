@@ -1,3 +1,5 @@
+using Lithforge.Voxel.Item;
+
 namespace Lithforge.Item
 {
     /// <summary>

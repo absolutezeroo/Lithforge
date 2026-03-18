@@ -1,15 +1,16 @@
 using System;
 using System.Text;
+
 using Lithforge.Network.Message;
 
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Server→Client spawn notification for a remote player entering the observer's
-    /// interest range. Sent on reliable sequenced pipeline. Contains initial state
-    /// so the client can create the entity with a valid first snapshot.
-    /// Wire format: [PlayerId:2][NameLength:1][NameBytes:N][PosX:4][PosY:4][PosZ:4]
-    ///              [Yaw:4][Pitch:4][Flags:1] = 24 + N bytes (N ≤ 64).
+    ///     Server→Client spawn notification for a remote player entering the observer's
+    ///     interest range. Sent on reliable sequenced pipeline. Contains initial state
+    ///     so the client can create the entity with a valid first snapshot.
+    ///     Wire format: [PlayerId:2][NameLength:1][NameBytes:N][PosX:4][PosY:4][PosZ:4]
+    ///     [Yaw:4][Pitch:4][Flags:1] = 24 + N bytes (N ≤ 64).
     /// </summary>
     public struct SpawnPlayerMessage : INetworkMessage
     {

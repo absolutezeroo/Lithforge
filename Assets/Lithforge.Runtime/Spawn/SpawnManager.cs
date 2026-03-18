@@ -1,36 +1,30 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Spawn
 {
     /// <summary>
-    /// Coordinates the spawn loading process: waits for chunks to reach Ready,
-    /// finds a safe spawn Y, and teleports the player.
-    /// Called each frame by GameLoop.Update() until IsComplete is true.
+    ///     Coordinates the spawn loading process: waits for chunks to reach Ready,
+    ///     finds a safe spawn Y, and teleports the player.
+    ///     Called each frame by GameLoop.Update() until IsComplete is true.
     /// </summary>
     public sealed class SpawnManager
     {
         private readonly ChunkManager _chunkManager;
+        private readonly int _fallbackY;
         private readonly NativeStateRegistry _nativeStateRegistry;
         private readonly Transform _playerTransform;
-        private readonly int _spawnRadius;
-        private readonly int _yMin;
-        private readonly int _yMax;
-        private readonly int _fallbackY;
 
-        private int3 _spawnChunkCoord;
+        private readonly int3 _spawnChunkCoord;
+        private readonly int _spawnRadius;
+        private readonly int _yMax;
+        private readonly int _yMin;
         private SpawnProgress _progress;
         private bool _skipSpawnSearch;
-
-        /// <summary>
-        /// True once the spawn process is fully complete and the player has been placed.
-        /// </summary>
-        public bool IsComplete
-        {
-            get { return _progress.Phase == SpawnState.Done; }
-        }
 
         public SpawnManager(
             ChunkManager chunkManager,
@@ -66,10 +60,18 @@ namespace Lithforge.Runtime.Spawn
         }
 
         /// <summary>
-        /// Marks this spawn as a restore from saved position.
-        /// When Checking completes, the player is already at the correct position,
-        /// so FindingY and Teleporting are skipped — transition straight to Done.
-        /// Must be called before the first Tick().
+        ///     True once the spawn process is fully complete and the player has been placed.
+        /// </summary>
+        public bool IsComplete
+        {
+            get { return _progress.Phase == SpawnState.Done; }
+        }
+
+        /// <summary>
+        ///     Marks this spawn as a restore from saved position.
+        ///     When Checking completes, the player is already at the correct position,
+        ///     so FindingY and Teleporting are skipped — transition straight to Done.
+        ///     Must be called before the first Tick().
         /// </summary>
         public void SetSavedPosition()
         {
@@ -77,7 +79,7 @@ namespace Lithforge.Runtime.Spawn
         }
 
         /// <summary>
-        /// Returns a snapshot of the current spawn progress.
+        ///     Returns a snapshot of the current spawn progress.
         /// </summary>
         public SpawnProgress GetProgress()
         {
@@ -85,8 +87,8 @@ namespace Lithforge.Runtime.Spawn
         }
 
         /// <summary>
-        /// Advances the spawn state machine by one step.
-        /// Must be called from the main thread each frame while !IsComplete.
+        ///     Advances the spawn state machine by one step.
+        ///     Must be called from the main thread each frame while !IsComplete.
         /// </summary>
         public void Tick()
         {
@@ -191,8 +193,8 @@ namespace Lithforge.Runtime.Spawn
         }
 
         /// <summary>
-        /// Checks whether the player's current position (restored from save) is safe:
-        /// the block at feet level and head level must both be non-solid.
+        ///     Checks whether the player's current position (restored from save) is safe:
+        ///     the block at feet level and head level must both be non-solid.
         /// </summary>
         private bool IsRestoredPositionSafe()
         {
@@ -213,9 +215,9 @@ namespace Lithforge.Runtime.Spawn
         }
 
         /// <summary>
-        /// Scans downward from the top of the spawn volume to find the highest air block
-        /// above a solid block. Restricts scan to the confirmed-ready chunk range.
-        /// Returns the Y coordinate for player feet placement.
+        ///     Scans downward from the top of the spawn volume to find the highest air block
+        ///     above a solid block. Restricts scan to the confirmed-ready chunk range.
+        ///     Returns the Y coordinate for player feet placement.
         /// </summary>
         private int FindSafeSpawnY(int worldX, int worldZ)
         {

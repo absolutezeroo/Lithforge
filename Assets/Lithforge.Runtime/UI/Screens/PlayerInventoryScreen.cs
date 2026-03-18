@@ -1,8 +1,14 @@
+using System;
+
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
-using Lithforge.Item.Crafting;
-using Lithforge.Item;
+using Lithforge.Runtime.UI.Navigation;
+using Lithforge.Voxel.Crafting;
+using Lithforge.Voxel.Item;
+
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -12,9 +18,39 @@ namespace Lithforge.Runtime.UI.Screens
     /// Player inventory screen with 36 inventory slots (9 hotbar + 27 main),
     /// 2x2 crafting grid, and output slot. Opened with E key.
     /// </summary>
-    public sealed class PlayerInventoryScreen : ContainerScreen
+    public sealed class PlayerInventoryScreen : ContainerScreen, IScreen
     {
         private CraftingGrid _craftingGrid;
+
+        public string ScreenName { get { return ScreenNames.PlayerInventory; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return true; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            SetVisible(true);
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            if (IsOpen)
+            {
+                Close();
+                return true;
+            }
+
+            return false;
+        }
 
         private InventoryContainerAdapter _hotbarAdapter;
         private InventoryContainerAdapter _mainAdapter;
@@ -184,14 +220,6 @@ namespace Lithforge.Runtime.UI.Screens
         {
             if (Context == null)
             {
-                return;
-            }
-
-            // Escape closes inventory (before E key check)
-            if (IsOpen && Keyboard.current != null &&
-                Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                Close();
                 return;
             }
 

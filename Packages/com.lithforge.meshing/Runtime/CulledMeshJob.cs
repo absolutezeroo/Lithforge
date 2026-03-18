@@ -1,5 +1,6 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -23,7 +24,7 @@ namespace Lithforge.Meshing
                 {
                     for (int x = 0; x < ChunkConstants.Size; x++)
                     {
-                        int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                        int index = Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                         StateId current = ChunkData[index];
                         BlockStateCompact state = StateTable[current.Value];
 
@@ -84,7 +85,7 @@ namespace Lithforge.Meshing
                 return true; // Treat out-of-bounds as air
             }
 
-            int neighborIndex = Lithforge.Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
+            int neighborIndex = Voxel.Chunk.ChunkData.GetIndex(nx, ny, nz);
             StateId neighborId = ChunkData[neighborIndex];
             BlockStateCompact neighborState = StateTable[neighborId.Value];
 
@@ -197,9 +198,9 @@ namespace Lithforge.Meshing
 
         private static half4 UnpackColor(uint packed)
         {
-            float r = ((packed >> 24) & 0xFF) / 255.0f;
-            float g = ((packed >> 16) & 0xFF) / 255.0f;
-            float b = ((packed >> 8) & 0xFF) / 255.0f;
+            float r = (packed >> 24 & 0xFF) / 255.0f;
+            float g = (packed >> 16 & 0xFF) / 255.0f;
+            float b = (packed >> 8 & 0xFF) / 255.0f;
             float a = (packed & 0xFF) / 255.0f;
 
             return new half4((half)r, (half)g, (half)b, (half)a);

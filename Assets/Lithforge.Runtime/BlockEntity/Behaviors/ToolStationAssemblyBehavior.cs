@@ -1,18 +1,23 @@
+using System;
+
 using Lithforge.Core.Data;
 using Lithforge.Item;
+using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.BlockEntity.Behaviors
 {
     /// <summary>
-    /// Behavior that watches part slots and assembles a ToolInstance
-    /// when a valid combination of parts is placed.
-    /// No tick needed — assembly is computed on demand when the UI queries.
+    ///     Behavior that watches part slots and assembles a ToolInstance
+    ///     when a valid combination of parts is placed.
+    ///     No tick needed — assembly is computed on demand when the UI queries.
     /// </summary>
     public sealed class ToolStationAssemblyBehavior : BlockEntityBehavior
     {
         private readonly InventoryBehavior _inventory;
-        private readonly ToolMaterialRegistry _materialRegistry;
+
         private readonly ItemRegistry _itemRegistry;
+
+        private readonly ToolMaterialRegistry _materialRegistry;
 
         public ToolStationAssemblyBehavior(
             InventoryBehavior inventory,
@@ -25,8 +30,8 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         }
 
         /// <summary>
-        /// Attempts to assemble a tool from the current part slots.
-        /// Returns null if the parts are invalid or incomplete.
+        ///     Attempts to assemble a tool from the current part slots.
+        ///     Returns null if the parts are invalid or incomplete.
         /// </summary>
         public ToolInstance TryAssemble(ToolType selectedToolType)
         {
@@ -88,14 +93,14 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
             // Trim to actual size
             ToolPart[] trimmed = new ToolPart[partCount];
-            System.Array.Copy(parts, trimmed, partCount);
+            Array.Copy(parts, trimmed, partCount);
 
             return ToolAssembler.Assemble(selectedToolType, trimmed, _materialRegistry);
         }
 
         /// <summary>
-        /// Consumes the input parts (slots 0-2) by one each.
-        /// Call after the player takes the output.
+        ///     Consumes the input parts (slots 0-2) by one each.
+        ///     Call after the player takes the output.
         /// </summary>
         public void ConsumeInputParts()
         {
@@ -158,13 +163,17 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
 
             // Fallback: infer from slot position
-            return slotPosition switch
+            switch (slotPosition)
             {
-                0 => ToolPartType.Head,
-                1 => ToolPartType.Handle,
-                2 => ToolPartType.Binding,
-                _ => ToolPartType.None,
-            };
+                case 0:
+                    return ToolPartType.Head;
+                case 1:
+                    return ToolPartType.Handle;
+                case 2:
+                    return ToolPartType.Binding;
+                default:
+                    return ToolPartType.None;
+            }
         }
 
         private static ResourceId ResolveMaterialId(ItemEntry itemDef)

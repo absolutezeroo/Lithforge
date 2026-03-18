@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b712f2ecd8c177b46b8d38c738990ef9, type: 3}
   m_Name: tool_station
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.BlockEntity.ScriptableObjects.BlockEntityDefinition
-  _namespace: lithforge
+  namespace: lithforge
   blockName: tool_station
   blockEntityTypeId: lithforge:tool_station
+  screenTypeId: lithforge:tool_station

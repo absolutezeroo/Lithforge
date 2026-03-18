@@ -1,8 +1,9 @@
 using System.IO;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
 
-namespace Lithforge.Item
+namespace Lithforge.Voxel.Item
 {
     public static class ToolInstanceSerializer
     {
@@ -16,6 +17,7 @@ namespace Lithforge.Item
                 w.Write(Version);
                 w.Write((byte)tool.ToolType);
                 w.Write((byte)tool.Parts.Length);
+
                 for (int p = 0; p < tool.Parts.Length; p++)
                 {
                     ToolPart part = tool.Parts[p];
@@ -27,6 +29,7 @@ namespace Lithforge.Item
                     w.Write(part.DurabilityMultiplier);
                     w.Write(part.SpeedMultiplier);
                     w.Write((byte)part.TraitIds.Length);
+
                     for (int t = 0; t < part.TraitIds.Length; t++)
                     {
                         w.Write(part.TraitIds[t].ToString());
@@ -62,10 +65,8 @@ namespace Lithforge.Item
             using (BinaryReader r = new(ms))
             {
                 ushort ver = r.ReadUInt16();
-                ToolInstance tool = new()
-                {
-                    ToolType = (ToolType)r.ReadByte(),
-                };
+                ToolInstance tool = new();
+                tool.ToolType = (ToolType)r.ReadByte();
                 int partCount = r.ReadByte();
                 tool.Parts = new ToolPart[partCount];
                 for (int i = 0; i < partCount; i++)

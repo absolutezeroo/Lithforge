@@ -1,7 +1,8 @@
 using System;
 
+using Lithforge.Runtime.UI.Navigation;
+
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 using Cursor = UnityEngine.Cursor;
@@ -12,8 +13,10 @@ namespace Lithforge.Runtime.UI
     ///     Minecraft-style pause overlay. Appears over the world when Escape is pressed
     ///     during gameplay. Buttons delegate to callers via injected Actions.
     ///     sortingOrder=400: above SettingsScreen(300), below LoadingScreen(500).
+    ///     Escape key handling is delegated to <see cref="ScreenManager" /> via
+    ///     <see cref="IScreen.HandleEscape" />.
     /// </summary>
-    public sealed class PauseMenuScreen : MonoBehaviour
+    public sealed class PauseMenuScreen : MonoBehaviour, IScreen
     {
         private static readonly Color s_overlayColor = new(0f, 0f, 0f, 0.55f);
         private static readonly Color s_panelColor = new(0.12f, 0.12f, 0.15f, 0.97f);
@@ -35,48 +38,35 @@ namespace Lithforge.Runtime.UI
 
         public bool IsOpen { get; private set; }
 
-        private void Update()
+        public string ScreenName { get { return ScreenNames.Pause; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return true; } }
+
+        public void OnShow(ScreenShowArgs args)
         {
-            Keyboard keyboard = Keyboard.current;
+            Open();
+            _onPause?.Invoke();
+        }
 
-            if (keyboard == null)
-            {
-                return;
-            }
+        public void OnHide(Action onComplete)
+        {
+            Close();
+            onComplete();
+        }
 
-            if (!keyboard.escapeKey.wasPressedThisFrame)
-            {
-                return;
-            }
-
-            // Priority 1: If settings is open (from Options), close it back to pause menu
+        public bool HandleEscape()
+        {
+            // If settings is open (from Options), close it back to pause menu
             if (_settingsScreen != null && _settingsScreen.IsOpen)
             {
                 _settingsScreen.Close(true);
                 Open();
-                return;
+                return true;
             }
 
-            // Priority 2: If pause menu is open, resume game
-            if (IsOpen)
-            {
-                if (_onResume != null)
-                {
-                    _onResume();
-                }
-
-                return;
-            }
-
-            // Priority 3: If playing and cursor locked, enter pause
-            if (Cursor.lockState == CursorLockMode.Locked)
-            {
-                if (_onPause != null)
-                {
-                    _onPause();
-                }
-
-            }
+            // Otherwise, resume game (pop this screen)
+            _onResume?.Invoke();
+            return false;
         }
 
         /// <summary>

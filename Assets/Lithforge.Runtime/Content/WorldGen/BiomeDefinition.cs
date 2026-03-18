@@ -1,159 +1,138 @@
 using Lithforge.Runtime.Content.Blocks;
+
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace Lithforge.Runtime.Content.WorldGen
 {
     /// <summary>
-    /// Authored definition of a biome, specifying climate affinity, surface block palette,
-    /// terrain shape, tree density, and visual tinting. Baked to <c>NativeBiomeData</c> at
-    /// startup so Burst generation jobs can select biomes per column via weighted climate distance.
+    ///     Authored definition of a biome, specifying climate affinity, surface block palette,
+    ///     terrain shape, tree density, and visual tinting. Baked to <c>NativeBiomeData</c> at
+    ///     startup so Burst generation jobs can select biomes per column via weighted climate distance.
     /// </summary>
     /// <remarks>
-    /// Biome selection uses a multi-axis distance function (temperature, humidity, continentalness,
-    /// erosion) with exponential weight falloff controlled by <see cref="WeightSharpness"/>.
-    /// The invariant <c>BiomeData[i].BiomeId == i</c> is asserted at startup to guarantee O(1)
-    /// lookup by index in Burst jobs.
+    ///     Biome selection uses a multi-axis distance function (temperature, humidity, continentalness,
+    ///     erosion) with exponential weight falloff controlled by <see cref="WeightSharpness" />.
+    ///     The invariant <c>BiomeData[i].BiomeId == i</c> is asserted at startup to guarantee O(1)
+    ///     lookup by index in Burst jobs.
     /// </remarks>
     [CreateAssetMenu(fileName = "NewBiome", menuName = "Lithforge/Content/Biome Definition", order = 7)]
     public sealed class BiomeDefinition : ScriptableObject
     {
         /// <summary>Resource-id namespace (typically "lithforge").</summary>
-        [FormerlySerializedAs("_namespace"),Header("Identity")]
-        [Tooltip("Namespace for the resource id")]
-        [SerializeField] private string @namespace = "lithforge";
+        [FormerlySerializedAs("_namespace"), Header("Identity"), Tooltip("Namespace for the resource id"), SerializeField]
+         private string @namespace = "lithforge";
 
         /// <summary>Unique name within the namespace, forming the ResourceId "namespace:biomeName".</summary>
-        [FormerlySerializedAs("_biomeName"),Tooltip("Biome name")]
-        [SerializeField] private string biomeName = "";
+        [FormerlySerializedAs("_biomeName"), Tooltip("Biome name"), SerializeField]
+         private string biomeName = "";
 
         /// <summary>Lower bound of the temperature range where this biome can appear.</summary>
-        [FormerlySerializedAs("_temperatureMin"),Header("Climate Range")]
-        [Tooltip("Minimum temperature")]
-        [Range(0f, 1f)]
-        [SerializeField] private float temperatureMin;
+        [FormerlySerializedAs("_temperatureMin"), Header("Climate Range"), Tooltip("Minimum temperature"), Range(0f, 1f), SerializeField]
+         private float temperatureMin;
 
         /// <summary>Upper bound of the temperature range where this biome can appear.</summary>
-        [FormerlySerializedAs("_temperatureMax"),Tooltip("Maximum temperature")]
-        [Range(0f, 1f)]
-        [SerializeField] private float temperatureMax = 1.0f;
+        [FormerlySerializedAs("_temperatureMax"), Tooltip("Maximum temperature"), Range(0f, 1f), SerializeField]
+         private float temperatureMax = 1.0f;
 
         /// <summary>Ideal temperature for this biome; distance from this value reduces selection weight.</summary>
-        [FormerlySerializedAs("_temperatureCenter"),Tooltip("Preferred temperature center")]
-        [Range(0f, 1f)]
-        [SerializeField] private float temperatureCenter = 0.5f;
+        [FormerlySerializedAs("_temperatureCenter"), Tooltip("Preferred temperature center"), Range(0f, 1f), SerializeField]
+         private float temperatureCenter = 0.5f;
 
         /// <summary>Lower bound of the humidity range where this biome can appear.</summary>
-        [FormerlySerializedAs("_humidityMin"),Tooltip("Minimum humidity")]
-        [Range(0f, 1f)]
-        [SerializeField] private float humidityMin;
+        [FormerlySerializedAs("_humidityMin"), Tooltip("Minimum humidity"), Range(0f, 1f), SerializeField]
+         private float humidityMin;
 
         /// <summary>Upper bound of the humidity range where this biome can appear.</summary>
-        [FormerlySerializedAs("_humidityMax"),Tooltip("Maximum humidity")]
-        [Range(0f, 1f)]
-        [SerializeField] private float humidityMax = 1.0f;
+        [FormerlySerializedAs("_humidityMax"), Tooltip("Maximum humidity"), Range(0f, 1f), SerializeField]
+         private float humidityMax = 1.0f;
 
         /// <summary>Ideal humidity for this biome; distance from this value reduces selection weight.</summary>
-        [FormerlySerializedAs("_humidityCenter"),Tooltip("Preferred humidity center")]
-        [Range(0f, 1f)]
-        [SerializeField] private float humidityCenter = 0.5f;
+        [FormerlySerializedAs("_humidityCenter"), Tooltip("Preferred humidity center"), Range(0f, 1f), SerializeField]
+         private float humidityCenter = 0.5f;
 
         /// <summary>Topmost surface block placed by SurfaceBuilderJob (e.g. grass_block for plains).</summary>
-        [FormerlySerializedAs("_topBlock"),Header("Surface Blocks")]
-        [Tooltip("Top surface block (e.g. grass_block)")]
-        [SerializeField] private BlockDefinition topBlock;
+        [FormerlySerializedAs("_topBlock"), Header("Surface Blocks"), Tooltip("Top surface block (e.g. grass_block)"), SerializeField]
+         private BlockDefinition topBlock;
 
         /// <summary>Block placed in the layers between the top block and stone (e.g. dirt).</summary>
-        [FormerlySerializedAs("_fillerBlock"),Tooltip("Filler block below surface (e.g. dirt)")]
-        [SerializeField] private BlockDefinition fillerBlock;
+        [FormerlySerializedAs("_fillerBlock"), Tooltip("Filler block below surface (e.g. dirt)"), SerializeField]
+         private BlockDefinition fillerBlock;
 
         /// <summary>Bulk underground block below the filler layer.</summary>
-        [FormerlySerializedAs("_stoneBlock"),Tooltip("Stone block")]
-        [SerializeField] private BlockDefinition stoneBlock;
+        [FormerlySerializedAs("_stoneBlock"), Tooltip("Stone block"), SerializeField]
+         private BlockDefinition stoneBlock;
 
         /// <summary>Block used for the ocean or river floor when this biome is submerged.</summary>
-        [FormerlySerializedAs("_underwaterBlock"),Tooltip("Block used underwater")]
-        [SerializeField] private BlockDefinition underwaterBlock;
+        [FormerlySerializedAs("_underwaterBlock"), Tooltip("Block used underwater"), SerializeField]
+         private BlockDefinition underwaterBlock;
 
         /// <summary>How many layers of filler block are placed between the top block and stone.</summary>
-        [FormerlySerializedAs("_fillerDepth"),Header("Terrain")]
-        [Tooltip("Depth of filler blocks")]
-        [Min(0)]
-        [SerializeField] private int fillerDepth = 3;
+        [FormerlySerializedAs("_fillerDepth"), Header("Terrain"), Tooltip("Depth of filler blocks"), Min(0), SerializeField]
+         private int fillerDepth = 3;
 
         /// <summary>Probability weight for tree placement per surface column (0 = none, 1 = maximum).</summary>
-        [FormerlySerializedAs("_treeDensity"),Tooltip("Tree density (0 = no trees, 1 = maximum)")]
-        [Range(0f, 1f)]
-        [SerializeField] private float treeDensity;
+        [FormerlySerializedAs("_treeDensity"), Tooltip("Tree density (0 = no trees, 1 = maximum)"), Range(0f, 1f), SerializeField]
+         private float treeDensity;
 
         /// <summary>Index into <c>TreeTemplate</c> variants: 0 = oak, 1 = birch, 2 = spruce.</summary>
-        [FormerlySerializedAs("_treeType"),Tooltip("Tree shape variant for this biome (0=oak, 1=birch, 2=spruce)")]
-        [Range(0, 2)]
-        [SerializeField] private int treeType;
+        [FormerlySerializedAs("_treeType"), Tooltip("Tree shape variant for this biome (0=oak, 1=birch, 2=spruce)"), Range(0, 2), SerializeField]
+         private int treeType;
 
         /// <summary>Preferred position on the ocean-to-inland axis (0 = deep ocean, 1 = far inland).</summary>
-        [FormerlySerializedAs("_continentalnessCenter"),Header("Extended Climate")]
-        [Tooltip("Preferred continentalness value (0=ocean, 1=far inland)")]
-        [Range(0f, 1f)]
-        [SerializeField] private float continentalnessCenter = 0.5f;
+        [FormerlySerializedAs("_continentalnessCenter"), Header("Extended Climate"), Tooltip("Preferred continentalness value (0=ocean, 1=far inland)"), Range(0f, 1f), SerializeField]
+         private float continentalnessCenter = 0.5f;
 
         /// <summary>Preferred erosion level (0 = mountainous peaks, 1 = flat eroded plains).</summary>
-        [FormerlySerializedAs("_erosionCenter"),Tooltip("Preferred erosion value (0=low erosion/peaks, 1=high erosion/flat)")]
-        [Range(0f, 1f)]
-        [SerializeField] private float erosionCenter = 0.5f;
+        [FormerlySerializedAs("_erosionCenter"), Tooltip("Preferred erosion value (0=low erosion/peaks, 1=high erosion/flat)"), Range(0f, 1f), SerializeField]
+         private float erosionCenter = 0.5f;
 
         /// <summary>Target surface height offset relative to sea level, blended between neighboring biomes.</summary>
-        [FormerlySerializedAs("_baseHeight"),Tooltip("Target surface height relative to sea level (blended per-biome)")]
-        [SerializeField] private float baseHeight = 4f;
+        [FormerlySerializedAs("_baseHeight"), Tooltip("Target surface height relative to sea level (blended per-biome)"), SerializeField]
+         private float baseHeight = 4f;
 
         /// <summary>Scales the amplitude of terrain noise for this biome (higher = more dramatic hills).</summary>
-        [FormerlySerializedAs("_heightAmplitude"),Tooltip("Terrain noise amplitude scale for this biome")]
-        [SerializeField] private float heightAmplitude = 12f;
+        [FormerlySerializedAs("_heightAmplitude"), Tooltip("Terrain noise amplitude scale for this biome"), SerializeField]
+         private float heightAmplitude = 12f;
 
         /// <summary>
-        /// Controls how sharply this biome's influence drops off with climate distance.
-        /// Higher values produce harder biome boundaries; lower values create smoother transitions.
+        ///     Controls how sharply this biome's influence drops off with climate distance.
+        ///     Higher values produce harder biome boundaries; lower values create smoother transitions.
         /// </summary>
-        [FormerlySerializedAs("_weightSharpness"),Tooltip("Sharpness of the exponential weight falloff (higher = harder edges)")]
-        [Range(1f, 32f)]
-        [SerializeField] private float weightSharpness = 8.0f;
+        [FormerlySerializedAs("_weightSharpness"), Tooltip("Sharpness of the exponential weight falloff (higher = harder edges)"), Range(1f, 32f), SerializeField]
+         private float weightSharpness = 8.0f;
 
         /// <summary>When true, trees are suppressed and the underwater block is used for the floor.</summary>
-        [FormerlySerializedAs("_isOcean"),Header("Surface Behavior")]
-        [Tooltip("Ocean biome: suppresses trees, uses UnderwaterBlock for floor")]
-        [SerializeField] private bool isOcean;
+        [FormerlySerializedAs("_isOcean"), Header("Surface Behavior"), Tooltip("Ocean biome: suppresses trees, uses UnderwaterBlock for floor"), SerializeField]
+         private bool isOcean;
 
         /// <summary>When true, ice is placed at the water surface instead of open water.</summary>
-        [FormerlySerializedAs("_isFrozen"),Tooltip("Frozen biome: places ice at water surface")]
-        [SerializeField] private bool isFrozen;
+        [FormerlySerializedAs("_isFrozen"), Tooltip("Frozen biome: places ice at water surface"), SerializeField]
+         private bool isFrozen;
 
         /// <summary>Marks this biome as a beach zone for shore-specific generation rules.</summary>
-        [FormerlySerializedAs("_isBeach"),Tooltip("Beach biome: reserved for future shore-specific behavior")]
-        [SerializeField] private bool isBeach;
+        [FormerlySerializedAs("_isBeach"), Tooltip("Beach biome: reserved for future shore-specific behavior"), SerializeField]
+         private bool isBeach;
 
         /// <summary>Tint applied to water faces rendered within this biome.</summary>
-        [FormerlySerializedAs("_waterColor"),Header("Tinting")]
-        [Tooltip("Water tint color for this biome")]
-        [SerializeField] private Color waterColor = new(0.247f, 0.463f, 0.894f, 1f);
+        [FormerlySerializedAs("_waterColor"), Header("Tinting"), Tooltip("Water tint color for this biome"), SerializeField]
+         private Color waterColor = new(0.247f, 0.463f, 0.894f, 1f);
 
         /// <summary>Representative color used on the minimap and world overview.</summary>
-        [FormerlySerializedAs("_mapColor"),Header("Map")]
-        [Tooltip("Color shown on the world map")]
-        [SerializeField] private Color mapColor = Color.green;
+        [FormerlySerializedAs("_mapColor"), Header("Map"), Tooltip("Color shown on the world map"), SerializeField]
+         private Color mapColor = Color.green;
 
         /// <summary>Looping ambient audio clip for this biome (e.g. forest ambience, ocean waves).</summary>
-        [FormerlySerializedAs("_ambientLoop"),Header("Audio")]
-        [Tooltip("Ambient loop clip for this biome")]
-        [SerializeField] private AudioClip ambientLoop;
+        [FormerlySerializedAs("_ambientLoop"), Header("Audio"), Tooltip("Ambient loop clip for this biome"), SerializeField]
+         private AudioClip ambientLoop;
 
         /// <summary>Random one-shot clips played at intervals near the player (e.g. bird calls, crickets).</summary>
-        [FormerlySerializedAs("_scatterClips"),Tooltip("Scatter sound clips (random ambient one-shots)")]
-        [SerializeField] private AudioClip[] scatterClips;
+        [FormerlySerializedAs("_scatterClips"), Tooltip("Scatter sound clips (random ambient one-shots)"), SerializeField]
+         private AudioClip[] scatterClips;
 
         /// <summary>Time restriction for scatter sounds: 0=any time, 1=day only, 2=night only.</summary>
-        [FormerlySerializedAs("_scatterTimeRestriction"),Tooltip("0=any time, 1=day only, 2=night only")]
-        [Range(0, 2)]
-        [SerializeField] private int scatterTimeRestriction;
+        [FormerlySerializedAs("_scatterTimeRestriction"), Tooltip("0=any time, 1=day only, 2=night only"), Range(0, 2), SerializeField]
+         private int scatterTimeRestriction;
 
         /// <summary>Resource-id namespace (typically "lithforge").</summary>
         public string Namespace

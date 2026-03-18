@@ -1,31 +1,30 @@
 using System;
 using System.Collections.Generic;
+
 using Unity.Mathematics;
+
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Grows GPU GraphicsBuffers via GPU-to-GPU compute copy, eliminating CPU
-    /// re-upload stalls on resize. Old buffers are retired after
-    /// <see cref="RetireFrameDelay"/> frames to ensure the GPU has finished
-    /// reading from them before disposal.
-    ///
-    /// All buffers passed to <see cref="Resize"/> must have
-    /// <see cref="GraphicsBuffer.Target.Raw"/> in their target flags so the
-    /// ByteAddressBuffer compute bindings are legal.
-    ///
-    /// Owner: LithforgeBootstrap (one shared instance per session).
-    /// <see cref="Tick"/> must be called once per frame from GameLoop.Update
-    /// before any grow paths.
-    /// Lifetime: game session.
+    ///     Grows GPU GraphicsBuffers via GPU-to-GPU compute copy, eliminating CPU
+    ///     re-upload stalls on resize. Old buffers are retired after
+    ///     <see cref="RetireFrameDelay" /> frames to ensure the GPU has finished
+    ///     reading from them before disposal.
+    ///     All buffers passed to <see cref="Resize" /> must have
+    ///     <see cref="GraphicsBuffer.Target.Raw" /> in their target flags so the
+    ///     ByteAddressBuffer compute bindings are legal.
+    ///     Owner: LithforgeBootstrap (one shared instance per session).
+    ///     <see cref="Tick" /> must be called once per frame from GameLoop.Update
+    ///     before any grow paths.
+    ///     Lifetime: game session.
     /// </summary>
     public sealed class GpuBufferResizer : IDisposable
     {
         /// <summary>
-        /// Number of frames an old buffer is held before disposal.
-        /// 3 frames is conservative for GPU command buffer depth on PC/console.
+        ///     Number of frames an old buffer is held before disposal.
+        ///     3 frames is conservative for GPU command buffer depth on PC/console.
         /// </summary>
         public const int RetireFrameDelay = 3;
 
@@ -34,12 +33,12 @@ namespace Lithforge.Runtime.Rendering
         private static readonly int s_byteCountId = Shader.PropertyToID("_ByteCount");
         private static readonly int s_zeroStartId = Shader.PropertyToID("_ZeroStart");
         private static readonly int s_zeroByteCountId = Shader.PropertyToID("_ZeroByteCount");
-
-        private readonly ComputeShader _shader;
         private readonly int _copyKernel;
-        private readonly int _zeroKernel;
 
         private readonly List<DeferredDisposal> _disposalQueue = new(8);
+
+        private readonly ComputeShader _shader;
+        private readonly int _zeroKernel;
 
         private bool _disposed;
 
@@ -56,14 +55,34 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Allocates a new GPU buffer of <paramref name="newElementCount"/> elements,
-        /// copies the first <paramref name="usedElementCount"/> elements from
-        /// <paramref name="old"/> via a compute dispatch, zeroes the tail, then
-        /// retires <paramref name="old"/> for deferred disposal.
-        ///
-        /// The <paramref name="target"/> flags must include
-        /// <see cref="GraphicsBuffer.Target.Raw"/>.
-        /// Returns the new buffer, which is immediately usable.
+        ///     Immediately releases all queued buffers. Call from Dispose() of the owning
+        ///     system to prevent leaks on shutdown.
+        /// </summary>
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            for (int i = 0; i < _disposalQueue.Count; i++)
+            {
+                _disposalQueue[i].Buffer?.Dispose();
+            }
+
+            _disposalQueue.Clear();
+        }
+
+        /// <summary>
+        ///     Allocates a new GPU buffer of <paramref name="newElementCount" /> elements,
+        ///     copies the first <paramref name="usedElementCount" /> elements from
+        ///     <paramref name="old" /> via a compute dispatch, zeroes the tail, then
+        ///     retires <paramref name="old" /> for deferred disposal.
+        ///     The <paramref name="target" /> flags must include
+        ///     <see cref="GraphicsBuffer.Target.Raw" />.
+        ///     Returns the new buffer, which is immediately usable.
         /// </summary>
         public GraphicsBuffer Resize(
             GraphicsBuffer old,
@@ -114,8 +133,7 @@ namespace Lithforge.Runtime.Rendering
             {
                 _disposalQueue.Add(new DeferredDisposal
                 {
-                    Buffer = old,
-                    RetireFrame = Time.frameCount + RetireFrameDelay,
+                    Buffer = old, RetireFrame = Time.frameCount + RetireFrameDelay,
                 });
             }
 
@@ -123,8 +141,8 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        /// Drains the deferred disposal queue, releasing buffers whose retire frame
-        /// has arrived. Call once per frame at the start of GameLoop.Update.
+        ///     Drains the deferred disposal queue, releasing buffers whose retire frame
+        ///     has arrived. Call once per frame at the start of GameLoop.Update.
         /// </summary>
         public void Tick()
         {
@@ -154,30 +172,9 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
-        /// <summary>
-        /// Immediately releases all queued buffers. Call from Dispose() of the owning
-        /// system to prevent leaks on shutdown.
-        /// </summary>
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-
-            for (int i = 0; i < _disposalQueue.Count; i++)
-            {
-                _disposalQueue[i].Buffer?.Dispose();
-            }
-
-            _disposalQueue.Clear();
-        }
-
         private static int AlignUp16(int value)
         {
-            return (value + 15) & ~15;
+            return value + 15 & ~15;
         }
 
         private struct DeferredDisposal

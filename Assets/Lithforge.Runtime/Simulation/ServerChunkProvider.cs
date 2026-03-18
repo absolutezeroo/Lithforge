@@ -1,14 +1,15 @@
+using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Network.Chunk;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    /// Tier 3 implementation of <see cref="IServerChunkProvider"/>. Bridges the network
-    /// package's <see cref="ServerGameLoop"/> to the runtime's <see cref="ChunkManager"/>
-    /// for chunk readiness queries and serialization.
+    ///     Tier 3 implementation of <see cref="IServerChunkProvider" />. Bridges the network
+    ///     package's <see cref="ServerGameLoop" /> to the runtime's <see cref="ChunkManager" />
+    ///     for chunk readiness queries and serialization.
     /// </summary>
     public sealed class ServerChunkProvider : IServerChunkProvider
     {

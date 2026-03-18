@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace Lithforge.Runtime.Tick
 {
     /// <summary>
-    /// Ordered list of ITickable systems. Registered at startup; iterated inside
-    /// GameLoop's tick loop. Registration happens once — no per-frame allocation.
+    ///     Ordered list of ITickable systems. Registered at startup; iterated inside
+    ///     GameLoop's tick loop. Registration happens once — no per-frame allocation.
     /// </summary>
     public sealed class TickRegistry
     {
@@ -16,7 +16,7 @@ namespace Lithforge.Runtime.Tick
         }
 
         /// <summary>
-        /// Runs one fixed tick across all registered systems in registration order.
+        ///     Runs one fixed tick across all registered systems in registration order.
         /// </summary>
         public void TickAll(float tickDt)
         {

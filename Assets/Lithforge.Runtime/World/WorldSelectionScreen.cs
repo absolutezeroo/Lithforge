@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
+using Lithforge.Runtime.UI.Navigation;
+using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Storage;
 
 using UnityEngine;
 using UnityEngine.UIElements;
-
-using Cursor = UnityEngine.Cursor;
 
 namespace Lithforge.Runtime.World
 {
@@ -16,10 +16,10 @@ namespace Lithforge.Runtime.World
     ///     Full-screen UI Toolkit overlay that lets the player browse, create, and delete
     ///     world saves before entering a game session. Scans the worlds directory on a
     ///     background thread, then populates a scrollable list on the main thread.
-    ///     Invokes a callback with a <see cref="WorldSession" /> and destroys itself once
+    ///     Invokes a callback with a <see cref="SessionConfig" /> and destroys itself once
     ///     the player picks a world.
     /// </summary>
-    public sealed class WorldSelectionScreen : MonoBehaviour
+    public sealed class WorldSelectionScreen : MonoBehaviour, IScreen
     {
         private static readonly Color s_backgroundColor = new(0.08f, 0.08f, 0.10f, 1.0f);
         private static readonly Color s_panelColor = new(0.12f, 0.12f, 0.15f, 0.95f);
@@ -45,23 +45,20 @@ namespace Lithforge.Runtime.World
         private Label _detailName;
 
         private UIDocument _document;
+
+        private bool _isHostMode;
         private VisualElement _modalOverlay;
 
-        private Action<WorldSession> _onWorldSelected;
+        private Action<SessionConfig> _onWorldSelected;
         private Button _playButton;
         private volatile bool _scanComplete;
         private List<WorldScanEntry> _scanResults;
         private volatile bool _scanRunning;
+        private ScreenManager _screenManager;
         private int _selectedIndex = -1;
         private bool _uiPopulated;
         private ScrollView _worldListScroll;
         private string _worldsRoot;
-
-        private void Awake()
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
 
         private void Update()
         {
@@ -72,14 +69,86 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        public string ScreenName { get { return ScreenNames.WorldSelection; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return true; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.Flex;
+            }
+
+            if (!args.IsReturning && args.Context is string mode)
+            {
+                _isHostMode = string.Equals(mode, "host", StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Re-scan worlds on fresh push (not when returning from HostSettingsModal)
+            if (!args.IsReturning)
+            {
+                _selectedIndex = -1;
+
+                if (_playButton != null)
+                {
+                    _playButton.SetEnabled(false);
+                }
+
+                if (_deleteButton != null)
+                {
+                    _deleteButton.SetEnabled(false);
+                }
+
+                if (_detailName != null)
+                {
+                    _detailName.text = "No world selected";
+                }
+
+                if (_detailInfo != null)
+                {
+                    _detailInfo.text = "";
+                }
+
+                StartScan();
+            }
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.None;
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // If modal is open, close it
+            if (_modalOverlay != null &&
+                _modalOverlay.resolvedStyle.display == DisplayStyle.Flex)
+            {
+                _modalOverlay.style.display = DisplayStyle.None;
+                return true;
+            }
+
+            // Otherwise, let ScreenManager pop back to main menu
+            return false;
+        }
+
         /// <summary>
         ///     Builds the UI hierarchy and kicks off an asynchronous world-directory scan.
         ///     Must be called exactly once after the component is added.
         /// </summary>
         /// <param name="panelSettings">Shared panel settings for the UIDocument (sortingOrder 600).</param>
-        public void Initialize(PanelSettings panelSettings, Action<WorldSession> onWorldSelected)
+        /// <param name="onWorldSelected">Callback invoked with the session config when a world is selected.</param>
+        /// <param name="screenManager">Screen manager for pushing HostSettingsModal in host mode.</param>
+        public void Initialize(PanelSettings panelSettings, Action<SessionConfig> onWorldSelected, ScreenManager screenManager = null)
         {
             _onWorldSelected = onWorldSelected;
+            _screenManager = screenManager;
             _worldsRoot = Path.Combine(Application.persistentDataPath, "worlds");
 
             _document = gameObject.AddComponent<UIDocument>();
@@ -88,8 +157,8 @@ namespace Lithforge.Runtime.World
 
             BuildUI(_document.rootVisualElement);
 
-            // Start async scan
-            StartScan();
+            // Start hidden; OnShow triggers the scan when pushed
+            _document.rootVisualElement.style.display = DisplayStyle.None;
         }
 
         private void StartScan()
@@ -100,6 +169,9 @@ namespace Lithforge.Runtime.World
             }
 
             _scanRunning = true;
+            _uiPopulated = false;
+            _scanComplete = false;
+
             Thread scanThread = new(ScanWorker)
             {
                 IsBackground = true,
@@ -498,15 +570,25 @@ namespace Lithforge.Runtime.World
                 return;
             }
 
-            WorldSession session = new(
+            if (_isHostMode && _screenManager != null)
+            {
+                HostWorldContext ctx = new(
+                    entry.DirectoryPath,
+                    entry.Metadata.DisplayName,
+                    entry.Metadata.Seed,
+                    entry.Metadata.GameMode,
+                    false);
+                _screenManager.Push(ScreenNames.HostSettings, ctx);
+                return;
+            }
+
+            SessionConfig.Singleplayer session = new(
                 entry.DirectoryPath,
                 entry.Metadata.DisplayName,
                 entry.Metadata.Seed,
                 entry.Metadata.GameMode,
                 false);
             _onWorldSelected?.Invoke(session);
-
-            Destroy(gameObject);
         }
 
         private void OnCreateNewClicked()
@@ -652,10 +734,17 @@ namespace Lithforge.Runtime.World
 
                 string worldDir = WorldDirectoryScanner.CreateWorld(_worldsRoot, worldName, seed, mode);
 
-                WorldSession session = new(worldDir, worldName, seed, mode, true);
+                if (_isHostMode && _screenManager != null)
+                {
+                    HostWorldContext ctx = new(worldDir, worldName, seed, mode, true);
+                    _modalOverlay.style.display = DisplayStyle.None;
+                    _screenManager.Push(ScreenNames.HostSettings, ctx);
+                    return;
+                }
+
+                SessionConfig.Singleplayer session = new(worldDir, worldName, seed, mode, true);
                 _onWorldSelected?.Invoke(session);
                 _modalOverlay.style.display = DisplayStyle.None;
-                Destroy(gameObject);
             });
             createBtn.style.marginRight = 8;
             createBtn.style.width = 120;

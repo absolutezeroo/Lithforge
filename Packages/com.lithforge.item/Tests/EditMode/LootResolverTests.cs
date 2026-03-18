@@ -3,10 +3,11 @@ using System.Collections.Generic;
 
 using Lithforge.Core.Data;
 using Lithforge.Item.Loot;
+using Lithforge.Voxel.Loot;
 
 using NUnit.Framework;
 
-namespace Lithforge.Item.Tests
+namespace Lithforge.Voxel.Tests
 {
     [TestFixture]
     public sealed class LootResolverTests
@@ -97,14 +98,12 @@ namespace Lithforge.Item.Tests
         [Test]
         public void Resolve_SetCountFunction_AppliesCount()
         {
-            LootFunction setCount = new()
+            LootFunction setCount = new();
+            setCount.Type = "set_count";
+            setCount.Parameters = new Dictionary<string, string>
             {
-                Type = "set_count",
-                Parameters = new Dictionary<string, string>
                 {
-                    {
-                        "count", "3"
-                    },
+                    "count", "3"
                 },
             };
             setCount.PreParseValues();
@@ -142,17 +141,15 @@ namespace Lithforge.Item.Tests
         [Test]
         public void Resolve_SetCountRange_ReturnsWithinRange()
         {
-            LootFunction setCount = new()
+            LootFunction setCount = new();
+            setCount.Type = "set_count";
+            setCount.Parameters = new Dictionary<string, string>
             {
-                Type = "set_count",
-                Parameters = new Dictionary<string, string>
                 {
-                    {
-                        "min", "1"
-                    },
-                    {
-                        "max", "4"
-                    },
+                    "min", "1"
+                },
+                {
+                    "max", "4"
                 },
             };
             setCount.PreParseValues();
@@ -431,19 +428,17 @@ namespace Lithforge.Item.Tests
         [Test]
         public void LootFunction_PreParseValues_ParsesAllFields()
         {
-            LootFunction func = new()
+            LootFunction func = new();
+            func.Parameters = new Dictionary<string, string>
             {
-                Parameters = new Dictionary<string, string>
                 {
-                    {
-                        "min", "2"
-                    },
-                    {
-                        "max", "5"
-                    },
-                    {
-                        "count", "10"
-                    },
+                    "min", "2"
+                },
+                {
+                    "max", "5"
+                },
+                {
+                    "count", "10"
                 },
             };
             func.PreParseValues();
@@ -456,16 +451,14 @@ namespace Lithforge.Item.Tests
         [Test]
         public void LootFunction_PreParseValues_InvalidStrings_KeepDefaults()
         {
-            LootFunction func = new()
+            LootFunction func = new();
+            func.Parameters = new Dictionary<string, string>
             {
-                Parameters = new Dictionary<string, string>
                 {
-                    {
-                        "min", "not_a_number"
-                    },
-                    {
-                        "max", ""
-                    },
+                    "min", "not_a_number"
+                },
+                {
+                    "max", ""
                 },
             };
             func.PreParseValues();

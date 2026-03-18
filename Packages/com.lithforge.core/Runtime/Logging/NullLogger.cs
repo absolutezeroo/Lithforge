@@ -1,7 +1,7 @@
 namespace Lithforge.Core.Logging
 {
     /// <summary>
-    /// No-op logger for use in tests or when logging is not needed.
+    ///     No-op logger for use in tests or when logging is not needed.
     /// </summary>
     public sealed class NullLogger : ILogger
     {

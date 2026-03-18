@@ -1,20 +1,19 @@
-using Lithforge.Core.Data;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Item.Crafting;
 using Lithforge.Item;
+using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.UI.Container
 {
     /// <summary>
-    /// Read-only container for the crafting output slot.
-    /// Shows the result of the current recipe match.
-    /// TakeOutput() consumes ingredients from the crafting grid.
+    ///     Read-only container for the crafting output slot.
+    ///     Shows the result of the current recipe match.
+    ///     TakeOutput() consumes ingredients from the crafting grid.
     /// </summary>
     public sealed class CraftingOutputContainerAdapter : ISlotContainer
     {
         private readonly ItemRegistry _itemRegistry;
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
-        private RecipeEntry _currentMatch;
         private ItemStack _displayStack;
 
         public CraftingOutputContainerAdapter(ItemRegistry itemRegistry, ToolTemplateRegistry toolTemplateRegistry)
@@ -22,6 +21,8 @@ namespace Lithforge.Runtime.UI.Container
             _itemRegistry = itemRegistry;
             _toolTemplateRegistry = toolTemplateRegistry;
         }
+
+        public RecipeEntry CurrentMatch { get; private set; }
 
         public int SlotCount
         {
@@ -49,12 +50,12 @@ namespace Lithforge.Runtime.UI.Container
         }
 
         /// <summary>
-        /// Updates the displayed output based on a recipe match result.
-        /// Called by CraftingGridContainerAdapter.OnSlotChanged().
+        ///     Updates the displayed output based on a recipe match result.
+        ///     Called by CraftingGridContainerAdapter.OnSlotChanged().
         /// </summary>
         public void SetRecipeMatch(RecipeEntry match)
         {
-            _currentMatch = match;
+            CurrentMatch = match;
 
             if (match != null)
             {
@@ -84,12 +85,12 @@ namespace Lithforge.Runtime.UI.Container
         }
 
         /// <summary>
-        /// Takes the output item and consumes one ingredient from each non-empty craft slot.
-        /// Returns the output ItemStack, or Empty if no match.
+        ///     Takes the output item and consumes one ingredient from each non-empty craft slot.
+        ///     Returns the output ItemStack, or Empty if no match.
         /// </summary>
         public ItemStack TakeOutput(CraftingGridContainerAdapter gridAdapter)
         {
-            if (_currentMatch == null)
+            if (CurrentMatch == null)
             {
                 return ItemStack.Empty;
             }
@@ -118,11 +119,6 @@ namespace Lithforge.Runtime.UI.Container
             gridAdapter.OnSlotChanged(0);
 
             return result;
-        }
-
-        public RecipeEntry CurrentMatch
-        {
-            get { return _currentMatch; }
         }
     }
 }

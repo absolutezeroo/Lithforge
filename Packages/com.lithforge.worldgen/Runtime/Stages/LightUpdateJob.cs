@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -8,14 +9,13 @@ using Unity.Jobs;
 namespace Lithforge.WorldGen.Stages
 {
     /// <summary>
-    /// Lightweight cross-chunk light update job. Seeds border voxels from neighbor
-    /// border light values and propagates only the delta (voxels where incoming light
-    /// exceeds existing light). Does NOT do a full re-propagation.
-    ///
-    /// Owner of SeedEntries: caller (GenerationScheduler). Dispose: caller after Complete().
-    /// Owner of LightData: ManagedChunk (Persistent). Not disposed by this job.
-    /// Owner of ChunkData: ManagedChunk (via ChunkPool, Persistent). Not disposed by this job.
-    /// Owner of StateTable: NativeStateRegistry (Persistent). Not disposed by this job.
+    ///     Lightweight cross-chunk light update job. Seeds border voxels from neighbor
+    ///     border light values and propagates only the delta (voxels where incoming light
+    ///     exceeds existing light). Does NOT do a full re-propagation.
+    ///     Owner of SeedEntries: caller (GenerationScheduler). Dispose: caller after Complete().
+    ///     Owner of LightData: ManagedChunk (Persistent). Not disposed by this job.
+    ///     Owner of ChunkData: ManagedChunk (via ChunkPool, Persistent). Not disposed by this job.
+    ///     Owner of StateTable: NativeStateRegistry (Persistent). Not disposed by this job.
     /// </summary>
     [BurstCompile]
     public struct LightUpdateJob : IJob
@@ -26,10 +26,10 @@ namespace Lithforge.WorldGen.Stages
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         /// <summary>
-        /// Seed entries: border light values from neighboring chunks, mapped to local
-        /// coordinates in this chunk. Each entry's LocalPosition is the position in THIS
-        /// chunk where the neighbor's light should seed.
-        /// Owner: caller. Dispose: caller after Complete().
+        ///     Seed entries: border light values from neighboring chunks, mapped to local
+        ///     coordinates in this chunk. Each entry's LocalPosition is the position in THIS
+        ///     chunk where the neighbor's light should seed.
+        ///     Owner: caller. Dispose: caller after Complete().
         /// </summary>
         [ReadOnly] public NativeArray<NativeBorderLightEntry> SeedEntries;
 
@@ -53,7 +53,7 @@ namespace Lithforge.WorldGen.Stages
                     continue;
                 }
 
-                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                int index = Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                 StateId stateId = ChunkData[index];
                 BlockStateCompact blockState = StateTable[stateId.Value];
 
@@ -102,12 +102,12 @@ namespace Lithforge.WorldGen.Stages
 
                     if (currentSun > 1)
                     {
-                        sunQueue.Enqueue(index | ((int)currentSun << LightBfs.LevelShift));
+                        sunQueue.Enqueue(index | currentSun << LightBfs.LevelShift);
                     }
 
                     if (currentBlock > 1)
                     {
-                        blockQueue.Enqueue(index | ((int)currentBlock << LightBfs.LevelShift));
+                        blockQueue.Enqueue(index | currentBlock << LightBfs.LevelShift);
                     }
                 }
             }

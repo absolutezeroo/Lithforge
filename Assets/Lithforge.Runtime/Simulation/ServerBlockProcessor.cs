@@ -1,23 +1,23 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Logging;
 using Lithforge.Network.Server;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    /// Tier 3 implementation of <see cref="IServerBlockProcessor"/>. Validates all 8
-    /// server-side block command checks and calls <see cref="ChunkManager.SetBlock"/>
-    /// on accepted commands. Owns per-player rate limiting and digging state.
-    ///
-    /// Validation order for break: rate limit → reach → chunk loaded → block type →
-    /// sequence (StartDigging match) → break time → player position → execute.
-    ///
-    /// Validation order for place: rate limit → reach → chunk loaded → block type
-    /// (target air/fluid) → player position → placement face → execute.
+    ///     Tier 3 implementation of <see cref="IServerBlockProcessor" />. Validates all 8
+    ///     server-side block command checks and calls <see cref="ChunkManager.SetBlock" />
+    ///     on accepted commands. Owns per-player rate limiting and digging state.
+    ///     Validation order for break: rate limit → reach → chunk loaded → block type →
+    ///     sequence (StartDigging match) → break time → player position → execute.
+    ///     Validation order for place: rate limit → reach → chunk loaded → block type
+    ///     (target air/fluid) → player position → placement face → execute.
     /// </summary>
     public sealed class ServerBlockProcessor : IServerBlockProcessor
     {
@@ -30,20 +30,20 @@ namespace Lithforge.Runtime.Simulation
         private const float TickDt = 1f / 30f;
 
         private readonly ChunkManager _chunkManager;
-        private readonly StateRegistry _stateRegistry;
-        private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly float _handMiningMultiplier;
-        private readonly ILogger _logger;
 
         // Per-player state
         private readonly Dictionary<ushort, PlayerDiggingState> _diggingStates = new();
 
-        private readonly Dictionary<ushort, float> _rateLimitTokens = new();
+        // Reusable list for SetBlock dirtied chunks (fill pattern)
+        private readonly List<int3> _dirtiedChunksCache = new();
+        private readonly float _handMiningMultiplier;
+        private readonly ILogger _logger;
+        private readonly NativeStateRegistry _nativeStateRegistry;
 
         private readonly Dictionary<ushort, float> _rateLimitLastRefill = new();
 
-        // Reusable list for SetBlock dirtied chunks (fill pattern)
-        private readonly List<int3> _dirtiedChunksCache = new();
+        private readonly Dictionary<ushort, float> _rateLimitTokens = new();
+        private readonly StateRegistry _stateRegistry;
 
         public ServerBlockProcessor(
             ChunkManager chunkManager,
@@ -141,10 +141,7 @@ namespace Lithforge.Runtime.Simulation
 
             PlayerDiggingState digState = new()
             {
-                IsDigging = true,
-                DigPosition = position,
-                DigStartTick = serverTick,
-                ExpectedBreakTime = expectedBreakTime,
+                IsDigging = true, DigPosition = position, DigStartTick = serverTick, ExpectedBreakTime = expectedBreakTime,
             };
 
             _diggingStates[playerId] = digState;
@@ -353,16 +350,23 @@ namespace Lithforge.Runtime.Simulation
 
         private static int3 FaceNormalToInt3(BlockFace face)
         {
-            return face switch
+            switch (face)
             {
-                BlockFace.East => new int3(1, 0, 0),
-                BlockFace.West => new int3(-1, 0, 0),
-                BlockFace.Up => new int3(0, 1, 0),
-                BlockFace.Down => new int3(0, -1, 0),
-                BlockFace.North => new int3(0, 0, 1),
-                BlockFace.South => new int3(0, 0, -1),
-                _ => int3.zero,
-            };
+                case BlockFace.East:
+                    return new int3(1, 0, 0);
+                case BlockFace.West:
+                    return new int3(-1, 0, 0);
+                case BlockFace.Up:
+                    return new int3(0, 1, 0);
+                case BlockFace.Down:
+                    return new int3(0, -1, 0);
+                case BlockFace.North:
+                    return new int3(0, 0, 1);
+                case BlockFace.South:
+                    return new int3(0, 0, -1);
+                default:
+                    return int3.zero;
+            }
         }
     }
 }

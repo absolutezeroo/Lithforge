@@ -1,124 +1,48 @@
 using System.Collections.Generic;
+
 using Lithforge.Runtime.Content.Settings;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    /// Advances the day/night cycle and pushes the resulting sun light factor,
-    /// ambient light, and directional light rotation to all voxel materials each frame.
-    /// Time advances at fixed tick rate via AdvanceTick; visual updates run at frame rate.
-    /// Owner: LithforgeBootstrap. Lifetime: application session.
+    ///     Advances the day/night cycle and pushes the resulting sun light factor,
+    ///     ambient light, and directional light rotation to all voxel materials each frame.
+    ///     Time advances at fixed tick rate via AdvanceTick; visual updates run at frame rate.
+    ///     Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
     public sealed class TimeOfDayController : MonoBehaviour
     {
-        private float _timeOfDay;
-        private float _dayLengthSeconds;
-        private float _sunAngleOffset;
-        private float _sunAzimuth;
-        private float _minSunIntensity;
-        private AnimationCurve _dayNightCurve;
-        private Light _directionalLight;
-        private Material _voxelMaterial;
-        private Material _cutoutMaterial;
-        private Material _translucentMaterial;
-        private float _dayAmbient;
-        private float _nightAmbient;
-        private readonly List<Material> _additionalMaterials = new();
-
         private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
         private static readonly int s_ambientLightId = Shader.PropertyToID("_AmbientLight");
+        private readonly List<Material> _additionalMaterials = new();
+        private Material _cutoutMaterial;
+        private float _dayAmbient;
+        private float _dayLengthSeconds;
+        private AnimationCurve _dayNightCurve;
+        private float _minSunIntensity;
+        private float _nightAmbient;
+        private float _sunAngleOffset;
+        private float _sunAzimuth;
+        private Material _translucentMaterial;
+        private Material _voxelMaterial;
 
         /// <summary>Normalized time of day in [0,1). 0 = midnight, 0.5 = noon.</summary>
-        public float TimeOfDay
-        {
-            get { return _timeOfDay; }
-        }
+        public float TimeOfDay { get; private set; }
 
         /// <summary>Current brightness multiplier in [0,1] derived from the day/night curve.</summary>
         public float SunLightFactor
         {
-            get { return ComputeSunFactor(_timeOfDay); }
+            get { return ComputeSunFactor(TimeOfDay); }
         }
 
-        public Light DirectionalLight
-        {
-            get { return _directionalLight; }
-        }
+        public Light DirectionalLight { get; private set; }
 
         public float DayLengthSeconds
         {
             get { return _dayLengthSeconds; }
             set { _dayLengthSeconds = Mathf.Max(1.0f, value); }
-        }
-
-        public void SetTimeOfDay(float time)
-        {
-            _timeOfDay = time % 1f;
-
-            if (_timeOfDay < 0f)
-            {
-                _timeOfDay += 1f;
-            }
-        }
-
-        public void Initialize(
-            Material voxelMaterial,
-            Material cutoutMaterial,
-            Material translucentMaterial,
-            RenderingSettings settings)
-        {
-            _voxelMaterial = voxelMaterial;
-            _cutoutMaterial = cutoutMaterial;
-            _translucentMaterial = translucentMaterial;
-            _dayLengthSeconds = settings.DayLengthSeconds;
-            _sunAngleOffset = settings.SunAngleOffset;
-            _sunAzimuth = settings.SunAzimuth;
-            _minSunIntensity = settings.MinSunIntensity;
-            _dayNightCurve = settings.DayNightCurve;
-            _dayAmbient = settings.DayAmbient;
-            _nightAmbient = settings.NightAmbient;
-            _timeOfDay = settings.StartTimeOfDay;
-
-            // Find or create directional light
-            Light[] lights = FindObjectsByType<Light>(FindObjectsSortMode.None);
-
-            for (int i = 0; i < lights.Length; i++)
-            {
-                if (lights[i].type == LightType.Directional)
-                {
-                    _directionalLight = lights[i];
-
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Registers an additional material to receive _SunLightFactor updates each frame.
-        /// Used by first-person arm and held item materials.
-        /// </summary>
-        public void RegisterMaterial(Material material)
-        {
-            if (material != null && !_additionalMaterials.Contains(material))
-            {
-                _additionalMaterials.Add(material);
-            }
-        }
-
-        /// <summary>
-        /// Advances time-of-day by the given delta. Called at fixed tick rate
-        /// by TimeOfDayTickAdapter. Visual updates (materials, light) remain
-        /// in Update() at frame rate for smooth interpolation.
-        /// </summary>
-        public void AdvanceTick(float tickDt)
-        {
-            _timeOfDay += tickDt / _dayLengthSeconds;
-
-            if (_timeOfDay >= 1.0f)
-            {
-                _timeOfDay -= 1.0f;
-            }
         }
 
         private void Update()
@@ -131,7 +55,7 @@ namespace Lithforge.Runtime.Rendering
             // Time advancement now happens in AdvanceTick() at fixed tick rate.
             // This Update() only applies visual changes (materials, light rotation).
 
-            float sunFactor = ComputeSunFactor(_timeOfDay);
+            float sunFactor = ComputeSunFactor(TimeOfDay);
             float ambientLight = Mathf.Lerp(_nightAmbient, _dayAmbient, sunFactor);
 
             // Update materials
@@ -157,11 +81,80 @@ namespace Lithforge.Runtime.Rendering
             }
 
             // Update directional light rotation (intensity is fixed; voxel light system handles brightness)
-            if (_directionalLight != null)
+            if (DirectionalLight != null)
             {
-                float sunAngle = _timeOfDay * 360.0f + _sunAngleOffset;
-                _directionalLight.transform.rotation = Quaternion.Euler(sunAngle, _sunAzimuth, 0.0f);
-                _directionalLight.intensity = 1.0f;
+                float sunAngle = TimeOfDay * 360.0f + _sunAngleOffset;
+                DirectionalLight.transform.rotation = Quaternion.Euler(sunAngle, _sunAzimuth, 0.0f);
+                DirectionalLight.intensity = 1.0f;
+            }
+        }
+
+        public void SetTimeOfDay(float time)
+        {
+            TimeOfDay = time % 1f;
+
+            if (TimeOfDay < 0f)
+            {
+                TimeOfDay += 1f;
+            }
+        }
+
+        public void Initialize(
+            Material voxelMaterial,
+            Material cutoutMaterial,
+            Material translucentMaterial,
+            RenderingSettings settings)
+        {
+            _voxelMaterial = voxelMaterial;
+            _cutoutMaterial = cutoutMaterial;
+            _translucentMaterial = translucentMaterial;
+            _dayLengthSeconds = settings.DayLengthSeconds;
+            _sunAngleOffset = settings.SunAngleOffset;
+            _sunAzimuth = settings.SunAzimuth;
+            _minSunIntensity = settings.MinSunIntensity;
+            _dayNightCurve = settings.DayNightCurve;
+            _dayAmbient = settings.DayAmbient;
+            _nightAmbient = settings.NightAmbient;
+            TimeOfDay = settings.StartTimeOfDay;
+
+            // Find or create directional light
+            Light[] lights = FindObjectsByType<Light>(FindObjectsSortMode.None);
+
+            for (int i = 0; i < lights.Length; i++)
+            {
+                if (lights[i].type == LightType.Directional)
+                {
+                    DirectionalLight = lights[i];
+
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Registers an additional material to receive _SunLightFactor updates each frame.
+        ///     Used by first-person arm and held item materials.
+        /// </summary>
+        public void RegisterMaterial(Material material)
+        {
+            if (material != null && !_additionalMaterials.Contains(material))
+            {
+                _additionalMaterials.Add(material);
+            }
+        }
+
+        /// <summary>
+        ///     Advances time-of-day by the given delta. Called at fixed tick rate
+        ///     by TimeOfDayTickAdapter. Visual updates (materials, light) remain
+        ///     in Update() at frame rate for smooth interpolation.
+        /// </summary>
+        public void AdvanceTick(float tickDt)
+        {
+            TimeOfDay += tickDt / _dayLengthSeconds;
+
+            if (TimeOfDay >= 1.0f)
+            {
+                TimeOfDay -= 1.0f;
             }
         }
 

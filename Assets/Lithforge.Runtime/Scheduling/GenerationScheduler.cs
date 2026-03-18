@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Voxel.Block;
@@ -10,60 +12,27 @@ using Lithforge.WorldGen.Decoration;
 using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Pipeline;
 using Lithforge.WorldGen.Stages;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+
 using UnityEngine.Profiling;
 
 namespace Lithforge.Runtime.Scheduling
 {
     /// <summary>
-    /// Owns the generation job queue: scheduling worldgen/storage-load,
-    /// polling for completion, running decoration, cross-chunk light
-    /// propagation, and disposing resources.
+    ///     Owns the generation job queue: scheduling worldgen/storage-load,
+    ///     polling for completion, running decoration, cross-chunk light
+    ///     propagation, and disposing resources.
     /// </summary>
     public sealed class GenerationScheduler
     {
-        /// <summary>Generation jobs currently running on worker threads.</summary>
-        private readonly List<PendingGeneration> _pendingGenerations = new();
-
         /// <summary>
-        /// Generation jobs whose chunk was unloaded while in-flight. Polled each frame
-        /// until complete, then all NativeContainers are disposed.
+        ///     Face-to-neighbor offset mapping (shared by InvalidateLightNeighbors and
+        ///     ProcessCrossChunkLightUpdates). Avoids per-call int3[] allocation.
         /// </summary>
-        private readonly List<PendingGeneration> _pendingGenDisposals = new();
-
-        private readonly ChunkManager _chunkManager;
-        private readonly GenerationPipeline _generationPipeline;
-        private readonly DecorationStage _decorationStage;
-        private readonly WorldStorage _worldStorage;
-        private readonly NativeStateRegistry _nativeStateRegistry;
-        private readonly IPipelineStats _pipelineStats;
-        private readonly long _seed;
-        private int _maxGenerationsPerFrame;
-        private int _maxGenCompletionsPerFrame;
-        private readonly int _maxLightUpdatesPerFrame;
-
-        /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
-        private readonly float _completionBudgetMs;
-
-        /// <summary>
-        /// Reusable list for FillChunksToGenerate — avoids per-frame allocation.
-        /// Owner: GenerationScheduler. Lifetime: application.
-        /// </summary>
-        private readonly List<ManagedChunk> _generateCandidateCache = new();
-
-        /// <summary>
-        /// Guards against double-scheduling the same chunk coord.
-        /// Owner: GenerationScheduler. Lifetime: application.
-        /// </summary>
-        private readonly HashSet<int3> _pendingCoords = new();
-
-        /// <summary>
-        /// Face-to-neighbor offset mapping (shared by InvalidateLightNeighbors and
-        /// ProcessCrossChunkLightUpdates). Avoids per-call int3[] allocation.
-        /// </summary>
-        private static readonly int3[] s_faceOffsets = new int3[]
+        private static readonly int3[] s_faceOffsets =
         {
             new(1, 0, 0),  // face 0: +X
             new(-1, 0, 0), // face 1: -X
@@ -74,78 +43,96 @@ namespace Lithforge.Runtime.Scheduling
         };
 
         /// <summary>
-        /// Opposite face index: face 0 &lt;-&gt; 1, 2 &lt;-&gt; 3, 4 &lt;-&gt; 5.
+        ///     Opposite face index: face 0 &lt;-&gt; 1, 2 &lt;-&gt; 3, 4 &lt;-&gt; 5.
         /// </summary>
-        private static readonly int[] s_oppositeFace = new int[] { 1, 0, 3, 2, 5, 4 };
+        private static readonly int[] s_oppositeFace =
+        {
+            1,
+            0,
+            3,
+            2,
+            5,
+            4,
+        };
+
+        private readonly ChunkManager _chunkManager;
+
+        /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
+        private readonly float _completionBudgetMs;
+        private readonly DecorationStage _decorationStage;
 
         /// <summary>
-        /// Reusable list for chunks needing light updates — avoids per-frame allocation.
-        /// Owner: GenerationScheduler. Lifetime: application.
+        ///     Reusable list for FillChunksToGenerate — avoids per-frame allocation.
+        ///     Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
-        private readonly List<ManagedChunk> _lightUpdateCache = new();
+        private readonly List<ManagedChunk> _generateCandidateCache = new();
+        private readonly GenerationPipeline _generationPipeline;
 
         /// <summary>
-        /// Reusable list for scheduling light update jobs within ProcessCrossChunkLightUpdates.
-        /// Drained into _inFlightLightUpdates at the end of each scheduling pass.
-        /// Owner: GenerationScheduler. Lifetime: application.
-        /// </summary>
-        private readonly List<PendingLightUpdate> _pendingLightUpdates = new();
-
-        /// <summary>
-        /// Light update jobs scheduled last frame, awaiting completion this frame.
-        /// Pattern: schedule frame N, complete frame N+1.
-        /// Owner: GenerationScheduler. Lifetime: application.
+        ///     Light update jobs scheduled last frame, awaiting completion this frame.
+        ///     Pattern: schedule frame N, complete frame N+1.
+        ///     Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
         private readonly List<PendingLightUpdate> _inFlightLightUpdates = new();
 
         /// <summary>
-        /// Optional biome tint manager for writing climate data to the global GPU texture.
-        /// Set via SetBiomeTintManager after construction.
+        ///     Reusable list for chunks needing light updates — avoids per-frame allocation.
+        ///     Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<ManagedChunk> _lightUpdateCache = new();
+        private readonly int _maxLightUpdatesPerFrame;
+        private readonly NativeStateRegistry _nativeStateRegistry;
+
+        /// <summary>
+        ///     Guards against double-scheduling the same chunk coord.
+        ///     Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly HashSet<int3> _pendingCoords = new();
+
+        /// <summary>
+        ///     Generation jobs whose chunk was unloaded while in-flight. Polled each frame
+        ///     until complete, then all NativeContainers are disposed.
+        /// </summary>
+        private readonly List<PendingGeneration> _pendingGenDisposals = new();
+        /// <summary>Generation jobs currently running on worker threads.</summary>
+        private readonly List<PendingGeneration> _pendingGenerations = new();
+
+        /// <summary>
+        ///     Reusable list for scheduling light update jobs within ProcessCrossChunkLightUpdates.
+        ///     Drained into _inFlightLightUpdates at the end of each scheduling pass.
+        ///     Owner: GenerationScheduler. Lifetime: application.
+        /// </summary>
+        private readonly List<PendingLightUpdate> _pendingLightUpdates = new();
+        private readonly IPipelineStats _pipelineStats;
+        private readonly long _seed;
+        private readonly WorldStorage _worldStorage;
+
+        /// <summary>
+        ///     Optional biome tint manager for writing climate data to the global GPU texture.
+        ///     Set via SetBiomeTintManager after construction.
         /// </summary>
         private BiomeTintManager _biomeTintManager;
 
         /// <summary>
-        /// Optional block entity registry for deserializing block entities from storage.
-        /// Set via SetBlockEntityRegistry after construction.
+        ///     Optional block entity registry for deserializing block entities from storage.
+        ///     Set via SetBlockEntityRegistry after construction.
         /// </summary>
         private BlockEntityRegistry _blockEntityRegistry;
 
         /// <summary>
-        /// Optional liquid scheduler for initializing liquid data on newly generated chunks.
-        /// Set via SetLiquidScheduler after construction.
+        ///     Optional liquid scheduler for initializing liquid data on newly generated chunks.
+        ///     Set via SetLiquidScheduler after construction.
         /// </summary>
         private LiquidScheduler _liquidScheduler;
+        private int _maxGenCompletionsPerFrame;
+        private int _maxGenerationsPerFrame;
 
         /// <summary>
-        /// Called after a chunk with block entities is loaded from storage.
-        /// Parameters: chunkCoord, ManagedChunk.
-        /// Used by BlockEntityTickScheduler to register entities for ticking.
+        ///     Called after a chunk with block entities is loaded from storage.
+        ///     Parameters: chunkCoord, ManagedChunk.
+        ///     Used by BlockEntityTickScheduler to register entities for ticking.
         /// </summary>
-        public System.Action<int3, ManagedChunk> OnChunkEntitiesLoaded;
-
-        /// <summary>Number of generation jobs currently in-flight on worker threads.</summary>
-        public int PendingCount
-        {
-            get { return _pendingGenerations.Count; }
-        }
-
-        /// <summary>Injects the biome tint manager so completed chunks can write climate data to the GPU texture.</summary>
-        public void SetBiomeTintManager(BiomeTintManager manager)
-        {
-            _biomeTintManager = manager;
-        }
-
-        /// <summary>Injects the block entity registry so chunks loaded from storage can deserialize their entities.</summary>
-        public void SetBlockEntityRegistry(BlockEntityRegistry registry)
-        {
-            _blockEntityRegistry = registry;
-        }
-
-        /// <summary>Injects the liquid scheduler so completed chunks can initialize liquid data.</summary>
-        public void SetLiquidScheduler(LiquidScheduler liquidScheduler)
-        {
-            _liquidScheduler = liquidScheduler;
-        }
+        public Action<int3, ManagedChunk> OnChunkEntitiesLoaded;
 
         public GenerationScheduler(
             ChunkManager chunkManager,
@@ -173,9 +160,33 @@ namespace Lithforge.Runtime.Scheduling
             _completionBudgetMs = completionBudgetMs;
         }
 
+        /// <summary>Number of generation jobs currently in-flight on worker threads.</summary>
+        public int PendingCount
+        {
+            get { return _pendingGenerations.Count; }
+        }
+
+        /// <summary>Injects the biome tint manager so completed chunks can write climate data to the GPU texture.</summary>
+        public void SetBiomeTintManager(BiomeTintManager manager)
+        {
+            _biomeTintManager = manager;
+        }
+
+        /// <summary>Injects the block entity registry so chunks loaded from storage can deserialize their entities.</summary>
+        public void SetBlockEntityRegistry(BlockEntityRegistry registry)
+        {
+            _blockEntityRegistry = registry;
+        }
+
+        /// <summary>Injects the liquid scheduler so completed chunks can initialize liquid data.</summary>
+        public void SetLiquidScheduler(LiquidScheduler liquidScheduler)
+        {
+            _liquidScheduler = liquidScheduler;
+        }
+
         /// <summary>
-        /// Re-derives scheduling limits from the current render distance. Called when the
-        /// player changes render distance at runtime.
+        ///     Re-derives scheduling limits from the current render distance. Called when the
+        ///     player changes render distance at runtime.
         /// </summary>
         /// <param name="renderDistance">New render distance in chunks.</param>
         public void UpdateConfig(int renderDistance)
@@ -185,9 +196,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Polls in-flight generation jobs for completion and processes finished chunks:
-        /// runs decoration, transfers ownership of NativeContainers, collects border light
-        /// entries, and marks neighbors for remeshing. Time-budgeted to avoid frame spikes.
+        ///     Polls in-flight generation jobs for completion and processes finished chunks:
+        ///     runs decoration, transfers ownership of NativeContainers, collects border light
+        ///     entries, and marks neighbors for remeshing. Time-budgeted to avoid frame spikes.
         /// </summary>
         public void PollCompleted()
         {
@@ -257,7 +268,7 @@ namespace Lithforge.Runtime.Scheduling
 
                         // Write climate data to biome tint texture before disposal
                         if (_biomeTintManager != null && pending.Handle.ClimateMap.IsCreated
-                            && pending.Handle.BiomeMap.IsCreated)
+                                                      && pending.Handle.BiomeMap.IsCreated)
                         {
                             _biomeTintManager.WriteChunkClimate(
                                 pending.Coord, pending.Handle.ClimateMap, pending.Handle.BiomeMap);
@@ -299,9 +310,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Collects border light entries from the NativeList produced by LightPropagationJob
-        /// and stores them in the ManagedChunk for use by neighbor light updates.
-        /// Also rebuilds the BorderFaceMask bitmask for O(1) face-presence checks.
+        ///     Collects border light entries from the NativeList produced by LightPropagationJob
+        ///     and stores them in the ManagedChunk for use by neighbor light updates.
+        ///     Also rebuilds the BorderFaceMask bitmask for O(1) face-presence checks.
         /// </summary>
         private static void CollectBorderLightEntries(
             ManagedChunk chunk,
@@ -321,9 +332,7 @@ namespace Lithforge.Runtime.Scheduling
                 NativeBorderLightEntry native = borderLightOutput[i];
                 chunk.BorderLightEntries.Add(new BorderLightEntry
                 {
-                    LocalPosition = native.LocalPosition,
-                    PackedLight = native.PackedLight,
-                    Face = native.Face,
+                    LocalPosition = native.LocalPosition, PackedLight = native.PackedLight, Face = native.Face,
                 });
             }
 
@@ -331,10 +340,10 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Checks neighbor chunks and marks them for light re-propagation
-        /// if this chunk's border light values would affect them.
-        /// Uses BorderFaceMask for O(1) face-presence check and cached Neighbors[]
-        /// to avoid dictionary lookups.
+        ///     Checks neighbor chunks and marks them for light re-propagation
+        ///     if this chunk's border light values would affect them.
+        ///     Uses BorderFaceMask for O(1) face-presence check and cached Neighbors[]
+        ///     to avoid dictionary lookups.
         /// </summary>
         private void InvalidateLightNeighbors(int3 coord, ManagedChunk sourceChunk)
         {
@@ -345,7 +354,7 @@ namespace Lithforge.Runtime.Scheduling
 
             for (int f = 0; f < 6; f++)
             {
-                if ((sourceChunk.BorderFaceMask & (1 << f)) == 0)
+                if ((sourceChunk.BorderFaceMask & 1 << f) == 0)
                 {
                     continue;
                 }
@@ -363,10 +372,10 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Processes cross-chunk light updates for chunks flagged with NeedsLightUpdate.
-        /// Uses a two-phase pattern: complete last frame's jobs, then schedule new ones.
-        /// This gives worker threads a full frame (~5-16ms) to finish before the sync point.
-        /// Should be called each frame after PollCompleted().
+        ///     Processes cross-chunk light updates for chunks flagged with NeedsLightUpdate.
+        ///     Uses a two-phase pattern: complete last frame's jobs, then schedule new ones.
+        ///     This gives worker threads a full frame (~5-16ms) to finish before the sync point.
+        ///     Should be called each frame after PollCompleted().
         /// </summary>
         public void ProcessCrossChunkLightUpdates()
         {
@@ -464,7 +473,7 @@ namespace Lithforge.Runtime.Scheduling
                     int expectedFace = s_oppositeFace[f];
 
                     // O(1) bitmask pre-check before iterating entries
-                    if ((neighbor.BorderFaceMask & (1 << expectedFace)) == 0)
+                    if ((neighbor.BorderFaceMask & 1 << expectedFace) == 0)
                     {
                         continue;
                     }
@@ -482,9 +491,7 @@ namespace Lithforge.Runtime.Scheduling
 
                         seedEntries.Add(new NativeBorderLightEntry
                         {
-                            LocalPosition = localPos,
-                            PackedLight = entry.PackedLight,
-                            Face = entry.Face,
+                            LocalPosition = localPos, PackedLight = entry.PackedLight, Face = entry.Face,
                         });
                     }
                 }
@@ -493,10 +500,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     LightUpdateJob updateJob = new()
                     {
-                        LightData = chunk.LightData,
-                        ChunkData = chunk.Data,
-                        StateTable = _nativeStateRegistry.States,
-                        SeedEntries = seedEntries.AsArray(),
+                        LightData = chunk.LightData, ChunkData = chunk.Data, StateTable = _nativeStateRegistry.States, SeedEntries = seedEntries.AsArray(),
                     };
 
                     JobHandle handle = updateJob.Schedule();
@@ -506,10 +510,7 @@ namespace Lithforge.Runtime.Scheduling
 
                     _pendingLightUpdates.Add(new PendingLightUpdate
                     {
-                        Chunk = chunk,
-                        Handle = handle,
-                        SeedEntries = seedEntries,
-                        FrameAge = 0,
+                        Chunk = chunk, Handle = handle, SeedEntries = seedEntries, FrameAge = 0,
                     });
 
                     processedCount++;
@@ -531,35 +532,36 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Maps a border voxel's local position from the source chunk to the
-        /// receiving chunk's local coordinate system.
+        ///     Maps a border voxel's local position from the source chunk to the
+        ///     receiving chunk's local coordinate system.
         /// </summary>
         private static int3 MapBorderToNeighborLocal(int3 sourceLocal, int sourceFace)
         {
             int lastIdx = ChunkConstants.Size - 1;
 
-            return sourceFace switch
+            switch (sourceFace)
             {
-                0 => // +X face of source -> -X face of receiver (x=0)
-                    new int3(0, sourceLocal.y, sourceLocal.z),
-                1 => // -X face of source -> +X face of receiver (x=31)
-                    new int3(lastIdx, sourceLocal.y, sourceLocal.z),
-                2 => // +Y face of source -> -Y face of receiver (y=0)
-                    new int3(sourceLocal.x, 0, sourceLocal.z),
-                3 => // -Y face of source -> +Y face of receiver (y=31)
-                    new int3(sourceLocal.x, lastIdx, sourceLocal.z),
-                4 => // +Z face of source -> -Z face of receiver (z=0)
-                    new int3(sourceLocal.x, sourceLocal.y, 0),
-                5 => // -Z face of source -> +Z face of receiver (z=31)
-                    new int3(sourceLocal.x, sourceLocal.y, lastIdx),
-                _ => sourceLocal,
-            };
+                case 0: // +X face of source -> -X face of receiver (x=0)
+                    return new int3(0, sourceLocal.y, sourceLocal.z);
+                case 1: // -X face of source -> +X face of receiver (x=31)
+                    return new int3(lastIdx, sourceLocal.y, sourceLocal.z);
+                case 2: // +Y face of source -> -Y face of receiver (y=0)
+                    return new int3(sourceLocal.x, 0, sourceLocal.z);
+                case 3: // -Y face of source -> +Y face of receiver (y=31)
+                    return new int3(sourceLocal.x, lastIdx, sourceLocal.z);
+                case 4: // +Z face of source -> -Z face of receiver (z=0)
+                    return new int3(sourceLocal.x, sourceLocal.y, 0);
+                case 5: // -Z face of source -> +Z face of receiver (z=31)
+                    return new int3(sourceLocal.x, sourceLocal.y, lastIdx);
+                default:
+                    return sourceLocal;
+            }
         }
 
         /// <summary>
-        /// Fills available scheduling slots with new generation jobs. Tries storage-load
-        /// first (instant); if no saved data exists, schedules the full generation pipeline
-        /// on worker threads. Calls ScheduleBatchedJobs once at the end to flush.
+        ///     Fills available scheduling slots with new generation jobs. Tries storage-load
+        ///     first (instant); if no saved data exists, schedules the full generation pipeline
+        ///     on worker threads. Calls ScheduleBatchedJobs once at the end to flush.
         /// </summary>
         public void ScheduleJobs()
         {
@@ -590,10 +592,10 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     NativeArray<byte> lightData = new(
                         ChunkConstants.Volume,
-                        Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                        Allocator.Persistent);
 
                     if (_worldStorage.LoadChunk(chunk.Coord, chunk.Data, lightData,
-                        out Dictionary<int, IBlockEntity> loadedEntities, _blockEntityRegistry))
+                            out Dictionary<int, IBlockEntity> loadedEntities, _blockEntityRegistry))
                     {
                         chunk.LightData = lightData;
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
@@ -629,8 +631,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 _pendingGenerations.Add(new PendingGeneration
                 {
-                    Coord = chunk.Coord,
-                    Handle = handle,
+                    Coord = chunk.Coord, Handle = handle,
                 });
 
                 _pendingCoords.Add(chunk.Coord);
@@ -647,9 +648,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Cancels tracking of a chunk that is being unloaded. Moves in-flight generation
-        /// jobs to the deferred disposal queue and force-completes any light update jobs
-        /// so that the chunk's NativeContainers can be safely disposed.
+        ///     Cancels tracking of a chunk that is being unloaded. Moves in-flight generation
+        ///     jobs to the deferred disposal queue and force-completes any light update jobs
+        ///     so that the chunk's NativeContainers can be safely disposed.
         /// </summary>
         /// <param name="coord">Chunk coordinate being unloaded.</param>
         public void CleanupCoord(int3 coord)
@@ -680,8 +681,8 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Force-completes all in-flight jobs and disposes every NativeContainer.
-        /// Called during application shutdown or world unload.
+        ///     Force-completes all in-flight jobs and disposes every NativeContainer.
+        ///     Called during application shutdown or world unload.
         /// </summary>
         public void Shutdown()
         {
@@ -712,9 +713,9 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>
-        /// Drains the lazy disposal queue for generation jobs. Jobs that were in-flight
-        /// when their chunk was unloaded are polled here — once complete, all NativeContainers
-        /// (including LightData) are disposed. Called at the start of PollCompleted each frame.
+        ///     Drains the lazy disposal queue for generation jobs. Jobs that were in-flight
+        ///     when their chunk was unloaded are polled here — once complete, all NativeContainers
+        ///     (including LightData) are disposed. Called at the start of PollCompleted each frame.
         /// </summary>
         private void PollPendingGenDisposals()
         {

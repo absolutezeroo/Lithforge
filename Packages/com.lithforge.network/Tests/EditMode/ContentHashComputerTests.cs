@@ -1,6 +1,6 @@
 using Lithforge.Core.Data;
-using Lithforge.Network;
 using Lithforge.Voxel.Block;
+
 using NUnit.Framework;
 
 namespace Lithforge.Network.Tests
@@ -27,17 +27,17 @@ namespace Lithforge.Network.Tests
 
             StateRegistry registry2 = new();
             registry2.Register(new BlockRegistrationData(
-                id: ResourceId.Parse("lithforge:different_block"),
-                stateCount: 1,
-                renderLayer: "opaque",
-                collisionShape: "full_cube",
-                lightEmission: 0,
-                lightFilter: 15,
-                mapColor: "#FF0000",
-                lootTable: null,
-                hardness: 5.0f,
-                blastResistance: 5.0f,
-                requiresTool: true,
+                ResourceId.Parse("lithforge:different_block"),
+                1,
+                "opaque",
+                "full_cube",
+                0,
+                15,
+                "#FF0000",
+                null,
+                5.0f,
+                5.0f,
+                true,
                 materialType: BlockMaterialType.Stone,
                 requiredToolLevel: 1));
 
@@ -98,17 +98,17 @@ namespace Lithforge.Network.Tests
         {
             StateRegistry registry = new();
             registry.Register(new BlockRegistrationData(
-                id: ResourceId.Parse("lithforge:stone"),
-                stateCount: 1,
-                renderLayer: "opaque",
-                collisionShape: "full_cube",
-                lightEmission: 0,
-                lightFilter: 15,
-                mapColor: "#808080",
-                lootTable: null,
-                hardness: 1.5f,
-                blastResistance: 6.0f,
-                requiresTool: true,
+                ResourceId.Parse("lithforge:stone"),
+                1,
+                "opaque",
+                "full_cube",
+                0,
+                15,
+                "#808080",
+                null,
+                1.5f,
+                6.0f,
+                true,
                 materialType: BlockMaterialType.Stone,
                 requiredToolLevel: 0));
             return registry;

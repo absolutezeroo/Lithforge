@@ -1,6 +1,10 @@
+using System;
+
+using Lithforge.Item;
+using Lithforge.Runtime.UI.Navigation;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;
-using Lithforge.Item;
+using Lithforge.Voxel.Item;
 
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -11,7 +15,7 @@ namespace Lithforge.Runtime.UI.Screens
     ///     Read-only hotbar display at the bottom center of the screen.
     ///     Shows 9 slots with item icons, selected slot highlight, and item name banner.
     /// </summary>
-    public sealed class HotbarDisplay : MonoBehaviour
+    public sealed class HotbarDisplay : MonoBehaviour, IScreen
     {
         private UIDocument _document;
         private Inventory _inventory;
@@ -64,6 +68,26 @@ namespace Lithforge.Runtime.UI.Screens
                 ItemStack stack = _inventory.GetSlot(i);
                 _slotWidgets[i].Refresh(stack, _spriteAtlas, _itemRegistry, _toolPartTexDb);
             }
+        }
+
+        public string ScreenName { get { return ScreenNames.Hotbar; } }
+        public bool IsInputOpaque { get { return false; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            SetVisible(true);
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            SetVisible(false);
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            return false;
         }
 
         public void Initialize(

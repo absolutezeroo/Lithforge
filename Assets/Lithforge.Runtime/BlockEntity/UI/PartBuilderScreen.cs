@@ -1,12 +1,14 @@
 using System.Collections.Generic;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Item.Crafting;
-using Lithforge.Item;
+using Lithforge.Voxel.Crafting;
+using Lithforge.Voxel.Item;
 
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -34,16 +36,25 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit9,
         };
         private readonly List<PartBuilderRecipe> _availableRecipes = new();
+
         private readonly List<Button> _patternButtons = new();
+
         private Label _costLabel;
+
         private PartBuilderBlockEntity _currentBuilder;
+
         private Label _haveLabel;
+
         private InventoryContainerAdapter _hotbarAdapter;
+
         private InventoryContainerAdapter _mainAdapter;
+
         private BlockEntityContainerAdapter _materialAdapter;
+
         private Label _materialLabel;
 
         private bool _needsRefresh;
+
         private BlockEntityContainerAdapter _outputAdapter;
 
         private BlockEntityContainerAdapter _patternAdapter;
@@ -53,10 +64,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         // Material resolution (TiC-style)
         private MaterialInputData _resolvedInput;
+
         private ToolMaterialData _resolvedMaterial;
 
         // Pattern selection state
         private int _selectedPatternIndex = -1;
+
         private PartBuilderRecipe _selectedRecipe;
 
         private void Update()
@@ -71,6 +84,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                  Keyboard.current.eKey.wasPressedThisFrame))
             {
                 Close();
+
                 return;
             }
 
@@ -82,6 +96,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             if (IsInGracePeriod())
             {
                 RefreshAllSlots();
+
                 return;
             }
 
@@ -93,6 +108,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             if (_needsRefresh)
             {
                 _needsRefresh = false;
+
                 RefreshPatternButtons();
             }
 
@@ -118,6 +134,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 Interaction.NumberKeySwap(hoveredContainer, hoveredIndex, _hotbarAdapter, i);
+
                 return;
             }
         }
@@ -246,6 +263,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 }
 
                 evt.StopPropagation();
+
                 return;
             }
 
@@ -449,7 +467,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 int ca = GetRecipeCost(a);
                 int cb = GetRecipeCost(b);
                 int cmp = ca.CompareTo(cb);
-                return cmp != 0 ? cmp : string.Compare(a.DisplayName, b.DisplayName);
+                return cmp != 0 ? cmp : string.CompareOrdinal(a.DisplayName, b.DisplayName);
             });
 
             RebuildPatternButtonsUI();
@@ -628,6 +646,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                     : "";
                 _costLabel.text = "";
                 _haveLabel.text = "";
+
                 return;
             }
 
@@ -637,6 +656,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 _materialLabel.text = _selectedRecipe.DisplayName;
                 _costLabel.text = "Place material to craft";
                 _haveLabel.text = "";
+
                 return;
             }
 
@@ -687,6 +707,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             int cost = GetRecipeCost(recipe);
+
             return _resolvedInput.GetItemsUsed(cost);
         }
 

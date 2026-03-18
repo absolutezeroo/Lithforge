@@ -1,6 +1,6 @@
-using Lithforge.Network;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
+
 using NUnit.Framework;
 
 namespace Lithforge.Network.Tests
@@ -26,9 +26,7 @@ namespace Lithforge.Network.Tests
         {
             HandshakeRequestMessage original = new()
             {
-                ProtocolVersion = 1,
-                ContentHash = new ContentHash(0xDEADBEEF, 0xCAFEBABE),
-                PlayerName = "TestPlayer",
+                ProtocolVersion = 1, ContentHash = new ContentHash(0xDEADBEEF, 0xCAFEBABE), PlayerName = "TestPlayer",
             };
 
             byte[] buffer = new byte[128];
@@ -102,7 +100,9 @@ namespace Lithforge.Network.Tests
         public void PingMessage_RoundTrip()
         {
             PingMessage original = new()
-                { Timestamp = 123.456f };
+            {
+                Timestamp = 123.456f,
+            };
 
             byte[] buffer = new byte[16];
             int written = original.Serialize(buffer, 0);
@@ -116,8 +116,7 @@ namespace Lithforge.Network.Tests
         {
             PongMessage original = new()
             {
-                EchoTimestamp = 123.456f,
-                ServerTick = 99999,
+                EchoTimestamp = 123.456f, ServerTick = 99999,
             };
 
             byte[] buffer = new byte[16];
@@ -132,7 +131,9 @@ namespace Lithforge.Network.Tests
         public void WriteMessage_IncludesHeaderAndPayload()
         {
             PingMessage msg = new()
-                { Timestamp = 1.0f };
+            {
+                Timestamp = 1.0f,
+            };
 
             int totalBytes = MessageSerializer.WriteMessage(msg, out byte[] buffer);
 
@@ -189,9 +190,7 @@ namespace Lithforge.Network.Tests
         {
             HandshakeRequestMessage original = new()
             {
-                ProtocolVersion = 1,
-                ContentHash = new ContentHash(0, 0),
-                PlayerName = "",
+                ProtocolVersion = 1, ContentHash = new ContentHash(0, 0), PlayerName = "",
             };
 
             byte[] buffer = new byte[128];
@@ -206,9 +205,7 @@ namespace Lithforge.Network.Tests
         {
             HandshakeRequestMessage request = new()
             {
-                ProtocolVersion = 1,
-                ContentHash = new ContentHash(1, 2),
-                PlayerName = "Hello",
+                ProtocolVersion = 1, ContentHash = new ContentHash(1, 2), PlayerName = "Hello",
             };
 
             byte[] buffer = new byte[128];

@@ -1,5 +1,7 @@
 using System;
+
 using Lithforge.Core.Data;
+
 using NUnit.Framework;
 
 namespace Lithforge.Core.Tests

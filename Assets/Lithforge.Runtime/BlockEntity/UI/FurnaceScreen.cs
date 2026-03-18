@@ -1,36 +1,99 @@
+using Lithforge.Item;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Item;
+using Lithforge.Voxel.Item;
+
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    /// Screen for the furnace block entity. Shows input slot, fuel slot,
-    /// output slot, burn/smelt progress bars, and player inventory below.
-    /// Escape key closes.
+    ///     Screen for the furnace block entity. Shows input slot, fuel slot,
+    ///     output slot, burn/smelt progress bars, and player inventory below.
+    ///     Escape key closes.
     /// </summary>
     public sealed class FurnaceScreen : ContainerScreen
     {
-        private FurnaceBlockEntity _currentFurnace;
-
-        private BlockEntityContainerAdapter _furnaceInputAdapter;
-        private BlockEntityContainerAdapter _furnaceFuelAdapter;
-        private BlockEntityContainerAdapter _furnaceOutputAdapter;
-        private InventoryContainerAdapter _hotbarAdapter;
-        private InventoryContainerAdapter _mainAdapter;
-
-        private ProgressBar _burnBar;
-        private ProgressBar _smeltBar;
-
         private static readonly Key[] s_numberKeys =
         {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
         };
+
+        private ProgressBar _burnBar;
+        private FurnaceBlockEntity _currentFurnace;
+
+        private BlockEntityContainerAdapter _furnaceFuelAdapter;
+
+        private BlockEntityContainerAdapter _furnaceInputAdapter;
+
+        private BlockEntityContainerAdapter _furnaceOutputAdapter;
+
+        private InventoryContainerAdapter _hotbarAdapter;
+
+        private InventoryContainerAdapter _mainAdapter;
+
+        private ProgressBar _smeltBar;
+
+        private void Update()
+        {
+            if (Context == null)
+            {
+                return;
+            }
+
+            // Escape or E to close
+            if (IsOpen && Keyboard.current != null &&
+                (Keyboard.current.escapeKey.wasPressedThisFrame ||
+                 Keyboard.current.eKey.wasPressedThisFrame))
+            {
+                Close();
+                return;
+            }
+
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            if (IsInGracePeriod())
+            {
+                RefreshAllSlots();
+                return;
+            }
+
+            if (Keyboard.current != null)
+            {
+                HandleNumberKeys(Keyboard.current);
+            }
+
+            // Update progress bars
+            if (_currentFurnace != null)
+            {
+                if (_burnBar != null)
+                {
+                    _burnBar.value = _currentFurnace.FuelBurn.BurnProgress * 100f;
+                }
+
+                if (_smeltBar != null)
+                {
+                    _smeltBar.value = _currentFurnace.Smelting.SmeltProgress * 100f;
+                }
+            }
+
+            RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
+        }
 
         public void Initialize(ScreenContext context)
         {
@@ -44,9 +107,9 @@ namespace Lithforge.Runtime.BlockEntity.UI
         }
 
         /// <summary>
-        /// Opens the furnace screen for the given entity.
-        /// Creates adapters wrapping the 3 furnace slots:
-        /// input=slot 0, fuel=slot 1, output=slot 2 (read-only for placement).
+        ///     Opens the furnace screen for the given entity.
+        ///     Creates adapters wrapping the 3 furnace slots:
+        ///     input=slot 0, fuel=slot 1, output=slot 2 (read-only for placement).
         /// </summary>
         public void OpenForEntity(BlockEntity entity)
         {
@@ -65,9 +128,9 @@ namespace Lithforge.Runtime.BlockEntity.UI
             // Each adapter exposes exactly 1 slot to prevent cross-slot corruption
             // during shift-click transfers via TryFillContainer.
             _furnaceInputAdapter = new BlockEntityContainerAdapter(
-                inv, FurnaceBlockEntity.InputSlot, 1, false);
+                inv, FurnaceBlockEntity.InputSlot, 1);
             _furnaceFuelAdapter = new BlockEntityContainerAdapter(
-                inv, FurnaceBlockEntity.FuelSlot, 1, false);
+                inv, FurnaceBlockEntity.FuelSlot, 1);
             _furnaceOutputAdapter = new BlockEntityContainerAdapter(
                 inv, FurnaceBlockEntity.OutputSlot, 1, true);
 
@@ -126,8 +189,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 if (evt.button == 0)
                 {
                     bool isShift = Keyboard.current != null &&
-                        (Keyboard.current.leftShiftKey.isPressed ||
-                         Keyboard.current.rightShiftKey.isPressed);
+                                   (Keyboard.current.leftShiftKey.isPressed ||
+                                    Keyboard.current.rightShiftKey.isPressed);
 
                     ItemStack outputStack = container.GetSlot(slotIndex);
 
@@ -241,56 +304,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
             // Return held items to player inventory
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);
             _currentFurnace = null;
-        }
-
-        private void Update()
-        {
-            if (Context == null)
-            {
-                return;
-            }
-
-            // Escape or E to close
-            if (IsOpen && Keyboard.current != null &&
-                (Keyboard.current.escapeKey.wasPressedThisFrame ||
-                 Keyboard.current.eKey.wasPressedThisFrame))
-            {
-                Close();
-                return;
-            }
-
-            if (!IsOpen)
-            {
-                return;
-            }
-
-            if (IsInGracePeriod())
-            {
-                RefreshAllSlots();
-                return;
-            }
-
-            if (Keyboard.current != null)
-            {
-                HandleNumberKeys(Keyboard.current);
-            }
-
-            // Update progress bars
-            if (_currentFurnace != null)
-            {
-                if (_burnBar != null)
-                {
-                    _burnBar.value = _currentFurnace.FuelBurn.BurnProgress * 100f;
-                }
-
-                if (_smeltBar != null)
-                {
-                    _smeltBar.value = _currentFurnace.Smelting.SmeltProgress * 100f;
-                }
-            }
-
-            RefreshAllSlots();
-            UpdateTooltipKeyRefresh();
         }
 
         private void HandleNumberKeys(Keyboard keyboard)

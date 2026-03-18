@@ -1,19 +1,20 @@
 using Lithforge.Core.Data;
 using Lithforge.Item;
+using Lithforge.Voxel.Item;
+
 using NUnit.Framework;
 
-namespace Lithforge.Item.Tests
+namespace Lithforge.Voxel.Tests
 {
     [TestFixture]
     public sealed class InventoryTests
     {
-        private Inventory _inventory;
-
         [SetUp]
         public void SetUp()
         {
             _inventory = new Inventory();
         }
+        private Inventory _inventory;
 
         [Test]
         public void AddItem_FullInventory_ReturnsRemaining()

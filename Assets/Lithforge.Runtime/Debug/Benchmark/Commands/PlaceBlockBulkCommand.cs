@@ -1,29 +1,30 @@
 using System.Collections;
 using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
-using Lithforge.Voxel.Chunk;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Debug.Benchmark
 {
     /// <summary>
-    /// Places blocks in a cubic region around the player.
-    /// Measures the full pipeline impact: edit → relight → remesh → GPU upload.
-    /// Can place and then clear to measure both directions.
+    ///     Places blocks in a cubic region around the player.
+    ///     Measures the full pipeline impact: edit → relight → remesh → GPU upload.
+    ///     Can place and then clear to measure both directions.
     /// </summary>
     [CreateAssetMenu(fileName = "PlaceBlockBulkCommand", menuName = "Lithforge/Benchmark/Commands/Place Block Bulk")]
     public sealed class PlaceBlockBulkCommand : BenchmarkCommand
     {
-        [Tooltip("Half-size of the cube region (e.g., 16 = 32x32x32 region)")]
-        [Min(1)]
-        [SerializeField] private int halfSize = 16;
+        [Tooltip("Half-size of the cube region (e.g., 16 = 32x32x32 region)"), Min(1), SerializeField]
+         private int halfSize = 16;
 
-        [Tooltip("If true, clears the region (sets to air) instead of filling")]
-        [SerializeField] private bool clearRegion;
+        [Tooltip("If true, clears the region (sets to air) instead of filling"), SerializeField]
+         private bool clearRegion;
 
-        [Tooltip("Offset from player position to place the region center")]
-        [SerializeField] private Vector3 offset = new(0f, 0f, 32f);
+        [Tooltip("Offset from player position to place the region center"), SerializeField]
+         private Vector3 offset = new(0f, 0f, 32f);
 
         // Reusable scratch list for dirtied chunk coordinates
         private readonly List<int3> _dirtiedChunks = new();
@@ -59,8 +60,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
 
             UnityEngine.Debug.Log("[Benchmark] PlaceBlockBulk: " + count + " blocks " +
-                (clearRegion ? "cleared" : "placed") +
-                ", " + _dirtiedChunks.Count + " chunks dirtied");
+                                  (clearRegion ? "cleared" : "placed") +
+                                  ", " + _dirtiedChunks.Count + " chunks dirtied");
 
             yield return null;
         }

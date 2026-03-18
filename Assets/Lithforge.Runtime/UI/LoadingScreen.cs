@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 
 using Lithforge.Runtime.Spawn;
+using Lithforge.Runtime.UI.Navigation;
 
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -13,7 +14,7 @@ namespace Lithforge.Runtime.UI
     ///     Shows a dirt-brown background, game title, progress bar, and status text.
     ///     Fades out and self-destructs once spawn is complete.
     /// </summary>
-    public sealed class LoadingScreen : MonoBehaviour
+    public sealed class LoadingScreen : MonoBehaviour, IScreen
     {
         private const float FadeOutDuration = 0.4f;
         private const int BarWidth = 400;
@@ -57,6 +58,35 @@ namespace Lithforge.Runtime.UI
                 _fadingOut = true;
                 StartCoroutine(FadeOut());
             }
+        }
+
+        public string ScreenName { get { return ScreenNames.Loading; } }
+        public bool IsInputOpaque { get { return true; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.Flex;
+                _document.rootVisualElement.style.opacity = 1f;
+            }
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            if (_document != null && _document.rootVisualElement != null)
+            {
+                _document.rootVisualElement.style.display = DisplayStyle.None;
+            }
+
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            // Loading screen does not respond to Escape
+            return true;
         }
 
         public void Initialize(SpawnManager spawnManager, PanelSettings panelSettings, Action onFadeComplete)
@@ -196,14 +226,23 @@ namespace Lithforge.Runtime.UI
 
         private string BuildStatusText(SpawnProgress progress)
         {
-            return progress.Phase switch
+            switch (progress.Phase)
             {
-                SpawnState.Checking => $"Generating terrain... {progress.ReadyChunks}/{progress.TotalChunks} chunks",
-                SpawnState.FindingY => "Locating spawn position...",
-                SpawnState.Teleporting => "Placing player...",
-                SpawnState.Done => "Ready!",
-                _ => "",
-            };
+                case SpawnState.Checking:
+                    return $"Generating terrain... {progress.ReadyChunks}/{progress.TotalChunks} chunks";
+
+                case SpawnState.FindingY:
+                    return "Locating spawn position...";
+
+                case SpawnState.Teleporting:
+                    return "Placing player...";
+
+                case SpawnState.Done:
+                    return "Ready!";
+
+                default:
+                    return "";
+            }
         }
 
         private IEnumerator FadeOut()

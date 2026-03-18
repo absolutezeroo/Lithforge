@@ -1,5 +1,8 @@
+using System;
 using System.IO;
+
 using Lithforge.Voxel.Storage;
+
 using NUnit.Framework;
 
 namespace Lithforge.Voxel.Tests
@@ -7,12 +10,10 @@ namespace Lithforge.Voxel.Tests
     [TestFixture]
     public sealed class RegionFileTests
     {
-        private string _testDir;
-
         [SetUp]
         public void SetUp()
         {
-            _testDir = Path.Combine(Path.GetTempPath(), "lithforge_tests_" + System.Guid.NewGuid().ToString("N"));
+            _testDir = Path.Combine(Path.GetTempPath(), "lithforge_tests_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_testDir);
         }
 
@@ -24,12 +25,23 @@ namespace Lithforge.Voxel.Tests
                 Directory.Delete(_testDir, true);
             }
         }
+        private string _testDir;
 
         [Test]
         public void SaveChunk_Flush_LoadChunk_RoundTrip()
         {
             string filePath = Path.Combine(_testDir, "test.lfrg");
-            byte[] originalData = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+            byte[] originalData =
+            {
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+            };
 
             // Save and flush
             using (RegionFile region = new(filePath))
@@ -57,8 +69,20 @@ namespace Lithforge.Voxel.Tests
         public void SaveChunk_Twice_SecondOverwrites()
         {
             string filePath = Path.Combine(_testDir, "test_overwrite.lfrg");
-            byte[] data1 = new byte[] { 10, 20, 30 };
-            byte[] data2 = new byte[] { 40, 50, 60, 70, 80 };
+            byte[] data1 =
+            {
+                10,
+                20,
+                30,
+            };
+            byte[] data2 =
+            {
+                40,
+                50,
+                60,
+                70,
+                80,
+            };
 
             // First save
             using (RegionFile region = new(filePath))
@@ -93,7 +117,12 @@ namespace Lithforge.Voxel.Tests
         public void Flush_TempFileDeletedBeforeRename_OriginalSurvives()
         {
             string filePath = Path.Combine(_testDir, "test_crash.lfrg");
-            byte[] originalData = new byte[] { 99, 98, 97 };
+            byte[] originalData =
+            {
+                99,
+                98,
+                97,
+            };
 
             // Save initial data
             using (RegionFile region = new(filePath))
@@ -143,7 +172,12 @@ namespace Lithforge.Voxel.Tests
         public void HasChunk_ReturnsTrue_AfterFlush()
         {
             string filePath = Path.Combine(_testDir, "test_has2.lfrg");
-            byte[] data = new byte[] { 1, 2, 3 };
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
 
             using (RegionFile region = new(filePath))
             {
@@ -161,9 +195,23 @@ namespace Lithforge.Voxel.Tests
         public void MultipleSlots_IndependentRoundTrip()
         {
             string filePath = Path.Combine(_testDir, "test_multi.lfrg");
-            byte[] dataA = new byte[] { 1, 2, 3 };
-            byte[] dataB = new byte[] { 4, 5, 6, 7 };
-            byte[] dataC = new byte[] { 8 };
+            byte[] dataA =
+            {
+                1,
+                2,
+                3,
+            };
+            byte[] dataB =
+            {
+                4,
+                5,
+                6,
+                7,
+            };
+            byte[] dataC =
+            {
+                8,
+            };
 
             using (RegionFile region = new(filePath))
             {

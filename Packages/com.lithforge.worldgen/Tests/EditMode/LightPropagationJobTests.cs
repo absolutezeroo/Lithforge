@@ -1,9 +1,10 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Lighting;
-using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 
@@ -12,22 +13,24 @@ namespace Lithforge.WorldGen.Tests
     [TestFixture]
     public sealed class LightPropagationJobTests
     {
-        private NativeArray<StateId> _chunkData;
-        private NativeArray<BlockStateCompact> _stateTable;
-        private NativeArray<byte> _lightData;
-
         [SetUp]
         public void SetUp()
         {
             _chunkData = new NativeArray<StateId>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             _lightData = new NativeArray<byte>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
 
             // State 0 = air (transparent), State 1 = stone (opaque)
             _stateTable = new NativeArray<BlockStateCompact>(2, Allocator.TempJob);
-            _stateTable[0] = new BlockStateCompact { Flags = 0 }; // air: transparent
-            _stateTable[1] = new BlockStateCompact { Flags = BlockStateCompact.FlagOpaque }; // stone: opaque
+            _stateTable[0] = new BlockStateCompact
+            {
+                Flags = 0,
+            }; // air: transparent
+            _stateTable[1] = new BlockStateCompact
+            {
+                Flags = BlockStateCompact.FlagOpaque,
+            }; // stone: opaque
         }
 
         [TearDown]
@@ -48,6 +51,9 @@ namespace Lithforge.WorldGen.Tests
                 _lightData.Dispose();
             }
         }
+        private NativeArray<StateId> _chunkData;
+        private NativeArray<BlockStateCompact> _stateTable;
+        private NativeArray<byte> _lightData;
 
         [Test]
         public void Execute_SunlightPropagatesDownAtFull15()
@@ -64,9 +70,7 @@ namespace Lithforge.WorldGen.Tests
 
             LightPropagationJob job = new()
             {
-                ChunkData = _chunkData,
-                StateTable = _stateTable,
-                LightData = _lightData,
+                ChunkData = _chunkData, StateTable = _stateTable, LightData = _lightData,
             };
 
             job.Schedule().Complete();
@@ -107,9 +111,7 @@ namespace Lithforge.WorldGen.Tests
 
             LightPropagationJob job = new()
             {
-                ChunkData = _chunkData,
-                StateTable = _stateTable,
-                LightData = _lightData,
+                ChunkData = _chunkData, StateTable = _stateTable, LightData = _lightData,
             };
 
             job.Schedule().Complete();
@@ -137,9 +139,7 @@ namespace Lithforge.WorldGen.Tests
 
             LightPropagationJob job = new()
             {
-                ChunkData = _chunkData,
-                StateTable = _stateTable,
-                LightData = _lightData,
+                ChunkData = _chunkData, StateTable = _stateTable, LightData = _lightData,
             };
 
             job.Schedule().Complete();
@@ -183,9 +183,7 @@ namespace Lithforge.WorldGen.Tests
 
             LightPropagationJob job = new()
             {
-                ChunkData = _chunkData,
-                StateTable = _stateTable,
-                LightData = _lightData,
+                ChunkData = _chunkData, StateTable = _stateTable, LightData = _lightData,
             };
 
             job.Schedule().Complete();

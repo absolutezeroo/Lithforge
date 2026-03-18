@@ -1,11 +1,12 @@
 using System;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Computes UV rectangles for body part faces in a 64x64 Minecraft skin texture.
-    /// Minecraft skin layout: each part is a T-shaped strip of 6 faces packed at a known origin.
+    ///     Computes UV rectangles for body part faces in a 64x64 Minecraft skin texture.
+    ///     Minecraft skin layout: each part is a T-shaped strip of 6 faces packed at a known origin.
     /// </summary>
     public static class SkinUVMapper
     {
@@ -44,9 +45,9 @@ namespace Lithforge.Runtime.Player
         public static readonly SkinPartDefinition LeftLegOverlay = new(0, 48, 4, 12, 4);
 
         /// <summary>
-        /// Computes the UV rectangle for a specific face of a body part.
-        /// Returns (uMin, vMin, uMax, vMax) in [0,1] normalized coordinates.
-        /// Uses top-left origin (Minecraft convention). The shader flips Y as needed.
+        ///     Computes the UV rectangle for a specific face of a body part.
+        ///     Returns (uMin, vMin, uMax, vMax) in [0,1] normalized coordinates.
+        ///     Uses top-left origin (Minecraft convention). The shader flips Y as needed.
         /// </summary>
         public static Vector4 GetFaceUV(SkinPartDefinition part, SkinFaceDirection face)
         {

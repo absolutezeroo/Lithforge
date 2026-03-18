@@ -1,4 +1,5 @@
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -9,9 +10,9 @@ namespace Lithforge.Physics.Tests
     public sealed class VoxelColliderJobTests
     {
         /// <summary>
-        /// Builds a SolidBlockQuery with a solid floor at the given Y level.
-        /// All blocks at floorY are solid; all others are air.
-        /// Covers the broad-phase region for the given entity state.
+        ///     Builds a SolidBlockQuery with a solid floor at the given Y level.
+        ///     All blocks at floorY are solid; all others are air.
+        ///     Covers the broad-phase region for the given entity state.
         /// </summary>
         private static SolidBlockQuery BuildFloorQuery(
             float3 position,
@@ -43,7 +44,10 @@ namespace Lithforge.Physics.Tests
                 }
             }
 
-            return new SolidBlockQuery { SolidMap = solidMap };
+            return new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
         }
 
         [Test]
@@ -65,10 +69,7 @@ namespace Lithforge.Physics.Tests
 
                 states[i] = new EntityPhysicsState
                 {
-                    Position = position,
-                    Velocity = velocity,
-                    HalfWidth = halfWidth,
-                    Height = height,
+                    Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
                 };
 
                 queries[i] = BuildFloorQuery(position, velocity, halfWidth, height, 0);
@@ -77,8 +78,7 @@ namespace Lithforge.Physics.Tests
             // Act
             VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             job.Run(entityCount);
 
@@ -118,10 +118,7 @@ namespace Lithforge.Physics.Tests
 
             states[0] = new EntityPhysicsState
             {
-                Position = position,
-                Velocity = velocity,
-                HalfWidth = halfWidth,
-                Height = height,
+                Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
             };
 
             // Build query with no solid blocks (floor at y=-100, outside broad-phase)
@@ -147,13 +144,15 @@ namespace Lithforge.Physics.Tests
                 }
             }
 
-            queries[0] = new SolidBlockQuery { SolidMap = solidMap };
+            queries[0] = new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
 
             // Act
             VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             job.Run(1);
 
@@ -183,10 +182,7 @@ namespace Lithforge.Physics.Tests
 
             states[0] = new EntityPhysicsState
             {
-                Position = position,
-                Velocity = velocity,
-                HalfWidth = halfWidth,
-                Height = height,
+                Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
             };
 
             // Build query: floor at y=0, wall at x=3 (all y levels in broad-phase)
@@ -208,19 +204,21 @@ namespace Lithforge.Physics.Tests
                     for (int z = bpMin.z; z <= bpMax.z; z++)
                     {
                         int3 coord = new(x, y, z);
-                        bool solid = (y == 0) || (x == 3);
+                        bool solid = y == 0 || x == 3;
                         solidMap.TryAdd(coord, solid);
                     }
                 }
             }
 
-            queries[0] = new SolidBlockQuery { SolidMap = solidMap };
+            queries[0] = new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
 
             // Act
             VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             job.Run(1);
 
@@ -256,10 +254,7 @@ namespace Lithforge.Physics.Tests
 
                 states[i] = new EntityPhysicsState
                 {
-                    Position = position,
-                    Velocity = velocity,
-                    HalfWidth = halfWidth,
-                    Height = height,
+                    Position = position, Velocity = velocity, HalfWidth = halfWidth, Height = height,
                 };
 
                 queries[i] = BuildFloorQuery(position, velocity, halfWidth, height, 0);
@@ -268,8 +263,7 @@ namespace Lithforge.Physics.Tests
             // Act: schedule on worker threads
             VoxelColliderJob job = new()
             {
-                EntityStates = states,
-                Queries = queries,
+                EntityStates = states, Queries = queries,
             };
             JobHandle handle = job.Schedule(entityCount, 1);
             handle.Complete();

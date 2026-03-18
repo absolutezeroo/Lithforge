@@ -4,18 +4,18 @@ using UnityEngine.Audio;
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Pre-allocated pool of AudioSource components for one-shot spatial SFX.
-    /// Uses round-robin acquisition. Each frame, finished sources are marked available.
-    /// Zero per-frame allocation.
+    ///     Pre-allocated pool of AudioSource components for one-shot spatial SFX.
+    ///     Uses round-robin acquisition. Each frame, finished sources are marked available.
+    ///     Zero per-frame allocation.
     /// </summary>
     public sealed class SfxSourcePool
     {
-        private readonly AudioSource[] _sources;
         private readonly bool[] _inUse;
+        private readonly AudioSource[] _sources;
         private int _nextIndex;
 
         /// <summary>
-        /// Creates the pool with a fixed number of AudioSources parented to a host GameObject.
+        ///     Creates the pool with a fixed number of AudioSources parented to a host GameObject.
         /// </summary>
         /// <param name="host">Parent GameObject for all pooled sources.</param>
         /// <param name="poolSize">Number of AudioSources to pre-allocate.</param>
@@ -48,8 +48,8 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Acquires an AudioSource, configures it for playback, and plays the clip.
-        /// Returns null if no source is available (all playing).
+        ///     Acquires an AudioSource, configures it for playback, and plays the clip.
+        ///     Returns null if no source is available (all playing).
         /// </summary>
         public AudioSource Play(AudioClip clip, Vector3 position, float volume, float pitch)
         {
@@ -93,7 +93,7 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Marks finished sources as available. Call once per frame from LateUpdate.
+        ///     Marks finished sources as available. Call once per frame from LateUpdate.
         /// </summary>
         public void ReleaseFinished()
         {
@@ -108,7 +108,7 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Stops all playing sources and destroys their GameObjects.
+        ///     Stops all playing sources and destroys their GameObjects.
         /// </summary>
         public void Dispose()
         {

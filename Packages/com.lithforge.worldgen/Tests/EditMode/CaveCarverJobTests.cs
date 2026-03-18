@@ -2,7 +2,9 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -12,11 +14,6 @@ namespace Lithforge.WorldGen.Tests
     [TestFixture]
     public sealed class CaveCarverJobTests
     {
-        private NativeNoiseConfig _caveNoise;
-        private StateId _stoneId;
-        private StateId _airId;
-        private StateId _waterId;
-
         [SetUp]
         public void SetUp()
         {
@@ -34,6 +31,10 @@ namespace Lithforge.WorldGen.Tests
                 SeedOffset = 0,
             };
         }
+        private NativeNoiseConfig _caveNoise;
+        private StateId _stoneId;
+        private StateId _airId;
+        private StateId _waterId;
 
         [Test]
         public void Execute_CarvesSomeBlocks_InStoneChunk()

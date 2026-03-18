@@ -1,55 +1,33 @@
 using Lithforge.Core.Data;
-using Lithforge.Runtime.Content.Tools;
-using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Item;
+using Lithforge.Runtime.UI.Sprites;
+using Lithforge.Voxel.Item;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.UI.Widgets
 {
     /// <summary>
-    /// Visual element representing a single inventory slot.
-    /// Displays an item icon sprite, stack count, and optional durability bar.
-    /// Uses USS class "lf-slot" for styling.
-    /// Marked as [UxmlElement] for future UXML template usage in UI Builder.
+    ///     Visual element representing a single inventory slot.
+    ///     Displays an item icon sprite, stack count, and optional durability bar.
+    ///     Uses USS class "lf-slot" for styling.
+    ///     Marked as [UxmlElement] for future UXML template usage in UI Builder.
     /// </summary>
     [UxmlElement]
     public sealed partial class SlotWidget : VisualElement
     {
-        private readonly Image _icon;
         private readonly Label _count;
-        private readonly VisualElement _durabilityTrack;
+
         private readonly VisualElement _durabilityFill;
 
-        private ItemStack _lastStack;
-        private int _slotIndex = -1;
+        private readonly VisualElement _durabilityTrack;
+
+        private readonly Image _icon;
+
         private bool _isSelected;
 
-        /// <summary>
-        /// The slot index this widget represents within its container.
-        /// Exposed as a UXML attribute for declarative layout in future phases.
-        /// </summary>
-        [UxmlAttribute]
-        public int SlotIndex
-        {
-            get { return _slotIndex; }
-            set { _slotIndex = value; }
-        }
-
-        /// <summary>
-        /// Whether this slot is currently selected (e.g. hotbar highlight).
-        /// Setting this property toggles the "lf-slot--selected" USS class.
-        /// </summary>
-        [UxmlAttribute]
-        public bool IsSelected
-        {
-            get { return _isSelected; }
-            set
-            {
-                _isSelected = value;
-                SetSelected(value);
-            }
-        }
+        private ItemStack _lastStack;
 
         public SlotWidget()
         {
@@ -78,8 +56,30 @@ namespace Lithforge.Runtime.UI.Widgets
         }
 
         /// <summary>
-        /// Updates the slot visual to reflect the given item stack.
-        /// Only updates if the stack has changed (dirty check).
+        ///     The slot index this widget represents within its container.
+        ///     Exposed as a UXML attribute for declarative layout in future phases.
+        /// </summary>
+        [UxmlAttribute]
+        public int SlotIndex { get; set; } = -1;
+
+        /// <summary>
+        ///     Whether this slot is currently selected (e.g. hotbar highlight).
+        ///     Setting this property toggles the "lf-slot--selected" USS class.
+        /// </summary>
+        [UxmlAttribute]
+        public bool IsSelected
+        {
+            get { return _isSelected; }
+            set
+            {
+                _isSelected = value;
+                SetSelected(value);
+            }
+        }
+
+        /// <summary>
+        ///     Updates the slot visual to reflect the given item stack.
+        ///     Only updates if the stack has changed (dirty check).
         /// </summary>
         public void Refresh(
             ItemStack stack,
@@ -200,7 +200,7 @@ namespace Lithforge.Runtime.UI.Widgets
         }
 
         /// <summary>
-        /// Forces a full refresh by clearing the cached state.
+        ///     Forces a full refresh by clearing the cached state.
         /// </summary>
         public void Invalidate()
         {
@@ -212,7 +212,7 @@ namespace Lithforge.Runtime.UI.Widgets
         }
 
         /// <summary>
-        /// Adds or removes the selected border highlight.
+        ///     Adds or removes the selected border highlight.
         /// </summary>
         public void SetSelected(bool selected)
         {

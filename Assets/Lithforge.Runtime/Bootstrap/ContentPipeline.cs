@@ -25,6 +25,7 @@ using Lithforge.Voxel.BlockEntity;
 using Lithforge.Item.Crafting;
 using Lithforge.Item;
 using Lithforge.Item.Loot;
+using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Tag;
 
 using Unity.Collections;

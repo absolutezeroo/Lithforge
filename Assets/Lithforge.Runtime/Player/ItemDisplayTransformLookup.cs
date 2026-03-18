@@ -1,21 +1,24 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 using Lithforge.Runtime.Content.Models;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Lookup table mapping item ResourceIds to their first-person right hand display transforms.
-    /// Built during the content pipeline from resolved BlockModel parent chains.
+    ///     Lookup table mapping item ResourceIds to their first-person right hand display transforms.
+    ///     Built during the content pipeline from resolved BlockModel parent chains.
     /// </summary>
     public sealed class ItemDisplayTransformLookup
     {
         private readonly Dictionary<ResourceId, float4x4> _transforms = new();
 
         /// <summary>
-        /// Registers a resolved display transform matrix for an item.
+        ///     Registers a resolved display transform matrix for an item.
         /// </summary>
         public void Register(ResourceId itemId, float4x4 displayMatrix)
         {
@@ -23,8 +26,8 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Gets the display transform matrix for an item.
-        /// Returns identity if no display transform is registered.
+        ///     Gets the display transform matrix for an item.
+        ///     Returns identity if no display transform is registered.
         /// </summary>
         public float4x4 Get(ResourceId itemId)
         {
@@ -37,9 +40,9 @@ namespace Lithforge.Runtime.Player
         }
 
         /// <summary>
-        /// Builds a display transform matrix from a ModelDisplayTransform.
-        /// Minecraft transform order: Translate → RotateY → RotateX → RotateZ → Scale.
-        /// Translation units are 1/16 of a block.
+        ///     Builds a display transform matrix from a ModelDisplayTransform.
+        ///     Minecraft transform order: Translate → RotateY → RotateX → RotateZ → Scale.
+        ///     Translation units are 1/16 of a block.
         /// </summary>
         public static float4x4 BuildMatrix(ModelDisplayTransform dt)
         {

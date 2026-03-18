@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+
 using Lithforge.Core.Data;
 
 namespace Lithforge.Item.Crafting
 {
     /// <summary>
-    /// Matches a CraftingGrid against registered recipes.
-    /// Supports both shaped (pattern matching with offset) and shapeless recipes.
+    ///     Matches a CraftingGrid against registered recipes.
+    ///     Supports both shaped (pattern matching with offset) and shapeless recipes.
     /// </summary>
     public sealed class CraftingEngine
     {
@@ -19,8 +20,16 @@ namespace Lithforge.Item.Crafting
         }
 
         /// <summary>
-        /// Finds the first recipe that matches the current grid contents.
-        /// Returns null if no recipe matches.
+        ///     Total number of registered recipes.
+        /// </summary>
+        public int RecipeCount
+        {
+            get { return _recipes.Count; }
+        }
+
+        /// <summary>
+        ///     Finds the first recipe that matches the current grid contents.
+        ///     Returns null if no recipe matches.
         /// </summary>
         public RecipeEntry FindMatch(CraftingGrid grid)
         {
@@ -171,14 +180,6 @@ namespace Lithforge.Item.Crafting
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Total number of registered recipes.
-        /// </summary>
-        public int RecipeCount
-        {
-            get { return _recipes.Count; }
         }
     }
 }

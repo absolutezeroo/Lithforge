@@ -1,3 +1,7 @@
+using System;
+
+using Lithforge.Runtime.UI.Navigation;
+
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -7,13 +11,33 @@ namespace Lithforge.Runtime.UI
     ///     Displays a simple crosshair at the center of the screen.
     ///     Uses UI Toolkit with code-driven VisualElement construction.
     /// </summary>
-    public sealed class CrosshairHUD : MonoBehaviour
+    public sealed class CrosshairHUD : MonoBehaviour, IScreen
     {
         private const int CrosshairSize = 20;
         private const int CrosshairThickness = 2;
         private const int CrosshairGap = 3;
 
         private UIDocument _document;
+
+        public string ScreenName { get { return ScreenNames.Crosshair; } }
+        public bool IsInputOpaque { get { return false; } }
+        public bool RequiresCursor { get { return false; } }
+
+        public void OnShow(ScreenShowArgs args)
+        {
+            SetVisible(true);
+        }
+
+        public void OnHide(Action onComplete)
+        {
+            SetVisible(false);
+            onComplete();
+        }
+
+        public bool HandleEscape()
+        {
+            return false;
+        }
 
         /// <summary>
         ///     Shows or hides the crosshair by toggling the root document visibility.

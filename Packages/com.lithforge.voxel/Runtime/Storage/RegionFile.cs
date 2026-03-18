@@ -9,16 +9,26 @@ namespace Lithforge.Voxel.Storage
         public const int RegionSize = 32;
         private const int HeaderSize = RegionSize * RegionSize * 8; // 8 bytes per column (offset + size)
         private const int SectorSize = 4096;
-
-        private readonly string _filePath;
         private readonly Dictionary<int, byte[]> _cache = new();
         private readonly object _cacheLock = new();
+
+        private readonly string _filePath;
         private bool _disposed;
-        private bool _isDirty;
 
         public RegionFile(string filePath)
         {
             _filePath = filePath;
+        }
+
+        public bool IsDirty { get; private set; }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                Flush();
+            }
         }
 
         public bool HasChunk(int localX, int localZ)
@@ -103,11 +113,6 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
-        public bool IsDirty
-        {
-            get { return _isDirty; }
-        }
-
         public void SaveChunk(int localX, int localZ, byte[] data)
         {
             int key = GetKey(localX, localZ);
@@ -115,7 +120,7 @@ namespace Lithforge.Voxel.Storage
             lock (_cacheLock)
             {
                 _cache[key] = data;
-                _isDirty = true;
+                IsDirty = true;
             }
         }
 
@@ -237,7 +242,7 @@ namespace Lithforge.Voxel.Storage
                         }
                     }
 
-                    _isDirty = _cache.Count > 0;
+                    IsDirty = _cache.Count > 0;
                 }
             }
             catch
@@ -263,15 +268,6 @@ namespace Lithforge.Voxel.Storage
         private static int GetKey(int localX, int localZ)
         {
             return localZ * RegionSize + localX;
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                _disposed = true;
-                Flush();
-            }
         }
     }
 }

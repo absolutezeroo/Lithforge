@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
 
-namespace Lithforge.Item
+namespace Lithforge.Voxel.Item
 {
     /// <summary>
     ///     Assembles a ToolInstance from a tool type and an array of ToolParts.
@@ -100,17 +101,15 @@ namespace Lithforge.Item
                 maxDurability = 1;
             }
 
-            ToolInstance tool = new()
-            {
-                ToolType = toolType,
-                Parts = parts,
-                Slots = new ModifierSlot[ToolInstance.MaxModifierSlots],
-                CurrentDurability = maxDurability,
-                MaxDurability = maxDurability,
-                BaseSpeed = baseSpeed * speedMultiplier,
-                BaseDamage = baseDamage,
-                EffectiveToolLevel = toolLevel,
-            };
+            ToolInstance tool = new();
+            tool.ToolType = toolType;
+            tool.Parts = parts;
+            tool.Slots = new ModifierSlot[ToolInstance.MaxModifierSlots];
+            tool.CurrentDurability = maxDurability;
+            tool.MaxDurability = maxDurability;
+            tool.BaseSpeed = baseSpeed * speedMultiplier;
+            tool.BaseDamage = baseDamage;
+            tool.EffectiveToolLevel = toolLevel;
 
             return tool;
         }

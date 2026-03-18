@@ -1,7 +1,9 @@
 using Lithforge.Meshing.Atlas;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
+
 using NUnit.Framework;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -11,9 +13,6 @@ namespace Lithforge.Meshing.Tests
     [TestFixture]
     public sealed class GreedyMeshJobTests
     {
-        private NativeArray<BlockStateCompact> _stateTable;
-        private NativeArray<AtlasEntry> _atlasEntries;
-
         [SetUp]
         public void SetUp()
         {
@@ -21,8 +20,7 @@ namespace Lithforge.Meshing.Tests
             _stateTable = new NativeArray<BlockStateCompact>(2, Allocator.TempJob);
             _stateTable[0] = new BlockStateCompact
             {
-                Flags = BlockStateCompact.FlagAir,
-                MapColor = 0x00000000,
+                Flags = BlockStateCompact.FlagAir, MapColor = 0x00000000,
             };
             _stateTable[1] = new BlockStateCompact
             {
@@ -39,9 +37,12 @@ namespace Lithforge.Meshing.Tests
             _atlasEntries = new NativeArray<AtlasEntry>(2, Allocator.TempJob);
             _atlasEntries[0] = new AtlasEntry
             {
-                OvlPosX = 0xFFFF, OvlNegX = 0xFFFF,
-                OvlPosY = 0xFFFF, OvlNegY = 0xFFFF,
-                OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
+                OvlPosX = 0xFFFF,
+                OvlNegX = 0xFFFF,
+                OvlPosY = 0xFFFF,
+                OvlNegY = 0xFFFF,
+                OvlPosZ = 0xFFFF,
+                OvlNegZ = 0xFFFF,
             };
             _atlasEntries[1] = new AtlasEntry
             {
@@ -51,9 +52,12 @@ namespace Lithforge.Meshing.Tests
                 TexNegY = 1,
                 TexPosZ = 1,
                 TexNegZ = 1,
-                OvlPosX = 0xFFFF, OvlNegX = 0xFFFF,
-                OvlPosY = 0xFFFF, OvlNegY = 0xFFFF,
-                OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
+                OvlPosX = 0xFFFF,
+                OvlNegX = 0xFFFF,
+                OvlPosY = 0xFFFF,
+                OvlNegY = 0xFFFF,
+                OvlPosZ = 0xFFFF,
+                OvlNegZ = 0xFFFF,
             };
         }
 
@@ -63,6 +67,8 @@ namespace Lithforge.Meshing.Tests
             if (_stateTable.IsCreated) { _stateTable.Dispose(); }
             if (_atlasEntries.IsCreated) { _atlasEntries.Dispose(); }
         }
+        private NativeArray<BlockStateCompact> _stateTable;
+        private NativeArray<AtlasEntry> _atlasEntries;
 
         private GreedyMeshData CreateMeshData()
         {
@@ -72,7 +78,7 @@ namespace Lithforge.Meshing.Tests
         private NativeArray<byte> CreateEmptyLightData()
         {
             return new NativeArray<byte>(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
         }
 
         private JobHandle ScheduleJob(
@@ -107,7 +113,7 @@ namespace Lithforge.Meshing.Tests
         /// <summary>Extracts the 3-bit normal index from a packed vertex.</summary>
         private static int GetNormalIndex(PackedMeshVertex v)
         {
-            return (int)((v.Word0 >> 18) & 0x7u);
+            return (int)(v.Word0 >> 18 & 0x7u);
         }
 
         /// <summary>Extracts the 10-bit base texture index from a packed vertex.</summary>
@@ -119,23 +125,23 @@ namespace Lithforge.Meshing.Tests
         /// <summary>Extracts the 2-bit baseTintType from a packed vertex.</summary>
         private static uint GetBaseTintType(PackedMeshVertex v)
         {
-            return (v.Word1 >> 10) & 0x3u;
+            return v.Word1 >> 10 & 0x3u;
         }
 
         /// <summary>Extracts overlay fields from a packed vertex.</summary>
         private static void GetOverlayFields(PackedMeshVertex v,
             out uint hasOverlay, out uint overlayTexIndex, out uint overlayTintType)
         {
-            hasOverlay = (v.Word1 >> 12) & 0x1u;
-            overlayTexIndex = (v.Word1 >> 13) & 0x3FFu;
-            overlayTintType = (v.Word1 >> 23) & 0x3u;
+            hasOverlay = v.Word1 >> 12 & 0x1u;
+            overlayTexIndex = v.Word1 >> 13 & 0x3FFu;
+            overlayTintType = v.Word1 >> 23 & 0x3u;
         }
 
         [Test]
         public void AirChunk_ZeroVertices()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
@@ -158,7 +164,7 @@ namespace Lithforge.Meshing.Tests
         public void SingleBlock_SixFaces()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
@@ -187,7 +193,7 @@ namespace Lithforge.Meshing.Tests
         public void TwoAdjacentBlocks_SharedFaceCulled()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
@@ -224,7 +230,7 @@ namespace Lithforge.Meshing.Tests
         public void FullChunk_GreedyMergesReduceQuads()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
@@ -262,7 +268,7 @@ namespace Lithforge.Meshing.Tests
         public void VertexColor_ContainsTextureIndex()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
@@ -296,15 +302,24 @@ namespace Lithforge.Meshing.Tests
             // BaseTintPacked: 6 faces x 2 bits, PosY is bits 4-5
             _atlasEntries[1] = new AtlasEntry
             {
-                TexPosX = 1, TexNegX = 1, TexPosY = 1, TexNegY = 1, TexPosZ = 1, TexNegZ = 1,
-                OvlPosX = 0xFFFF, OvlNegX = 0xFFFF, OvlPosY = 0xFFFF,
-                OvlNegY = 0xFFFF, OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
-                BaseTintPacked = (ushort)(1 << (2 * 2)),
+                TexPosX = 1,
+                TexNegX = 1,
+                TexPosY = 1,
+                TexNegY = 1,
+                TexPosZ = 1,
+                TexNegZ = 1,
+                OvlPosX = 0xFFFF,
+                OvlNegX = 0xFFFF,
+                OvlPosY = 0xFFFF,
+                OvlNegY = 0xFFFF,
+                OvlPosZ = 0xFFFF,
+                OvlNegZ = 0xFFFF,
+                BaseTintPacked = 1 << 2 * 2,
                 OverlayTintPacked = 0,
             };
 
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 
@@ -348,15 +363,24 @@ namespace Lithforge.Meshing.Tests
             ushort overlayTexIdx = 42;
             _atlasEntries[1] = new AtlasEntry
             {
-                TexPosX = 1, TexNegX = 1, TexPosY = 1, TexNegY = 1, TexPosZ = 1, TexNegZ = 1,
-                OvlPosX = overlayTexIdx, OvlNegX = 0xFFFF, OvlPosY = 0xFFFF,
-                OvlNegY = 0xFFFF, OvlPosZ = 0xFFFF, OvlNegZ = 0xFFFF,
+                TexPosX = 1,
+                TexNegX = 1,
+                TexPosY = 1,
+                TexNegY = 1,
+                TexPosZ = 1,
+                TexNegZ = 1,
+                OvlPosX = overlayTexIdx,
+                OvlNegX = 0xFFFF,
+                OvlPosY = 0xFFFF,
+                OvlNegY = 0xFFFF,
+                OvlPosZ = 0xFFFF,
+                OvlNegZ = 0xFFFF,
                 BaseTintPacked = 0,
-                OverlayTintPacked = (ushort)(2 << (0 * 2)),
+                OverlayTintPacked = 2 << 0 * 2,
             };
 
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<byte> lightData = CreateEmptyLightData();
             GreedyMeshData meshData = CreateMeshData();
 

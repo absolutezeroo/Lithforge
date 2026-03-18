@@ -1,54 +1,58 @@
 using System;
+
 using Lithforge.Runtime.Simulation;
+
 using Unity.Mathematics;
+
 using UnityEngine;
 using UnityEngine.Rendering;
+
+using Object = UnityEngine.Object;
 
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
-    /// Aggregates all per-remote-player state: interpolation buffer, animator,
-    /// GPU transform buffer, skin texture, and name tag mesh. Each entity is
-    /// created on spawn and disposed on despawn or timeout.
-    ///
-    /// Static model geometry (vertex/index buffers) is shared across all entities
-    /// via <see cref="RemotePlayerManager"/>. Only the per-frame transform buffer
-    /// and skin texture are per-entity.
+    ///     Aggregates all per-remote-player state: interpolation buffer, animator,
+    ///     GPU transform buffer, skin texture, and name tag mesh. Each entity is
+    ///     created on spawn and disposed on despawn or timeout.
+    ///     Static model geometry (vertex/index buffers) is shared across all entities
+    ///     via <see cref="RemotePlayerManager" />. Only the per-frame transform buffer
+    ///     and skin texture are per-entity.
     /// </summary>
     public sealed class RemotePlayerEntity : IDisposable
     {
         /// <summary>Destroy entity if no snapshot arrives for this long.</summary>
         public const float TimeoutSeconds = 5f;
 
-        public readonly ushort PlayerId;
-        public readonly string PlayerName;
-
-        // Interpolation
-        public readonly InterpolationBuffer<RemotePlayerSnapshot> SnapshotBuffer;
-        public float LastSnapshotTime;
-
-        // Timeout safety net
-        public float TimeoutTimer;
-
         // Animation
         public readonly RemotePlayerAnimator Animator;
+
+        // Name tag
+        public readonly Mesh NameTagMesh;
 
         // GPU per-entity state
         public readonly GraphicsBuffer PartTransformsBuffer;
         public readonly Matrix4x4[] PartTransformUpload;
 
-        // Render params (reference shared static buffers from RemotePlayerManager)
-        public RenderParams BaseModelParams;
-        public RenderParams OverlayModelParams;
+        public readonly ushort PlayerId;
+        public readonly string PlayerName;
 
         // Skin
         public readonly Texture2D SkinTexture;
 
-        // Name tag
-        public readonly Mesh NameTagMesh;
-        public RenderParams NameTagParams;
+        // Interpolation
+        public readonly InterpolationBuffer<RemotePlayerSnapshot> SnapshotBuffer;
 
         private bool _disposed;
+
+        // Render params (reference shared static buffers from RemotePlayerManager)
+        public RenderParams BaseModelParams;
+        public float LastSnapshotTime;
+        public RenderParams NameTagParams;
+        public RenderParams OverlayModelParams;
+
+        // Timeout safety net
+        public float TimeoutTimer;
 
         public RemotePlayerEntity(
             ushort playerId,
@@ -74,10 +78,7 @@ namespace Lithforge.Runtime.Player
             // interpolation starts immediately rather than waiting for clock sync
             RemotePlayerSnapshot initial = new()
             {
-                Position = initialPosition,
-                Yaw = yaw,
-                Pitch = pitch,
-                Flags = flags,
+                Position = initialPosition, Yaw = yaw, Pitch = pitch, Flags = flags,
             };
 
             SnapshotBuffer.Push(initialTimestamp, initial);
@@ -132,16 +133,6 @@ namespace Lithforge.Runtime.Player
             };
         }
 
-        /// <summary>
-        /// Pushes a new snapshot into the interpolation buffer and resets the timeout timer.
-        /// </summary>
-        public void PushSnapshot(float serverTimestamp, RemotePlayerSnapshot snapshot)
-        {
-            SnapshotBuffer.Push(serverTimestamp, snapshot);
-            LastSnapshotTime = serverTimestamp;
-            TimeoutTimer = 0f;
-        }
-
         public void Dispose()
         {
             if (_disposed)
@@ -154,13 +145,23 @@ namespace Lithforge.Runtime.Player
 
             if (SkinTexture != null)
             {
-                UnityEngine.Object.Destroy(SkinTexture);
+                Object.Destroy(SkinTexture);
             }
 
             if (NameTagMesh != null)
             {
-                UnityEngine.Object.Destroy(NameTagMesh);
+                Object.Destroy(NameTagMesh);
             }
+        }
+
+        /// <summary>
+        ///     Pushes a new snapshot into the interpolation buffer and resets the timeout timer.
+        /// </summary>
+        public void PushSnapshot(float serverTimestamp, RemotePlayerSnapshot snapshot)
+        {
+            SnapshotBuffer.Push(serverTimestamp, snapshot);
+            LastSnapshotTime = serverTimestamp;
+            TimeoutTimer = 0f;
         }
     }
 }

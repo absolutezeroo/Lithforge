@@ -1,8 +1,8 @@
 namespace Lithforge.Network.Message
 {
     /// <summary>
-    /// 4-byte message header: [type:1][payloadLength:2 LE][flags:1].
-    /// Precedes every message payload on the wire.
+    ///     4-byte message header: [type:1][payloadLength:2 LE][flags:1].
+    ///     Precedes every message payload on the wire.
     /// </summary>
     public struct MessageHeader
     {
@@ -16,7 +16,7 @@ namespace Lithforge.Network.Message
         {
             buffer[offset] = (byte)type;
             buffer[offset + 1] = (byte)(payloadLength & 0xFF);
-            buffer[offset + 2] = (byte)((payloadLength >> 8) & 0xFF);
+            buffer[offset + 2] = (byte)(payloadLength >> 8 & 0xFF);
             buffer[offset + 3] = flags;
         }
 
@@ -24,9 +24,7 @@ namespace Lithforge.Network.Message
         {
             MessageHeader header = new()
             {
-                Type = (MessageType)buffer[offset],
-                PayloadLength = (ushort)(buffer[offset + 1] | (buffer[offset + 2] << 8)),
-                Flags = buffer[offset + 3],
+                Type = (MessageType)buffer[offset], PayloadLength = (ushort)(buffer[offset + 1] | buffer[offset + 2] << 8), Flags = buffer[offset + 3],
             };
             return header;
         }

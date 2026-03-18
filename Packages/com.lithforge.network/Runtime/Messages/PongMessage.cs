@@ -3,9 +3,9 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Bidirectional pong response for RTT measurement.
-    /// Echoes the original timestamp plus the current server tick.
-    /// Wire format: [EchoTimestamp:4][ServerTick:4]
+    ///     Bidirectional pong response for RTT measurement.
+    ///     Echoes the original timestamp plus the current server tick.
+    ///     Wire format: [EchoTimestamp:4][ServerTick:4]
     /// </summary>
     public struct PongMessage : INetworkMessage
     {

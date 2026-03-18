@@ -2,11 +2,12 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Biome;
 using Lithforge.WorldGen.Climate;
+using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.Noise;
 using Lithforge.WorldGen.Ore;
-using Lithforge.WorldGen.Lighting;
 using Lithforge.WorldGen.River;
 using Lithforge.WorldGen.Stages;
+
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -15,28 +16,28 @@ namespace Lithforge.WorldGen.Pipeline
 {
     public sealed class GenerationPipeline
     {
-        private readonly NativeNoiseConfig _terrainNoise;
-        private readonly NativeNoiseConfig _temperatureNoise;
-        private readonly NativeNoiseConfig _humidityNoise;
-        private readonly NativeNoiseConfig _continentalnessNoise;
-        private readonly NativeNoiseConfig _erosionNoise;
+        private readonly StateId _airId;
+        private readonly NativeArray<NativeBiomeData> _biomeData;
         private readonly NativeNoiseConfig _caveNoise;
-        private readonly float _caveThreshold;
-        private readonly int _minCarveY;
         private readonly int _caveSeedOffset1;
         private readonly int _caveSeedOffset2;
-        private readonly int _seaLevelCarveBuffer;
-        private readonly NativeArray<NativeBiomeData> _biomeData;
-        private readonly NativeArray<NativeOreConfig> _oreConfigs;
-        private readonly NativeArray<BlockStateCompact> _stateTable;
-        private readonly StateId _stoneId;
-        private readonly StateId _airId;
-        private readonly StateId _waterId;
-        private readonly StateId _iceId;
+        private readonly float _caveThreshold;
+        private readonly NativeNoiseConfig _continentalnessNoise;
+        private readonly NativeNoiseConfig _erosionNoise;
         private readonly StateId _gravelId;
+        private readonly NativeNoiseConfig _humidityNoise;
+        private readonly StateId _iceId;
+        private readonly int _minCarveY;
+        private readonly NativeArray<NativeOreConfig> _oreConfigs;
+        private readonly NativeRiverConfig _riverConfig;
         private readonly StateId _sandId;
         private readonly int _seaLevel;
-        private readonly NativeRiverConfig _riverConfig;
+        private readonly int _seaLevelCarveBuffer;
+        private readonly NativeArray<BlockStateCompact> _stateTable;
+        private readonly StateId _stoneId;
+        private readonly NativeNoiseConfig _temperatureNoise;
+        private readonly NativeNoiseConfig _terrainNoise;
+        private readonly StateId _waterId;
 
         public GenerationPipeline(
             NativeNoiseConfig terrainNoise,
@@ -92,7 +93,7 @@ namespace Lithforge.WorldGen.Pipeline
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
             NativeArray<byte> lightData = new(
-                ChunkConstants.Volume, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.Persistent);
 
             NativeArray<byte> biomeMap = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
@@ -104,7 +105,7 @@ namespace Lithforge.WorldGen.Pipeline
             // carve depth is Persistent (transient, consumed by RiverCarveJob only,
             // disposed in GenerationHandle.Dispose).
             NativeArray<byte> riverFlags = new(
-                ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.ClearMemory);
+                ChunkConstants.SizeSquared, Allocator.Persistent);
 
             NativeArray<float> riverCarveDepth = new(
                 ChunkConstants.SizeSquared, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
@@ -242,10 +243,7 @@ namespace Lithforge.WorldGen.Pipeline
 
             LightPropagationJob lightPropJob = new()
             {
-                ChunkData = chunkData,
-                StateTable = _stateTable,
-                LightData = lightData,
-                BorderLightOutput = borderLightOutput,
+                ChunkData = chunkData, StateTable = _stateTable, LightData = lightData, BorderLightOutput = borderLightOutput,
             };
 
             JobHandle lightPropHandle = lightPropJob.Schedule(lightingHandle);

@@ -1,14 +1,17 @@
 using System.Collections.Generic;
+
 using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
+
+using Unity.Collections;
 using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Decoration
 {
     public sealed class PendingDecorationStore
     {
-        private readonly Dictionary<int3, List<PendingBlock>> _pending = new();
-
         private readonly object _lock = new();
+        private readonly Dictionary<int3, List<PendingBlock>> _pending = new();
 
         public void Add(int3 chunkCoord, PendingBlock block)
         {
@@ -41,7 +44,7 @@ namespace Lithforge.WorldGen.Decoration
             }
         }
 
-        public void ApplyPending(int3 chunkCoord, Unity.Collections.NativeArray<StateId> chunkData)
+        public void ApplyPending(int3 chunkCoord, NativeArray<StateId> chunkData)
         {
             if (TryConsume(chunkCoord, out List<PendingBlock> blocks))
             {
@@ -50,11 +53,11 @@ namespace Lithforge.WorldGen.Decoration
                     PendingBlock pending = blocks[i];
                     int3 pos = pending.LocalPosition;
 
-                    if (pos.x >= 0 && pos.x < Lithforge.Voxel.Chunk.ChunkConstants.Size &&
-                        pos.y >= 0 && pos.y < Lithforge.Voxel.Chunk.ChunkConstants.Size &&
-                        pos.z >= 0 && pos.z < Lithforge.Voxel.Chunk.ChunkConstants.Size)
+                    if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
+                        pos.y >= 0 && pos.y < ChunkConstants.Size &&
+                        pos.z >= 0 && pos.z < ChunkConstants.Size)
                     {
-                        int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z);
+                        int index = ChunkData.GetIndex(pos.x, pos.y, pos.z);
                         StateId current = chunkData[index];
 
                         if (current.Value == 0)

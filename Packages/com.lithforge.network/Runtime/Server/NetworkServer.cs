@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+
 using Lithforge.Core.Logging;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
@@ -10,61 +11,62 @@ using Lithforge.Network.Transport;
 namespace Lithforge.Network.Server
 {
     /// <summary>
-    /// Production network server implementation.
-    /// Owns the transport, peer registry, message dispatcher, and handshake protocol.
+    ///     Production network server implementation.
+    ///     Owns the transport, peer registry, message dispatcher, and handshake protocol.
     /// </summary>
     public sealed class NetworkServer : INetworkServer
     {
         private readonly ILogger _logger;
-        private readonly ContentHash _contentHash;
         private readonly int _maxConnections;
-
-        private INetworkTransport _transport;
-        private MessageDispatcher _dispatcher;
-        private PeerRegistry _peerRegistry;
-        private ReliableSendQueue _sendQueue;
-        private bool _disposed;
 
         // Reusable list for timeout iteration (avoids allocation during Update)
         private readonly List<ConnectionId> _timeoutDisconnectList = new();
+        private bool _disposed;
+        private PeerRegistry _peerRegistry;
+        private ReliableSendQueue _sendQueue;
+
+        private INetworkTransport _transport;
+
+        public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
+        {
+            _logger = logger;
+            ServerContentHash = contentHash;
+            _maxConnections = maxConnections;
+        }
+
+        /// <summary>
+        ///     Returns a read-only list of all connected peers. Used by ServerGameLoop
+        ///     for broadcast iteration.
+        /// </summary>
+        public IReadOnlyList<PeerInfo> AllPeers
+        {
+            get { return _peerRegistry.AllPeers; }
+        }
 
         public int PeerCount
         {
             get { return _peerRegistry != null ? _peerRegistry.Count : 0; }
         }
 
-        public ContentHash ServerContentHash
-        {
-            get { return _contentHash; }
-        }
+        public ContentHash ServerContentHash { get; }
 
-        public MessageDispatcher Dispatcher
-        {
-            get { return _dispatcher; }
-        }
+        public MessageDispatcher Dispatcher { get; private set; }
 
         public uint CurrentTick { get; set; }
         public ulong WorldSeed { get; set; }
 
-        public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
-        {
-            _logger = logger;
-            _contentHash = contentHash;
-            _maxConnections = maxConnections;
-        }
-
         public bool Start(ushort port)
         {
             _transport = new NetworkDriverWrapper(_logger);
-            _dispatcher = new MessageDispatcher(_logger);
+            Dispatcher = new MessageDispatcher(_logger);
             _peerRegistry = new PeerRegistry();
             _sendQueue = new ReliableSendQueue(_logger);
 
-            _dispatcher.OnConnect(OnPeerConnected);
-            _dispatcher.OnDisconnect(OnPeerDisconnected);
-            _dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
-            _dispatcher.RegisterHandler(MessageType.Ping, OnPing);
-            _dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
+            Dispatcher.OnConnect(OnPeerConnected);
+            Dispatcher.OnDisconnect(OnPeerDisconnected);
+            Dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
+            Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
+            Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
 
             bool success = _transport.Listen(port);
 
@@ -86,7 +88,7 @@ namespace Lithforge.Network.Server
             }
 
             _transport.Update();
-            _dispatcher.ProcessEvents(_transport);
+            Dispatcher.ProcessEvents(_transport);
             CheckTimeouts(currentTime);
             SchedulePings(currentTime);
             _sendQueue.Flush(_transport);
@@ -173,7 +175,9 @@ namespace Lithforge.Network.Server
             }
 
             DisconnectMessage msg = new()
-                { Reason = reason };
+            {
+                Reason = reason,
+            };
             SendTo(connectionId, msg, PipelineId.ReliableSequenced);
 
             peer.StateMachine.Transition(ConnectionState.Disconnecting, 0f);
@@ -189,32 +193,6 @@ namespace Lithforge.Network.Server
         {
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
             return peer != null ? peer.AssignedPlayerId : (ushort)0;
-        }
-
-        /// <summary>
-        /// Returns the PeerInfo for the given connection, or null if not found.
-        /// Used by ServerGameLoop to access per-player InterestState.
-        /// </summary>
-        public PeerInfo GetPeer(ConnectionId connectionId)
-        {
-            return _peerRegistry.GetByConnection(connectionId);
-        }
-
-        /// <summary>
-        /// Returns the PeerInfo for the given player ID, or null if not found.
-        /// </summary>
-        public PeerInfo GetPeerByPlayerId(ushort playerId)
-        {
-            return _peerRegistry.GetByPlayerId(playerId);
-        }
-
-        /// <summary>
-        /// Returns a read-only list of all connected peers. Used by ServerGameLoop
-        /// for broadcast iteration.
-        /// </summary>
-        public IReadOnlyList<PeerInfo> AllPeers
-        {
-            get { return _peerRegistry.AllPeers; }
         }
 
         public void Shutdown()
@@ -243,6 +221,23 @@ namespace Lithforge.Network.Server
                 _disposed = true;
                 Shutdown();
             }
+        }
+
+        /// <summary>
+        ///     Returns the PeerInfo for the given connection, or null if not found.
+        ///     Used by ServerGameLoop to access per-player InterestState.
+        /// </summary>
+        public PeerInfo GetPeer(ConnectionId connectionId)
+        {
+            return _peerRegistry.GetByConnection(connectionId);
+        }
+
+        /// <summary>
+        ///     Returns the PeerInfo for the given player ID, or null if not found.
+        /// </summary>
+        public PeerInfo GetPeerByPlayerId(ushort playerId)
+        {
+            return _peerRegistry.GetByPlayerId(playerId);
         }
 
         // --- Event handlers ---
@@ -304,12 +299,12 @@ namespace Lithforge.Network.Server
             }
 
             // Validate content hash
-            if (request.ContentHash != _contentHash)
+            if (request.ContentHash != ServerContentHash)
             {
                 SendHandshakeReject(connectionId, HandshakeRejectReason.ContentMismatch);
                 _logger.LogWarning(
                     $"Rejected {connectionId}: content mismatch " +
-                    $"(client={request.ContentHash}, server={_contentHash})");
+                    $"(client={request.ContentHash}, server={ServerContentHash})");
                 return;
             }
 
@@ -338,8 +333,7 @@ namespace Lithforge.Network.Server
             PingMessage ping = PingMessage.Deserialize(data, offset, length);
             PongMessage pong = new()
             {
-                EchoTimestamp = ping.Timestamp,
-                ServerTick = CurrentTick,
+                EchoTimestamp = ping.Timestamp, ServerTick = CurrentTick,
             };
             SendTo(connectionId, pong, PipelineId.UnreliableSequenced);
         }
@@ -422,7 +416,9 @@ namespace Lithforge.Network.Server
                 {
                     peer.LastPingTime = currentTime;
                     PingMessage ping = new()
-                        { Timestamp = currentTime };
+                    {
+                        Timestamp = currentTime,
+                    };
                     SendTo(peer.ConnectionId, ping, PipelineId.UnreliableSequenced);
                 }
             }

@@ -2,9 +2,11 @@ using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Ore;
 using Lithforge.WorldGen.Stages;
+
 using NUnit.Framework;
-using Unity.Jobs;
+
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Tests
@@ -12,15 +14,14 @@ namespace Lithforge.WorldGen.Tests
     [TestFixture]
     public sealed class OreGenerationJobTests
     {
-        private StateId _stoneId;
-        private StateId _oreId;
-
         [SetUp]
         public void SetUp()
         {
             _stoneId = new StateId(1);
             _oreId = new StateId(10);
         }
+        private StateId _stoneId;
+        private StateId _oreId;
 
         [Test]
         public void Execute_PlacesOreInStone()
@@ -84,7 +85,7 @@ namespace Lithforge.WorldGen.Tests
         public void Execute_DoesNotPlaceOreInAir()
         {
             NativeArray<StateId> chunkData = new(
-                ChunkConstants.Volume, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                ChunkConstants.Volume, Allocator.TempJob);
             NativeArray<NativeOreConfig> oreConfigs = new(
                 1, Allocator.TempJob);
 

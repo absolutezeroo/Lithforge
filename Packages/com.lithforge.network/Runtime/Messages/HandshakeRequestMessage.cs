@@ -1,13 +1,14 @@
 using System;
 using System.Text;
+
 using Lithforge.Network.Message;
 
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    /// Client→Server handshake request. Sent on reliable pipeline immediately after
-    /// the transport Connect event. Contains protocol version, content hash, and player name.
-    /// Wire format: [ProtocolVersion:2][ContentHash.High:8][ContentHash.Low:8][NameLength:1][Name:N]
+    ///     Client→Server handshake request. Sent on reliable pipeline immediately after
+    ///     the transport Connect event. Contains protocol version, content hash, and player name.
+    ///     Wire format: [ProtocolVersion:2][ContentHash.High:8][ContentHash.Low:8][NameLength:1][Name:N]
     /// </summary>
     public struct HandshakeRequestMessage : INetworkMessage
     {
