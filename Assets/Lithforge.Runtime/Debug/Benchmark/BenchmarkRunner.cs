@@ -150,7 +150,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             // F5 to open menu
             if (keyboard.f5Key.wasPressedThisFrame)
             {
-                if (_context != null && _context.GameLoop != null && _context.GameLoop.SpawnReady)
+                if (_context != null && _context.GameLoopPoco != null && _context.GameLoopPoco.SpawnReady)
                 {
                     OpenMenu();
                 }
@@ -226,6 +226,18 @@ namespace Lithforge.Runtime.Debug.Benchmark
             {
                 UnityEngine.Debug.Log("[Benchmark] Loaded " + _allScenarios.Length +
                                       " scenarios. Press F5 to open picker.");
+            }
+        }
+
+        /// <summary>
+        /// Sets the game loop reference on the BenchmarkContext after late initialization.
+        /// Called by SessionBridgeSubsystem after creating the GameLoopPoco.
+        /// </summary>
+        public void SetGameLoopPoco(Session.GameLoopPoco gameLoopPoco)
+        {
+            if (_context != null)
+            {
+                _context.GameLoopPoco = gameLoopPoco;
             }
         }
 

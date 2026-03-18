@@ -1,5 +1,6 @@
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Session;
 using Lithforge.Voxel.Chunk;
 using UnityEngine;
 
@@ -16,7 +17,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         public PlayerController PlayerController { get; set; }
         public Transform PlayerTransform { get; set; }
         public Camera MainCamera { get; set; }
-        public GameLoop GameLoop { get; set; }
+        public GameLoopPoco GameLoopPoco { get; set; }
         public BlockInteraction BlockInteraction { get; set; }
 
         /// <summary>
@@ -26,14 +27,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
         {
             get
             {
-                if (GameLoop == null)
+                if (GameLoopPoco == null)
                 {
                     return true;
                 }
 
-                return GameLoop.PendingGenerationCount == 0
-                    && GameLoop.PendingMeshCount == 0
-                    && GameLoop.PendingLODMeshCount == 0;
+                return GameLoopPoco.PendingGenerationCount == 0
+                    && GameLoopPoco.PendingMeshCount == 0
+                    && GameLoopPoco.PendingLODMeshCount == 0;
             }
         }
     }

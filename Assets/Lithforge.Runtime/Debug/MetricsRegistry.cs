@@ -1,5 +1,6 @@
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
+using Lithforge.Runtime.Session;
 using Lithforge.Voxel.Chunk;
 using UnityEngine;
 
@@ -8,7 +9,7 @@ namespace Lithforge.Runtime.Debug
     /// <summary>
     /// Aggregates all per-frame diagnostics from FrameProfiler, PipelineStats,
     /// ChunkManager, ChunkMeshStore, ChunkPool, and the player.
-    /// CommitFrame() must be called once per Update cycle from GameLoop.
+    /// CommitFrame() must be called once per Update cycle from GameLoopPoco.
     /// CurrentSnapshot is the last committed snapshot — reads are zero-alloc.
     /// Owner: LithforgeBootstrap. Lifetime: application session.
     /// </summary>
@@ -33,7 +34,7 @@ namespace Lithforge.Runtime.Debug
         private ChunkPool _chunkPool;
         private PlayerController _playerController;
         private Camera _mainCamera;
-        private GameLoop _gameLoop;
+        private GameLoopPoco _gameLoopPoco;
         private IFrameProfiler _frameProfiler;
         private IPipelineStats _pipelineStats;
 
@@ -81,7 +82,7 @@ namespace Lithforge.Runtime.Debug
             ChunkPool chunkPool,
             PlayerController playerController,
             Camera mainCamera,
-            GameLoop gameLoop,
+            GameLoopPoco gameLoop,
             IFrameProfiler frameProfiler,
             IPipelineStats pipelineStats,
             float fpsAlpha)
@@ -91,15 +92,24 @@ namespace Lithforge.Runtime.Debug
             _chunkPool = chunkPool;
             _playerController = playerController;
             _mainCamera = mainCamera;
-            _gameLoop = gameLoop;
+            _gameLoopPoco = gameLoop;
             _frameProfiler = frameProfiler;
             _pipelineStats = pipelineStats;
             _fpsAlpha = fpsAlpha;
         }
 
         /// <summary>
+        /// Sets the game loop reference after late initialization.
+        /// Called by SessionBridgeSubsystem after creating the GameLoopPoco.
+        /// </summary>
+        public void SetGameLoopPoco(GameLoopPoco gameLoopPoco)
+        {
+            _gameLoopPoco = gameLoopPoco;
+        }
+
+        /// <summary>
         /// Samples all sources and commits the snapshot.
-        /// Call once per frame from GameLoop.Update() AFTER all systems have run,
+        /// Call once per frame from GameLoopPoco.Update() AFTER all systems have run,
         /// FrameProfiler sections are closed, and PipelineStats counters are incremented.
         /// </summary>
         public void CommitFrame()
@@ -245,12 +255,12 @@ namespace Lithforge.Runtime.Debug
                 _current.FlySpeed = _playerController.FlySpeed;
             }
 
-            if (_gameLoop != null)
+            if (_gameLoopPoco != null)
             {
-                _current.PendingGenCount = _gameLoop.PendingGenerationCount;
-                _current.PendingMeshCount = _gameLoop.PendingMeshCount;
-                _current.PendingLodMeshCount = _gameLoop.PendingLODMeshCount;
-                _current.TicksThisFrame = _gameLoop.TicksThisFrame;
+                _current.PendingGenCount = _gameLoopPoco.PendingGenerationCount;
+                _current.PendingMeshCount = _gameLoopPoco.PendingMeshCount;
+                _current.PendingLodMeshCount = _gameLoopPoco.PendingLODMeshCount;
+                _current.TicksThisFrame = _gameLoopPoco.TicksThisFrame;
             }
         }
     }

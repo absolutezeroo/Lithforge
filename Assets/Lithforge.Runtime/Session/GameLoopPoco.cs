@@ -1,0 +1,384 @@
+using System;
+using System.Collections.Generic;
+
+using Lithforge.Network;
+using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.Simulation;
+using Lithforge.Runtime.Tick;
+using Lithforge.Voxel.Chunk;
+
+using Unity.Mathematics;
+
+using UnityEngine;
+using UnityEngine.Profiling;
+
+namespace Lithforge.Runtime.Session
+{
+    /// <summary>
+    ///     Pure C# replacement for the <c>GameLoop</c> MonoBehaviour.
+    ///     Called each frame by <see cref="SessionBridge" />.
+    /// </summary>
+    public sealed class GameLoopPoco
+    {
+        private readonly GameLoopConfig _config;
+
+        private readonly List<int3> _networkUnloadCache = new();
+
+        private readonly List<int3> _unloadedCoords = new();
+
+        private bool _clientDisconnectNotified;
+
+        private GameState _gameState = GameState.Playing;
+
+        private TickAccumulator _tickAccumulator;
+
+        /// <summary>
+        ///     Invoked when a client-mode network connection transitions to Disconnected.
+        /// </summary>
+        public Action OnClientDisconnected;
+
+        public GameLoopPoco(GameLoopConfig config)
+        {
+            _config = config;
+        }
+
+        public int PendingGenerationCount
+        {
+            get
+            {
+                return _config.GenerationScheduler?.PendingCount ?? 0;
+            }
+        }
+
+        public int PendingMeshCount
+        {
+            get
+            {
+                return _config.MeshScheduler?.PendingCount ?? 0;
+            }
+        }
+
+        public int PendingLODMeshCount
+        {
+            get
+            {
+                return _config.LODScheduler?.PendingCount ?? 0;
+            }
+        }
+
+        public int TicksThisFrame { get; private set; }
+
+        public bool SpawnReady
+        {
+            get
+            {
+                return _config.SpawnManager != null && _config.SpawnManager.IsComplete;
+            }
+        }
+
+        public void SetGameState(GameState state)
+        {
+            _gameState = state;
+        }
+
+        public void NotifyRenderDistanceChanged(int renderDistance)
+        {
+            _config.GenerationScheduler?.UpdateConfig(renderDistance);
+            _config.MeshScheduler?.UpdateConfig(renderDistance);
+            _config.LODScheduler?.UpdateConfig(renderDistance);
+        }
+
+        public void Update()
+        {
+            _config.GpuBufferResizer?.Tick();
+
+            IFrameProfiler profiler = _config.FrameProfiler ?? new NullFrameProfiler();
+            IPipelineStats stats = _config.PipelineStats ?? new NullPipelineStats();
+
+            profiler.BeginFrame();
+            stats.BeginFrame();
+
+            profiler.Begin(FrameProfilerSections.UpdateTotal);
+
+            // ── Pump network transport (client mode) ──
+            if (_config.NetworkClient != null)
+            {
+                _config.NetworkClient.Update(Time.realtimeSinceStartup);
+
+                if (_config.IsClientMode
+                    && !_clientDisconnectNotified
+                    && _config.NetworkClient.State == ConnectionState.Disconnected)
+                {
+                    _clientDisconnectNotified = true;
+                    UnityEngine.Debug.LogWarning(
+                        "[Lithforge] Client disconnected — returning to main menu.");
+                    OnClientDisconnected?.Invoke();
+                }
+            }
+
+            // ── Tick server game loop (host mode only) ──
+            if (_config.ServerGameLoop != null)
+            {
+                _config.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
+            }
+
+            // ── Fixed tick accumulator (skipped when fully paused) ──
+            if (_config.WorldSimulation != null && _gameState != GameState.PausedFull)
+            {
+                profiler.Begin(FrameProfilerSections.TickLoop);
+                Profiler.BeginSample("GL.TickLoop");
+
+                if (_config.PlayerPhysicsBody != null)
+                {
+                    _config.PlayerPhysicsBody.SpawnReady = SpawnReady;
+                }
+
+                _config.InputSnapshotBuilder?.LatchFrame();
+
+                _tickAccumulator.Accumulate(Time.deltaTime);
+
+                TicksThisFrame = 0;
+
+                while (_tickAccumulator.ShouldTick)
+                {
+                    _config.WorldSimulation.Tick(FixedTickRate.TickDeltaTime);
+                    _tickAccumulator.ConsumeOneTick();
+                    TicksThisFrame++;
+                }
+
+                Profiler.EndSample();
+                profiler.End(FrameProfilerSections.TickLoop);
+            }
+
+            // ── Tick remote player timeouts ──
+            if (_config.RemotePlayerManager != null)
+            {
+                _config.RemotePlayerManager.Tick(Time.deltaTime);
+            }
+
+            // ── Async pipeline poll ──
+            if (!_config.IsClientMode)
+            {
+                Profiler.BeginSample("GL.PollGen");
+                profiler.Begin(FrameProfilerSections.PollGen);
+                _config.GenerationScheduler?.PollCompleted();
+                profiler.End(FrameProfilerSections.PollGen);
+                Profiler.EndSample();
+            }
+
+            Profiler.BeginSample("GL.PollRelight");
+            _config.RelightScheduler?.PollCompleted();
+            Profiler.EndSample();
+
+            Profiler.BeginSample("GL.PollMesh");
+            profiler.Begin(FrameProfilerSections.PollMesh);
+            _config.MeshScheduler?.PollCompleted();
+            profiler.End(FrameProfilerSections.PollMesh);
+            Profiler.EndSample();
+
+            Profiler.BeginSample("GL.PollLiquid");
+            _config.LiquidScheduler?.PollCompleted();
+            Profiler.EndSample();
+
+            Profiler.BeginSample("GL.PollLOD");
+            profiler.Begin(FrameProfilerSections.PollLOD);
+            _config.LODScheduler?.PollCompleted();
+            profiler.End(FrameProfilerSections.PollLOD);
+            Profiler.EndSample();
+
+            // ── Frustum + load/unload ──
+            int3 cameraChunkCoord = GetCameraChunkCoord();
+
+            if (_gameState != GameState.PausedFull)
+            {
+                _config.Culling?.UpdateFrustum(_config.MainCamera);
+
+                if (!_config.IsClientMode)
+                {
+                    Profiler.BeginSample("GL.LoadQueue");
+                    profiler.Begin(FrameProfilerSections.LoadQueue);
+                    _config.ChunkManager.UpdateLoadingQueue(
+                        cameraChunkCoord, _config.MainCamera.transform.forward);
+                    profiler.End(FrameProfilerSections.LoadQueue);
+                    Profiler.EndSample();
+                }
+
+                Profiler.BeginSample("GL.Unload");
+                profiler.Begin(FrameProfilerSections.Unload);
+
+                if (!_config.IsClientMode)
+                {
+                    _config.ChunkManager.UnloadDistantChunks(
+                        cameraChunkCoord, _unloadedCoords,
+                        _config.WorldStorage, _config.UnloadBudgetMs);
+                }
+
+                if (_config.ClientChunkHandler != null)
+                {
+                    _config.ClientChunkHandler.DrainPendingUnloads(_networkUnloadCache);
+
+                    for (int i = 0; i < _networkUnloadCache.Count; i++)
+                    {
+                        int3 coord = _networkUnloadCache[i];
+                        _config.ChunkManager.UnloadChunk(coord);
+                        _unloadedCoords.Add(coord);
+                    }
+                }
+
+                if (_config.SpawnManager != null && !_config.SpawnManager.IsComplete)
+                {
+                    _config.SpawnManager.Tick();
+                }
+
+                for (int i = 0; i < _unloadedCoords.Count; i++)
+                {
+                    int3 coord = _unloadedCoords[i];
+                    _config.MeshScheduler?.ForceCompleteNeighborDeps(coord);
+                    _config.BlockEntityTickScheduler?.OnChunkUnloaded(coord);
+                    _config.LiquidScheduler?.OnChunkUnloaded(coord);
+                    _config.ChunkMeshStore?.DestroyRenderer(coord);
+                    _config.BiomeTintManager?.OnChunkUnloaded(coord);
+                    _config.GenerationScheduler?.CleanupCoord(coord);
+                    _config.RelightScheduler?.CleanupCoord(coord);
+                    _config.MeshScheduler?.CleanupCoord(coord);
+                    _config.LODScheduler?.CleanupCoord(coord);
+                }
+
+                profiler.End(FrameProfilerSections.Unload);
+                Profiler.EndSample();
+            }
+
+            // ── Schedule jobs ──
+            if (_gameState != GameState.PausedFull)
+            {
+                if (!_config.IsClientMode)
+                {
+                    Profiler.BeginSample("GL.SchedGen");
+                    profiler.Begin(FrameProfilerSections.SchedGen);
+                    _config.GenerationScheduler?.ScheduleJobs();
+                    profiler.End(FrameProfilerSections.SchedGen);
+                    Profiler.EndSample();
+
+                    Profiler.BeginSample("GL.CrossLight");
+                    profiler.Begin(FrameProfilerSections.CrossLight);
+                    _config.GenerationScheduler?.ProcessCrossChunkLightUpdates();
+                    profiler.End(FrameProfilerSections.CrossLight);
+                    Profiler.EndSample();
+                }
+
+                Profiler.BeginSample("GL.Relight");
+                profiler.Begin(FrameProfilerSections.Relight);
+                _config.RelightScheduler?.ScheduleJobs();
+                profiler.End(FrameProfilerSections.Relight);
+                Profiler.EndSample();
+
+                Profiler.BeginSample("GL.LODLevels");
+                profiler.Begin(FrameProfilerSections.LODLevels);
+                _config.LODScheduler?.UpdateLODLevels(cameraChunkCoord);
+                profiler.End(FrameProfilerSections.LODLevels);
+                Profiler.EndSample();
+
+                Profiler.BeginSample("GL.SchedMesh");
+                profiler.Begin(FrameProfilerSections.SchedMesh);
+                float3 camForwardXZ = math.normalizesafe(
+                    new float3(
+                        _config.MainCamera.transform.forward.x,
+                        0,
+                        _config.MainCamera.transform.forward.z));
+                _config.MeshScheduler?.ScheduleJobs(SpawnReady, cameraChunkCoord, camForwardXZ);
+                profiler.End(FrameProfilerSections.SchedMesh);
+                Profiler.EndSample();
+
+                Profiler.BeginSample("GL.SchedLOD");
+                profiler.Begin(FrameProfilerSections.SchedLOD);
+                _config.LODScheduler?.ScheduleJobs();
+                profiler.End(FrameProfilerSections.SchedLOD);
+                Profiler.EndSample();
+            }
+
+            // Audio environment frame-rate updates
+            _config.AudioEnvironmentController?.UpdateFrame(Time.deltaTime);
+
+            // Auto-save
+            _config.AutoSaveManager?.Tick(Time.realtimeSinceStartup);
+
+            profiler.End(FrameProfilerSections.UpdateTotal);
+
+            // CommitFrame AFTER all systems have run
+            _config.MetricsRegistry?.CommitFrame();
+        }
+
+        public void LateUpdate()
+        {
+            IFrameProfiler profiler = _config.FrameProfiler ?? new NullFrameProfiler();
+
+            // Apply interpolated player position
+            if (_config.PlayerPhysicsBody != null && _config.PlayerTransform != null
+                                                  && !_config.PlayerPhysicsBody.ExternallyControlled)
+            {
+                float alpha = _tickAccumulator.Alpha;
+                float3 interpPos = math.lerp(
+                    _config.PlayerPhysicsBody.PreviousPosition,
+                    _config.PlayerPhysicsBody.CurrentPosition,
+                    alpha);
+
+                if (_config.WorldSimulation is ClientWorldSimulation clientSim)
+                {
+                    interpPos += clientSim.PositionError;
+                }
+
+                _config.PlayerTransform.position =
+                    new Vector3(interpPos.x, interpPos.y, interpPos.z);
+            }
+
+            // Footstep and fall detection
+            _config.FootstepController?.Update();
+            _config.FallSoundDetector?.Update();
+
+            // Release finished SFX sources
+            _config.SfxSourcePool?.ReleaseFinished();
+
+            profiler.Begin(FrameProfilerSections.Render);
+            _config.ChunkMeshStore?.RenderAll(_config.MainCamera);
+
+            if (_config.PlayerRenderer != null)
+            {
+                _config.PlayerRenderer.Render(
+                    _config.PlayerController != null && _config.PlayerController.OnGround,
+                    _config.PlayerController != null && _config.PlayerController.IsFlying,
+                    _config.BlockInteraction != null && _config.BlockInteraction.IsMining);
+            }
+
+            _config.RemotePlayerManager?.RenderAll(_config.MainCamera);
+
+            profiler.End(FrameProfilerSections.Render);
+        }
+
+        public void Shutdown()
+        {
+            _config.LiquidScheduler?.Shutdown();
+            _config.GenerationScheduler?.Shutdown();
+            _config.RelightScheduler?.Shutdown();
+            _config.MeshScheduler?.Shutdown();
+            _config.LODScheduler?.Shutdown();
+
+            _config.PlayerRenderer?.Dispose();
+            _config.PlayerRenderer = null;
+
+            _config.RemotePlayerManager?.Dispose();
+            _config.RemotePlayerManager = null;
+        }
+
+        private int3 GetCameraChunkCoord()
+        {
+            Vector3 camPos = _config.MainCamera != null
+                ? _config.MainCamera.transform.position
+                : Vector3.zero;
+
+            return new int3(
+                (int)math.floor(camPos.x / ChunkConstants.Size),
+                (int)math.floor(camPos.y / ChunkConstants.Size),
+                (int)math.floor(camPos.z / ChunkConstants.Size));
+        }
+    }
+}
