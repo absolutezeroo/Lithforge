@@ -13,7 +13,7 @@ namespace Lithforge.Network.Client
     ///     Production network client implementation.
     ///     Owns a single transport connection to the server, manages handshake and ping/pong.
     /// </summary>
-    public sealed class NetworkClient : INetworkClient
+    public sealed class NetworkClient : INetworkClient, INetworkMetricsSource
     {
         private readonly ContentHash _contentHash;
 
@@ -26,6 +26,18 @@ namespace Lithforge.Network.Client
         private float _lastPingTime;
 
         private float _lastUpdateTime;
+
+        /// <summary>Bytes received from the network since the last metrics reset.</summary>
+        private int _metricsBytesReceived;
+
+        /// <summary>Bytes sent over the network since the last metrics reset.</summary>
+        private int _metricsBytesSent;
+
+        /// <summary>Network messages received since the last metrics reset.</summary>
+        private int _metricsMessagesReceived;
+
+        /// <summary>Network messages sent since the last metrics reset.</summary>
+        private int _metricsMessagesSent;
 
         private bool _ownsTransport;
 
@@ -112,6 +124,7 @@ namespace Lithforge.Network.Client
 
             Dispatcher.OnConnect(OnConnected);
             Dispatcher.OnDisconnect(OnDisconnected);
+            Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Ping, OnServerPing);
@@ -141,6 +154,7 @@ namespace Lithforge.Network.Client
 
             Dispatcher.OnConnect(OnConnected);
             Dispatcher.OnDisconnect(OnDisconnected);
+            Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Ping, OnServerPing);
@@ -184,6 +198,9 @@ namespace Lithforge.Network.Client
                 _logger.LogWarning($"Send failed for {message.Type}, queuing for retry");
                 _sendQueue.Enqueue(_serverConnectionId, pipelineId, buffer, 0, totalBytes);
             }
+
+            _metricsBytesSent += totalBytes;
+            _metricsMessagesSent++;
         }
 
         public void Disconnect()
@@ -354,6 +371,65 @@ namespace Lithforge.Network.Client
             }
 
             _transport = null;
+        }
+
+        private void OnDataReceivedMetrics(int byteCount)
+        {
+            _metricsBytesReceived += byteCount;
+            _metricsMessagesReceived++;
+        }
+
+        // --- INetworkMetricsSource ---
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.BytesSent
+        {
+            get { return _metricsBytesSent; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.BytesReceived
+        {
+            get { return _metricsBytesReceived; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.MessagesSent
+        {
+            get { return _metricsMessagesSent; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.MessagesReceived
+        {
+            get { return _metricsMessagesReceived; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.PendingReliableQueueCount
+        {
+            get { return _sendQueue?.Count ?? 0; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.PeerCount
+        {
+            get { return IsConnected ? 1 : 0; }
+        }
+
+        /// <inheritdoc />
+        float INetworkMetricsSource.AveragePingMs
+        {
+            get { return RoundTripTime * 1000f; }
+        }
+
+        /// <inheritdoc />
+        void INetworkMetricsSource.SampleAndReset()
+        {
+            _metricsBytesSent = 0;
+            _metricsBytesReceived = 0;
+            _metricsMessagesSent = 0;
+            _metricsMessagesReceived = 0;
         }
     }
 }

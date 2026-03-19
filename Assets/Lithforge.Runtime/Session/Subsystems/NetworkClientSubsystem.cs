@@ -5,6 +5,7 @@ using Lithforge.Network;
 using Lithforge.Network.Client;
 using Lithforge.Network.Message;
 using Lithforge.Network.Transport;
+using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Simulation;
@@ -76,6 +77,13 @@ namespace Lithforge.Runtime.Session.Subsystems
 
         public void PostInitialize(SessionContext context)
         {
+            // Wire network metrics for client-only mode (SP/Host use the server as source)
+            if (context.Config is SessionConfig.Client
+                && context.TryGet(out MetricsRegistry metricsRegistry))
+            {
+                metricsRegistry.SetNetworkMetrics(_client);
+            }
+
             // Defer ClientWorldSimulation creation until handshake completes.
             // For DirectTransport (SP/Host), the handshake takes ~2 frames.
             // For UTP (Client), it takes a full network round-trip.

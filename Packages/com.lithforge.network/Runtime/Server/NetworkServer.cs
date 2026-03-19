@@ -14,7 +14,7 @@ namespace Lithforge.Network.Server
     ///     Production network server implementation.
     ///     Owns the transport, peer registry, message dispatcher, and handshake protocol.
     /// </summary>
-    public sealed class NetworkServer : INetworkServer
+    public sealed class NetworkServer : INetworkServer, INetworkMetricsSource
     {
         private readonly ILogger _logger;
 
@@ -25,6 +25,18 @@ namespace Lithforge.Network.Server
         private float _currentTime;
 
         private bool _disposed;
+
+        /// <summary>Bytes received from the network since the last metrics reset.</summary>
+        private int _metricsBytesReceived;
+
+        /// <summary>Bytes sent over the network since the last metrics reset.</summary>
+        private int _metricsBytesSent;
+
+        /// <summary>Network messages received since the last metrics reset.</summary>
+        private int _metricsMessagesReceived;
+
+        /// <summary>Network messages sent since the last metrics reset.</summary>
+        private int _metricsMessagesSent;
 
         private PeerRegistry _peerRegistry;
 
@@ -119,6 +131,9 @@ namespace Lithforge.Network.Server
             {
                 _sendQueue.Enqueue(connectionId, pipelineId, buffer, 0, totalBytes);
             }
+
+            _metricsBytesSent += totalBytes;
+            _metricsMessagesSent++;
         }
 
         public void Broadcast(INetworkMessage message, int pipelineId)
@@ -248,6 +263,7 @@ namespace Lithforge.Network.Server
 
             Dispatcher.OnConnect(OnPeerConnected);
             Dispatcher.OnDisconnect(OnPeerDisconnected);
+            Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
             Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
@@ -478,6 +494,84 @@ namespace Lithforge.Network.Server
                     SendTo(peer.ConnectionId, ping, PipelineId.UnreliableSequenced);
                 }
             }
+        }
+
+        private void OnDataReceivedMetrics(int byteCount)
+        {
+            _metricsBytesReceived += byteCount;
+            _metricsMessagesReceived++;
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.BytesSent
+        {
+            get { return _metricsBytesSent; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.BytesReceived
+        {
+            get { return _metricsBytesReceived; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.MessagesSent
+        {
+            get { return _metricsMessagesSent; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.MessagesReceived
+        {
+            get { return _metricsMessagesReceived; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.PendingReliableQueueCount
+        {
+            get { return _sendQueue?.Count ?? 0; }
+        }
+
+        /// <inheritdoc />
+        int INetworkMetricsSource.PeerCount
+        {
+            get { return PeerCount; }
+        }
+
+        /// <inheritdoc />
+        float INetworkMetricsSource.AveragePingMs
+        {
+            get
+            {
+                if (_peerRegistry == null)
+                {
+                    return 0f;
+                }
+
+                IReadOnlyList<PeerInfo> peers = _peerRegistry.AllPeers;
+                int count = 0;
+                float totalRtt = 0f;
+
+                for (int i = 0; i < peers.Count; i++)
+                {
+                    if (peers[i].RoundTripTime > 0f)
+                    {
+                        totalRtt += peers[i].RoundTripTime;
+                        count++;
+                    }
+                }
+
+                return count > 0 ? totalRtt / count * 1000f : 0f;
+            }
+        }
+
+        /// <inheritdoc />
+        void INetworkMetricsSource.SampleAndReset()
+        {
+            _metricsBytesSent = 0;
+            _metricsBytesReceived = 0;
+            _metricsMessagesSent = 0;
+            _metricsMessagesReceived = 0;
         }
     }
 }

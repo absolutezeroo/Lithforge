@@ -18,9 +18,13 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class NetworkCommandProcessor : ICommandProcessor
     {
+        /// <summary>Processor for inventory slot click commands (executed locally).</summary>
         private readonly IInventoryCommandProcessor _inventoryProcessor;
+
+        /// <summary>Client-side block predictor for optimistic placement and breaking.</summary>
         private readonly ClientBlockPredictor _predictor;
 
+        /// <summary>Creates a network command processor with a predictor and local inventory processor.</summary>
         public NetworkCommandProcessor(
             ClientBlockPredictor predictor,
             IInventoryCommandProcessor inventoryProcessor)
@@ -29,6 +33,7 @@ namespace Lithforge.Runtime.Input
             _inventoryProcessor = inventoryProcessor;
         }
 
+        /// <summary>Optimistically predicts block placement and sends to server for validation.</summary>
         public CommandResult ProcessPlace(in PlaceBlockCommand command, List<int3> dirtiedChunks)
         {
             if (!_predictor.IsReady)
@@ -41,6 +46,7 @@ namespace Lithforge.Runtime.Input
             return CommandResult.Success;
         }
 
+        /// <summary>Optimistically predicts block breaking and sends to server for validation.</summary>
         public CommandResult ProcessBreak(in BreakBlockCommand command, List<int3> dirtiedChunks)
         {
             if (!_predictor.IsReady)
@@ -53,11 +59,13 @@ namespace Lithforge.Runtime.Input
             return CommandResult.Success;
         }
 
+        /// <summary>No-op interaction for network mode (placeholder for future server-side handling).</summary>
         public CommandResult ProcessInteract(in InteractCommand command)
         {
             return CommandResult.Success;
         }
 
+        /// <summary>Delegates the inventory slot click to the local inventory processor.</summary>
         public CommandResult ProcessSlotClick(in SlotClickCommand command)
         {
             return _inventoryProcessor.ProcessSlotClick(in command);

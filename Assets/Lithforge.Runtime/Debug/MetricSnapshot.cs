@@ -280,6 +280,29 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Chunks waiting in the LOD>0 mesh scheduler queue.</summary>
         public int PendingLodMeshCount;
 
+        // --- Networking ---
+
+        /// <summary>Bytes transmitted over the network during this frame.</summary>
+        public int NetBytesSent;
+
+        /// <summary>Bytes received from the network during this frame.</summary>
+        public int NetBytesReceived;
+
+        /// <summary>Network messages sent during this frame.</summary>
+        public int NetMessagesSent;
+
+        /// <summary>Network messages received during this frame.</summary>
+        public int NetMessagesReceived;
+
+        /// <summary>Entries waiting in the reliable send retry queue at snapshot time.</summary>
+        public int NetPendingReliableCount;
+
+        /// <summary>Number of active connected peers at snapshot time.</summary>
+        public int NetPeerCount;
+
+        /// <summary>Average round-trip time to peers in milliseconds.</summary>
+        public float NetAveragePingMs;
+
         // --- Index sizes ---
 
         /// <summary>Number of chunks in the Generated state set, eligible for meshing.</summary>

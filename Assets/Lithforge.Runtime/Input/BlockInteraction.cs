@@ -36,12 +36,11 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class BlockInteraction : MonoBehaviour
     {
-        // Static sort comparison for trait priority ordering
+        /// <summary>Sort comparison for ordering tool traits by priority during mining calculation.</summary>
         private static readonly Comparison<IToolTrait> s_traitPrioritySort =
             (a, b) => a.Priority.CompareTo(b.Priority);
 
-        // ToolType → mineable tag mapping (Minecraft-style correct-tool check)
-        // Tag names must match the tagName field in Tag assets (e.g. "blocks/mineable_pickaxe")
+        /// <summary>Maps ToolType to its corresponding mineable tag ResourceId for correct-tool checks.</summary>
         private static readonly Dictionary<ToolType, ResourceId> s_toolTagMap =
             new()
             {
@@ -56,6 +55,7 @@ namespace Lithforge.Runtime.Input
                 },
             };
 
+        /// <summary>Array of digit key codes (1-9) for hotbar slot selection.</summary>
         private static readonly Key[] s_digitKeys =
         {
             Key.Digit1,
@@ -69,61 +69,103 @@ namespace Lithforge.Runtime.Input
             Key.Digit9,
         };
 
-        // Reusable list for dirty chunks
+        /// <summary>Reusable list for collecting dirtied chunk coordinates after block changes.</summary>
         private readonly List<int3> _dirtiedChunks = new();
 
-        // Block entity references
+        /// <summary>Scheduler for ticking block entities (furnaces, chests, etc.).</summary>
         private BlockEntityTickScheduler _blockEntityTickScheduler;
+
+        /// <summary>Wireframe highlight shown around the targeted block.</summary>
         private BlockHighlight _blockHighlight;
 
-        // Audio
+        /// <summary>Audio player for block dig, place, and break sounds.</summary>
         private BlockSoundPlayer _blockSoundPlayer;
+
+        /// <summary>Whether the current tool can harvest drops from the mined block.</summary>
         private bool _canHarvest;
+
+        /// <summary>Chunk manager for reading block state and applying changes.</summary>
         private ChunkManager _chunkManager;
 
-        // Command processor (delegates validation + state mutation to LocalCommandProcessor)
+        /// <summary>Command processor that validates and executes block place and break commands.</summary>
         private ICommandProcessor _commandProcessor;
+
+        /// <summary>Default maximum stack size for items without an explicit definition.</summary>
         private int _defaultMaxStackSize;
+
+        /// <summary>Mining speed multiplier when using bare hands (no tool).</summary>
         private float _handMiningMultiplier;
 
-        // Physics settings
+        /// <summary>Maximum reach distance for block interaction raycasts.</summary>
         private float _interactionRange;
 
-        // Inventory integration
-
-        // Mining state
+        /// <summary>Cached delegate for solid block checks used by VoxelRaycast.</summary>
         private Func<int3, bool> _isSolidDelegate;
+
+        /// <summary>Item registry for looking up item definitions and max stack sizes.</summary>
         private ItemRegistry _itemRegistry;
+
+        /// <summary>Random number generator for loot table resolution.</summary>
         private Random _lootRandom;
+
+        /// <summary>Resolver that evaluates loot tables to produce drop lists.</summary>
         private LootResolver _lootResolver;
+
+        /// <summary>Minimum time required to break any block, even with instant tools.</summary>
         private float _minBreakTime;
+
+        /// <summary>World coordinate of the block currently being mined.</summary>
         private int3 _miningBlockCoord;
+
+        /// <summary>Number of ticks between mining hit sound effects.</summary>
         private int _miningHitInterval = 4;
+
+        /// <summary>Counter tracking ticks since last mining hit sound.</summary>
         private int _miningHitTickCounter;
+
+        /// <summary>Accumulated mining progress in seconds toward breaking the target block.</summary>
         private float _miningProgress;
+
+        /// <summary>Total time required to break the current target block.</summary>
         private float _miningRequiredTime;
+
+        /// <summary>Native state registry for Burst-compatible block property lookups.</summary>
         private NativeStateRegistry _nativeStateRegistry;
 
-        // Network callback: notifies server when mining begins (for break speed validation)
+        /// <summary>Network callback invoked when mining begins, for server-side break speed validation.</summary>
         private Action<int3> _onStartDigging;
 
-        // Placement cooldown
+        /// <summary>Remaining cooldown time before the next block placement is allowed.</summary>
         private float _placeCooldown;
+
+        /// <summary>Cooldown duration between successive block placements.</summary>
         private float _placeCooldownTime;
 
-        // Player controller reference (for fly mode scroll-wheel gating)
+        /// <summary>Player controller for fly mode and scroll-wheel gating.</summary>
         private PlayerController _playerController;
+
+        /// <summary>Half-width of the player AABB for placement overlap checks.</summary>
         private float _playerHalfWidth;
+
+        /// <summary>Height of the player AABB for placement overlap checks.</summary>
         private float _playerHeight;
 
-        // Player transform (feet position)
+        /// <summary>Player transform providing feet position for raycasting and overlap checks.</summary>
         private Transform _playerTransform;
+
+        /// <summary>Manager for block entity container screens dispatched on right-click.</summary>
         private ContainerScreenManager _screenManager;
+
+        /// <summary>State registry for looking up block definitions by state ID.</summary>
         private StateRegistry _stateRegistry;
+
+        /// <summary>Tag registry for checking mineable tool tag membership.</summary>
         private TagRegistry _tagRegistry;
+
+        /// <summary>Mining speed multiplier applied when using the correct tool type.</summary>
         private float _toolMiningMultiplier;
 
-        // Tool system registries
+        /// <summary>Registry of tool traits for modifier-based mining speed adjustments.</summary>
         private ToolTraitRegistry _toolTraitRegistry;
 
 
@@ -153,6 +195,7 @@ namespace Lithforge.Runtime.Input
         /// </summary>
         public Inventory Inventory { get; private set; }
 
+        /// <summary>Per-frame update handling hotbar selection, raycasting, mining, and placement.</summary>
         private void Update()
         {
             if (_chunkManager == null || Cursor.lockState != CursorLockMode.Locked)
@@ -211,6 +254,7 @@ namespace Lithforge.Runtime.Input
         ///     Sets the command processor used for block placement and break validation.
         ///     When null, falls back to direct ChunkManager calls.
         /// </summary>
+        /// <summary>Replaces the command processor used for block place and break validation.</summary>
         public void SetCommandProcessor(ICommandProcessor processor)
         {
             _commandProcessor = processor;
@@ -220,11 +264,13 @@ namespace Lithforge.Runtime.Input
         ///     Sets a callback invoked when the player begins mining a new block.
         ///     In network mode, this sends a StartDiggingCmd message to the server.
         /// </summary>
+        /// <summary>Sets the network callback invoked when the player starts digging a block.</summary>
         public void SetStartDiggingCallback(Action<int3> callback)
         {
             _onStartDigging = callback;
         }
 
+        /// <summary>Initializes the interaction system with world state, physics, and inventory references.</summary>
         public void Initialize(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -263,6 +309,7 @@ namespace Lithforge.Runtime.Input
         /// <summary>
         ///     Sets block entity system references. Call after ContainerScreenManager is initialized.
         /// </summary>
+        /// <summary>Wires block entity references for container screen dispatch and tick scheduling.</summary>
         public void SetBlockEntityReferences(
             BlockEntityTickScheduler scheduler,
             ContainerScreenManager screenManager,
@@ -276,12 +323,14 @@ namespace Lithforge.Runtime.Input
         /// <summary>
         ///     Sets the block sound player for break/place/hit audio.
         /// </summary>
+        /// <summary>Configures the block sound player and mining hit sound interval.</summary>
         public void SetBlockSoundPlayer(BlockSoundPlayer player, int miningHitInterval)
         {
             _blockSoundPlayer = player;
             _miningHitInterval = miningHitInterval;
         }
 
+        /// <summary>Checks digit key presses (1-9) and updates the hotbar selected slot.</summary>
         private void HandleHotbarSelection(Keyboard keyboard)
         {
             for (int i = 0; i < Inventory.HotbarSize && i < s_digitKeys.Length; i++)
@@ -295,6 +344,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Handles scroll wheel for hotbar cycling or fly speed adjustment.</summary>
         private void HandleScrollWheel(Mouse mouse)
         {
             // In fly mode, scroll wheel controls fly speed instead of hotbar
@@ -329,6 +379,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Handles left-click mining initiation, cancellation, and target changes.</summary>
         private void HandleMining(Mouse mouse, VoxelRaycastHit hit)
         {
             if (!mouse.leftButton.isPressed)
@@ -383,6 +434,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Begins mining a block, calculating break time from tool speed, block hardness, and traits.</summary>
         private void StartMining(int3 blockCoord)
         {
             IsMining = true;
@@ -506,6 +558,7 @@ namespace Lithforge.Runtime.Input
             _onStartDigging?.Invoke(blockCoord);
         }
 
+        /// <summary>Completes a block break, resolving loot drops, applying durability, and cleaning up block entities.</summary>
         private void BreakBlock(int3 blockCoord)
         {
             // Play break sound before the block is replaced with air
@@ -621,6 +674,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Handles right-click block placement, block entity interaction, and repair kit usage.</summary>
         private void HandlePlacement(Mouse mouse, VoxelRaycastHit hit)
         {
             if (!mouse.rightButton.wasPressedThisFrame || _placeCooldown > 0f)

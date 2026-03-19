@@ -6,6 +6,7 @@ using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Simulation;
@@ -219,6 +220,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             if (context.TryGet(out LanBroadcaster lan))
             {
                 _serverGameLoop.OnPlayerCountChanged = count => lan.UpdatePlayerCount(count + 1);
+            }
+
+            // Wire network metrics for the debug overlay
+            if (context.TryGet(out MetricsRegistry metricsRegistry))
+            {
+                metricsRegistry.SetNetworkMetrics(_server);
             }
         }
 

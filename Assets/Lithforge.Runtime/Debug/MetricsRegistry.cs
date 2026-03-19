@@ -1,7 +1,9 @@
+using Lithforge.Network;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Session;
 using Lithforge.Voxel.Chunk;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.Debug
@@ -31,6 +33,8 @@ namespace Lithforge.Runtime.Debug
         private GameLoopPoco _gameLoopPoco;
         private IFrameProfiler _frameProfiler;
         private IPipelineStats _pipelineStats;
+
+        private INetworkMetricsSource _networkMetrics;
 
         // Scratch histogram — reused each frame (no alloc)
         private readonly int[] _histogramScratch = new int[8];
@@ -81,6 +85,17 @@ namespace Lithforge.Runtime.Debug
         public void SetGameLoopPoco(GameLoopPoco gameLoopPoco)
         {
             _gameLoopPoco = gameLoopPoco;
+        }
+
+        /// <summary>
+        ///     Sets the network metrics source for bandwidth and peer tracking.
+        ///     Called by the network subsystem after server/client initialization.
+        ///     Pass the <see cref="NetworkServer" /> in host mode or
+        ///     <see cref="NetworkClient" /> in client-only mode.
+        /// </summary>
+        public void SetNetworkMetrics(INetworkMetricsSource source)
+        {
+            _networkMetrics = source;
         }
 
         /// <summary>
@@ -237,6 +252,19 @@ namespace Lithforge.Runtime.Debug
                 _current.PendingMeshCount = _gameLoopPoco.PendingMeshCount;
                 _current.PendingLodMeshCount = _gameLoopPoco.PendingLODMeshCount;
                 _current.TicksThisFrame = _gameLoopPoco.TicksThisFrame;
+            }
+
+            // Network metrics
+            if (_networkMetrics != null)
+            {
+                _current.NetBytesSent = _networkMetrics.BytesSent;
+                _current.NetBytesReceived = _networkMetrics.BytesReceived;
+                _current.NetMessagesSent = _networkMetrics.MessagesSent;
+                _current.NetMessagesReceived = _networkMetrics.MessagesReceived;
+                _current.NetPendingReliableCount = _networkMetrics.PendingReliableQueueCount;
+                _current.NetPeerCount = _networkMetrics.PeerCount;
+                _current.NetAveragePingMs = _networkMetrics.AveragePingMs;
+                _networkMetrics.SampleAndReset();
             }
         }
     }

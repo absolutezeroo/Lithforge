@@ -17,6 +17,7 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     internal static class SolidBlockHelper
     {
+        /// <summary>Checks if the block at the given world coordinate is solid, treating unloaded chunks as solid.</summary>
         public static bool IsSolid(
             int3 worldCoord,
             ChunkManager chunkManager,

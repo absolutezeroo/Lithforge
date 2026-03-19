@@ -19,9 +19,13 @@ namespace Lithforge.Runtime.Input
         /// <summary>Degrees of rotation per pixel of mouse movement.</summary>
         [FormerlySerializedAs("_lookSensitivity"),SerializeField] private float lookSensitivity = 0.1f;
 
+        /// <summary>Current pitch angle in degrees, clamped to [-89, 89].</summary>
         private float _pitch;
+
+        /// <summary>Current yaw angle in degrees.</summary>
         private float _yaw;
 
+        /// <summary>Locks the cursor and initializes pitch and yaw from the current rotation.</summary>
         private void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -37,6 +41,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Polls input each frame for cursor toggle, mouse look, and movement.</summary>
         private void Update()
         {
             Keyboard keyboard = Keyboard.current;
@@ -52,6 +57,7 @@ namespace Lithforge.Runtime.Input
             HandleMovement(keyboard);
         }
 
+        /// <summary>Applies mouse delta to pitch and yaw when the cursor is locked.</summary>
         private void HandleMouseLook(Mouse mouse)
         {
             if (Cursor.lockState != CursorLockMode.Locked)
@@ -68,6 +74,7 @@ namespace Lithforge.Runtime.Input
             transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
         }
 
+        /// <summary>Handles WASD, Space, and Ctrl movement with optional Shift speed boost.</summary>
         private void HandleMovement(Keyboard keyboard)
         {
             float speed = keyboard.leftShiftKey.isPressed ? fastMoveSpeed : moveSpeed;
@@ -112,6 +119,7 @@ namespace Lithforge.Runtime.Input
             transform.position += direction * speed * Time.deltaTime;
         }
 
+        /// <summary>Toggles cursor lock state when Escape is pressed.</summary>
         private void HandleCursorToggle(Keyboard keyboard)
         {
             if (keyboard.escapeKey.wasPressedThisFrame)

@@ -15,6 +15,12 @@ namespace Lithforge.Network.Message
         private Action<ConnectionId> _onConnect;
         private Action<ConnectionId> _onDisconnect;
 
+        /// <summary>
+        ///     Optional callback invoked on each received data event with the total byte count.
+        ///     Used by <see cref="INetworkMetricsSource" /> implementations to track received bandwidth.
+        /// </summary>
+        private Action<int> _onDataReceived;
+
         public MessageDispatcher(ILogger logger)
         {
             _logger = logger;
@@ -43,6 +49,15 @@ namespace Lithforge.Network.Message
         public void OnDisconnect(Action<ConnectionId> callback)
         {
             _onDisconnect = callback;
+        }
+
+        /// <summary>
+        ///     Registers a callback invoked for each received data event with the byte count.
+        ///     Used for bandwidth metrics tracking.
+        /// </summary>
+        public void OnDataReceived(Action<int> callback)
+        {
+            _onDataReceived = callback;
         }
 
         /// <summary>
@@ -79,6 +94,8 @@ namespace Lithforge.Network.Message
 
         private void ProcessDataEvent(ConnectionId connectionId, byte[] data, int offset, int length)
         {
+            _onDataReceived?.Invoke(length);
+
             if (length < MessageHeader.Size)
             {
                 _logger.LogWarning(

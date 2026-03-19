@@ -22,13 +22,25 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class LocalCommandProcessor : ICommandProcessor
     {
+        /// <summary>Chunk manager for reading and writing block state.</summary>
         private readonly ChunkManager _chunkManager;
+
+        /// <summary>Processor for inventory slot click commands.</summary>
         private readonly IInventoryCommandProcessor _inventoryProcessor;
+
+        /// <summary>Native state registry for checking block properties (fluid, collision).</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
+
+        /// <summary>Half-width of the player AABB for placement overlap checks.</summary>
         private readonly float _playerHalfWidth;
+
+        /// <summary>Height of the player AABB for placement overlap checks.</summary>
         private readonly float _playerHeight;
+
+        /// <summary>Player transform for position-based overlap validation.</summary>
         private readonly Transform _playerTransform;
 
+        /// <summary>Creates a local command processor with world state and player collision references.</summary>
         public LocalCommandProcessor(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -45,6 +57,7 @@ namespace Lithforge.Runtime.Input
             _inventoryProcessor = inventoryProcessor;
         }
 
+        /// <summary>Validates air/fluid target and player overlap, then places the block.</summary>
         public CommandResult ProcessPlace(in PlaceBlockCommand command, List<int3> dirtiedChunks)
         {
             // PlaceBlockCommand.Position is already the target air block coordinate
@@ -98,6 +111,7 @@ namespace Lithforge.Runtime.Input
             return CommandResult.Success;
         }
 
+        /// <summary>Validates the block exists (non-air), then breaks it by setting to air.</summary>
         public CommandResult ProcessBreak(in BreakBlockCommand command, List<int3> dirtiedChunks)
         {
             StateId stateId = _chunkManager.GetBlock(command.Position);
@@ -118,6 +132,7 @@ namespace Lithforge.Runtime.Input
             return CommandResult.Success;
         }
 
+        /// <summary>Processes a block entity interaction command (placeholder for future wiring).</summary>
         public CommandResult ProcessInteract(in InteractCommand command)
         {
             // Block entity interaction (open container, use item) will be wired
@@ -125,6 +140,7 @@ namespace Lithforge.Runtime.Input
             return CommandResult.Success;
         }
 
+        /// <summary>Delegates the inventory slot click to the inventory command processor.</summary>
         public CommandResult ProcessSlotClick(in SlotClickCommand command)
         {
             return _inventoryProcessor.ProcessSlotClick(in command);

@@ -94,6 +94,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>No-op initialization retained for backwards compatibility with scene wiring.</summary>
         public void Initialize()
         {
         }
