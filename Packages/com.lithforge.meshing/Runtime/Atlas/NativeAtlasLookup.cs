@@ -12,6 +12,7 @@ namespace Lithforge.Meshing.Atlas
     public struct NativeAtlasLookup : IDisposable
     {
         [ReadOnly] public NativeArray<AtlasEntry> Entries;
+
         public int TextureCount;
 
         public NativeAtlasLookup(NativeArray<AtlasEntry> entries, int textureCount)

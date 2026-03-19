@@ -59,7 +59,6 @@ namespace Lithforge.Runtime.Player
         private float _equipTimer;
 
         // Output matrices (indices: 0=head, 1=body, 2=rightArm, 3=leftArm, 4=rightLeg, 5=leftLeg)
-        private readonly float4x4[] _partTransforms = new float4x4[6];
 
         public PlayerModelAnimator(Transform playerTransform, Transform cameraTransform)
         {
@@ -69,17 +68,14 @@ namespace Lithforge.Runtime.Player
 
             for (int i = 0; i < 6; i++)
             {
-                _partTransforms[i] = float4x4.identity;
+                PartTransforms[i] = float4x4.identity;
             }
         }
 
         /// <summary>
         /// The 6 part transform matrices (world-space). Updated each frame by <see cref="Update"/>.
         /// </summary>
-        public float4x4[] PartTransforms
-        {
-            get { return _partTransforms; }
-        }
+        public float4x4[] PartTransforms { get; } = new float4x4[6];
 
         /// <summary>
         /// Triggers the swing animation (called when mining starts or on left-click attack).
@@ -148,33 +144,33 @@ namespace Lithforge.Runtime.Player
             float legSwingRad = math.radians(WalkSwingLegDeg * walkSin);
 
             // Head: pitch follows camera
-            _partTransforms[0] = ComputePartMatrix(
+            PartTransforms[0] = ComputePartMatrix(
                 bodyRoot, s_headPivot,
                 float4x4.RotateX(math.radians(cameraPitch)));
 
             // Body: identity rotation (yaw is in bodyRoot)
-            _partTransforms[1] = ComputePartMatrix(
+            PartTransforms[1] = ComputePartMatrix(
                 bodyRoot, s_bodyPivot,
                 float4x4.identity);
 
             // Right Arm (off-hand, -X = left side of screen): walk swing only
-            _partTransforms[2] = ComputePartMatrix(
+            PartTransforms[2] = ComputePartMatrix(
                 bodyRoot, s_rightArmPivot,
                 float4x4.RotateX(armSwingRad));
 
             // Left Arm (main hand, +X = right side of screen): walk swing + mining swing + equip
             float4x4 mainArmAnim = ComputeMainArmAnimation(-armSwingRad);
-            _partTransforms[3] = ComputePartMatrix(
+            PartTransforms[3] = ComputePartMatrix(
                 bodyRoot, s_leftArmPivot,
                 mainArmAnim);
 
             // Right Leg: walk swing
-            _partTransforms[4] = ComputePartMatrix(
+            PartTransforms[4] = ComputePartMatrix(
                 bodyRoot, s_rightLegPivot,
                 float4x4.RotateX(legSwingRad));
 
             // Left Leg: walk swing (opposite)
-            _partTransforms[5] = ComputePartMatrix(
+            PartTransforms[5] = ComputePartMatrix(
                 bodyRoot, s_leftLegPivot,
                 float4x4.RotateX(-legSwingRad));
         }

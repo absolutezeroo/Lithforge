@@ -110,9 +110,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
         /// </summary>
         public void OpenForEntity(BlockEntity entity)
         {
-            ChestBlockEntity chest = entity as ChestBlockEntity;
 
-            if (chest == null)
+            if (entity is not ChestBlockEntity chest)
             {
                 return;
             }

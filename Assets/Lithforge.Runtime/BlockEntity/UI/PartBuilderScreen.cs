@@ -149,9 +149,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         public void OpenForEntity(BlockEntity entity)
         {
-            PartBuilderBlockEntity builder = entity as PartBuilderBlockEntity;
 
-            if (builder == null)
+            if (entity is not PartBuilderBlockEntity builder)
             {
                 return;
             }

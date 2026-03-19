@@ -6,33 +6,21 @@ namespace Lithforge.Item
     /// </summary>
     public sealed class ToolTraitData : IToolTrait
     {
-        private readonly string _traitId;
-        private readonly int _traitLevel;
-        private readonly int _priority;
         private readonly ToolTraitEffect[] _effects;
 
         public ToolTraitData(string traitId, int traitLevel, int priority, ToolTraitEffect[] effects)
         {
-            _traitId = traitId;
-            _traitLevel = traitLevel;
-            _priority = priority;
+            TraitId = traitId;
+            TraitLevel = traitLevel;
+            Priority = priority;
             _effects = effects;
         }
 
-        public string TraitId
-        {
-            get { return _traitId; }
-        }
+        public string TraitId { get; }
 
-        public int TraitLevel
-        {
-            get { return _traitLevel; }
-        }
+        public int TraitLevel { get; }
 
-        public int Priority
-        {
-            get { return _priority; }
-        }
+        public int Priority { get; }
 
         public MiningContext Apply(MiningContext ctx)
         {

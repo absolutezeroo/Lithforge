@@ -15,9 +15,8 @@ namespace Lithforge.Item
 
         public override bool Equals(object obj)
         {
-            ToolPartDataComponent other = obj as ToolPartDataComponent;
 
-            if (other == null)
+            if (obj is not ToolPartDataComponent other)
             {
                 return false;
             }

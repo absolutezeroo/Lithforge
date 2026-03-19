@@ -16,18 +16,9 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Interpolation delay: 2 ticks behind real-time to absorb jitter.</summary>
         public static readonly float InterpolationDelay = 2f * FixedTickRate.TickDeltaTime;
 
-        private readonly T[] _snapshots;
-        private readonly float[] _timestamps;
-        private int _writeIndex;
-        private int _count;
-
-        public InterpolationBuffer()
-        {
-            _snapshots = new T[Capacity];
-            _timestamps = new float[Capacity];
-            _writeIndex = 0;
-            _count = 0;
-        }
+        private readonly T[] _snapshots = new T[Capacity];
+        private readonly float[] _timestamps = new float[Capacity];
+        private int _writeIndex = 0;
 
         /// <summary>
         /// Pushes a new snapshot with the given server timestamp.
@@ -38,9 +29,9 @@ namespace Lithforge.Runtime.Simulation
             _timestamps[_writeIndex] = serverTimestamp;
             _writeIndex = (_writeIndex + 1) % Capacity;
 
-            if (_count < Capacity)
+            if (Count < Capacity)
             {
-                _count++;
+                Count++;
             }
         }
 
@@ -55,7 +46,7 @@ namespace Lithforge.Runtime.Simulation
             to = default;
             alpha = 0f;
 
-            if (_count == 0)
+            if (Count == 0)
             {
                 return false;
             }
@@ -64,7 +55,7 @@ namespace Lithforge.Runtime.Simulation
 
             // Find the two bracketing snapshots
             int newestIdx = (_writeIndex - 1 + Capacity) % Capacity;
-            int oldestIdx = (_writeIndex - _count + Capacity) % Capacity;
+            int oldestIdx = (_writeIndex - Count + Capacity) % Capacity;
 
             float newestTime = _timestamps[newestIdx];
             float oldestTime = _timestamps[oldestIdx];
@@ -72,7 +63,7 @@ namespace Lithforge.Runtime.Simulation
             // Target is beyond newest: extrapolate
             if (targetTime >= newestTime)
             {
-                if (_count < 2)
+                if (Count < 2)
                 {
                     from = _snapshots[newestIdx];
                     to = _snapshots[newestIdx];
@@ -116,7 +107,7 @@ namespace Lithforge.Runtime.Simulation
             }
 
             // Find bracketing pair: walk backwards from newest
-            for (int i = 0; i < _count - 1; i++)
+            for (int i = 0; i < Count - 1; i++)
             {
                 int idxB = (newestIdx - i + Capacity) % Capacity;
                 int idxA = (idxB - 1 + Capacity) % Capacity;
@@ -144,10 +135,7 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>
         /// Returns the number of snapshots currently stored.
         /// </summary>
-        public int Count
-        {
-            get { return _count; }
-        }
+        public int Count { get; private set; } = 0;
 
         /// <summary>
         /// Clears all stored snapshots.
@@ -155,7 +143,7 @@ namespace Lithforge.Runtime.Simulation
         public void Clear()
         {
             _writeIndex = 0;
-            _count = 0;
+            Count = 0;
         }
     }
 }

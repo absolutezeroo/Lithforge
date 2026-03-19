@@ -11,6 +11,7 @@ namespace Lithforge.Item
     public static class DataComponentTypes
     {
         public const int ToolInstanceId = 1;
+
         public const int ToolPartDataId = 2;
 
         public static void Initialize()
@@ -47,9 +48,8 @@ namespace Lithforge.Item
 
         private static byte[] ReadRemainingBytes(BinaryReader reader)
         {
-            MemoryStream ms = reader.BaseStream as MemoryStream;
 
-            if (ms != null)
+            if (reader.BaseStream is MemoryStream ms)
             {
                 int remaining = (int)(ms.Length - ms.Position);
                 return reader.ReadBytes(remaining);

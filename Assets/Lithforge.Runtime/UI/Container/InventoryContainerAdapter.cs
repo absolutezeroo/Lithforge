@@ -9,20 +9,15 @@ namespace Lithforge.Runtime.UI.Container
     public sealed class InventoryContainerAdapter : ISlotContainer
     {
         private readonly Inventory _inventory;
-        private readonly int _startSlot;
-        private readonly int _slotCount;
 
         public InventoryContainerAdapter(Inventory inventory, int startSlot, int slotCount)
         {
             _inventory = inventory;
-            _startSlot = startSlot;
-            _slotCount = slotCount;
+            StartSlot = startSlot;
+            SlotCount = slotCount;
         }
 
-        public int SlotCount
-        {
-            get { return _slotCount; }
-        }
+        public int SlotCount { get; }
 
         public bool IsReadOnly
         {
@@ -31,12 +26,12 @@ namespace Lithforge.Runtime.UI.Container
 
         public ItemStack GetSlot(int index)
         {
-            return _inventory.GetSlot(_startSlot + index);
+            return _inventory.GetSlot(StartSlot + index);
         }
 
         public void SetSlot(int index, ItemStack stack)
         {
-            _inventory.SetSlot(_startSlot + index, stack);
+            _inventory.SetSlot(StartSlot + index, stack);
         }
 
         public void OnSlotChanged(int index)
@@ -50,15 +45,12 @@ namespace Lithforge.Runtime.UI.Container
         /// </summary>
         public int ToAbsoluteIndex(int localIndex)
         {
-            return _startSlot + localIndex;
+            return StartSlot + localIndex;
         }
 
         /// <summary>
         /// The start slot offset in the backing inventory.
         /// </summary>
-        public int StartSlot
-        {
-            get { return _startSlot; }
-        }
+        public int StartSlot { get; }
     }
 }

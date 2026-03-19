@@ -16,7 +16,9 @@ namespace Lithforge.Meshing
     public struct VoxelDownsampleJob : IJob
     {
         [ReadOnly] public NativeArray<StateId> SourceData;
+
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+
         public int Scale;
 
         public NativeArray<StateId> OutputData;

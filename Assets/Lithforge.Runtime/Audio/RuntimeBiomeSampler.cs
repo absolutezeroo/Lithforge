@@ -12,7 +12,6 @@ namespace Lithforge.Runtime.Audio
     {
         private readonly BiomeDefinition[] _biomes;
         private readonly long _seed;
-        private int _currentBiomeIndex;
 
         public RuntimeBiomeSampler(BiomeDefinition[] biomes, long seed)
         {
@@ -23,10 +22,7 @@ namespace Lithforge.Runtime.Audio
         /// <summary>
         /// Index of the current biome (matches BiomeDefinition array index).
         /// </summary>
-        public int CurrentBiomeIndex
-        {
-            get { return _currentBiomeIndex; }
-        }
+        public int CurrentBiomeIndex { get; private set; }
 
         /// <summary>
         /// The current biome definition, or null if no biomes exist.
@@ -40,7 +36,7 @@ namespace Lithforge.Runtime.Audio
                     return null;
                 }
 
-                return _biomes[_currentBiomeIndex];
+                return _biomes[CurrentBiomeIndex];
             }
         }
 
@@ -99,7 +95,7 @@ namespace Lithforge.Runtime.Audio
                 }
             }
 
-            _currentBiomeIndex = bestIndex;
+            CurrentBiomeIndex = bestIndex;
         }
 
         private static float Frac(float v)

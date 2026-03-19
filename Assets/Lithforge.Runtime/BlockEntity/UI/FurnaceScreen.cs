@@ -113,9 +113,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
         /// </summary>
         public void OpenForEntity(BlockEntity entity)
         {
-            FurnaceBlockEntity furnace = entity as FurnaceBlockEntity;
 
-            if (furnace == null)
+            if (entity is not FurnaceBlockEntity furnace)
             {
                 return;
             }

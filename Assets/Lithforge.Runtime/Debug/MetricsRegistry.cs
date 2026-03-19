@@ -16,7 +16,6 @@ namespace Lithforge.Runtime.Debug
     public sealed class MetricsRegistry
     {
         private MetricSnapshot _current;
-        private MetricSnapshot _previous;
 
         // Rolling FPS smoother (exponential moving average)
         private float _fpsSmoothed;
@@ -24,16 +23,11 @@ namespace Lithforge.Runtime.Debug
 
         // Frame-time ring buffer (300 samples) for graph and benchmark
         public const int HistorySize = 300;
-        private readonly float[] _frameTimeHistory = new float[HistorySize];
-        private int _historyHead;
-        private int _historyFilled;
 
         // External references set at Initialize time
-        private ChunkManager _chunkManager;
         private ChunkMeshStore _chunkMeshStore;
         private ChunkPool _chunkPool;
         private PlayerController _playerController;
-        private Camera _mainCamera;
         private GameLoopPoco _gameLoopPoco;
         private IFrameProfiler _frameProfiler;
         private IPipelineStats _pipelineStats;
@@ -46,35 +40,17 @@ namespace Lithforge.Runtime.Debug
             get { return _current; }
         }
 
-        public MetricSnapshot PreviousSnapshot
-        {
-            get { return _previous; }
-        }
+        public MetricSnapshot PreviousSnapshot { get; private set; }
 
-        public float[] FrameTimeHistory
-        {
-            get { return _frameTimeHistory; }
-        }
+        public float[] FrameTimeHistory { get; } = new float[HistorySize];
 
-        public int HistoryHead
-        {
-            get { return _historyHead; }
-        }
+        public int HistoryHead { get; private set; }
 
-        public int HistoryFilled
-        {
-            get { return _historyFilled; }
-        }
+        public int HistoryFilled { get; private set; }
 
-        public ChunkManager ChunkManager
-        {
-            get { return _chunkManager; }
-        }
+        public ChunkManager ChunkManager { get; private set; }
 
-        public Camera MainCamera
-        {
-            get { return _mainCamera; }
-        }
+        public Camera MainCamera { get; private set; }
 
         public void Initialize(
             ChunkManager chunkManager,
@@ -87,11 +63,11 @@ namespace Lithforge.Runtime.Debug
             IPipelineStats pipelineStats,
             float fpsAlpha)
         {
-            _chunkManager = chunkManager;
+            ChunkManager = chunkManager;
             _chunkMeshStore = chunkMeshStore;
             _chunkPool = chunkPool;
             _playerController = playerController;
-            _mainCamera = mainCamera;
+            MainCamera = mainCamera;
             _gameLoopPoco = gameLoop;
             _frameProfiler = frameProfiler;
             _pipelineStats = pipelineStats;
@@ -114,7 +90,7 @@ namespace Lithforge.Runtime.Debug
         /// </summary>
         public void CommitFrame()
         {
-            _previous = _current;
+            PreviousSnapshot = _current;
 
             float dt = Time.unscaledDeltaTime;
             float frameMs = dt * 1000f;
@@ -122,12 +98,12 @@ namespace Lithforge.Runtime.Debug
             _fpsSmoothed = _fpsSmoothed + _fpsAlpha * (instantFps - _fpsSmoothed);
 
             // Frame-time ring buffer
-            _frameTimeHistory[_historyHead] = frameMs;
-            _historyHead = (_historyHead + 1) % HistorySize;
+            FrameTimeHistory[HistoryHead] = frameMs;
+            HistoryHead = (HistoryHead + 1) % HistorySize;
 
-            if (_historyFilled < HistorySize)
+            if (HistoryFilled < HistorySize)
             {
-                _historyFilled++;
+                HistoryFilled++;
             }
 
             // Frame timing
@@ -188,9 +164,9 @@ namespace Lithforge.Runtime.Debug
             _current.GcGen2 = _pipelineStats.GcGen2;
 
             // Chunk histogram and pool
-            if (_chunkManager != null && _chunkPool != null)
+            if (ChunkManager != null && _chunkPool != null)
             {
-                _chunkManager.FillStateHistogram(
+                ChunkManager.FillStateHistogram(
                     _histogramScratch,
                     out int needsRemesh,
                     out int needsLightUpdate);
@@ -209,8 +185,8 @@ namespace Lithforge.Runtime.Debug
                 _current.PoolAvailable = _chunkPool.AvailableCount;
                 _current.PoolCheckedOut = _chunkPool.CheckedOutCount;
                 _current.PoolTotal = _chunkPool.TotalAllocated;
-                _current.LoadedChunks = _chunkManager.LoadedCount;
-                _current.GeneratedSetSize = _chunkManager.GeneratedChunkCount;
+                _current.LoadedChunks = ChunkManager.LoadedCount;
+                _current.GeneratedSetSize = ChunkManager.GeneratedChunkCount;
             }
 
             // VRAM stats
@@ -237,9 +213,9 @@ namespace Lithforge.Runtime.Debug
             }
 
             // Player / world position
-            if (_mainCamera != null)
+            if (MainCamera != null)
             {
-                Vector3 pos = _mainCamera.transform.position;
+                Vector3 pos = MainCamera.transform.position;
                 _current.PlayerX = pos.x;
                 _current.PlayerY = pos.y;
                 _current.PlayerZ = pos.z;

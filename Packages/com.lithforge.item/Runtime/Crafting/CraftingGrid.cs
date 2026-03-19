@@ -10,23 +10,15 @@ namespace Lithforge.Item.Crafting
     public sealed class CraftingGrid
     {
         private readonly ItemStack[] _slots;
-        private readonly int _width;
-        private readonly int _height;
 
-        public int Width
-        {
-            get { return _width; }
-        }
+        public int Width { get; }
 
-        public int Height
-        {
-            get { return _height; }
-        }
+        public int Height { get; }
 
         public CraftingGrid(int width, int height)
         {
-            _width = width;
-            _height = height;
+            Width = width;
+            Height = height;
             _slots = new ItemStack[width * height];
         }
 
@@ -35,12 +27,12 @@ namespace Lithforge.Item.Crafting
         /// </summary>
         public ItemStack GetSlotStack(int x, int y)
         {
-            if (x < 0 || x >= _width || y < 0 || y >= _height)
+            if (x < 0 || x >= Width || y < 0 || y >= Height)
             {
                 return ItemStack.Empty;
             }
 
-            return _slots[y * _width + x];
+            return _slots[y * Width + x];
         }
 
         /// <summary>
@@ -48,9 +40,9 @@ namespace Lithforge.Item.Crafting
         /// </summary>
         public void SetSlotStack(int x, int y, ItemStack stack)
         {
-            if (x >= 0 && x < _width && y >= 0 && y < _height)
+            if (x >= 0 && x < Width && y >= 0 && y < Height)
             {
-                _slots[y * _width + x] = stack;
+                _slots[y * Width + x] = stack;
             }
         }
 
@@ -108,16 +100,16 @@ namespace Lithforge.Item.Crafting
         /// </summary>
         public void GetBounds(out int minX, out int minY, out int boundsWidth, out int boundsHeight)
         {
-            int x0 = _width;
-            int y0 = _height;
+            int x0 = Width;
+            int y0 = Height;
             int x1 = -1;
             int y1 = -1;
 
-            for (int y = 0; y < _height; y++)
+            for (int y = 0; y < Height; y++)
             {
-                for (int x = 0; x < _width; x++)
+                for (int x = 0; x < Width; x++)
                 {
-                    ItemStack stack = _slots[y * _width + x];
+                    ItemStack stack = _slots[y * Width + x];
 
                     if (!stack.IsEmpty)
                     {

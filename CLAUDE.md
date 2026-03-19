@@ -43,19 +43,25 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 1. **No `var`** — explicit types everywhere, enforced by `.editorconfig` as error.
 2. **Target-typed `new()`** — prefer `List<int> items = new();` over repeating the type. The left-hand side already declares the type.
 3. **Object initializers** — prefer `new Foo { Bar = 1, Baz = 2 }` when it produces cleaner code than sequential assignment.
-4. **Switch expressions** — prefer `x switch { ... }` over `switch` statements when the result is a direct assignment or return and the cases are simple.
-5. **Pattern matching in `if`/loops** — prefer `if (x is int i)`, `is not null`, `is > 0` when it improves readability.
-6. **Merge into pattern** — prefer pattern combinators (`and`, `or`, `not`) over `&&`/`||` chains. E.g. `if (x is > 0 and < 100)` not `if (x > 0 && x < 100)`; `if (obj is string { Length: > 0 } s)` not `if (obj is string s && s.Length > 0)`.
-7. **Null-coalescing operators** — prefer `??`, `??=`, and `?.` over manual null checks. E.g. `x ??= new List<int>();` not `if (x == null) x = new List<int>();`; `obj?.Method()` not `if (obj != null) obj.Method();`.
-8. **Auto-properties** — prefer `public int Count { get; set; }` over manual backing field + property. Use backing fields only when the getter/setter has real logic.
-9. **Allman braces** — opening brace on new line, always.
-10. **One file per type** — each class, interface, enum, struct gets its own file.
-11. **Namespace = package path** — `namespace Lithforge.Voxel.Block;`
-12. **Private fields: `_camelCase`** — underscore prefix.
-13. **No expression-bodied methods** — block bodies only (switch expressions and pattern matching are not expression-bodied methods).
-14. **Interfaces: `I` prefix** — `IRegistry`, `ILogger`.
-15. **Accessibility always explicit** — `public`, `private`, `internal`.
-16. **XML doc on everything** — every field, property, method, class, struct, enum, and constant must have a `/// <summary>` comment. Keep summaries on a single line. Separate each documented member with a blank line for readability:
+4. **Member initializers over constructors** — when a field/property is always initialized to the same value, assign it at declaration (`private int _count = 10;`) instead of in the constructor. Keep constructors for parameter-dependent logic only.
+5. **Switch expressions** — prefer `x switch { ... }` over `switch` statements when the result is a direct assignment or return and the cases are simple.
+6. **Pattern matching everywhere** — prefer pattern-based idioms for readability:
+    - **Null checks**: `is null` / `is not null` over `== null` / `!= null`.
+    - **Type checks**: `if (x is Foo f)` over `as` + null check or explicit cast.
+    - **Property patterns**: `if (x is { Length: > 0 })` over `if (x != null && x.Length > 0)`.
+    - **Relational/logical**: `is > 0`, `is >= 10 and <= 100`, `is not (null or "")`.
+    - **Discard**: `if (x is string)` when the value is unused.
+7. **Merge into pattern** — prefer pattern combinators (`and`, `or`, `not`) over `&&`/`||` chains. E.g. `if (x is > 0 and < 100)` not `if (x > 0 && x < 100)`; `if (obj is string { Length: > 0 } s)` not `if (obj is string s && s.Length > 0)`.
+8. **Null-coalescing operators** — prefer `??`, `??=`, and `?.` over manual null checks. E.g. `x ??= new List<int>();` not `if (x == null) x = new List<int>();`; `obj?.Method()` not `if (obj != null) obj.Method();`.
+9. **Auto-properties** — prefer `public int Count { get; set; }` over manual backing field + property. Use backing fields only when the getter/setter has real logic.
+10. **Allman braces** — opening brace on new line, always.
+11. **One file per type** — each class, interface, enum, struct gets its own file.
+12. **Namespace = package path** — `namespace Lithforge.Voxel.Block;`
+13. **Private fields: `_camelCase`** — underscore prefix.
+14. **No expression-bodied methods** — block bodies only (switch expressions and pattern matching are not expression-bodied methods).
+15. **Interfaces: `I` prefix** — `IRegistry`, `ILogger`.
+16. **Accessibility always explicit** — `public`, `private`, `internal`.
+17. **XML doc on everything** — every field, property, method, class, struct, enum, and constant must have a `/// <summary>` comment. Keep summaries on a single line. Separate each documented member with a blank line for readability:
     ```csharp
     /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
     public int3 ChunkCoord;

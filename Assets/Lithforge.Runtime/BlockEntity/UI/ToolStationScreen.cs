@@ -151,9 +151,8 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         public void OpenForEntity(BlockEntity entity)
         {
-            ToolStationBlockEntity station = entity as ToolStationBlockEntity;
 
-            if (station == null)
+            if (entity is not ToolStationBlockEntity station)
             {
                 return;
             }

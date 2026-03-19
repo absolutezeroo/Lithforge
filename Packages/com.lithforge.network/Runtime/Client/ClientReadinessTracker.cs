@@ -26,8 +26,6 @@ namespace Lithforge.Network.Client
 
         private readonly HashSet<int3> _requiredChunks = new();
 
-        private bool _complete;
-
         private bool _configured;
 
         /// <summary>
@@ -48,10 +46,7 @@ namespace Lithforge.Network.Client
         public Action OnReadinessAchieved;
 
         /// <summary>True when all required chunks are available.</summary>
-        public bool IsComplete
-        {
-            get { return _complete; }
-        }
+        public bool IsComplete { get; private set; }
 
         /// <summary>
         ///     Configures the spawn volume. Must be called once before
@@ -62,7 +57,7 @@ namespace Lithforge.Network.Client
         public void Configure(int3 spawnChunk, int radius, int yMin, int yMax)
         {
             _requiredChunks.Clear();
-            _complete = false;
+            IsComplete = false;
             _configured = true;
 
             for (int x = -radius; x <= radius; x++)
@@ -90,7 +85,7 @@ namespace Lithforge.Network.Client
                 return new SpawnReadinessSnapshot();
             }
 
-            if (_complete)
+            if (IsComplete)
             {
                 return new SpawnReadinessSnapshot
                 {
@@ -112,7 +107,7 @@ namespace Lithforge.Network.Client
 
             if (ready >= _requiredChunks.Count)
             {
-                _complete = true;
+                IsComplete = true;
                 OnReadinessAchieved?.Invoke();
             }
 
@@ -120,7 +115,7 @@ namespace Lithforge.Network.Client
             {
                 TotalChunks = _requiredChunks.Count,
                 ReadyChunks = ready,
-                IsComplete = _complete,
+                IsComplete = IsComplete,
             };
         }
     }

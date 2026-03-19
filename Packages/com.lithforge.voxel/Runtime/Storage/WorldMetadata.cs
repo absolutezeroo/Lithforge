@@ -211,20 +211,17 @@ namespace Lithforge.Voxel.Storage
                         SelectedSlot = playerObj["selected_slot"]?.Value<int>() ?? 0,
                     };
 
-                    JArray slotsArray = playerObj["slots"] as JArray;
-
-                    if (slotsArray is
+                    if (playerObj["slots"] is JArray
                         {
                             Count: > 0,
-                        })
+                        } slotsArray)
                     {
                         SavedItemStack[] slots = new SavedItemStack[slotsArray.Count];
 
                         for (int i = 0; i < slotsArray.Count; i++)
                         {
-                            JObject slotObj = slotsArray[i] as JObject;
 
-                            if (slotObj != null)
+                            if (slotsArray[i] is JObject slotObj)
                             {
                                 SavedItemStack saved = new()
                                 {
@@ -236,23 +233,20 @@ namespace Lithforge.Voxel.Storage
                                 };
 
                                 // New format: components array
-                                JArray compsArray = slotObj["components"] as JArray;
-
-                                if (compsArray is
+                                if (slotObj["components"] is JArray
                                     {
                                         Count: > 0,
-                                    })
+                                    } compsArray)
                                 {
                                     List<SavedComponentEntry> components = new(compsArray.Count);
 
                                     for (int c = 0; c < compsArray.Count; c++)
                                     {
-                                        JObject compObj = compsArray[c] as JObject;
-
-                                        if (compObj != null)
+                                        if (compsArray[c] is JObject compObj)
                                         {
                                             int typeId = compObj["type"]?.Value<int>() ?? 0;
                                             string data = compObj["data"]?.Value<string>();
+
                                             components.Add(new SavedComponentEntry(typeId, data));
                                         }
                                     }

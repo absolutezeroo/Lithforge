@@ -17,7 +17,8 @@ namespace Lithforge.Meshing
         public NativeList<PackedMeshVertex> OpaqueVertices;
 
         public NativeList<int> OpaqueIndices;
- public NativeList<PackedMeshVertex> CutoutVertices;
+
+        public NativeList<PackedMeshVertex> CutoutVertices;
 
         public NativeList<int> CutoutIndices;
 

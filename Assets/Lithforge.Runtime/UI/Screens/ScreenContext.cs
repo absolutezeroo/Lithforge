@@ -15,114 +15,61 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class ScreenContext
     {
-        private readonly Inventory _playerInventory;
-        private readonly ItemRegistry _itemRegistry;
-        private readonly ItemSpriteAtlas _itemSpriteAtlas;
-        private readonly PanelSettings _panelSettings;
-        private readonly CraftingEngine _craftingEngine;
-        private readonly ToolTraitRegistry _toolTraitRegistry;
-        private readonly ToolPartTextureDatabase _toolPartTextures;
-        private readonly ToolMaterialDefinition[] _toolMaterials;
-        private readonly ToolTemplateRegistry _toolTemplateRegistry;
-        private readonly PartBuilderRecipeRegistry _partBuilderRecipeRegistry;
-        private readonly ToolMaterialRegistry _toolMaterialRegistry;
-        private readonly MaterialInputRegistry _materialInputRegistry;
-        private readonly ContainerScreenManager _screenManager;
+        public Inventory PlayerInventory { get; }
 
-        public Inventory PlayerInventory
-        {
-            get { return _playerInventory; }
-        }
+        public ItemRegistry ItemRegistry { get; }
 
-        public ItemRegistry ItemRegistry
-        {
-            get { return _itemRegistry; }
-        }
+        public ItemSpriteAtlas ItemSpriteAtlas { get; }
 
-        public ItemSpriteAtlas ItemSpriteAtlas
-        {
-            get { return _itemSpriteAtlas; }
-        }
-
-        public PanelSettings PanelSettings
-        {
-            get { return _panelSettings; }
-        }
+        public PanelSettings PanelSettings { get; }
 
         /// <summary>
         /// May be null for screens that do not use crafting.
         /// </summary>
-        public CraftingEngine CraftingEngine
-        {
-            get { return _craftingEngine; }
-        }
+        public CraftingEngine CraftingEngine { get; }
 
         /// <summary>
         /// May be null for screens that do not use tool assembly.
         /// </summary>
-        public ToolTraitRegistry ToolTraitRegistry
-        {
-            get { return _toolTraitRegistry; }
-        }
+        public ToolTraitRegistry ToolTraitRegistry { get; }
 
         /// <summary>
         /// May be null if no ToolDefinition assets are loaded.
         /// </summary>
-        public ToolPartTextureDatabase ToolPartTextures
-        {
-            get { return _toolPartTextures; }
-        }
+        public ToolPartTextureDatabase ToolPartTextures { get; }
 
         /// <summary>
         /// May be null if no ToolMaterialDefinition assets are loaded.
         /// </summary>
-        public ToolMaterialDefinition[] ToolMaterials
-        {
-            get { return _toolMaterials; }
-        }
+        public ToolMaterialDefinition[] ToolMaterials { get; }
 
         /// <summary>
         /// May be null if no legacy tool templates are loaded.
         /// </summary>
-        public ToolTemplateRegistry ToolTemplateRegistry
-        {
-            get { return _toolTemplateRegistry; }
-        }
+        public ToolTemplateRegistry ToolTemplateRegistry { get; }
 
         /// <summary>
         /// Part Builder recipe registry. May be null if no Part Builder recipes are loaded.
         /// </summary>
-        public PartBuilderRecipeRegistry PartBuilderRecipeRegistry
-        {
-            get { return _partBuilderRecipeRegistry; }
-        }
+        public PartBuilderRecipeRegistry PartBuilderRecipeRegistry { get; }
 
         /// <summary>
         /// Tool material registry with craftable material lookup.
         /// May be null if no tool materials are loaded.
         /// </summary>
-        public ToolMaterialRegistry ToolMaterialRegistry
-        {
-            get { return _toolMaterialRegistry; }
-        }
+        public ToolMaterialRegistry ToolMaterialRegistry { get; }
 
         /// <summary>
         /// Material input registry mapping items to materials with value/needed ratios.
         /// Used by the Part Builder for TiC-style fractional material costs.
         /// May be null if no material inputs are configured.
         /// </summary>
-        public MaterialInputRegistry MaterialInputRegistry
-        {
-            get { return _materialInputRegistry; }
-        }
+        public MaterialInputRegistry MaterialInputRegistry { get; }
 
         /// <summary>
         /// May be null for screens that do not need cross-screen coordination.
         /// </summary>
-        public ContainerScreenManager ScreenManager
-        {
-            get { return _screenManager; }
-        }
+        public ContainerScreenManager ScreenManager { get; }
 
         public ScreenContext(
             Inventory playerInventory,
@@ -139,19 +86,19 @@ namespace Lithforge.Runtime.UI.Screens
             MaterialInputRegistry materialInputRegistry,
             ContainerScreenManager screenManager = null)
         {
-            _playerInventory = playerInventory;
-            _itemRegistry = itemRegistry;
-            _itemSpriteAtlas = itemSpriteAtlas;
-            _panelSettings = panelSettings;
-            _craftingEngine = craftingEngine;
-            _toolTraitRegistry = toolTraitRegistry;
-            _toolPartTextures = toolPartTextures;
-            _toolMaterials = toolMaterials;
-            _toolTemplateRegistry = toolTemplateRegistry;
-            _partBuilderRecipeRegistry = partBuilderRecipeRegistry;
-            _toolMaterialRegistry = toolMaterialRegistry;
-            _materialInputRegistry = materialInputRegistry;
-            _screenManager = screenManager;
+            PlayerInventory = playerInventory;
+            ItemRegistry = itemRegistry;
+            ItemSpriteAtlas = itemSpriteAtlas;
+            PanelSettings = panelSettings;
+            CraftingEngine = craftingEngine;
+            ToolTraitRegistry = toolTraitRegistry;
+            ToolPartTextures = toolPartTextures;
+            ToolMaterials = toolMaterials;
+            ToolTemplateRegistry = toolTemplateRegistry;
+            PartBuilderRecipeRegistry = partBuilderRecipeRegistry;
+            ToolMaterialRegistry = toolMaterialRegistry;
+            MaterialInputRegistry = materialInputRegistry;
+            ScreenManager = screenManager;
         }
     }
 }

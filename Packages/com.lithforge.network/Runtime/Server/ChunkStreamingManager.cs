@@ -42,8 +42,6 @@ namespace Lithforge.Network.Server
 
         private readonly HashSet<int3> _newInterestSet = new();
 
-        private readonly int _readyRadius;
-
         private readonly List<int3> _unloadCandidates = new();
 
         public ChunkStreamingManager(
@@ -55,7 +53,7 @@ namespace Lithforge.Network.Server
         {
             YLoadMin = yLoadMin;
             YLoadMax = yLoadMax;
-            _readyRadius = readyRadius;
+            ReadyRadius = readyRadius;
             _chunkProvider = chunkProvider;
             _logger = logger;
         }
@@ -65,10 +63,7 @@ namespace Lithforge.Network.Server
         public int YLoadMax { get; }
 
         /// <summary>The spawn-ready radius used for readiness gating.</summary>
-        public int ReadyRadius
-        {
-            get { return _readyRadius; }
-        }
+        public int ReadyRadius { get; }
 
         /// <summary>
         ///     Processes chunk streaming for a single peer. Called each tick from ServerGameLoop Phase 5.

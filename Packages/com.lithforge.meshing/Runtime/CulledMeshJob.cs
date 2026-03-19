@@ -12,8 +12,11 @@ namespace Lithforge.Meshing
     public struct CulledMeshJob : IJob
     {
         [ReadOnly] public NativeArray<StateId> ChunkData;
+
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+
         public NativeList<MeshVertex> Vertices;
+
         public NativeList<int> Indices;
 
         public void Execute()

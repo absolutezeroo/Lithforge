@@ -11,7 +11,6 @@ namespace Lithforge.Voxel.Command
     {
         private readonly T[] _commands;
         private readonly uint[] _ticks;
-        private readonly int _capacity;
 
         /// <summary>
         /// Creates a new ring buffer with the specified capacity.
@@ -20,7 +19,7 @@ namespace Lithforge.Voxel.Command
         /// </summary>
         public CommandRingBuffer(int capacity = 256)
         {
-            _capacity = capacity;
+            Capacity = capacity;
             _commands = new T[capacity];
             _ticks = new uint[capacity];
         }
@@ -31,7 +30,7 @@ namespace Lithforge.Voxel.Command
         /// </summary>
         public void Add(uint tick, T command)
         {
-            int slot = (int)(tick % (uint)_capacity);
+            int slot = (int)(tick % (uint)Capacity);
             _ticks[slot] = tick;
             _commands[slot] = command;
         }
@@ -43,7 +42,7 @@ namespace Lithforge.Voxel.Command
         /// </summary>
         public bool TryGet(uint tick, out T command)
         {
-            int slot = (int)(tick % (uint)_capacity);
+            int slot = (int)(tick % (uint)Capacity);
 
             if (_ticks[slot] == tick)
             {
@@ -80,7 +79,7 @@ namespace Lithforge.Voxel.Command
         /// </summary>
         public void DiscardBefore(uint tick)
         {
-            for (int i = 0; i < _capacity; i++)
+            for (int i = 0; i < Capacity; i++)
             {
                 if (_ticks[i] < tick)
                 {
@@ -90,9 +89,6 @@ namespace Lithforge.Voxel.Command
         }
 
         /// <summary>Number of slots in the ring buffer.</summary>
-        public int Capacity
-        {
-            get { return _capacity; }
-        }
+        public int Capacity { get; }
     }
 }

@@ -12,29 +12,16 @@ namespace Lithforge.Runtime.Debug
     /// </summary>
     public sealed class FrameProfiler : IFrameProfiler
     {
-        private bool _enabled;
         private readonly Stopwatch[] _stopwatches;
         private readonly float[] _currentMs;
         private readonly float[][] _history;
-        private int _historyHead;
-        private int _historyFilled;
         private readonly double _ticksToMs;
 
-        public bool Enabled
-        {
-            get { return _enabled; }
-            set { _enabled = value; }
-        }
+        public bool Enabled { get; set; }
 
-        public int HistoryHead
-        {
-            get { return _historyHead; }
-        }
+        public int HistoryHead { get; private set; }
 
-        public int HistoryFilled
-        {
-            get { return _historyFilled; }
-        }
+        public int HistoryFilled { get; private set; }
 
         public FrameProfiler()
         {
@@ -55,7 +42,7 @@ namespace Lithforge.Runtime.Debug
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void BeginFrame()
         {
-            if (!_enabled)
+            if (!Enabled)
             {
                 return;
             }
@@ -77,22 +64,22 @@ namespace Lithforge.Runtime.Debug
                 }
 
                 _currentMs[i] = ms;
-                _history[i][_historyHead] = ms;
+                _history[i][HistoryHead] = ms;
                 _stopwatches[i].Reset();
             }
 
-            _historyHead = (_historyHead + 1) % FrameProfilerSections.HistorySize;
+            HistoryHead = (HistoryHead + 1) % FrameProfilerSections.HistorySize;
 
-            if (_historyFilled < FrameProfilerSections.HistorySize)
+            if (HistoryFilled < FrameProfilerSections.HistorySize)
             {
-                _historyFilled++;
+                HistoryFilled++;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Begin(int sectionIndex)
         {
-            if (!_enabled)
+            if (!Enabled)
             {
                 return;
             }
@@ -103,7 +90,7 @@ namespace Lithforge.Runtime.Debug
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void End(int sectionIndex)
         {
-            if (!_enabled)
+            if (!Enabled)
             {
                 return;
             }

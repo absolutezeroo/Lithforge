@@ -10,7 +10,6 @@ namespace Lithforge.Runtime.UI.Container
     /// </summary>
     public sealed class CraftingGridContainerAdapter : ISlotContainer
     {
-        private readonly CraftingGrid _grid;
         private readonly CraftingEngine _engine;
         private readonly CraftingOutputContainerAdapter _output;
 
@@ -19,14 +18,14 @@ namespace Lithforge.Runtime.UI.Container
             CraftingEngine engine,
             CraftingOutputContainerAdapter output)
         {
-            _grid = grid;
+            Grid = grid;
             _engine = engine;
             _output = output;
         }
 
         public int SlotCount
         {
-            get { return _grid.Width * _grid.Height; }
+            get { return Grid.Width * Grid.Height; }
         }
 
         public bool IsReadOnly
@@ -36,28 +35,25 @@ namespace Lithforge.Runtime.UI.Container
 
         public ItemStack GetSlot(int index)
         {
-            int x = index % _grid.Width;
-            int y = index / _grid.Width;
-            return _grid.GetSlotStack(x, y);
+            int x = index % Grid.Width;
+            int y = index / Grid.Width;
+            return Grid.GetSlotStack(x, y);
         }
 
         public void SetSlot(int index, ItemStack stack)
         {
-            int x = index % _grid.Width;
-            int y = index / _grid.Width;
-            _grid.SetSlotStack(x, y, stack);
+            int x = index % Grid.Width;
+            int y = index / Grid.Width;
+            Grid.SetSlotStack(x, y, stack);
         }
 
         public void OnSlotChanged(int index)
         {
             // Recheck recipe match whenever a craft slot changes
-            RecipeEntry match = _engine.FindMatch(_grid);
+            RecipeEntry match = _engine.FindMatch(Grid);
             _output.SetRecipeMatch(match);
         }
 
-        public CraftingGrid Grid
-        {
-            get { return _grid; }
-        }
+        public CraftingGrid Grid { get; }
     }
 }
