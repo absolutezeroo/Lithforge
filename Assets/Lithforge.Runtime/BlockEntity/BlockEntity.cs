@@ -10,6 +10,7 @@ namespace Lithforge.Runtime.BlockEntity
     /// </summary>
     public abstract class BlockEntity : IBlockEntity
     {
+        /// <summary>Unique type identifier used for factory dispatch and serialization.</summary>
         public abstract string TypeId { get; }
 
         /// <summary>
@@ -18,6 +19,7 @@ namespace Lithforge.Runtime.BlockEntity
         /// </summary>
         protected BlockEntityBehavior[] Behaviors { get; set; }
 
+        /// <summary>Serializes all behaviors to the writer in order.</summary>
         public virtual void Serialize(BinaryWriter writer)
         {
             if (Behaviors == null)
@@ -31,6 +33,7 @@ namespace Lithforge.Runtime.BlockEntity
             }
         }
 
+        /// <summary>Deserializes all behaviors from the reader in order.</summary>
         public virtual void Deserialize(BinaryReader reader)
         {
             if (Behaviors == null)
@@ -60,6 +63,7 @@ namespace Lithforge.Runtime.BlockEntity
             }
         }
 
+        /// <summary>Notifies all behaviors that the owning chunk is being unloaded.</summary>
         public virtual void OnChunkUnload()
         {
             if (Behaviors == null)

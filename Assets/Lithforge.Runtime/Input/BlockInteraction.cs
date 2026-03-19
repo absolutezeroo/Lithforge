@@ -812,6 +812,7 @@ namespace Lithforge.Runtime.Input
             _placeCooldown = _placeCooldownTime;
         }
 
+        /// <summary>Looks up the base state ID for a block ResourceId in the state registry.</summary>
         private StateId FindStateIdForBlock(ResourceId blockId)
         {
             IReadOnlyList<StateRegistryEntry> entries =
@@ -830,6 +831,7 @@ namespace Lithforge.Runtime.Input
             return StateId.Air;
         }
 
+        /// <summary>Converts a raycast hit normal vector to a BlockFace enum value.</summary>
         private static BlockFace NormalToBlockFace(int3 normal)
         {
             if (normal.x > 0) { return BlockFace.East; }
@@ -840,11 +842,13 @@ namespace Lithforge.Runtime.Input
             return BlockFace.South;
         }
 
+        /// <summary>Floor division that rounds toward negative infinity for negative dividends.</summary>
         private static int FloorDiv(int a, int b)
         {
             return a >= 0 ? a / b : (a - b + 1) / b;
         }
 
+        /// <summary>Clears all mining state, stopping any in-progress mining operation.</summary>
         private void ResetMining()
         {
             IsMining = false;
