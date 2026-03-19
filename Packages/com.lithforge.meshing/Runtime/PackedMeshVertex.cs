@@ -39,11 +39,19 @@ namespace Lithforge.Meshing
     [StructLayout(LayoutKind.Sequential)]
     public struct PackedMeshVertex
     {
+        /// <summary>Position, normal, AO, light, and fluid-top flag.</summary>
         public uint Word0;
+
+        /// <summary>Texture indices, tint types, overlay, LOD scale, and fluid level.</summary>
         public uint Word1;
+
+        /// <summary>UV tile extents and chunk world X coordinate.</summary>
         public uint Word2;
+
+        /// <summary>Chunk world Y and Z coordinates.</summary>
         public uint Word3;
 
+        /// <summary>Packs all vertex attributes into 4 uint32 words for GPU consumption.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static PackedMeshVertex Pack(
             int posX, int posY, int posZ,

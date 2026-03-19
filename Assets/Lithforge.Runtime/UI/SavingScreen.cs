@@ -14,22 +14,46 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class SavingScreen : MonoBehaviour, IScreen
     {
+        /// <summary>Width of the progress bar in pixels.</summary>
         private const int BarWidth = 400;
+
+        /// <summary>Height of the progress bar in pixels.</summary>
         private const int BarHeight = 20;
+
+        /// <summary>Dark dirt-brown background color matching the loading screen style.</summary>
         private static readonly Color s_backgroundColor = new(0.10f, 0.06f, 0.04f, 1.0f);
+
+        /// <summary>Background color of the progress bar track.</summary>
         private static readonly Color s_progressTrackColor = new(0.20f, 0.20f, 0.20f, 1.0f);
+
+        /// <summary>Fill color of the progress bar.</summary>
         private static readonly Color s_progressFillColor = new(0.55f, 0.45f, 0.25f, 1.0f);
+
+        /// <summary>Color used for the game title text.</summary>
         private static readonly Color s_logoColor = new(1.0f, 0.95f, 0.80f, 1.0f);
+
+        /// <summary>Color used for status and subtitle text.</summary>
         private static readonly Color s_statusColor = new(0.70f, 0.70f, 0.65f, 1.0f);
 
+        /// <summary>The UI Toolkit document hosting the saving screen.</summary>
         private UIDocument _document;
+
+        /// <summary>The visual element representing the filled portion of the progress bar.</summary>
         private VisualElement _progressFill;
+
+        /// <summary>Label displaying the current save phase description.</summary>
         private Label _statusLabel;
 
+        /// <summary>Unique screen name identifier for the saving screen.</summary>
         public string ScreenName { get { return ScreenNames.Saving; } }
+
+        /// <summary>Returns true because the saving screen blocks all input beneath it.</summary>
         public bool IsInputOpaque { get { return true; } }
+
+        /// <summary>Returns false because the saving screen does not need a visible mouse cursor.</summary>
         public bool RequiresCursor { get { return false; } }
 
+        /// <summary>Makes the saving screen visible when the screen is shown.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -38,6 +62,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Hides the saving screen and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -48,12 +73,14 @@ namespace Lithforge.Runtime.UI
             onComplete();
         }
 
+        /// <summary>Consumes Escape input to prevent other screens from handling it during saving.</summary>
         public bool HandleEscape()
         {
             // Saving screen does not respond to Escape
             return true;
         }
 
+        /// <summary>Creates the UIDocument and builds the saving screen UI layout.</summary>
         public void Initialize(PanelSettings panelSettings)
         {
             _document = gameObject.AddComponent<UIDocument>();
@@ -80,6 +107,7 @@ namespace Lithforge.Runtime.UI
             _statusLabel.text = BuildStatusText(progress);
         }
 
+        /// <summary>Computes the weighted progress fraction across all save phases (0 to 1).</summary>
         private static float ComputeFraction(SaveProgress progress)
         {
             // Weight: CompletingJobs = 10%, SavingChunks = 70%, FlushingRegions = 20%
@@ -112,6 +140,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Converts the current save phase into a human-readable status string.</summary>
         private static string BuildStatusText(SaveProgress progress)
         {
             return progress.Phase switch
@@ -124,6 +153,7 @@ namespace Lithforge.Runtime.UI
             };
         }
 
+        /// <summary>Constructs the saving screen layout: background, logo, subtitle, progress bar, and status label.</summary>
         private void BuildUI(VisualElement root)
         {
             // Full-screen dirt background

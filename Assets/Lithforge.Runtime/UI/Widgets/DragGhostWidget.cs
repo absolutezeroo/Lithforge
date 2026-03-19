@@ -11,9 +11,13 @@ namespace Lithforge.Runtime.UI.Widgets
     /// </summary>
     public sealed class DragGhostWidget : VisualElement
     {
+        /// <summary>Image element displaying the held item icon.</summary>
         private readonly Image _icon;
+
+        /// <summary>Label displaying the held item stack count.</summary>
         private readonly Label _count;
 
+        /// <summary>Creates a new DragGhostWidget with icon and count elements.</summary>
         public DragGhostWidget()
         {
             AddToClassList("lf-drag-ghost");

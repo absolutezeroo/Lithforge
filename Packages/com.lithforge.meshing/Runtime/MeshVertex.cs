@@ -20,13 +20,25 @@ namespace Lithforge.Meshing
     [StructLayout(LayoutKind.Sequential)]
     public struct MeshVertex
     {
+        /// <summary>World-space vertex position.</summary>
         public float3 Position;  // 12 bytes
+
+        /// <summary>Face normal direction.</summary>
         public float3 Normal;    // 12 bytes
+
+        /// <summary>r=AO, g=blockLight, b=sunLight, a=baseTexIndex (all 0-1).</summary>
         public half4 Color;      // 8 bytes
+
+        /// <summary>Texture UV coordinates.</summary>
         public float2 UV;        // 8 bytes
+
+        /// <summary>Bit-packed base tint, overlay tint, hasOverlay flag, and overlay texture index.</summary>
         public uint TintOverlay; // 4 bytes
+
+        /// <summary>Unused padding for 16-byte alignment.</summary>
         public uint Pad;         // 4 bytes (16-byte alignment)
 
+        /// <summary>Vertex attribute descriptors for Mesh API upload.</summary>
         public static readonly VertexAttributeDescriptor[] VertexAttributes =
         {
             new(VertexAttribute.Position),

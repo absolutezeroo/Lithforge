@@ -8,17 +8,26 @@ using Unity.Mathematics;
 
 namespace Lithforge.Meshing
 {
+    /// <summary>
+    /// Simple per-face culled mesh job using MeshVertex (48 bytes).
+    /// Superseded by GreedyMeshJob for production; retained for testing and reference.
+    /// </summary>
     [BurstCompile]
     public struct CulledMeshJob : IJob
     {
+        /// <summary>Flat 32³ voxel data for the chunk being meshed.</summary>
         [ReadOnly] public NativeArray<StateId> ChunkData;
 
+        /// <summary>Block state table for opacity and color lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
+        /// <summary>Output vertex buffer.</summary>
         public NativeList<MeshVertex> Vertices;
 
+        /// <summary>Output index buffer.</summary>
         public NativeList<int> Indices;
 
+        /// <summary>Iterates all voxels and emits visible faces after neighbor culling.</summary>
         public void Execute()
         {
             for (int y = 0; y < ChunkConstants.Size; y++)
@@ -79,6 +88,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Returns true if the face toward the neighbor voxel should be rendered.</summary>
         private bool IsFaceVisible(int nx, int ny, int nz, int dx, int dy, int dz)
         {
             if (nx < 0 || nx >= ChunkConstants.Size ||
@@ -95,6 +105,7 @@ namespace Lithforge.Meshing
             return !neighborState.IsOpaque;
         }
 
+        /// <summary>Emits a quad (4 vertices, 6 indices) for one visible block face.</summary>
         private void EmitFace(float3 pos, half4 color, int faceIndex, float3 normal)
         {
             int vertexStart = Vertices.Length;
@@ -155,6 +166,7 @@ namespace Lithforge.Meshing
             Indices.Add(vertexStart + 3);
         }
 
+        /// <summary>Computes the 4 corner positions for a unit-cube face by direction index.</summary>
         private static void GetFaceVertices(float3 pos, int faceIndex,
             out float3 v0, out float3 v1, out float3 v2, out float3 v3)
         {
@@ -199,6 +211,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Unpacks a 32-bit RGBA color into half4 (0-1 range per channel).</summary>
         private static half4 UnpackColor(uint packed)
         {
             float r = (packed >> 24 & 0xFF) / 255.0f;

@@ -11,14 +11,19 @@ namespace Lithforge.Core.Registry
     /// </summary>
     public sealed class RegistryBuilder<T>
     {
+        /// <summary>Mutable dictionary of entries being accumulated during content loading.</summary>
         private readonly Dictionary<ResourceId, T> _entries = new();
+
+        /// <summary>Whether Build() has been called, preventing further registrations.</summary>
         private bool _frozen;
 
+        /// <summary>Number of entries registered so far.</summary>
         public int Count
         {
             get { return _entries.Count; }
         }
 
+        /// <summary>Registers a new entry, throwing if the registry is frozen or the id is duplicate.</summary>
         public void Register(ResourceId id, T value)
         {
             if (_frozen)
@@ -36,11 +41,13 @@ namespace Lithforge.Core.Registry
             _entries[id] = value;
         }
 
+        /// <summary>Returns true if the given identifier has already been registered.</summary>
         public bool Contains(ResourceId id)
         {
             return _entries.ContainsKey(id);
         }
 
+        /// <summary>Freezes the builder and returns an immutable Registry snapshot.</summary>
         public Registry<T> Build()
         {
             if (_frozen)

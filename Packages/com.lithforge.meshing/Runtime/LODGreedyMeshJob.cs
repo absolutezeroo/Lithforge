@@ -21,8 +21,13 @@ namespace Lithforge.Meshing
     [BurstCompile]
     public struct LODGreedyMeshJob : IJob
     {
+        /// <summary>Downsampled voxel grid data produced by VoxelDownsampleJob.</summary>
         [ReadOnly] public NativeArray<StateId> Data;
+
+        /// <summary>Block state compact table for opacity and render layer lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+
+        /// <summary>Per-state texture atlas entries for face texture resolution.</summary>
         [ReadOnly] public NativeArray<AtlasEntry> AtlasEntries;
 
         /// <summary>Grid dimension (16 for LOD1, 8 for LOD2, 4 for LOD3).</summary>
@@ -34,9 +39,13 @@ namespace Lithforge.Meshing
         /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
         public int3 ChunkCoord;
 
+        /// <summary>Output vertex buffer for the LOD opaque-only mesh.</summary>
         public NativeList<PackedMeshVertex> Vertices;
+
+        /// <summary>Output index buffer for the LOD opaque-only mesh.</summary>
         public NativeList<int> Indices;
 
+        /// <summary>Processes all 6 face directions with greedy merging at the LOD grid resolution.</summary>
         public void Execute()
         {
             for (int face = 0; face < 6; face++)
@@ -45,6 +54,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Builds face masks and performs greedy merging for one face direction at LOD resolution.</summary>
         private void ProcessFaceDirection(int face)
         {
             NativeArray<uint> rowMask = new(GridSize, Allocator.Temp);
@@ -65,6 +75,7 @@ namespace Lithforge.Meshing
             faceStateId.Dispose();
         }
 
+        /// <summary>Populates the face visibility bitmask and per-face state IDs for one LOD slice.</summary>
         private void BuildFaceMask(
             int face, int slice,
             NativeArray<uint> rowMask,
@@ -103,6 +114,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Merges adjacent visible LOD faces with identical state into larger quads.</summary>
         private void GreedyMerge(
             int face, int slice,
             NativeArray<uint> rowMask,
@@ -194,6 +206,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Emits a merged LOD quad with full brightness (AO=3, light=15/15) and LOD scale encoding.</summary>
         private void EmitGreedyQuad(
             int face, int slice, int u0, int v0, int width, int height,
             ushort stateVal)
@@ -355,6 +368,7 @@ namespace Lithforge.Meshing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Samples the block state at the given LOD grid position, returning Air for out-of-bounds.</summary>
         private StateId SampleBlock(int3 pos, int gridSizeSq)
         {
             if (pos.x < 0 || pos.x >= GridSize ||

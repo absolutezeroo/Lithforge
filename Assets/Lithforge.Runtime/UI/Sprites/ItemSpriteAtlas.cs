@@ -10,9 +10,13 @@ namespace Lithforge.Runtime.UI.Sprites
     /// </summary>
     public sealed class ItemSpriteAtlas
     {
+        /// <summary>Lookup of item sprites keyed by ResourceId.</summary>
         private readonly Dictionary<ResourceId, Sprite> _sprites;
+
+        /// <summary>Fallback sprite used when no entry exists for an item.</summary>
         private readonly Sprite _fallback;
 
+        /// <summary>Creates an atlas from the given sprite dictionary and fallback sprite.</summary>
         public ItemSpriteAtlas(Dictionary<ResourceId, Sprite> sprites, Sprite fallback)
         {
             _sprites = sprites;
@@ -48,6 +52,7 @@ namespace Lithforge.Runtime.UI.Sprites
             return _fallback;
         }
 
+        /// <summary>Number of sprites in the atlas.</summary>
         public int Count
         {
             get { return _sprites.Count; }

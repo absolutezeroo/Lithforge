@@ -10,9 +10,13 @@ namespace Lithforge.Runtime.UI.Widgets
     /// </summary>
     public sealed class ItemNameBanner : Label
     {
+        /// <summary>Duration in seconds before the banner fully fades out.</summary>
         private const float FadeDuration = 2.0f;
+
+        /// <summary>Remaining time before the banner fades to zero opacity.</summary>
         private float _timer;
 
+        /// <summary>Creates a new ItemNameBanner starting with zero opacity.</summary>
         public ItemNameBanner() : base("")
         {
             AddToClassList("lf-item-name-banner");
@@ -56,6 +60,7 @@ namespace Lithforge.Runtime.UI.Widgets
             }
         }
 
+        /// <summary>Converts an underscore-separated name to title case.</summary>
         private static string FormatFullName(string name)
         {
             if (string.IsNullOrEmpty(name))

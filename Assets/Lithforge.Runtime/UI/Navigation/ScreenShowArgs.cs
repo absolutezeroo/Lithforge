@@ -19,6 +19,7 @@ namespace Lithforge.Runtime.UI.Navigation
         /// </summary>
         public object Context { get; }
 
+        /// <summary>Creates a new ScreenShowArgs with the given returning state and optional context data.</summary>
         public ScreenShowArgs(bool isReturning, object context = null)
         {
             IsReturning = isReturning;

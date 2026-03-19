@@ -14,28 +14,40 @@ namespace Lithforge.Meshing
     /// </summary>
     public struct GreedyMeshData : IDisposable
     {
+        /// <summary>Opaque submesh vertex output buffer.</summary>
         public NativeList<PackedMeshVertex> OpaqueVertices;
 
+        /// <summary>Opaque submesh index output buffer.</summary>
         public NativeList<int> OpaqueIndices;
 
+        /// <summary>Cutout (alpha-tested) submesh vertex output buffer.</summary>
         public NativeList<PackedMeshVertex> CutoutVertices;
 
+        /// <summary>Cutout submesh index output buffer.</summary>
         public NativeList<int> CutoutIndices;
 
+        /// <summary>Translucent submesh vertex output buffer.</summary>
         public NativeList<PackedMeshVertex> TranslucentVertices;
 
+        /// <summary>Translucent submesh index output buffer.</summary>
         public NativeList<int> TranslucentIndices;
 
+        /// <summary>Boundary slab of +X neighbor chunk for cross-chunk face culling.</summary>
         public NativeArray<StateId> NeighborPosX;
 
+        /// <summary>Boundary slab of -X neighbor chunk for cross-chunk face culling.</summary>
         public NativeArray<StateId> NeighborNegX;
 
+        /// <summary>Boundary slab of +Y neighbor chunk for cross-chunk face culling.</summary>
         public NativeArray<StateId> NeighborPosY;
 
+        /// <summary>Boundary slab of -Y neighbor chunk for cross-chunk face culling.</summary>
         public NativeArray<StateId> NeighborNegY;
 
+        /// <summary>Boundary slab of +Z neighbor chunk for cross-chunk face culling.</summary>
         public NativeArray<StateId> NeighborPosZ;
 
+        /// <summary>Boundary slab of -Z neighbor chunk for cross-chunk face culling.</summary>
         public NativeArray<StateId> NeighborNegZ;
 
         /// <summary>
@@ -47,12 +59,16 @@ namespace Lithforge.Meshing
         /// </summary>
         public NativeArray<byte> LiquidNeighborPosX;
 
+        /// <summary>Liquid ghost slab for -X neighbor chunk boundary.</summary>
         public NativeArray<byte> LiquidNeighborNegX;
 
+        /// <summary>Liquid ghost slab for +Z neighbor chunk boundary.</summary>
         public NativeArray<byte> LiquidNeighborPosZ;
 
+        /// <summary>Liquid ghost slab for -Z neighbor chunk boundary.</summary>
         public NativeArray<byte> LiquidNeighborNegZ;
 
+        /// <summary>Allocates all vertex/index lists and neighbor border arrays with the given allocator.</summary>
         public GreedyMeshData(Allocator allocator)
         {
             OpaqueVertices = new NativeList<PackedMeshVertex>(4096, allocator);
@@ -73,6 +89,7 @@ namespace Lithforge.Meshing
             LiquidNeighborNegZ = new NativeArray<byte>(ChunkConstants.SizeSquared, allocator);
         }
 
+        /// <summary>Disposes all NativeContainers if they were created.</summary>
         public void Dispose()
         {
             if (OpaqueVertices.IsCreated)

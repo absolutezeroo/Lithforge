@@ -17,18 +17,25 @@ namespace Lithforge.Runtime.UI.Widgets
     [UxmlElement]
     public sealed partial class SlotWidget : VisualElement
     {
+        /// <summary>Label displaying the item stack count.</summary>
         private readonly Label _count;
 
+        /// <summary>The filled portion of the durability bar.</summary>
         private readonly VisualElement _durabilityFill;
 
+        /// <summary>The background track of the durability bar.</summary>
         private readonly VisualElement _durabilityTrack;
 
+        /// <summary>Image element displaying the item icon sprite.</summary>
         private readonly Image _icon;
 
+        /// <summary>Whether this slot currently has the selected highlight.</summary>
         private bool _isSelected;
 
+        /// <summary>Cached last item stack for dirty-check optimization.</summary>
         private ItemStack _lastStack;
 
+        /// <summary>Creates a new SlotWidget with icon, count label, and durability bar elements.</summary>
         public SlotWidget()
         {
             AddToClassList("lf-slot");

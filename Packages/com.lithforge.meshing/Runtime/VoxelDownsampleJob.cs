@@ -15,14 +15,19 @@ namespace Lithforge.Meshing
     [BurstCompile]
     public struct VoxelDownsampleJob : IJob
     {
+        /// <summary>Full-resolution 32³ voxel data to downsample from.</summary>
         [ReadOnly] public NativeArray<StateId> SourceData;
 
+        /// <summary>Block state table for opacity checks during majority vote.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
+        /// <summary>Downsample factor (2=LOD1, 4=LOD2, 8=LOD3).</summary>
         public int Scale;
 
+        /// <summary>Output buffer for the downsampled grid (size = (32/Scale)³).</summary>
         public NativeArray<StateId> OutputData;
 
+        /// <summary>Iterates every downsampled cell and picks the majority-vote block state.</summary>
         public void Execute()
         {
             int outSize = ChunkConstants.Size / Scale;
@@ -41,6 +46,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Selects a representative block state for one downsampled cell via majority vote.</summary>
         private StateId DownsampleCell(int baseX, int baseY, int baseZ)
         {
             int airCount = 0;

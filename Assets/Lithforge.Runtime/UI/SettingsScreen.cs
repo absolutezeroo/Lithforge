@@ -20,36 +20,73 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class SettingsScreen : MonoBehaviour, IScreen
     {
+        /// <summary>Cached shader property ID for the AO strength parameter.</summary>
         private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
+
+        /// <summary>Current ambient volume level (0 to 1).</summary>
         private float _ambientVolume;
+
+        /// <summary>Current ambient occlusion strength (0 to 1).</summary>
         private float _aoStrength;
 
-        // Audio mixer
+        /// <summary>Audio mixer controller for routing volume changes through the mixer groups.</summary>
         private AudioMixerController _audioMixerController;
+
+        /// <summary>Camera controller for applying mouse sensitivity changes.</summary>
         private CameraController _cameraController;
 
-        // References to systems we can tweak at runtime
+        /// <summary>Chunk manager for applying render distance changes.</summary>
         private ChunkManager _chunkManager;
+
+        /// <summary>Chunk mesh store for applying AO strength to materials.</summary>
         private ChunkMeshStore _chunkMeshStore;
+
+        /// <summary>Current day length in seconds.</summary>
         private float _dayLength;
+
+        /// <summary>The UI Toolkit document hosting the settings screen.</summary>
         private UIDocument _document;
+
+        /// <summary>Current field of view in degrees.</summary>
         private float _fov;
+
+        /// <summary>Reference to the main camera for field of view changes.</summary>
         private Camera _mainCamera;
+
+        /// <summary>Current master volume level (0 to 1).</summary>
         private float _masterVolume;
+
+        /// <summary>Current mouse sensitivity value.</summary>
         private float _mouseSensitivity;
+
+        /// <summary>Current music volume level (0 to 1).</summary>
         private float _musicVolume;
+
+        /// <summary>Callback invoked when the settings panel closes back to the pause menu.</summary>
         private Action _onCloseCallback;
+
+        /// <summary>Callback invoked when the render distance slider changes.</summary>
         private Action<int> _onRenderDistanceChanged;
+
+        /// <summary>Semi-transparent overlay covering the game world behind the panel.</summary>
         private VisualElement _overlay;
+
+        /// <summary>The centered settings panel containing all sliders and controls.</summary>
         private VisualElement _panel;
 
+        /// <summary>Persistent user preferences for saving and loading settings across sessions.</summary>
         private UserPreferences _preferences;
 
-        // Current values
+        /// <summary>Current render distance in chunks.</summary>
         private int _renderDistance;
+
+        /// <summary>Current SFX volume level (0 to 1).</summary>
         private float _sfxVolume;
+
+        /// <summary>Time-of-day controller for applying day length changes.</summary>
         private TimeOfDayController _timeOfDayController;
 
+        /// <summary>True while the settings overlay is visible.</summary>
         public bool IsOpen { get; private set; }
 
         /// <summary>
@@ -58,15 +95,22 @@ namespace Lithforge.Runtime.UI
         /// </summary>
         public bool OpenedFromPause { get; set; }
 
+        /// <summary>Unique screen name identifier for the settings screen.</summary>
         public string ScreenName { get { return ScreenNames.Settings; } }
+
+        /// <summary>Returns true because the settings screen blocks all input beneath it.</summary>
         public bool IsInputOpaque { get { return true; } }
+
+        /// <summary>Returns true because the settings screen requires a visible mouse cursor.</summary>
         public bool RequiresCursor { get { return true; } }
 
+        /// <summary>Opens the settings overlay when the screen is shown.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             Open();
         }
 
+        /// <summary>Closes the settings overlay if open and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (IsOpen)
@@ -77,12 +121,14 @@ namespace Lithforge.Runtime.UI
             onComplete();
         }
 
+        /// <summary>Returns false so the ScreenManager will pop this screen on Escape.</summary>
         public bool HandleEscape()
         {
             // Close settings — let ScreenManager pop this screen
             return false;
         }
 
+        /// <summary>Initializes the settings screen with system references, builds the UI, and loads persisted settings.</summary>
         public void Initialize(
             ChunkManager chunkManager,
             CameraController cameraController,
@@ -128,6 +174,7 @@ namespace Lithforge.Runtime.UI
             _overlay.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Constructs the settings screen layout with graphics, gameplay, audio, and keybinds sections.</summary>
         private void BuildUI()
         {
             VisualElement root = _document.rootVisualElement;
@@ -360,6 +407,7 @@ namespace Lithforge.Runtime.UI
             _panel.Add(closeButton);
         }
 
+        /// <summary>Adds a bold section header label to the scroll view.</summary>
         private void AddSectionHeader(ScrollView parent, string text)
         {
             Label header = new(text)
@@ -376,6 +424,7 @@ namespace Lithforge.Runtime.UI
             parent.Add(header);
         }
 
+        /// <summary>Adds a float slider row with label and live value display.</summary>
         private void AddSliderFloat(ScrollView parent, string label, float initialValue,
             float min, float max, Action<float> onChange)
         {
@@ -424,6 +473,7 @@ namespace Lithforge.Runtime.UI
             parent.Add(row);
         }
 
+        /// <summary>Adds an integer slider row with label and live value display.</summary>
         private void AddSliderInt(ScrollView parent, string label, int initialValue,
             int min, int max, Action<int> onChange)
         {
@@ -472,6 +522,7 @@ namespace Lithforge.Runtime.UI
             parent.Add(row);
         }
 
+        /// <summary>Adds a read-only keybind display row showing the action name and its bound key.</summary>
         private void AddKeybindRow(ScrollView parent, string action, string key)
         {
             VisualElement row = new()
@@ -503,6 +554,7 @@ namespace Lithforge.Runtime.UI
             parent.Add(row);
         }
 
+        /// <summary>Shows the settings overlay and unlocks the cursor.</summary>
         public void Open()
         {
             IsOpen = true;

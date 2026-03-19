@@ -20,12 +20,15 @@ namespace Lithforge.Physics
     [BurstCompile]
     public struct VoxelColliderJob : IJobParallelFor
     {
+        /// <summary>Per-entity physics state (position, velocity, hitbox) read and written in parallel.</summary>
         public NativeArray<EntityPhysicsState> EntityStates;
 
+        /// <summary>Per-entity solidity lookups, one pre-filled SolidBlockQuery per entity.</summary>
         [ReadOnly]
         [NativeDisableParallelForRestriction]
         public NativeArray<SolidBlockQuery> Queries;
 
+        /// <summary>Resolves collision for a single entity using its SolidBlockQuery.</summary>
         public void Execute(int index)
         {
             EntityPhysicsState state = EntityStates[index];

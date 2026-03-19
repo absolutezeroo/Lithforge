@@ -19,28 +19,49 @@ namespace Lithforge.Meshing.Atlas
     [StructLayout(LayoutKind.Sequential)]
     public struct AtlasEntry
     {
-        // Base texture indices per face
+        /// <summary>Base texture atlas index for the +X (East) face.</summary>
         public ushort TexPosX;
+
+        /// <summary>Base texture atlas index for the -X (West) face.</summary>
         public ushort TexNegX;
+
+        /// <summary>Base texture atlas index for the +Y (Up) face.</summary>
         public ushort TexPosY;
+
+        /// <summary>Base texture atlas index for the -Y (Down) face.</summary>
         public ushort TexNegY;
+
+        /// <summary>Base texture atlas index for the +Z (South) face.</summary>
         public ushort TexPosZ;
+
+        /// <summary>Base texture atlas index for the -Z (North) face.</summary>
         public ushort TexNegZ;
 
-        // Overlay texture indices per face (0xFFFF = no overlay)
+        /// <summary>Overlay texture atlas index for +X face (0xFFFF = no overlay).</summary>
         public ushort OvlPosX;
+
+        /// <summary>Overlay texture atlas index for -X face (0xFFFF = no overlay).</summary>
         public ushort OvlNegX;
+
+        /// <summary>Overlay texture atlas index for +Y face (0xFFFF = no overlay).</summary>
         public ushort OvlPosY;
+
+        /// <summary>Overlay texture atlas index for -Y face (0xFFFF = no overlay).</summary>
         public ushort OvlNegY;
+
+        /// <summary>Overlay texture atlas index for +Z face (0xFFFF = no overlay).</summary>
         public ushort OvlPosZ;
+
+        /// <summary>Overlay texture atlas index for -Z face (0xFFFF = no overlay).</summary>
         public ushort OvlNegZ;
 
-        // Packed per-face base tint type
+        /// <summary>Bit-packed base tint types for all 6 faces (2 bits each, 12 bits used).</summary>
         public ushort BaseTintPacked;
 
-        // Packed per-face overlay tint type
+        /// <summary>Bit-packed overlay tint types for all 6 faces (2 bits each, 12 bits used).</summary>
         public ushort OverlayTintPacked;
 
+        /// <summary>Returns the base texture atlas index for the given face direction (0-5).</summary>
         public ushort GetTextureIndex(int faceDirection)
         {
             return faceDirection switch
@@ -55,6 +76,7 @@ namespace Lithforge.Meshing.Atlas
             };
         }
 
+        /// <summary>Returns the overlay texture atlas index for the given face direction (0xFFFF if none).</summary>
         public ushort GetOverlayTextureIndex(int faceDirection)
         {
             return faceDirection switch
@@ -69,11 +91,13 @@ namespace Lithforge.Meshing.Atlas
             };
         }
 
+        /// <summary>Extracts the 2-bit base tint type for the given face direction.</summary>
         public byte GetBaseTintType(int faceDirection)
         {
             return (byte)((BaseTintPacked >> (faceDirection * 2)) & 0x3);
         }
 
+        /// <summary>Extracts the 2-bit overlay tint type for the given face direction.</summary>
         public byte GetOverlayTintType(int faceDirection)
         {
             return (byte)((OverlayTintPacked >> (faceDirection * 2)) & 0x3);

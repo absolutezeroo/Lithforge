@@ -8,15 +8,20 @@ namespace Lithforge.Physics
     /// </summary>
     public struct Aabb
     {
+        /// <summary>Lower corner of the bounding box.</summary>
         public float3 Min;
+
+        /// <summary>Upper corner of the bounding box.</summary>
         public float3 Max;
 
+        /// <summary>Creates an AABB from explicit min and max corners.</summary>
         public Aabb(float3 min, float3 max)
         {
             Min = min;
             Max = max;
         }
 
+        /// <summary>Midpoint between Min and Max.</summary>
         public float3 Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -26,6 +31,7 @@ namespace Lithforge.Physics
             }
         }
 
+        /// <summary>Width, height, and depth of the bounding box.</summary>
         public float3 Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,6 +41,7 @@ namespace Lithforge.Physics
             }
         }
 
+        /// <summary>Returns true if this AABB overlaps with another on all 3 axes.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Intersects(Aabb other)
         {
@@ -43,6 +50,7 @@ namespace Lithforge.Physics
                 && Min.z < other.Max.z && Max.z > other.Min.z;
         }
 
+        /// <summary>Returns true if the given point lies within the AABB (inclusive).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(float3 point)
         {

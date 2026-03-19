@@ -18,48 +18,90 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class PauseMenuScreen : MonoBehaviour, IScreen
     {
+        /// <summary>Semi-transparent black overlay color covering the game world.</summary>
         private static readonly Color s_overlayColor = new(0f, 0f, 0f, 0.55f);
+
+        /// <summary>Background color of the centered menu panel.</summary>
         private static readonly Color s_panelColor = new(0.12f, 0.12f, 0.15f, 0.97f);
+
+        /// <summary>Normal background color of standard menu buttons.</summary>
         private static readonly Color s_buttonColor = new(0.22f, 0.22f, 0.28f, 1f);
+
+        /// <summary>Hover background color of standard menu buttons.</summary>
         private static readonly Color s_buttonHoverColor = new(0.30f, 0.30f, 0.38f, 1f);
+
+        /// <summary>Normal background color of the quit button.</summary>
         private static readonly Color s_quitButtonColor = new(0.50f, 0.20f, 0.20f, 1f);
+
+        /// <summary>Hover background color of the quit button.</summary>
         private static readonly Color s_quitButtonHoverColor = new(0.65f, 0.25f, 0.25f, 1f);
+
+        /// <summary>Text color for all buttons and labels.</summary>
         private static readonly Color s_textColor = Color.white;
 
+        /// <summary>Normal background color of the Open to LAN button.</summary>
         private static readonly Color s_lanButtonColor = new(0.18f, 0.35f, 0.18f, 1f);
+
+        /// <summary>Hover background color of the Open to LAN button.</summary>
         private static readonly Color s_lanButtonHoverColor = new(0.25f, 0.48f, 0.25f, 1f);
+
+        /// <summary>Background color of the Open to LAN button when disabled.</summary>
         private static readonly Color s_lanButtonDisabledColor = new(0.15f, 0.25f, 0.15f, 0.6f);
 
+        /// <summary>The UI Toolkit document hosting the pause menu overlay.</summary>
         private UIDocument _document;
+
+        /// <summary>Reference to the Open to LAN button for state updates after click.</summary>
         private Button _lanButton;
+
+        /// <summary>Callback invoked when the Open to LAN button is clicked.</summary>
         private Action<Action<ushort>> _onOpenToLan;
+
+        /// <summary>Callback invoked when the Options button is clicked.</summary>
         private Action _onOptions;
 
+        /// <summary>Callback invoked when the pause menu opens to set game state to paused.</summary>
         private Action _onPause;
+
+        /// <summary>Callback invoked when Save and Quit to Title is clicked.</summary>
         private Action _onQuitToTitle;
+
+        /// <summary>Callback invoked when Resume is clicked or Escape closes the pause menu.</summary>
         private Action _onResume;
+
+        /// <summary>The full-screen overlay visual element that darkens the background.</summary>
         private VisualElement _overlay;
 
+        /// <summary>Reference to the settings screen for Escape-key coordination.</summary>
         private SettingsScreen _settingsScreen;
 
+        /// <summary>True while the pause menu overlay is visible.</summary>
         public bool IsOpen { get; private set; }
 
+        /// <summary>Unique screen name identifier for the pause menu.</summary>
         public string ScreenName { get { return ScreenNames.Pause; } }
+
+        /// <summary>Returns true because the pause menu blocks all input beneath it.</summary>
         public bool IsInputOpaque { get { return true; } }
+
+        /// <summary>Returns true because the pause menu requires a visible mouse cursor.</summary>
         public bool RequiresCursor { get { return true; } }
 
+        /// <summary>Opens the pause overlay and invokes the pause callback.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             Open();
             _onPause?.Invoke();
         }
 
+        /// <summary>Closes the pause overlay and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             Close();
             onComplete();
         }
 
+        /// <summary>Handles Escape by closing settings if open, otherwise resuming the game.</summary>
         public bool HandleEscape()
         {
             // If settings is open (from Options), close it back to pause menu
@@ -116,6 +158,7 @@ namespace Lithforge.Runtime.UI
             _overlay.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Shows the pause overlay and unlocks the cursor.</summary>
         public void Open()
         {
             IsOpen = true;
@@ -124,6 +167,7 @@ namespace Lithforge.Runtime.UI
             Cursor.visible = true;
         }
 
+        /// <summary>Hides the pause overlay and re-locks the cursor.</summary>
         public void Close()
         {
             IsOpen = false;
@@ -154,6 +198,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Constructs the pause menu layout: overlay, panel, title, and action buttons.</summary>
         private void BuildUI(VisualElement root)
         {
             root.pickingMode = PickingMode.Ignore;
@@ -247,6 +292,7 @@ namespace Lithforge.Runtime.UI
             panel.Add(quitBtn);
         }
 
+        /// <summary>Handles the Open to LAN button click by disabling the button and invoking the callback.</summary>
         private void OnOpenToLanClicked()
         {
             if (_onOpenToLan == null || _lanButton == null)
@@ -266,6 +312,7 @@ namespace Lithforge.Runtime.UI
             });
         }
 
+        /// <summary>Creates a styled menu button with hover color transitions.</summary>
         private Button BuildMenuButton(string text, Color normalColor, Color hoverColor)
         {
             Button btn = new()

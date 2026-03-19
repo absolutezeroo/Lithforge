@@ -22,26 +22,37 @@ namespace Lithforge.Meshing
     [BurstCompile]
     public struct GreedyMeshJob : IJob
     {
+        /// <summary>Flat 32³ voxel data for the chunk being meshed.</summary>
         [ReadOnly] public NativeArray<StateId> ChunkData;
 
+        /// <summary>Boundary slab from +X neighbor for cross-chunk culling.</summary>
         [ReadOnly] public NativeArray<StateId> NeighborPosX;
 
+        /// <summary>Boundary slab from -X neighbor for cross-chunk culling.</summary>
         [ReadOnly] public NativeArray<StateId> NeighborNegX;
 
+        /// <summary>Boundary slab from +Y neighbor for cross-chunk culling.</summary>
         [ReadOnly] public NativeArray<StateId> NeighborPosY;
 
+        /// <summary>Boundary slab from -Y neighbor for cross-chunk culling.</summary>
         [ReadOnly] public NativeArray<StateId> NeighborNegY;
 
+        /// <summary>Boundary slab from +Z neighbor for cross-chunk culling.</summary>
         [ReadOnly] public NativeArray<StateId> NeighborPosZ;
 
+        /// <summary>Boundary slab from -Z neighbor for cross-chunk culling.</summary>
         [ReadOnly] public NativeArray<StateId> NeighborNegZ;
 
+        /// <summary>Block state compact table for opacity, render layer, and flag lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
+        /// <summary>Per-state texture atlas entries for face texture resolution.</summary>
         [ReadOnly] public NativeArray<AtlasEntry> AtlasEntries;
 
+        /// <summary>Nibble-packed light data (high 4 bits = sun, low 4 bits = block).</summary>
         [ReadOnly] public NativeArray<byte> LightData;
 
+        /// <summary>Per-voxel liquid cell data for water level rendering.</summary>
         [ReadOnly] public NativeArray<byte> LiquidData;
 
         /// <summary>
@@ -58,27 +69,37 @@ namespace Lithforge.Meshing
         /// </summary>
         [ReadOnly] public NativeArray<byte> LiquidNeighborPosX;
 
+        /// <summary>Liquid ghost slab from -X neighbor for water level interpolation.</summary>
         [ReadOnly] public NativeArray<byte> LiquidNeighborNegX;
 
+        /// <summary>Liquid ghost slab from +Z neighbor for water level interpolation.</summary>
         [ReadOnly] public NativeArray<byte> LiquidNeighborPosZ;
 
+        /// <summary>Liquid ghost slab from -Z neighbor for water level interpolation.</summary>
         [ReadOnly] public NativeArray<byte> LiquidNeighborNegZ;
 
         /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
         public int3 ChunkCoord;
 
+        /// <summary>Output opaque submesh vertex buffer.</summary>
         public NativeList<PackedMeshVertex> OpaqueVertices;
 
+        /// <summary>Output opaque submesh index buffer.</summary>
         public NativeList<int> OpaqueIndices;
 
+        /// <summary>Output cutout (alpha-tested) submesh vertex buffer.</summary>
         public NativeList<PackedMeshVertex> CutoutVertices;
 
+        /// <summary>Output cutout submesh index buffer.</summary>
         public NativeList<int> CutoutIndices;
 
+        /// <summary>Output translucent submesh vertex buffer.</summary>
         public NativeList<PackedMeshVertex> TranslucentVertices;
 
+        /// <summary>Output translucent submesh index buffer.</summary>
         public NativeList<int> TranslucentIndices;
 
+        /// <summary>Processes all 6 face directions with greedy merging, then emits liquid geometry.</summary>
         public void Execute()
         {
             // Process each of the 6 face directions (greedy merge for opaque/cutout/glass)
@@ -94,6 +115,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Builds face masks, computes AO, and performs greedy merging for one face direction.</summary>
         private void ProcessFaceDirection(int face)
         {
             NativeArray<uint> rowMask = new(ChunkConstants.Size, Allocator.Temp);
@@ -132,6 +154,7 @@ namespace Lithforge.Meshing
             faceFluidLevel.Dispose();
         }
 
+        /// <summary>Populates the face visibility bitmask, per-face state IDs, AO corners, and light values for one slice.</summary>
         private void BuildFaceMask(
             int face, int slice,
             NativeArray<uint> rowMask,
@@ -222,6 +245,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Merges adjacent visible faces with identical state, AO, and light into larger quads.</summary>
         private void GreedyMerge(
             int face, int slice,
             NativeArray<uint> rowMask,
@@ -338,6 +362,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Emits a merged quad (4 packed vertices, 6 indices) into the appropriate submesh buffer.</summary>
         private void EmitGreedyQuad(
             int face, int slice, int u0, int v0, int width, int height,
             ushort stateVal, byte ao00, byte ao10, byte ao01, byte ao11, byte light,
@@ -525,6 +550,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Iterates all voxels to emit per-block liquid geometry with corner-level interpolation.</summary>
         private void ProcessLiquidBlocks()
         {
             for (int y = 0; y < ChunkConstants.Size; y++)
@@ -556,6 +582,7 @@ namespace Lithforge.Meshing
             }
         }
 
+        /// <summary>Emits visible liquid faces (top, bottom, sides) for a single water voxel.</summary>
         private void DrawLiquidNode(int x, int y, int z, StateId blockId)
         {
             // Get corner levels (4 corners of the top face)
@@ -615,6 +642,7 @@ namespace Lithforge.Meshing
         ///     cornerZ: 0=back edge, 1=front edge (in Z).
         ///     Returns a value in [0.0, 1.0] where 1.0 = top of block, 0.0 = bottom.
         /// </summary>
+        /// <summary>Computes the averaged water level at a vertex corner by sampling the 4 adjacent columns.</summary>
         private float GetCornerLevel(int x, int y, int z, int cornerX, int cornerZ)
         {
             // Sample the 4 blocks that share this corner:
@@ -678,6 +706,7 @@ namespace Lithforge.Meshing
         ///     0 = empty/air, 1.0 = source, 7/8..1/8 = flowing levels.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Returns the fractional water height (0-1) at a voxel, or -1 if not liquid.</summary>
         private float SampleLiquidLevel(int x, int y, int z)
         {
             if (y < 0 || y >= ChunkConstants.Size)
@@ -706,6 +735,7 @@ namespace Lithforge.Meshing
         ///     Reads a liquid cell at (x, y, z), using ghost slabs for out-of-bounds x/z.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Reads the raw liquid cell byte at the given voxel, including cross-chunk ghost slabs.</summary>
         private byte SampleLiquidCell(int x, int y, int z)
         {
             if (y < 0 || y >= ChunkConstants.Size)
@@ -749,6 +779,7 @@ namespace Lithforge.Meshing
         ///     Uses SampleBlock for cross-chunk reads.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Returns true if the voxel at the given position contains any liquid.</summary>
         private bool LiquidSampleIsFluid(int x, int y, int z)
         {
             StateId id = SampleBlock(new int3(x, y, z));
@@ -760,6 +791,7 @@ namespace Lithforge.Meshing
         ///     Checks if the block at (x, y, z) is a solid non-fluid block.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Returns true if the voxel at the given position is an opaque solid block.</summary>
         private bool LiquidSampleIsSolid(int x, int y, int z)
         {
             StateId id = SampleBlock(new int3(x, y, z));
@@ -769,6 +801,7 @@ namespace Lithforge.Meshing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Quantizes a floating-point corner water level (0-1) to a 3-bit fluid level (0-7).</summary>
         private byte CornerLevelToFluidLevel(float cornerLevel)
         {
             // Inverse of SampleLiquidLevel's level / 8.0f normalization.
@@ -778,6 +811,7 @@ namespace Lithforge.Meshing
             return (byte)math.clamp(fl, 0, 7);
         }
 
+        /// <summary>Emits a top-face quad for a water block with per-corner height from level interpolation.</summary>
         private void EmitLiquidTopFace(int x, int y, int z,
             float c00, float c10, float c01, float c11,
             StateId blockId, AtlasEntry atlas,
@@ -825,6 +859,7 @@ namespace Lithforge.Meshing
             TranslucentIndices.Add(vertStart + 2);
         }
 
+        /// <summary>Emits a bottom-face quad for a water block (flat at y=0).</summary>
         private void EmitLiquidBottomFace(int x, int y, int z,
             StateId blockId, AtlasEntry atlas,
             int sunLight, int blockLight,
@@ -873,6 +908,7 @@ namespace Lithforge.Meshing
         ///     dx/dz: face normal direction (exactly one nonzero).
         ///     nearCornerA/B: corner levels for the two top-edge vertices on this face.
         /// </summary>
+        /// <summary>Emits a side-face quad for a water block with top-edge heights from corner interpolation.</summary>
         private void EmitLiquidSideFace(int x, int y, int z,
             int dx, int dz,
             float nearCornerA, float nearCornerB,
@@ -1029,6 +1065,7 @@ namespace Lithforge.Meshing
             TranslucentIndices.Add(vertStart + 2);
         }
 
+        /// <summary>Computes the 4 AO corner values for a face vertex using the 3-neighbor occlusion method.</summary>
         private void ComputeVertexAO(int face, int3 blockPos, int u, int v,
             out byte ao00, out byte ao10, out byte ao01, out byte ao11)
         {
@@ -1056,6 +1093,7 @@ namespace Lithforge.Meshing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Returns true if the block at the given position should cast ambient occlusion shadows.</summary>
         private bool IsBlockOpaqueForAO(int3 pos)
         {
             StateId id = SampleBlock(pos);
@@ -1063,6 +1101,7 @@ namespace Lithforge.Meshing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Samples the block state at any position, using neighbor border slabs for out-of-bounds access.</summary>
         private StateId SampleBlock(int3 pos)
         {
             // Inside chunk bounds
@@ -1135,6 +1174,7 @@ namespace Lithforge.Meshing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>Samples the packed light byte at the given position, returning 0xFF for out-of-bounds.</summary>
         private byte SampleLight(int3 pos)
         {
             if (!LightData.IsCreated || LightData.Length == 0)

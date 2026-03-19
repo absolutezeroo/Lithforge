@@ -9,6 +9,7 @@ namespace Lithforge.Meshing
     /// </summary>
     public static class VoxelAO
     {
+        /// <summary>Computes AO level (0-3) from the occupancy of two adjacent sides and their shared corner.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte Compute(bool side1, bool side2, bool corner)
         {
@@ -18,6 +19,7 @@ namespace Lithforge.Meshing
             }
 
             int occluders = (side1 ? 1 : 0) + (side2 ? 1 : 0) + (corner ? 1 : 0);
+
             return (byte)(3 - occluders);
         }
     }

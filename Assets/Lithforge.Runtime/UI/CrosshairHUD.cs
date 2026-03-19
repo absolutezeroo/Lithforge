@@ -13,14 +13,19 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class CrosshairHUD : MonoBehaviour, IScreen
     {
+        /// <summary>Full width/height of the crosshair in pixels.</summary>
         private const int CrosshairSize = 20;
 
+        /// <summary>Thickness of each crosshair line in pixels.</summary>
         private const int CrosshairThickness = 2;
 
+        /// <summary>Gap between the center and each crosshair line in pixels.</summary>
         private const int CrosshairGap = 3;
 
+        /// <summary>The UI Toolkit document hosting the crosshair visual elements.</summary>
         private UIDocument _document;
 
+        /// <summary>Unique screen name identifier for the crosshair HUD.</summary>
         public string ScreenName
         {
             get
@@ -29,6 +34,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Returns false because the crosshair does not block input to elements beneath it.</summary>
         public bool IsInputOpaque
         {
             get
@@ -37,6 +43,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Returns false because the crosshair does not require a visible mouse cursor.</summary>
         public bool RequiresCursor
         {
             get
@@ -45,17 +52,20 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Shows the crosshair when the screen is displayed.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             SetVisible(true);
         }
 
+        /// <summary>Hides the crosshair and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             SetVisible(false);
             onComplete();
         }
 
+        /// <summary>Returns false because the crosshair does not handle Escape key input.</summary>
         public bool HandleEscape()
         {
             return false;
@@ -73,6 +83,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Creates the UIDocument and builds the crosshair visual elements.</summary>
         public void Initialize(PanelSettings panelSettings)
         {
             _document = gameObject.AddComponent<UIDocument>();
@@ -85,6 +96,7 @@ namespace Lithforge.Runtime.UI
             BuildCrosshair(root);
         }
 
+        /// <summary>Builds the four crosshair lines (top, bottom, left, right) centered on screen.</summary>
         private void BuildCrosshair(VisualElement root)
         {
             // Container centered on screen
@@ -136,6 +148,7 @@ namespace Lithforge.Runtime.UI
             container.Add(right);
         }
 
+        /// <summary>Creates a single white crosshair line as an absolutely-positioned VisualElement.</summary>
         private VisualElement CreateLine()
         {
             VisualElement line = new()

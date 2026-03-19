@@ -20,10 +20,13 @@ namespace Lithforge.Runtime.UI.Navigation
     /// </remarks>
     public sealed class ScreenManager : MonoBehaviour
     {
+        /// <summary>Lookup of registered screens by name for push-by-name operations.</summary>
         private readonly Dictionary<string, IScreen> _registry = new();
 
+        /// <summary>Ordered stack of active screens from bottom (index 0) to top.</summary>
         private readonly List<IScreen> _stack = new();
 
+        /// <summary>True while a hide transition is in progress to prevent re-entrant stack mutations.</summary>
         private bool _transitioning;
 
         /// <summary>The topmost screen in the stack, or null if empty.</summary>
@@ -45,6 +48,7 @@ namespace Lithforge.Runtime.UI.Navigation
         /// </summary>
         public Action OnEscapeEmpty { get; set; }
 
+        /// <summary>Polls for Escape key and dispatches it to the topmost opaque screen.</summary>
         private void Update()
         {
             if (_transitioning)
@@ -75,6 +79,7 @@ namespace Lithforge.Runtime.UI.Navigation
             }
         }
 
+        /// <summary>Re-applies cursor state when the application regains focus.</summary>
         private void OnApplicationFocus(bool hasFocus)
         {
             if (hasFocus)
@@ -252,6 +257,7 @@ namespace Lithforge.Runtime.UI.Navigation
             ApplyCursorState();
         }
 
+        /// <summary>Internal push implementation that hides the current top screen and shows the new one.</summary>
         private void PushInternal(IScreen screen, object context)
         {
             if (_transitioning)
@@ -272,6 +278,7 @@ namespace Lithforge.Runtime.UI.Navigation
             ApplyCursorState();
         }
 
+        /// <summary>Finds the topmost screen in the stack that blocks input (IsInputOpaque is true).</summary>
         private IScreen FindTopmostOpaque()
         {
             for (int i = _stack.Count - 1; i >= 0; i--)
@@ -285,6 +292,7 @@ namespace Lithforge.Runtime.UI.Navigation
             return null;
         }
 
+        /// <summary>Sets cursor lock and visibility based on whether the topmost opaque screen requires a cursor.</summary>
         private void ApplyCursorState()
         {
             // Find the topmost opaque screen that wants cursor

@@ -9,14 +9,30 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class HudVisibilityController
     {
+        /// <summary>The crosshair overlay shown at screen center.</summary>
         private readonly CrosshairHUD _crosshairHud;
+
+        /// <summary>The hotbar strip at the bottom of the screen.</summary>
         private readonly HotbarDisplay _hotbarDisplay;
+
+        /// <summary>The player inventory screen toggled with the E key.</summary>
         private readonly IContainerScreen _inventoryScreen;
+
+        /// <summary>The F3 debug overlay toggled with the F3 key.</summary>
         private readonly F3DebugOverlay _debugOverlay;
+
+        /// <summary>The settings screen opened from the pause menu.</summary>
         private readonly SettingsScreen _settingsScreen;
+
+        /// <summary>The pause menu screen opened with Escape.</summary>
         private readonly PauseMenuScreen _pauseMenuScreen;
+
+        /// <summary>Manager for block entity container screens (chest, furnace, etc.).</summary>
         private readonly ContainerScreenManager _screenManager;
 
+        /// <summary>
+        ///     Constructs a new HudVisibilityController with references to all HUD elements.
+        /// </summary>
         public HudVisibilityController(
             CrosshairHUD crosshairHud,
             HotbarDisplay hotbarDisplay,

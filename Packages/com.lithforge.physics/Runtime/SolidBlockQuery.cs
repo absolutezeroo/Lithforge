@@ -13,6 +13,7 @@ namespace Lithforge.Physics
     /// </summary>
     public struct SolidBlockQuery
     {
+        /// <summary>Pre-filled solidity lookup for the broad-phase region around an entity.</summary>
         [ReadOnly] public NativeHashMap<int3, bool> SolidMap;
 
         /// <summary>

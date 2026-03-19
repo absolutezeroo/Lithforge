@@ -8,8 +8,10 @@ namespace Lithforge.Runtime.UI.Container
     /// </summary>
     public sealed class InventoryContainerAdapter : ISlotContainer
     {
+        /// <summary>The backing player inventory being adapted.</summary>
         private readonly Inventory _inventory;
 
+        /// <summary>Creates an adapter wrapping a slice of the inventory from startSlot for slotCount slots.</summary>
         public InventoryContainerAdapter(Inventory inventory, int startSlot, int slotCount)
         {
             _inventory = inventory;
@@ -17,23 +19,28 @@ namespace Lithforge.Runtime.UI.Container
             SlotCount = slotCount;
         }
 
+        /// <summary>Number of slots exposed by this adapter.</summary>
         public int SlotCount { get; }
 
+        /// <summary>Returns false because inventory slots accept item placement.</summary>
         public bool IsReadOnly
         {
             get { return false; }
         }
 
+        /// <summary>Gets the item stack at the given local slot index, offset by StartSlot.</summary>
         public ItemStack GetSlot(int index)
         {
             return _inventory.GetSlot(StartSlot + index);
         }
 
+        /// <summary>Sets the item stack at the given local slot index, offset by StartSlot.</summary>
         public void SetSlot(int index, ItemStack stack)
         {
             _inventory.SetSlot(StartSlot + index, stack);
         }
 
+        /// <summary>No-op for plain inventory slots; no side effects needed on change.</summary>
         public void OnSlotChanged(int index)
         {
             // No side effects for plain inventory slots.

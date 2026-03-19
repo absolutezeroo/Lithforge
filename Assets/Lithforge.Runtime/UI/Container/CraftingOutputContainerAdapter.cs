@@ -12,40 +12,50 @@ namespace Lithforge.Runtime.UI.Container
     /// </summary>
     public sealed class CraftingOutputContainerAdapter : ISlotContainer
     {
+        /// <summary>Item registry for looking up item definitions during output construction.</summary>
         private readonly ItemRegistry _itemRegistry;
 
+        /// <summary>Tool template registry for constructing tool instances from recipe results.</summary>
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
 
+        /// <summary>The current item stack displayed in the output slot.</summary>
         private ItemStack _displayStack;
 
+        /// <summary>Creates an output adapter with item and tool template registries for result construction.</summary>
         public CraftingOutputContainerAdapter(ItemRegistry itemRegistry, ToolTemplateRegistry toolTemplateRegistry)
         {
             _itemRegistry = itemRegistry;
             _toolTemplateRegistry = toolTemplateRegistry;
         }
 
+        /// <summary>The currently matched recipe, or null if no match.</summary>
         public RecipeEntry CurrentMatch { get; private set; }
 
+        /// <summary>Always returns 1 because the output is a single slot.</summary>
         public int SlotCount
         {
             get { return 1; }
         }
 
+        /// <summary>Returns true because items cannot be placed into the output slot.</summary>
         public bool IsReadOnly
         {
             get { return true; }
         }
 
+        /// <summary>Returns the current output item stack.</summary>
         public ItemStack GetSlot(int index)
         {
             return _displayStack;
         }
 
+        /// <summary>No-op because the output slot is read-only.</summary>
         public void SetSlot(int index, ItemStack stack)
         {
             // Read-only — no external setting.
         }
 
+        /// <summary>No-op because the output slot has no side effects on change.</summary>
         public void OnSlotChanged(int index)
         {
             // No side effects.

@@ -17,18 +17,26 @@ namespace Lithforge.Runtime.UI.Widgets
     /// </summary>
     public sealed class TooltipWidget : VisualElement
     {
+        /// <summary>Label displaying item durability information.</summary>
         private readonly Label _durabilityLabel;
+        /// <summary>Label displaying contextual hints (e.g. modifier key prompts).</summary>
         private readonly Label _hintLabel;
+        /// <summary>Label displaying per-part material breakdown in Ctrl mode.</summary>
         private readonly Label _materialBreakdownLabel;
+        /// <summary>Label displaying the item or tool name.</summary>
         private readonly Label _nameLabel;
+        /// <summary>Reusable StringBuilder to avoid per-frame allocation.</summary>
         private readonly StringBuilder _sb = new(256);
 
-        // Reusable collections to avoid per-frame allocation
+        /// <summary>Reusable set to deduplicate trait names during display.</summary>
         private readonly HashSet<string> _seenTraits = new();
+        /// <summary>Label displaying detailed statistics in Shift mode.</summary>
         private readonly Label _statsLabel;
         private readonly Label _traitsLabel;
+        /// <summary>Label displaying the item type (Block, Tool Part, etc.).</summary>
         private readonly Label _typeLabel;
 
+        /// <summary>Creates a new TooltipWidget with all label elements for the three display modes.</summary>
         public TooltipWidget()
         {
             AddToClassList("lf-tooltip");
@@ -214,17 +222,20 @@ namespace Lithforge.Runtime.UI.Widgets
             }
         }
 
+        /// <summary>Hides the tooltip by setting display to None.</summary>
         public void Hide()
         {
             style.display = DisplayStyle.None;
         }
 
+        /// <summary>Updates the tooltip position to follow the cursor.</summary>
         public void UpdatePosition(float posX, float posY)
         {
             style.left = posX + 16;
             style.top = posY - 8;
         }
 
+        /// <summary>Shows default tooltip mode with durability, traits, modifiers, and hint text.</summary>
         private void ShowDefaultMode(ToolInstance tool)
         {
             // Durability (colored by ratio)
@@ -327,6 +338,7 @@ namespace Lithforge.Runtime.UI.Widgets
             _hintLabel.style.display = DisplayStyle.Flex;
         }
 
+        /// <summary>Shows Shift tooltip mode with detailed numeric stats and modifier list.</summary>
         private void ShowShiftMode(ToolInstance tool)
         {
             _sb.Clear();
@@ -405,6 +417,7 @@ namespace Lithforge.Runtime.UI.Widgets
             _hintLabel.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Shows Ctrl tooltip mode with per-part material breakdown and stats.</summary>
         private void ShowCtrlMode(ToolInstance tool, ToolMaterialRegistry materialRegistry)
         {
             _sb.Clear();
@@ -459,6 +472,7 @@ namespace Lithforge.Runtime.UI.Widgets
             _hintLabel.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Shows tooltip for a standalone tool part with material stats and repair hints.</summary>
         private void ShowPartTooltip(ToolPartData partData, ToolMaterialRegistry materialRegistry)
         {
             _traitsLabel.style.display = DisplayStyle.None;
@@ -519,6 +533,7 @@ namespace Lithforge.Runtime.UI.Widgets
             }
         }
 
+        /// <summary>Appends material stats for a given part type (head, handle, binding, etc.) to the StringBuilder.</summary>
         private void AppendPartMaterialStats(ToolPartType partType, ToolMaterialData mat)
         {
             switch (partType)
@@ -571,6 +586,7 @@ namespace Lithforge.Runtime.UI.Widgets
             }
         }
 
+        /// <summary>Appends formatted trait lines from the given trait IDs to the StringBuilder.</summary>
         private void AppendTraitLines(string[] traitIds, string indent)
         {
             if (traitIds == null || traitIds.Length == 0)
@@ -591,6 +607,7 @@ namespace Lithforge.Runtime.UI.Widgets
             }
         }
 
+        /// <summary>Converts a numeric tool level to a named tier (Wood, Stone, Iron, etc.).</summary>
         private static string FormatToolLevel(int level)
         {
             string[] tierNames =
@@ -610,6 +627,7 @@ namespace Lithforge.Runtime.UI.Widgets
             return "Level " + level;
         }
 
+        /// <summary>Converts a number (1-10) to its Roman numeral representation.</summary>
         private static string ToRoman(int number)
         {
             if (number <= 0 || number > 10)
@@ -633,6 +651,7 @@ namespace Lithforge.Runtime.UI.Widgets
             return roman[number - 1];
         }
 
+        /// <summary>Parses a hex color string to a Color, returning white on failure.</summary>
         private static Color ColorFromHex(string hex)
         {
             if (ColorUtility.TryParseHtmlString(hex, out Color c))
@@ -643,6 +662,7 @@ namespace Lithforge.Runtime.UI.Widgets
             return Color.white;
         }
 
+        /// <summary>Converts an underscore-separated name to title case (e.g. "oak_planks" to "Oak Planks").</summary>
         private static string FormatFullName(string name)
         {
             if (string.IsNullOrEmpty(name))

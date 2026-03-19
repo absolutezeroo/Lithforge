@@ -19,36 +19,52 @@ namespace Lithforge.Runtime.UI
     /// </summary>
     public sealed class LoadingScreen : MonoBehaviour, IScreen
     {
+        /// <summary>Duration of the fade-out animation in seconds.</summary>
         private const float FadeOutDuration = 0.4f;
 
+        /// <summary>Width of the progress bar in pixels.</summary>
         private const int BarWidth = 400;
 
+        /// <summary>Height of the progress bar in pixels.</summary>
         private const int BarHeight = 20;
 
+        /// <summary>Dark dirt-brown background color for the loading screen.</summary>
         private static readonly Color s_backgroundColor = new(0.10f, 0.06f, 0.04f, 1.0f);
 
+        /// <summary>Background color of the progress bar track.</summary>
         private static readonly Color s_progressTrackColor = new(0.20f, 0.20f, 0.20f, 1.0f);
 
+        /// <summary>Fill color of the progress bar.</summary>
         private static readonly Color s_progressFillColor = new(0.55f, 0.45f, 0.25f, 1.0f);
 
+        /// <summary>Color used for the game title text.</summary>
         private static readonly Color s_logoColor = new(1.0f, 0.95f, 0.80f, 1.0f);
 
+        /// <summary>Color used for status and subtitle text.</summary>
         private static readonly Color s_statusColor = new(0.70f, 0.70f, 0.65f, 1.0f);
 
+        /// <summary>Full-screen background visual element.</summary>
         private VisualElement _background;
 
+        /// <summary>The UI Toolkit document hosting the loading screen.</summary>
         private UIDocument _document;
 
+        /// <summary>True while the fade-out coroutine is running.</summary>
         private bool _fadingOut;
 
+        /// <summary>Callback invoked after the fade-out animation completes.</summary>
         private Action _onFadeComplete;
 
+        /// <summary>The visual element representing the filled portion of the progress bar.</summary>
         private VisualElement _progressFill;
 
+        /// <summary>Delegate polled each frame to get the current spawn progress.</summary>
         private Func<SpawnProgress> _progressSource;
 
+        /// <summary>Label displaying the current loading phase description.</summary>
         private Label _statusLabel;
 
+        /// <summary>Polls the progress source each frame and updates the progress bar and status text.</summary>
         private void Update()
         {
             if (_progressSource == null || _progressFill == null || _fadingOut)
@@ -74,6 +90,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Unique screen name identifier for the loading screen.</summary>
         public string ScreenName
         {
             get
@@ -82,6 +99,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Returns true because the loading screen blocks all input beneath it.</summary>
         public bool IsInputOpaque
         {
             get
@@ -90,6 +108,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Returns false because the loading screen does not need a visible mouse cursor.</summary>
         public bool RequiresCursor
         {
             get
@@ -98,6 +117,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Makes the loading screen visible when the screen is shown.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -107,6 +127,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Hides the loading screen and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -117,12 +138,14 @@ namespace Lithforge.Runtime.UI
             onComplete();
         }
 
+        /// <summary>Consumes Escape input to prevent other screens from handling it during loading.</summary>
         public bool HandleEscape()
         {
             // Loading screen does not respond to Escape
             return true;
         }
 
+        /// <summary>Creates the UIDocument and builds the loading screen UI layout.</summary>
         public void Initialize(PanelSettings panelSettings)
         {
             _document = gameObject.AddComponent<UIDocument>();
@@ -171,6 +194,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Constructs the loading screen layout: background, logo, subtitle, progress bar, and status label.</summary>
         private void BuildUI(VisualElement root)
         {
             // Full-screen dirt background
@@ -272,6 +296,7 @@ namespace Lithforge.Runtime.UI
             _background.Add(_statusLabel);
         }
 
+        /// <summary>Converts the current spawn phase into a human-readable status string.</summary>
         private string BuildStatusText(SpawnProgress progress)
         {
             switch (progress.Phase)
@@ -293,6 +318,7 @@ namespace Lithforge.Runtime.UI
             }
         }
 
+        /// <summary>Coroutine that fades the loading screen to transparent and then destroys its GameObject.</summary>
         private IEnumerator FadeOut()
         {
             VisualElement root = _document.rootVisualElement;

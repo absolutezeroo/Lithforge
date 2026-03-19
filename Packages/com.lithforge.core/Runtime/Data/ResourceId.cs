@@ -10,6 +10,7 @@ namespace Lithforge.Core.Data
     /// </summary>
     public readonly struct ResourceId : IEquatable<ResourceId>
     {
+        /// <summary>Compiled regex for validating "namespace:name" format.</summary>
         private static readonly Regex s_validPattern = new(@"^[a-z0-9_]+:[a-z0-9_/]+$", RegexOptions.Compiled);
 
         /// <summary>The content namespace (e.g. "lithforge").</summary>
@@ -63,6 +64,7 @@ namespace Lithforge.Core.Data
             return new ResourceId(raw.Substring(0, colon), raw.Substring(colon + 1));
         }
 
+        /// <summary>Attempts to parse a "namespace:name" string without throwing on failure.</summary>
         public static bool TryParse(string raw, out ResourceId result)
         {
             result = default;
@@ -83,32 +85,38 @@ namespace Lithforge.Core.Data
             return true;
         }
 
+        /// <summary>Returns the "namespace:name" string representation.</summary>
         public override string ToString()
         {
             return $"{Namespace}:{Name}";
         }
 
+        /// <summary>Checks equality by ordinal comparison of both namespace and name.</summary>
         public bool Equals(ResourceId other)
         {
             return string.Equals(Namespace, other.Namespace, StringComparison.Ordinal)
                    && string.Equals(Name, other.Name, StringComparison.Ordinal);
         }
 
+        /// <summary>Checks equality with a boxed ResourceId.</summary>
         public override bool Equals(object obj)
         {
             return obj is ResourceId other && Equals(other);
         }
 
+        /// <summary>Returns a combined hash of namespace and name.</summary>
         public override int GetHashCode()
         {
             return HashCode.Combine(Namespace, Name);
         }
 
+        /// <summary>Equality operator delegating to Equals.</summary>
         public static bool operator ==(ResourceId left, ResourceId right)
         {
             return left.Equals(right);
         }
 
+        /// <summary>Inequality operator delegating to Equals.</summary>
         public static bool operator !=(ResourceId left, ResourceId right)
         {
             return !left.Equals(right);
