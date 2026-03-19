@@ -24,28 +24,49 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct TerrainShapeJob : IJobParallelFor
     {
+        /// <summary>Chunk voxel data written in-place per column (Y-major indexing).</summary>
         // Each column writes to distinct Y-major indices (y*1024 + z*32 + x).
         // No overlap between columns. NativeDisableParallelForRestriction needed
         // because write indices don't match the parallel-for index.
         [NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
+        /// <summary>Output per-column surface height in world-space Y.</summary>
         [NativeDisableParallelForRestriction]
         [WriteOnly] public NativeArray<int> HeightMap;
 
+        /// <summary>Output per-column dominant biome ID.</summary>
         [NativeDisableParallelForRestriction]
         [WriteOnly] public NativeArray<byte> BiomeMap;
 
+        /// <summary>Per-column climate values from ClimateNoiseJob.</summary>
         [ReadOnly] public NativeArray<ClimateData> ClimateMap;
+
+        /// <summary>Per-biome data for height blending and biome selection.</summary>
         [ReadOnly] public NativeArray<NativeBiomeData> BiomeData;
+
+        /// <summary>World seed for deterministic terrain noise.</summary>
         [ReadOnly] public long Seed;
+
+        /// <summary>Chunk coordinate in chunk-space.</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>Noise config for base terrain height generation.</summary>
         [ReadOnly] public NativeNoiseConfig TerrainNoise;
+
+        /// <summary>World-space sea level. Blocks below surface and above sea level become water.</summary>
         [ReadOnly] public int SeaLevel;
+
+        /// <summary>Stone block state for solid terrain fill.</summary>
         [ReadOnly] public StateId StoneId;
+
+        /// <summary>Water block state for ocean fill above terrain surface.</summary>
         [ReadOnly] public StateId WaterId;
+
+        /// <summary>Air block state for empty space above terrain and sea level.</summary>
         [ReadOnly] public StateId AirId;
 
+        /// <summary>Generates terrain for a single XZ column: biome blend, voxel fill, and heightmap refinement.</summary>
         public void Execute(int columnIndex)
         {
             int x = columnIndex & (ChunkConstants.Size - 1);

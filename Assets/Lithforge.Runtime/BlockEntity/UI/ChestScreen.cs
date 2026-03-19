@@ -14,6 +14,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class ChestScreen : ContainerScreen
     {
+        /// <summary>Keyboard digit keys used for number-key slot swap shortcuts.</summary>
         private static readonly Key[] s_numberKeys =
         {
             Key.Digit1,
@@ -26,14 +27,20 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit8,
             Key.Digit9,
         };
+
+        /// <summary>Container adapter wrapping the chest entity's inventory slots.</summary>
         private BlockEntityContainerAdapter _chestAdapter;
 
+        /// <summary>The chest block entity currently being displayed.</summary>
         private ChestBlockEntity _currentChest;
 
+        /// <summary>Container adapter wrapping the player hotbar slots.</summary>
         private InventoryContainerAdapter _hotbarAdapter;
 
+        /// <summary>Container adapter wrapping the player main inventory slots.</summary>
         private InventoryContainerAdapter _mainAdapter;
 
+        /// <summary>Polls keyboard input for close keys and number-key shortcuts, refreshes slot display.</summary>
         private void Update()
         {
             if (Context == null)
@@ -70,6 +77,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateTooltipKeyRefresh();
         }
 
+        /// <summary>Checks digit keys 1-9 and swaps the hovered slot with the corresponding hotbar slot.</summary>
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;
@@ -92,6 +100,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Initializes adapters for the player hotbar and main inventory, then loads the UXML template.</summary>
         public void Initialize(ScreenContext context)
         {
             _hotbarAdapter = new InventoryContainerAdapter(
@@ -123,6 +132,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
+        /// <summary>Clones the UXML template and binds chest, main inventory, and hotbar slot groups.</summary>
         private void RebuildUI()
         {
             if (!CloneTemplate())
@@ -149,6 +159,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
+        /// <summary>Handles pointer-down on slots: shift-click transfers between chest and player, regular click picks up or places.</summary>
         protected override void OnSlotPointerDown(
             ISlotContainer container, int slotIndex, PointerDownEvent evt)
         {
@@ -192,6 +203,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Returns held items to the player inventory and clears the chest reference on close.</summary>
         protected override void OnClose()
         {
             // Return held items to player inventory

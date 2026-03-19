@@ -22,16 +22,31 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct RiverNoiseJob : IJobParallelFor
     {
+        /// <summary>Per-column climate data for continentalness and erosion gating.</summary>
         [ReadOnly] public NativeArray<ClimateData> ClimateMap;
+
+        /// <summary>Per-column surface height from TerrainShapeJob.</summary>
         [ReadOnly] public NativeArray<int> HeightMap;
+
+        /// <summary>River noise and carving configuration parameters.</summary>
         [ReadOnly] public NativeRiverConfig Config;
+
+        /// <summary>World seed for deterministic river noise generation.</summary>
         [ReadOnly] public long Seed;
+
+        /// <summary>Chunk coordinate in chunk-space.</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>World-space sea level for underwater suppression.</summary>
         [ReadOnly] public int SeaLevel;
 
+        /// <summary>Output per-column carve depth in blocks, consumed by RiverCarveJob.</summary>
         [WriteOnly] public NativeArray<float> RiverCarveDepth;
+
+        /// <summary>Output per-column river flag (0 = no river, 1 = river).</summary>
         [WriteOnly] public NativeArray<byte> RiverFlags;
 
+        /// <summary>Evaluates river presence and carve depth for a single XZ column.</summary>
         public void Execute(int columnIndex)
         {
             int x = columnIndex & (ChunkConstants.Size - 1);

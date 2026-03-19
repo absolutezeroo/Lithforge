@@ -7,6 +7,7 @@ namespace Lithforge.Runtime.BlockEntity.Factories
     /// </summary>
     public sealed class ChestBlockEntityFactory : IBlockEntityFactory
     {
+        /// <summary>Creates a new ChestBlockEntity with default 27-slot inventory.</summary>
         public IBlockEntity Create()
         {
             return new ChestBlockEntity();

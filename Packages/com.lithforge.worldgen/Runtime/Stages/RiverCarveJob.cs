@@ -22,6 +22,7 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct RiverCarveJob : IJobParallelFor
     {
+        /// <summary>Chunk voxel data carved in-place per column.</summary>
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.
         // NativeDisableContainerSafetyRestriction is the established project precedent
         // (see InitialLightingJob) for this safe aliasing pattern.
@@ -29,13 +30,25 @@ namespace Lithforge.WorldGen.Stages
         [NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
+        /// <summary>Per-column carve depth from RiverNoiseJob. Columns with depth less than 0.5 are skipped.</summary>
         [ReadOnly] public NativeArray<float> RiverCarveDepth;
+
+        /// <summary>Per-column surface height from TerrainShapeJob.</summary>
         [ReadOnly] public NativeArray<int> HeightMap;
+
+        /// <summary>Chunk coordinate in chunk-space.</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>Air block state for carving above sea level.</summary>
         [ReadOnly] public StateId AirId;
+
+        /// <summary>Water block state for carving at or below sea level.</summary>
         [ReadOnly] public StateId WaterId;
+
+        /// <summary>World-space sea level. Carved blocks below become water, above become air.</summary>
         [ReadOnly] public int SeaLevel;
 
+        /// <summary>Carves a single XZ column's river channel from surface down to riverbed.</summary>
         public void Execute(int columnIndex)
         {
             float carveDepth = RiverCarveDepth[columnIndex];

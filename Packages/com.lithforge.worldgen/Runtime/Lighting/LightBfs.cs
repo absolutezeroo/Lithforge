@@ -16,18 +16,41 @@ namespace Lithforge.WorldGen.Lighting
     {
         // Queue entry packing (25-bit unified encoding):
         //   [24..19: skipMask (6)] [18..15: level (4)] [14..0: index (15)]
+
+        /// <summary>Direction index for -X neighbor.</summary>
         public const int DirNegX = 0;
+
+        /// <summary>Direction index for +X neighbor.</summary>
         public const int DirPosX = 1;
+
+        /// <summary>Direction index for -Y neighbor.</summary>
         public const int DirNegY = 2;
+
+        /// <summary>Direction index for +Y neighbor.</summary>
         public const int DirPosY = 3;
+
+        /// <summary>Direction index for -Z neighbor.</summary>
         public const int DirNegZ = 4;
+
+        /// <summary>Direction index for +Z neighbor.</summary>
         public const int DirPosZ = 5;
+
+        /// <summary>Number of bits used for the flat voxel index in queue entries.</summary>
         public const int IndexBits = 15;
+
+        /// <summary>Bitmask to extract the flat voxel index from a packed queue entry.</summary>
         public const int IndexMask = (1 << IndexBits) - 1;
+
+        /// <summary>Bit shift for the carried light level in queue entries.</summary>
         public const int LevelShift = 15;
+
+        /// <summary>Bitmask to extract the 4-bit light level after shifting.</summary>
         public const int LevelMask = 0xF;
+
+        /// <summary>Bit shift for the 6-bit direction skip mask in queue entries.</summary>
         public const int SkipShift = 19;
 
+        /// <summary>Decomposes a flat voxel index into chunk-local XYZ coordinates.</summary>
         public static void IndexToXYZ(int index, out int x, out int y, out int z)
         {
             x = index & ChunkConstants.SizeMask;
@@ -35,6 +58,7 @@ namespace Lithforge.WorldGen.Lighting
             y = (index >> (ChunkConstants.SizeBits * 2)) & ChunkConstants.SizeMask;
         }
 
+        /// <summary>BFS propagation of sunlight through transparent blocks with downward-at-15 special case.</summary>
         public static void PropagateSun(
             ref NativeQueue<int> queue,
             ref NativeArray<byte> lightData,
@@ -89,6 +113,7 @@ namespace Lithforge.WorldGen.Lighting
             }
         }
 
+        /// <summary>Attempts to propagate sunlight into a single neighbor voxel, maintaining level 15 downward through air.</summary>
         public static void TryPropagateSun(int nx, int ny, int nz, byte sourceSun, bool isDownward,
             int neighborSkipMask, ref NativeQueue<int> queue,
             ref NativeArray<byte> lightData, ref NativeArray<StateId> chunkData,
@@ -142,6 +167,7 @@ namespace Lithforge.WorldGen.Lighting
             }
         }
 
+        /// <summary>BFS propagation of block light through transparent blocks with filter attenuation.</summary>
         public static void PropagateBlock(
             ref NativeQueue<int> queue,
             ref NativeArray<byte> lightData,
@@ -196,6 +222,7 @@ namespace Lithforge.WorldGen.Lighting
             }
         }
 
+        /// <summary>Attempts to propagate block light into a single neighbor voxel with filter attenuation.</summary>
         public static void TryPropagateBlock(int nx, int ny, int nz, byte sourceBlock,
             int neighborSkipMask, ref NativeQueue<int> queue,
             ref NativeArray<byte> lightData, ref NativeArray<StateId> chunkData,
@@ -237,6 +264,7 @@ namespace Lithforge.WorldGen.Lighting
             }
         }
 
+        /// <summary>Scans all 6 chunk faces and collects voxels with light > 1 for cross-chunk propagation.</summary>
         public static void CollectBorderLightLeaks(
             ref NativeArray<byte> lightData,
             ref NativeList<NativeBorderLightEntry> output)
@@ -268,6 +296,7 @@ namespace Lithforge.WorldGen.Lighting
             }
         }
 
+        /// <summary>Adds a border light entry if the voxel at (x, y, z) has sun or block light above 1.</summary>
         private static void CollectBorderVoxel(int x, int y, int z, int3 localPos, byte face,
             ref NativeArray<byte> lightData, ref NativeList<NativeBorderLightEntry> output)
         {

@@ -14,24 +14,34 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     /// </summary>
     public sealed class SmeltingBehavior : BlockEntityBehavior
     {
-        private const float SmeltDuration = 10f; // seconds to smelt one item
+        /// <summary>Duration in seconds to complete one smelting operation.</summary>
+        private const float SmeltDuration = 10f;
 
+        /// <summary>Inventory slot index for the smelting input.</summary>
         private const int InputSlotIndex = 0;
 
+        /// <summary>Inventory slot index for the smelting output.</summary>
         private const int OutputSlotIndex = 2;
 
+        /// <summary>Sentinel value for versioned serialization format.</summary>
         private const int VersionSentinel = int.MinValue + 11;
 
+        /// <summary>Reference to the fuel burn behavior for fuel availability checks.</summary>
         private readonly FuelBurnBehavior _fuelBurn;
 
+        /// <summary>Reference to the parent inventory for slot access.</summary>
         private readonly InventoryBehavior _inventory;
 
+        /// <summary>Item registry for looking up result item max stack sizes.</summary>
         private readonly ItemRegistry _itemRegistry;
 
+        /// <summary>Registry of smelting recipes for input-to-output matching.</summary>
         private readonly SmeltingRecipeRegistry _recipeRegistry;
 
+        /// <summary>Accumulated smelting progress in seconds toward completing the current item.</summary>
         private float _smeltProgress;
 
+        /// <summary>Creates a smelting behavior with inventory, fuel, recipe, and item registry references.</summary>
         public SmeltingBehavior(
             InventoryBehavior inventory,
             FuelBurnBehavior fuelBurn,
@@ -52,6 +62,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             get { return _smeltProgress / SmeltDuration; }
         }
 
+        /// <summary>Advances smelting progress if fuel and a valid recipe are available.</summary>
         public override void Tick(float deltaTime)
         {
             ItemStack inputSlot = _inventory.GetSlot(InputSlotIndex);
@@ -127,12 +138,14 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Serializes the current smelt progress to the writer.</summary>
         public override void Serialize(BinaryWriter writer)
         {
             writer.Write(VersionSentinel);
             writer.Write(_smeltProgress);
         }
 
+        /// <summary>Deserializes smelt progress, auto-detecting versioned vs legacy format.</summary>
         public override void Deserialize(BinaryReader reader)
         {
             int firstInt = reader.ReadInt32();
@@ -148,6 +161,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Reinterprets raw int bytes as a float for legacy format migration.</summary>
         private static float ReinterpretIntAsFloat(int value)
         {
             byte[] bytes = BitConverter.GetBytes(value);

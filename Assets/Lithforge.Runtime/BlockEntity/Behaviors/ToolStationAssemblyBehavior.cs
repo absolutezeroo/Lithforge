@@ -13,12 +13,16 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     /// </summary>
     public sealed class ToolStationAssemblyBehavior : BlockEntityBehavior
     {
+        /// <summary>Reference to the parent inventory for reading part slots.</summary>
         private readonly InventoryBehavior _inventory;
 
+        /// <summary>Item registry for looking up item definitions and tags.</summary>
         private readonly ItemRegistry _itemRegistry;
 
+        /// <summary>Material registry for resolving tool material stats during assembly.</summary>
         private readonly ToolMaterialRegistry _materialRegistry;
 
+        /// <summary>Creates an assembly behavior with inventory, material, and item registry references.</summary>
         public ToolStationAssemblyBehavior(
             InventoryBehavior inventory,
             ToolMaterialRegistry materialRegistry,
@@ -126,6 +130,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Resolves the tool part type from item tags, falling back to slot position inference.</summary>
         private static ToolPartType ResolvePartType(ItemEntry itemDef, int slotPosition)
         {
             // Tag-based resolution (legacy items)
@@ -176,6 +181,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Resolves the material ResourceId from item tags, falling back to the item's own ID.</summary>
         private static ResourceId ResolveMaterialId(ItemEntry itemDef)
         {
             // Legacy fallback: tag-based convention "material:lithforge:iron"

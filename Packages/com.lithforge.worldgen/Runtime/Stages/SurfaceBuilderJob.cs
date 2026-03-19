@@ -10,27 +10,59 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
+    /// <summary>
+    /// Replaces surface stone with biome-specific blocks (grass, sand, filler, underwater).
+    /// Handles frozen ocean ice patches and river bed material overrides.
+    /// Parallelized per XZ column, runs after CaveCarverJob.
+    /// </summary>
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct SurfaceBuilderJob : IJobParallelFor
     {
+        /// <summary>Chunk voxel data modified in-place per column.</summary>
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.
         [NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
+        /// <summary>Per-column surface height from TerrainShapeJob.</summary>
         [ReadOnly] public NativeArray<int> HeightMap;
+
+        /// <summary>Per-column dominant biome ID from TerrainShapeJob.</summary>
         [ReadOnly] public NativeArray<byte> BiomeMap;
+
+        /// <summary>Per-biome data for surface block selection.</summary>
         [ReadOnly] public NativeArray<NativeBiomeData> BiomeData;
+
+        /// <summary>Per-column river flags from RiverNoiseJob (0 = no river, 1 = river).</summary>
         [ReadOnly] public NativeArray<byte> RiverFlags;
+
+        /// <summary>Chunk coordinate in chunk-space.</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>World-space sea level for above/below surface block decisions.</summary>
         [ReadOnly] public int SeaLevel;
+
+        /// <summary>World seed for deterministic ice patch generation.</summary>
         [ReadOnly] public long Seed;
+
+        /// <summary>Stone state to match and replace with surface blocks.</summary>
         [ReadOnly] public StateId StoneId;
+
+        /// <summary>Air state (not replaced by surface builder).</summary>
         [ReadOnly] public StateId AirId;
+
+        /// <summary>Water state for frozen biome ice detection.</summary>
         [ReadOnly] public StateId WaterId;
+
+        /// <summary>Ice state placed on frozen ocean surfaces.</summary>
         [ReadOnly] public StateId IceId;
+
+        /// <summary>Gravel state for non-sand river beds.</summary>
         [ReadOnly] public StateId GravelId;
+
+        /// <summary>Sand state for beach and sand-biome river beds.</summary>
         [ReadOnly] public StateId SandId;
 
+        /// <summary>Applies biome surface blocks, river bed materials, and ice patches for a single XZ column.</summary>
         public void Execute(int columnIndex)
         {
             int x = columnIndex & ChunkConstants.Size - 1;
@@ -104,6 +136,7 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        /// <summary>Returns the biome data for the given ID via O(1) direct index lookup.</summary>
         private NativeBiomeData GetBiome(byte biomeId)
         {
             // O(1) direct access: BiomeId is a sequential index assigned in Bootstrap.
@@ -111,6 +144,7 @@ namespace Lithforge.WorldGen.Stages
             return biomeId < BiomeData.Length ? BiomeData[biomeId] : BiomeData[0];
         }
 
+        /// <summary>Deterministic spatial hash for ice patch distribution.</summary>
         private static uint HashColumn(int x, int z, long seed)
         {
             uint h = (uint)(seed & 0xFFFFFFFF);

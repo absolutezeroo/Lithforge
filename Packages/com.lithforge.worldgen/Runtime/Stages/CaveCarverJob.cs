@@ -59,6 +59,7 @@ namespace Lithforge.WorldGen.Stages
         /// <summary>Vertical buffer in blocks around sea level where carving is forbidden.</summary>
         [ReadOnly] public int SeaLevelCarveBuffer;
 
+        /// <summary>Carves caves in a single XZ column by sampling dual 3D noise fields.</summary>
         public void Execute(int columnIndex)
         {
             int x = columnIndex & (ChunkConstants.Size - 1);

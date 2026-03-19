@@ -9,16 +9,29 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Stages
 {
+    /// <summary>
+    /// Places ore veins (blob or scatter) in stone blocks using deterministic per-ore-per-chunk RNG.
+    /// Ores are processed in array order; earlier ores win at intersection points.
+    /// </summary>
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct OreGenerationJob : IJob
     {
+        /// <summary>Chunk voxel data to place ores into. Modified in-place.</summary>
         public NativeArray<StateId> ChunkData;
 
+        /// <summary>Per-ore-type generation configs (Y range, vein size, frequency, type).</summary>
         [ReadOnly] public NativeArray<NativeOreConfig> OreConfigs;
+
+        /// <summary>World seed for deterministic ore RNG.</summary>
         [ReadOnly] public long Seed;
+
+        /// <summary>Chunk coordinate in chunk-space.</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>Stone state used as the default replacement target for ores.</summary>
         [ReadOnly] public StateId StoneId;
 
+        /// <summary>Generates all ore veins for this chunk, iterating ores in priority order.</summary>
         public void Execute()
         {
             int chunkWorldX = ChunkCoord.x * ChunkConstants.Size;
@@ -81,6 +94,7 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        /// <summary>Places a single ore block if the target voxel is stone or the ore's replacement target.</summary>
         private void PlaceOreBlock(int x, int y, int z, NativeOreConfig config)
         {
             if (x < 0 || x >= ChunkConstants.Size ||
@@ -99,6 +113,7 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        /// <summary>Places a spheroid ore blob with distance-based probability falloff.</summary>
         private void PlaceOreBlob(int cx, int cy, int cz, NativeOreConfig config, ref Random rng)
         {
             float radius = math.pow(config.VeinSize * 0.75f, 1.0f / 3.0f);

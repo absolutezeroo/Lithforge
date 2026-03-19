@@ -9,13 +9,21 @@ using Unity.Jobs;
 
 namespace Lithforge.WorldGen.Stages
 {
+    /// <summary>
+    /// BFS flood-fill propagation of both sunlight and block light seeded by InitialLightingJob.
+    /// Collects border light leaks for cross-chunk propagation into neighboring chunks.
+    /// </summary>
     [BurstCompile]
     public struct LightPropagationJob : IJob
     {
-        [ReadOnly, NativeDisableContainerSafetyRestriction] 
+        /// <summary>Chunk voxel data for opacity lookups during propagation.</summary>
+        [ReadOnly, NativeDisableContainerSafetyRestriction]
         public NativeArray<StateId> ChunkData;
+
+        /// <summary>Block state compact table for opacity and light filter lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
+        /// <summary>Light data array modified in-place by BFS propagation.</summary>
         public NativeArray<byte> LightData;
 
         /// <summary>
@@ -25,6 +33,7 @@ namespace Lithforge.WorldGen.Stages
         /// </summary>
         public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
+        /// <summary>Seeds BFS queues from initial light values, propagates both channels, then collects border leaks.</summary>
         public void Execute()
         {
             NativeQueue<int> sunQueue = new(Allocator.TempJob);

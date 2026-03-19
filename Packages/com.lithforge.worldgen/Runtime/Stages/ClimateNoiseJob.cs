@@ -21,15 +21,28 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct ClimateNoiseJob : IJobParallelFor
     {
+        /// <summary>Output climate data array, one entry per XZ column.</summary>
         [WriteOnly] public NativeArray<ClimateData> ClimateMap;
 
+        /// <summary>World seed for deterministic noise generation.</summary>
         [ReadOnly] public long Seed;
+
+        /// <summary>Chunk coordinate in chunk-space.</summary>
         [ReadOnly] public int3 ChunkCoord;
+
+        /// <summary>Noise config for the temperature layer (simplex).</summary>
         [ReadOnly] public NativeNoiseConfig TemperatureNoise;
+
+        /// <summary>Noise config for the humidity layer (simplex).</summary>
         [ReadOnly] public NativeNoiseConfig HumidityNoise;
+
+        /// <summary>Noise config for the continentalness layer (Perlin).</summary>
         [ReadOnly] public NativeNoiseConfig ContinentalnessNoise;
+
+        /// <summary>Noise config for the erosion layer (Perlin).</summary>
         [ReadOnly] public NativeNoiseConfig ErosionNoise;
 
+        /// <summary>Samples all 4 climate parameters for a single XZ column and writes to ClimateMap.</summary>
         public void Execute(int columnIndex)
         {
             int x = columnIndex & (ChunkConstants.Size - 1);

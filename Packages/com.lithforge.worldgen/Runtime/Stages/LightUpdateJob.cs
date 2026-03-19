@@ -20,9 +20,13 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile]
     public struct LightUpdateJob : IJob
     {
+        /// <summary>Per-voxel light data modified in-place by seeding and propagation.</summary>
         public NativeArray<byte> LightData;
 
+        /// <summary>Chunk voxel data for opacity lookups.</summary>
         [ReadOnly] public NativeArray<StateId> ChunkData;
+
+        /// <summary>Block state compact table for opacity and filter lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         /// <summary>
@@ -33,6 +37,7 @@ namespace Lithforge.WorldGen.Stages
         /// </summary>
         [ReadOnly] public NativeArray<NativeBorderLightEntry> SeedEntries;
 
+        /// <summary>Seeds border voxels from neighbor light entries, then propagates only the delta.</summary>
         public void Execute()
         {
             NativeQueue<int> sunQueue = new(Allocator.TempJob);

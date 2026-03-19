@@ -14,31 +14,79 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Pipeline
 {
+    /// <summary>
+    /// Schedules the complete 9-stage Burst generation pipeline for a single chunk.
+    /// Stages: Climate → Terrain → RiverNoise → RiverCarve → Cave → Surface → Ore → InitialLighting → LightPropagation.
+    /// </summary>
     public sealed class GenerationPipeline
     {
+        /// <summary>Air block state for empty voxels.</summary>
         private readonly StateId _airId;
+
+        /// <summary>Per-biome native data for terrain shaping and surface building.</summary>
         private readonly NativeArray<NativeBiomeData> _biomeData;
+
+        /// <summary>Noise config for spaghetti cave generation.</summary>
         private readonly NativeNoiseConfig _caveNoise;
+
+        /// <summary>First seed offset for cave noise decorrelation.</summary>
         private readonly int _caveSeedOffset1;
+
+        /// <summary>Second seed offset for cave noise decorrelation.</summary>
         private readonly int _caveSeedOffset2;
+
+        /// <summary>Threshold below which dual-noise cave carving activates.</summary>
         private readonly float _caveThreshold;
+
+        /// <summary>Noise config for the continentalness climate layer.</summary>
         private readonly NativeNoiseConfig _continentalnessNoise;
+
+        /// <summary>Noise config for the erosion climate layer.</summary>
         private readonly NativeNoiseConfig _erosionNoise;
+
+        /// <summary>Gravel state for river/ocean bed placement.</summary>
         private readonly StateId _gravelId;
+
+        /// <summary>Noise config for the humidity climate layer.</summary>
         private readonly NativeNoiseConfig _humidityNoise;
+
+        /// <summary>Ice state for frozen ocean/river surfaces.</summary>
         private readonly StateId _iceId;
+
+        /// <summary>Minimum Y coordinate where cave carving is allowed.</summary>
         private readonly int _minCarveY;
+
+        /// <summary>Per-ore-type generation configs for the ore placement stage.</summary>
         private readonly NativeArray<NativeOreConfig> _oreConfigs;
+
+        /// <summary>River noise and carving parameters.</summary>
         private readonly NativeRiverConfig _riverConfig;
+
+        /// <summary>Sand state for beach and river bed placement.</summary>
         private readonly StateId _sandId;
+
+        /// <summary>World-space sea level used by terrain, surface, and river stages.</summary>
         private readonly int _seaLevel;
+
+        /// <summary>Buffer blocks above sea level where cave carving is suppressed.</summary>
         private readonly int _seaLevelCarveBuffer;
+
+        /// <summary>Block state compact table for light opacity lookups.</summary>
         private readonly NativeArray<BlockStateCompact> _stateTable;
+
+        /// <summary>Stone state used as the base terrain fill and ore replacement target.</summary>
         private readonly StateId _stoneId;
+
+        /// <summary>Noise config for the temperature climate layer.</summary>
         private readonly NativeNoiseConfig _temperatureNoise;
+
+        /// <summary>Noise config for base terrain height generation.</summary>
         private readonly NativeNoiseConfig _terrainNoise;
+
+        /// <summary>Water state for ocean and river fill.</summary>
         private readonly StateId _waterId;
 
+        /// <summary>Creates a pipeline with all noise configs, biome data, ore configs, and block state IDs.</summary>
         public GenerationPipeline(
             NativeNoiseConfig terrainNoise,
             NativeNoiseConfig temperatureNoise,
@@ -87,6 +135,7 @@ namespace Lithforge.WorldGen.Pipeline
             _riverConfig = riverConfig;
         }
 
+        /// <summary>Allocates output arrays and schedules all 9 generation stages as a dependency chain.</summary>
         public GenerationHandle Schedule(int3 coord, long seed, NativeArray<StateId> chunkData)
         {
             NativeArray<int> heightMap = new(

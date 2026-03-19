@@ -29,9 +29,13 @@ namespace Lithforge.WorldGen.Stages
     [BurstCompile(CompileSynchronously = true)]
     public struct LightRemovalJob : IJob
     {
+        /// <summary>Per-voxel nibble-packed light data, modified in-place by removal and re-propagation.</summary>
         public NativeArray<byte> LightData;
 
+        /// <summary>Chunk voxel data for opacity lookups.</summary>
         [ReadOnly] public NativeArray<StateId> ChunkData;
+
+        /// <summary>Block state compact table for opacity, emission, and filter lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
 
         /// <summary>
@@ -80,6 +84,7 @@ namespace Lithforge.WorldGen.Stages
         /// </summary>
         public NativeList<NativeBorderLightEntry> BorderLightOutput;
 
+        /// <summary>Runs the 5-step removal pipeline: seed, remove sun, remove block, re-propagate, collect borders.</summary>
         public void Execute()
         {
             // Queue entries use unified 25-bit encoding:
@@ -116,6 +121,7 @@ namespace Lithforge.WorldGen.Stages
             blockReseedQueue.Dispose();
         }
 
+        /// <summary>Seeds removal queues from cross-chunk border removal entries with column-write optimization.</summary>
         private void SeedFromBorderRemovals(
             ref NativeQueue<int> sunRemovalQueue, ref NativeQueue<int> blockRemovalQueue,
             ref NativeQueue<int> sunReseedQueue, ref NativeQueue<int> blockReseedQueue)
@@ -254,6 +260,7 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        /// <summary>Seeds removal queues from block edit positions, handling opaque placement and block breaking.</summary>
         private void SeedFromChangedIndices(
             ref NativeQueue<int> sunRemovalQueue, ref NativeQueue<int> blockRemovalQueue,
             ref NativeQueue<int> sunReseedQueue, ref NativeQueue<int> blockReseedQueue)
@@ -551,6 +558,7 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        /// <summary>BFS light removal: propagates zero through neighbors that were lit by removed sources.</summary>
         private void RemoveLight(ref NativeQueue<int> removalQueue, ref NativeQueue<int> reseedQueue, bool isSun)
         {
             while (removalQueue.Count > 0)
@@ -600,6 +608,7 @@ namespace Lithforge.WorldGen.Stages
             }
         }
 
+        /// <summary>Evaluates a neighbor for removal or reseed during BFS light removal.</summary>
         private void TryRemoveNeighbor(int nx, int ny, int nz, byte oldLight, bool isSun,
             bool isDownward, int neighborSkipMask,
             ref NativeQueue<int> removalQueue, ref NativeQueue<int> reseedQueue)
