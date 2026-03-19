@@ -11,8 +11,6 @@ using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
 
-using UnityEngine;
-
 using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Network.Server
@@ -639,46 +637,6 @@ namespace Lithforge.Network.Server
         private void ProcessChunkStreaming(float currentTime)
         {
             IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
-            bool shouldLog = _streamDebugCounter++ % 30 == 0;
-
-            if (shouldLog)
-            {
-                int peerCount = allPeers.Count;
-
-                if (peerCount > 0)
-                {
-                    bool anyActive = false;
-
-                    for (int i = 0; i < peerCount; i++)
-                    {
-                        ConnectionState s = allPeers[i].StateMachine.Current;
-
-                        if (s == ConnectionState.Loading || s == ConnectionState.Playing)
-                        {
-                            anyActive = true;
-                            break;
-                        }
-                    }
-
-                    if (!anyActive)
-                    {
-                        string states = "";
-
-                        for (int i = 0; i < peerCount; i++)
-                        {
-                            if (i > 0)
-                            {
-                                states += ", ";
-                            }
-
-                            states += $"{allPeers[i].ConnectionId}={allPeers[i].StateMachine.Current}";
-                        }
-
-                        Debug.Log(
-                            $"[STREAM] {peerCount} peer(s) but none in Loading/Playing. States: {states}");
-                    }
-                }
-            }
 
             for (int i = 0; i < allPeers.Count; i++)
             {
@@ -687,23 +645,6 @@ namespace Lithforge.Network.Server
 
                 if (state == ConnectionState.Loading || state == ConnectionState.Playing)
                 {
-                    if (shouldLog)
-                    {
-                        if (peer.InterestState != null)
-                        {
-                            Debug.Log(
-                                $"[STREAM] peer={peer.ConnectionId} state={state} " +
-                                $"queue={peer.InterestState.StreamingQueue.Count} " +
-                                $"loaded={peer.InterestState.LoadedChunks.Count} " +
-                                $"idx={peer.InterestState.StreamingQueueIndex}");
-                        }
-                        else
-                        {
-                            Debug.Log(
-                                $"[STREAM] peer={peer.ConnectionId} state={state} InterestState=NULL");
-                        }
-                    }
-
                     IChunkStreamingStrategy strategy = GetStrategyForPeer(peer.ConnectionId);
                     _streamingManager.ProcessForPeer(peer, strategy, CurrentTick);
 
@@ -716,6 +657,7 @@ namespace Lithforge.Network.Server
                             _logger.LogWarning(
                                 $"ClientReady timeout for peer {peer.ConnectionId}, forcing Playing");
                             _readinessWaiter.OnPeerReady(peer.ConnectionId);
+
                             TransitionToPlaying(peer, currentTime);
                         }
                     }
