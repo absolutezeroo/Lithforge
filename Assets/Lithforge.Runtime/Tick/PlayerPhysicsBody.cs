@@ -1,3 +1,5 @@
+using System;
+
 using Lithforge.Physics;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
@@ -53,6 +55,13 @@ namespace Lithforge.Runtime.Tick
         // Interpolation positions — read by GameLoop.LateUpdate()
 
         // Spawn guard
+
+        /// <summary>
+        ///     Optional collision state override for unconfirmed block predictions.
+        ///     When set, collision resolves against server-confirmed state instead of
+        ///     optimistically-applied predictions, preventing cascading mispredictions.
+        /// </summary>
+        private Func<int3, StateId?> _collisionOverride;
 
         // Physics state
         private float _verticalSpeed;
@@ -127,6 +136,17 @@ namespace Lithforge.Runtime.Tick
             {
                 OnGround = false;
             }
+        }
+
+        /// <summary>
+        ///     Sets the collision state override delegate for unconfirmed block predictions.
+        ///     When a coordinate has an unconfirmed prediction, the delegate returns the
+        ///     original (pre-prediction) StateId so collision resolves against server-confirmed
+        ///     state. Pass null to disable the override (e.g. in singleplayer).
+        /// </summary>
+        public void SetCollisionOverride(Func<int3, StateId?> collisionOverride)
+        {
+            _collisionOverride = collisionOverride;
         }
 
         /// <summary>
@@ -292,7 +312,7 @@ namespace Lithforge.Runtime.Tick
 
             SolidBlockQuery query = SolidBlockHelper.Build(
                 _currentPosition, displacement, _playerHalfWidth, _playerHeight,
-                _chunkManager, _nativeStateRegistry);
+                _chunkManager, _nativeStateRegistry, _collisionOverride);
 
             CollisionResult result = VoxelCollider.Resolve(
                 ref _currentPosition, ref displacement,
@@ -336,7 +356,7 @@ namespace Lithforge.Runtime.Tick
             {
                 SolidBlockQuery query = SolidBlockHelper.Build(
                     _currentPosition, displacement, _playerHalfWidth, _playerHeight,
-                    _chunkManager, _nativeStateRegistry);
+                    _chunkManager, _nativeStateRegistry, _collisionOverride);
 
                 CollisionResult result = VoxelCollider.Resolve(
                     ref _currentPosition, ref displacement,
@@ -504,7 +524,7 @@ namespace Lithforge.Runtime.Tick
 
             SolidBlockQuery query = SolidBlockHelper.Build(
                 _currentPosition, displacement, _playerHalfWidth, _playerHeight,
-                _chunkManager, _nativeStateRegistry);
+                _chunkManager, _nativeStateRegistry, _collisionOverride);
 
             CollisionResult result = VoxelCollider.Resolve(
                 ref _currentPosition, ref displacement,

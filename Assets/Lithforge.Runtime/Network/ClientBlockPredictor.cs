@@ -60,6 +60,29 @@ namespace Lithforge.Runtime.Network
         }
 
         /// <summary>
+        ///     Returns true if the given world position has an unconfirmed prediction,
+        ///     and outputs the original (pre-prediction) state. Used by the collision
+        ///     system to resolve collisions against server-confirmed state, not
+        ///     optimistically-applied predictions.
+        /// </summary>
+        public bool TryGetOriginalState(int3 position, out StateId originalState)
+        {
+            foreach (KeyValuePair<ushort, PendingPrediction> pair in _pending)
+            {
+                if (pair.Value.Position.Equals(position))
+                {
+                    originalState = pair.Value.OldState;
+
+                    return true;
+                }
+            }
+
+            originalState = default;
+
+            return false;
+        }
+
+        /// <summary>
         ///     Called each fixed tick (30 TPS). Expires predictions older than
         ///     <see cref="NetworkConstants.PredictionExpirySeconds" /> by reverting the block
         ///     to its pre-prediction state, preventing unbounded pending map growth.
