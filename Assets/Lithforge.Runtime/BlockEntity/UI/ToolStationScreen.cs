@@ -17,8 +17,8 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    ///     Screen for the tool station block entity. Shows 3 part slots (head, handle, binding),
-    ///     tool type selector buttons, result preview label, and output slot.
+    ///     Screen for the tool station block entity. Three-column layout: tool type icon sidebar,
+    ///     part input slots with arrow and output, and a right-side info panel showing stats/traits.
     ///     Player inventory and hotbar below.
     /// </summary>
     public sealed class ToolStationScreen : ContainerScreen
@@ -37,8 +37,23 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit9,
         };
 
+        /// <summary>White color for standard stat values.</summary>
+        private static readonly Color s_statWhite = new(1f, 1f, 1f, 1f);
+
+        /// <summary>Green color for positive stat values (repair restores).</summary>
+        private static readonly Color s_statGreen = new(0.4f, 0.85f, 0.4f, 1f);
+
+        /// <summary>Yellow color for notable stat values (mining level).</summary>
+        private static readonly Color s_statYellow = new(1f, 0.85f, 0.3f, 1f);
+
+        /// <summary>Red color for negative or missing stat values.</summary>
+        private static readonly Color s_statRed = new(1f, 0.3f, 0.3f, 1f);
+
         /// <summary>Button for selecting the axe tool type.</summary>
         private Button _axeBtn;
+
+        /// <summary>Icon element inside the axe button for sprite assignment.</summary>
+        private VisualElement _axeIcon;
 
         /// <summary>Single-slot adapter wrapping the binding part slot (slot 2).</summary>
         private BlockEntityContainerAdapter _bindingAdapter;
@@ -70,8 +85,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
         /// <summary>Button for selecting the pickaxe tool type.</summary>
         private Button _pickaxeBtn;
 
+        /// <summary>Icon element inside the pickaxe button for sprite assignment.</summary>
+        private VisualElement _pickaxeIcon;
+
         /// <summary>Flag indicating the assembly preview needs recomputation due to slot changes.</summary>
         private bool _previewDirty = true;
+
+        /// <summary>Preview image element showing the composite tool sprite.</summary>
+        private VisualElement _previewImage;
 
         /// <summary>Per-slot count of repair material items consumed in the current repair preview.</summary>
         private int[] _repairItemsConsumed;
@@ -79,7 +100,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
         /// <summary>Total durability points restored by the current repair preview.</summary>
         private int _repairTotalRepair;
 
-        /// <summary>Label displaying the assembled or repaired tool name and level.</summary>
+        /// <summary>Label displaying the assembled or repaired tool name.</summary>
         private Label _resultLabel;
 
         /// <summary>Currently selected tool type for assembly (defaults to Pickaxe).</summary>
@@ -88,11 +109,20 @@ namespace Lithforge.Runtime.BlockEntity.UI
         /// <summary>Button for selecting the shovel tool type.</summary>
         private Button _shovelBtn;
 
-        /// <summary>Label displaying computed tool stats (speed, durability, damage).</summary>
-        private Label _statsLabel;
+        /// <summary>Icon element inside the shovel button for sprite assignment.</summary>
+        private VisualElement _shovelIcon;
+
+        /// <summary>Container for per-line stat rows in the info panel.</summary>
+        private VisualElement _statsContainer;
 
         /// <summary>Button for selecting the sword tool type.</summary>
         private Button _swordBtn;
+
+        /// <summary>Icon element inside the sword button for sprite assignment.</summary>
+        private VisualElement _swordIcon;
+
+        /// <summary>Container for trait labels in the info panel.</summary>
+        private VisualElement _traitsContainer;
 
         /// <summary>Registry for resolving tool trait descriptions in the UI.</summary>
         private ToolTraitRegistry _traitRegistry;
@@ -131,40 +161,40 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             // Update preview only when slots change
             if (_currentStation != null && _previewDirty
-                                        && _resultLabel != null && _statsLabel != null)
+                && _resultLabel != null && _statsContainer != null)
             {
                 _previewDirty = false;
 
                 if (IsRepairMode())
                 {
-                    UpdateRepairPreview();
-
                     if (_modeLabel != null)
                     {
                         _modeLabel.text = "Repair";
                     }
+
+                    // Get tool from head slot for info
+                    ItemStack headStack = _headAdapter.GetSlot(0);
+                    ToolInstanceComponent headComp = headStack.Components?.Get<ToolInstanceComponent>(
+                        DataComponentTypes.ToolInstanceId);
+                    ToolInstance headTool = headComp?.Tool;
+
+                    int curDur = headTool != null
+                        ? (headTool.IsBroken ? 0 : headTool.CurrentDurability)
+                        : 0;
+                    int maxDur = headTool?.MaxDurability ?? 0;
+
+                    UpdateRepairPreview();
+                    UpdateInfoPanelRepair(headTool, curDur, maxDur, _repairTotalRepair);
                 }
                 else
                 {
-                    _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
-
-                    if (_cachedPreview != null)
-                    {
-                        _resultLabel.text = _selectedToolType + " (Lvl " + _cachedPreview.EffectiveToolLevel + ")";
-                        _statsLabel.text = "Speed: " + _cachedPreview.BaseSpeed.ToString("F1")
-                                                     + "  Durability: " + _cachedPreview.MaxDurability
-                                                     + "  Damage: " + _cachedPreview.BaseDamage.ToString("F1");
-                    }
-                    else
-                    {
-                        _resultLabel.text = "Place parts to assemble";
-                        _statsLabel.text = "";
-                    }
-
                     if (_modeLabel != null)
                     {
                         _modeLabel.text = "Assembly";
                     }
+
+                    _cachedPreview = _currentStation.Assembly.TryAssemble(_selectedToolType);
+                    UpdateInfoPanelAssembly(_cachedPreview);
                 }
             }
 
@@ -212,12 +242,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
-        /// <summary>Clones the UXML template, wires tool type selector buttons, and binds all slot groups.</summary>
+        /// <summary>Clones the UXML template, queries info panel elements, wires tool type icon buttons, and binds all slot groups.</summary>
         private void RebuildUI()
         {
             _resultLabel = null;
-            _statsLabel = null;
             _modeLabel = null;
+            _statsContainer = null;
+            _traitsContainer = null;
+            _previewImage = null;
             _pickaxeBtn = null;
             _axeBtn = null;
             _shovelBtn = null;
@@ -236,22 +268,33 @@ namespace Lithforge.Runtime.BlockEntity.UI
             VisualElement hotbarSlots = QueryContainer("hotbar-slots");
 
             _resultLabel = Panel.Q<Label>("result-label");
-            _statsLabel = Panel.Q<Label>("stats-label");
             _modeLabel = Panel.Q<Label>("mode-label");
+            _statsContainer = Panel.Q<VisualElement>("stats-container");
+            _traitsContainer = Panel.Q<VisualElement>("traits-container");
+            _previewImage = Panel.Q<VisualElement>("preview-image");
 
             _pickaxeBtn = Panel.Q<Button>("pickaxe-btn");
             _axeBtn = Panel.Q<Button>("axe-btn");
             _shovelBtn = Panel.Q<Button>("shovel-btn");
             _swordBtn = Panel.Q<Button>("sword-btn");
 
+            // Locate icon children inside buttons
+            _pickaxeIcon = Panel.Q<VisualElement>("pickaxe-icon");
+            _axeIcon = Panel.Q<VisualElement>("axe-icon");
+            _shovelIcon = Panel.Q<VisualElement>("shovel-icon");
+            _swordIcon = Panel.Q<VisualElement>("sword-icon");
+
             if (headSlot == null || handleSlot == null || bindingSlot == null
                 || outputSlot == null || mainSlots == null || hotbarSlots == null
-                || _resultLabel == null || _statsLabel == null
+                || _resultLabel == null || _statsContainer == null
                 || _pickaxeBtn == null || _axeBtn == null
                 || _shovelBtn == null || _swordBtn == null)
             {
                 return;
             }
+
+            // Assign tool type icon sprites from atlas
+            AssignToolTypeIcons();
 
             // Wire button click handlers
             _pickaxeBtn.clicked += () =>
@@ -291,6 +334,241 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             SlotGroupDefinition hotbarGroupDef = SlotGroupDefinition.Create("hotbar", 9, 1);
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
+        }
+
+        /// <summary>Loads tool type icon sprites from Resources and assigns them to the sidebar button icon elements.</summary>
+        private void AssignToolTypeIcons()
+        {
+            SetIconSprite(_pickaxeIcon, "UI/Sprites/ToolIcons/pickaxe_icon");
+            SetIconSprite(_axeIcon, "UI/Sprites/ToolIcons/axe_icon");
+            SetIconSprite(_shovelIcon, "UI/Sprites/ToolIcons/shovel_icon");
+            SetIconSprite(_swordIcon, "UI/Sprites/ToolIcons/sword_icon");
+        }
+
+        /// <summary>Sets the background image of an icon element from a Resources sprite path.</summary>
+        private static void SetIconSprite(VisualElement iconElement, string resourcePath)
+        {
+            if (iconElement == null)
+            {
+                return;
+            }
+
+            Sprite sprite = Resources.Load<Sprite>(resourcePath);
+
+            if (sprite != null)
+            {
+                iconElement.style.backgroundImage = new StyleBackground(sprite);
+            }
+        }
+
+        /// <summary>Creates a single stat row with a label name and colored value for the info panel.</summary>
+        private static VisualElement BuildStatLine(string label, string value, Color valueColor)
+        {
+            VisualElement row = new();
+            row.AddToClassList("lf-stat-row");
+
+            Label nameLabel = new(label);
+            nameLabel.AddToClassList("lf-stat-name");
+
+            Label valueLabel = new(value);
+            valueLabel.AddToClassList("lf-stat-value");
+            valueLabel.style.color = valueColor;
+
+            row.Add(nameLabel);
+            row.Add(valueLabel);
+            return row;
+        }
+
+        /// <summary>Updates the info panel for assembly mode with tool stats, preview sprite, and traits.</summary>
+        private void UpdateInfoPanelAssembly(ToolInstance tool)
+        {
+            if (_statsContainer == null)
+            {
+                return;
+            }
+
+            _statsContainer.Clear();
+
+            if (_traitsContainer != null)
+            {
+                _traitsContainer.Clear();
+            }
+
+            if (tool == null)
+            {
+                if (_resultLabel != null)
+                {
+                    _resultLabel.text = "Place parts to assemble";
+                }
+
+                if (_previewImage != null)
+                {
+                    _previewImage.style.backgroundImage = StyleKeyword.None;
+                }
+
+                return;
+            }
+
+            // Tool name
+            string toolName = _selectedToolType.ToString();
+            ResourceId headMat = RepairKitHelper.GetHeadMaterial(tool);
+
+            if (!string.IsNullOrEmpty(headMat.Name))
+            {
+                string matName = headMat.Name;
+                matName = char.ToUpper(matName[0]) + matName.Substring(1);
+                toolName = matName + " " + toolName;
+            }
+
+            if (_resultLabel != null)
+            {
+                _resultLabel.text = toolName;
+            }
+
+            // Preview sprite
+            if (_previewImage != null && Context.ToolPartTextures != null)
+            {
+                Sprite composite = ToolSpriteCompositor.Composite(
+                    tool, Context.ToolPartTextures);
+
+                if (composite != null)
+                {
+                    _previewImage.style.backgroundImage = new StyleBackground(composite);
+                }
+                else
+                {
+                    _previewImage.style.backgroundImage = StyleKeyword.None;
+                }
+            }
+
+            // Stat lines
+            _statsContainer.Add(BuildStatLine(
+                "Durability", tool.MaxDurability.ToString(), s_statWhite));
+            _statsContainer.Add(BuildStatLine(
+                "Mining Speed", tool.BaseSpeed.ToString("F1"), s_statWhite));
+
+            // Mining level name
+            string levelName = tool.EffectiveToolLevel switch
+            {
+                0 => "Wood",
+                1 => "Stone",
+                2 => "Iron",
+                3 => "Diamond",
+                4 => "Netherite",
+                _ => "Lvl " + tool.EffectiveToolLevel,
+            };
+            _statsContainer.Add(BuildStatLine("Mining Level", levelName, s_statYellow));
+            _statsContainer.Add(BuildStatLine(
+                "Attack Damage", tool.BaseDamage.ToString("F1"), s_statWhite));
+
+            // Traits
+            if (_traitsContainer != null && _traitRegistry != null)
+            {
+                IToolTrait[] traits = tool.GetAllTraits(_traitRegistry);
+
+                for (int i = 0; i < traits.Length; i++)
+                {
+                    string traitName = FormatTraitName(traits[i].TraitId);
+                    Label traitLabel = new(traitName);
+                    traitLabel.AddToClassList("lf-trait-label");
+                    _traitsContainer.Add(traitLabel);
+                }
+            }
+        }
+
+        /// <summary>Updates the info panel for repair mode with durability before/after and repair amount.</summary>
+        private void UpdateInfoPanelRepair(ToolInstance tool, int currentDur, int maxDur, int repairAmount)
+        {
+            if (_statsContainer == null)
+            {
+                return;
+            }
+
+            _statsContainer.Clear();
+
+            if (_traitsContainer != null)
+            {
+                _traitsContainer.Clear();
+            }
+
+            if (tool == null)
+            {
+                if (_resultLabel != null)
+                {
+                    _resultLabel.text = "Add matching repair material";
+                }
+
+                return;
+            }
+
+            // Tool name
+            string toolName = tool.ToolType.ToString();
+            ResourceId headMat = RepairKitHelper.GetHeadMaterial(tool);
+
+            if (!string.IsNullOrEmpty(headMat.Name))
+            {
+                string matName = headMat.Name;
+                matName = char.ToUpper(matName[0]) + matName.Substring(1);
+                toolName = matName + " " + toolName;
+            }
+
+            if (_resultLabel != null)
+            {
+                _resultLabel.text = toolName;
+            }
+
+            // Preview sprite
+            if (_previewImage != null)
+            {
+                ResourceId toolItemId = GetResultItemId(tool);
+                Sprite existing = SpriteAtlas.Get(toolItemId);
+
+                if (existing != null)
+                {
+                    _previewImage.style.backgroundImage = new StyleBackground(existing);
+                }
+            }
+
+            // Current durability line
+            _statsContainer.Add(BuildStatLine(
+                "Durability", currentDur + " / " + maxDur, s_statWhite));
+
+            if (repairAmount > 0)
+            {
+                int afterDur = Math.Min(currentDur + repairAmount, maxDur);
+                _statsContainer.Add(BuildStatLine(
+                    "After Repair", afterDur + " / " + maxDur, s_statGreen));
+                _statsContainer.Add(BuildStatLine(
+                    "Restores", "+" + repairAmount, s_statGreen));
+            }
+            else
+            {
+                _statsContainer.Add(BuildStatLine(
+                    "", "Add matching material", s_statRed));
+            }
+        }
+
+        /// <summary>Formats a trait ID (e.g. "lithforge:magnetic") into a display name (e.g. "Magnetic").</summary>
+        private static string FormatTraitName(string traitId)
+        {
+            if (string.IsNullOrEmpty(traitId))
+            {
+                return string.Empty;
+            }
+
+            int colonIdx = traitId.IndexOf(':');
+
+            if (colonIdx >= 0 && colonIdx < traitId.Length - 1)
+            {
+                traitId = traitId.Substring(colonIdx + 1);
+            }
+
+            if (traitId.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            return char.ToUpper(traitId[0]) + traitId.Substring(1);
         }
 
         /// <summary>Applies the selected CSS class to the active tool type button and removes it from others.</summary>
@@ -461,7 +739,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return headSlot.Components.Has(DataComponentTypes.ToolInstanceId);
         }
 
-        /// <summary>Computes the repair preview by checking handle/binding slots for matching materials and updating labels.</summary>
+        /// <summary>Computes the repair preview by checking handle/binding slots for matching materials and updating the output slot.</summary>
         private void UpdateRepairPreview()
         {
             ItemStack toolStack = _headAdapter.GetSlot(0);
@@ -487,13 +765,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 _outputAdapter.SetSlot(0, ItemStack.Empty);
                 _repairItemsConsumed = null;
                 _repairTotalRepair = 0;
-
-                if (_resultLabel != null && _statsLabel != null)
-                {
-                    _resultLabel.text = "Tool is at full durability";
-                    _statsLabel.text = "";
-                }
-
                 return;
             }
 
@@ -581,13 +852,6 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 _outputAdapter.SetSlot(0, ItemStack.Empty);
                 _repairItemsConsumed = null;
                 _repairTotalRepair = 0;
-
-                if (_resultLabel != null && _statsLabel != null)
-                {
-                    _resultLabel.text = "Add matching repair material";
-                    _statsLabel.text = "";
-                }
-
                 return;
             }
 
@@ -607,11 +871,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _repairItemsConsumed = itemsConsumed;
             _repairTotalRepair = totalRepair;
 
-            if (_resultLabel != null)
-            {
-                _resultLabel.text = "Repair +" + totalRepair + " durability";
-                _statsLabel.text = repaired.CurrentDurability + " / " + repaired.MaxDurability;
-            }
+            // Info panel updated by Update() → UpdateInfoPanelRepair()
         }
 
         /// <summary>Gives the repaired tool to the player, consumes repair materials, and clears the head slot.</summary>

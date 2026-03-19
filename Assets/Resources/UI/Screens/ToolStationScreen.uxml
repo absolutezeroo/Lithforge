@@ -3,38 +3,62 @@
     <ui:Template name="PlayerInventorySections" src="PlayerInventorySections.uxml" />
     <ui:VisualElement name="tool-station-panel" class="lf-panel">
         <ui:Label name="title-label" text="Tool Station" class="lf-panel__title" />
-        <ui:VisualElement name="selector-row" class="lf-slot-row"
-            style="margin-bottom: 8px;">
-            <ui:Button name="pickaxe-btn" text="Pickaxe" class="lf-btn" />
-            <ui:Button name="axe-btn" text="Axe" class="lf-btn" />
-            <ui:Button name="shovel-btn" text="Shovel" class="lf-btn" />
-            <ui:Button name="sword-btn" text="Sword" class="lf-btn" />
+
+        <ui:VisualElement name="main-content" class="lf-station-content">
+
+            <!-- Left sidebar: tool type icon buttons -->
+            <ui:VisualElement name="tool-type-sidebar" class="lf-station-sidebar">
+                <ui:Button name="pickaxe-btn" class="lf-icon-btn">
+                    <ui:VisualElement name="pickaxe-icon" class="lf-icon-btn__icon" />
+                </ui:Button>
+                <ui:Button name="axe-btn" class="lf-icon-btn">
+                    <ui:VisualElement name="axe-icon" class="lf-icon-btn__icon" />
+                </ui:Button>
+                <ui:Button name="shovel-btn" class="lf-icon-btn">
+                    <ui:VisualElement name="shovel-icon" class="lf-icon-btn__icon" />
+                </ui:Button>
+                <ui:Button name="sword-btn" class="lf-icon-btn">
+                    <ui:VisualElement name="sword-icon" class="lf-icon-btn__icon" />
+                </ui:Button>
+            </ui:VisualElement>
+
+            <!-- Center: part input slots + arrow + output -->
+            <ui:VisualElement name="slots-column" class="lf-station-slots">
+                <ui:Label name="mode-label" text="Assembly" class="lf-mode-label" />
+                <ui:VisualElement name="parts-row" class="lf-craft-section">
+                    <ui:VisualElement name="head-col" class="lf-part-col">
+                        <ui:Label text="Head" class="lf-slot-label" />
+                        <ui:VisualElement name="head-slot" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="handle-col" class="lf-part-col">
+                        <ui:Label text="Handle" class="lf-slot-label" />
+                        <ui:VisualElement name="handle-slot" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="binding-col" class="lf-part-col">
+                        <ui:Label text="Binding" class="lf-slot-label" />
+                        <ui:VisualElement name="binding-slot" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="output-row" class="lf-station-output-row">
+                    <ui:VisualElement class="lf-craft-arrow" />
+                    <ui:VisualElement name="output-col" class="lf-part-col">
+                        <ui:Label text="Result" class="lf-slot-label" />
+                        <ui:VisualElement name="output-slot" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Right: info panel (stats, preview, traits) -->
+            <ui:VisualElement name="info-panel" class="lf-info-panel">
+                <ui:VisualElement name="preview-image" class="lf-preview-image" />
+                <ui:Label name="result-label" text="" class="lf-info-title" />
+                <ui:VisualElement class="lf-info-separator" />
+                <ui:VisualElement name="stats-container" class="lf-stats-container" />
+                <ui:VisualElement name="traits-container" class="lf-traits-container" />
+            </ui:VisualElement>
+
         </ui:VisualElement>
-        <ui:VisualElement name="parts-section" class="lf-craft-section">
-            <ui:VisualElement name="head-col">
-                <ui:Label text="Head" class="lf-section-label" />
-                <ui:VisualElement name="head-slot" />
-            </ui:VisualElement>
-            <ui:VisualElement name="handle-col">
-                <ui:Label text="Handle" class="lf-section-label" />
-                <ui:VisualElement name="handle-slot" />
-            </ui:VisualElement>
-            <ui:VisualElement name="binding-col">
-                <ui:Label text="Binding" class="lf-section-label" />
-                <ui:VisualElement name="binding-slot" />
-            </ui:VisualElement>
-            <ui:VisualElement name="arrow-col" class="lf-craft-arrow-col">
-                <ui:VisualElement class="lf-craft-arrow" />
-            </ui:VisualElement>
-            <ui:VisualElement name="output-col">
-                <ui:Label text="Result" class="lf-section-label" />
-                <ui:VisualElement name="output-slot" />
-            </ui:VisualElement>
-        </ui:VisualElement>
-        <ui:Label name="result-label" text="" class="lf-section-label"
-            style="margin-top: 4px;" />
-        <ui:Label name="stats-label" text="" class="lf-section-label"
-            style="font-size: 10px;" />
+
         <ui:Instance template="PlayerInventorySections" />
     </ui:VisualElement>
 </ui:UXML>

@@ -16,9 +16,10 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.BlockEntity.UI
 {
     /// <summary>
-    ///     Screen for the Part Builder block entity (TiC-faithful).
-    ///     Shows pattern buttons on the left, Pattern + Material input slots,
-    ///     an output slot with live preview, and info labels. Player inventory and hotbar below.
+    ///     Screen for the Part Builder block entity (TiC-faithful). Three-column layout:
+    ///     part type icon sidebar, pattern + material slots with output and cost labels,
+    ///     and a right-side material info panel showing stats/traits.
+    ///     Player inventory and hotbar below.
     /// </summary>
     public sealed class PartBuilderScreen : ContainerScreen
     {
@@ -62,6 +63,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         /// <summary>Label displaying the resolved material name and selected part type.</summary>
         private Label _materialLabel;
+
+        /// <summary>Container for per-line material stat rows in the info panel.</summary>
+        private VisualElement _materialStatsContainer;
+
+        /// <summary>Container for material trait labels in the info panel.</summary>
+        private VisualElement _materialTraitsContainer;
 
         /// <summary>Flag indicating the pattern buttons and preview need refreshing due to slot changes.</summary>
         private bool _needsRefresh;
@@ -198,13 +205,15 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
-        /// <summary>Clones the UXML template, queries info labels, and binds pattern, material, output, and player slot groups.</summary>
+        /// <summary>Clones the UXML template, queries info panel elements, and binds pattern, material, output, and player slot groups.</summary>
         private void RebuildUI()
         {
             _patternButtonContainer = null;
             _materialLabel = null;
             _costLabel = null;
             _haveLabel = null;
+            _materialStatsContainer = null;
+            _materialTraitsContainer = null;
 
             if (!CloneTemplate())
             {
@@ -222,11 +231,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _materialLabel = Panel.Q<Label>("material-label");
             _costLabel = Panel.Q<Label>("cost-label");
             _haveLabel = Panel.Q<Label>("have-label");
+            _materialStatsContainer = Panel.Q<VisualElement>("material-stats-container");
+            _materialTraitsContainer = Panel.Q<VisualElement>("material-traits-container");
 
             if (_patternButtonContainer == null
                 || patternSlot == null || materialSlot == null || outputSlot == null
                 || mainSlots == null || hotbarSlots == null
-                || _materialLabel == null || _costLabel == null || _haveLabel == null)
+                || _materialLabel == null || _costLabel == null || _haveLabel == null
+                || _materialStatsContainer == null || _materialTraitsContainer == null)
             {
                 return;
             }
@@ -500,7 +512,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateInfoLabels();
         }
 
-        /// <summary>Clears and recreates the pattern button visual elements from the available recipes list.</summary>
+        /// <summary>Clears and recreates the pattern icon buttons from the available recipes list.</summary>
         private void RebuildPatternButtonsUI()
         {
             if (_patternButtonContainer == null)
@@ -516,12 +528,24 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartBuilderRecipe recipe = _availableRecipes[i];
                 int capturedIndex = i;
 
-                Button btn = new()
+                Button btn = new();
+                btn.AddToClassList("lf-icon-btn");
+                btn.tooltip = recipe.DisplayName;
+
+                // Load part type icon sprite
+                string iconName = recipe.ResultPartType.ToString().ToLowerInvariant();
+                VisualElement icon = new();
+                icon.AddToClassList("lf-icon-btn__icon");
+
+                Sprite iconSprite = Resources.Load<Sprite>(
+                    "UI/Sprites/PartIcons/" + iconName + "_icon");
+
+                if (iconSprite != null)
                 {
-                    text = recipe.DisplayName,
-                };
-                btn.AddToClassList("lf-btn");
-                btn.AddToClassList("lf-btn--compact");
+                    icon.style.backgroundImage = new StyleBackground(iconSprite);
+                }
+
+                btn.Add(icon);
 
                 // Disable if no material resolved or insufficient count
                 bool canCraft = _resolvedInput != null && _resolvedMaterial != null;
@@ -677,6 +701,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 _costLabel.text = "";
                 _haveLabel.text = "";
 
+                UpdateMaterialInfoPanel();
                 return;
             }
 
@@ -687,6 +712,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 _costLabel.text = "Place material to craft";
                 _haveLabel.text = "";
 
+                UpdateMaterialInfoPanel();
                 return;
             }
 
@@ -712,6 +738,155 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _costLabel.text = "Cost: " + recipeCost + " (" + itemsUsed + " items)";
             _haveLabel.text = "Have: " + haveValue.ToString("F1") + " units (" +
                               materialStack.Count + " items)";
+
+            UpdateMaterialInfoPanel();
+        }
+
+        /// <summary>Updates the right-side material info panel with stats and traits for the selected part type.</summary>
+        private void UpdateMaterialInfoPanel()
+        {
+            if (_materialStatsContainer == null)
+            {
+                return;
+            }
+
+            _materialStatsContainer.Clear();
+
+            if (_materialTraitsContainer != null)
+            {
+                _materialTraitsContainer.Clear();
+            }
+
+            if (_resolvedMaterial == null)
+            {
+                return;
+            }
+
+            // Stats relevant to the selected part type
+            Color white = new(1f, 1f, 1f, 1f);
+            Color yellow = new(1f, 0.85f, 0.3f, 1f);
+
+            ToolPartType partType = _selectedRecipe != null
+                ? _selectedRecipe.ResultPartType
+                : ToolPartType.Head;
+
+            if (partType is ToolPartType.Head or ToolPartType.Blade or ToolPartType.Point)
+            {
+                // Head stats
+                _materialStatsContainer.Add(BuildStatLine(
+                    "Durability", _resolvedMaterial.HeadDurability.ToString(), white));
+                _materialStatsContainer.Add(BuildStatLine(
+                    "Mining Speed", _resolvedMaterial.HeadMiningSpeed.ToString("F1"), white));
+
+                string levelName = _resolvedMaterial.ToolLevel switch
+                {
+                    0 => "Wood",
+                    1 => "Stone",
+                    2 => "Iron",
+                    3 => "Diamond",
+                    4 => "Netherite",
+                    _ => "Lvl " + _resolvedMaterial.ToolLevel,
+                };
+                _materialStatsContainer.Add(BuildStatLine(
+                    "Mining Level", levelName, yellow));
+                _materialStatsContainer.Add(BuildStatLine(
+                    "Attack Damage", _resolvedMaterial.HeadAttackDamage.ToString("F1"), white));
+            }
+            else if (partType is ToolPartType.Handle)
+            {
+                // Handle stats (multipliers)
+                _materialStatsContainer.Add(BuildStatLine(
+                    "Durability", FormatMultiplier(_resolvedMaterial.HandleDurabilityMultiplier),
+                    MultiplierColor(_resolvedMaterial.HandleDurabilityMultiplier)));
+                _materialStatsContainer.Add(BuildStatLine(
+                    "Mining Speed", FormatMultiplier(_resolvedMaterial.HandleSpeedMultiplier),
+                    MultiplierColor(_resolvedMaterial.HandleSpeedMultiplier)));
+            }
+            else if (partType is ToolPartType.Binding or ToolPartType.Guard)
+            {
+                // Binding: statless in TiC 3 — show material traits only
+                Label note = new("Binding adds traits only");
+                note.AddToClassList("lf-stat-name");
+                note.style.opacity = 0.6f;
+                _materialStatsContainer.Add(note);
+            }
+
+            // Traits
+            if (_materialTraitsContainer != null)
+            {
+                string[] traitIds = _resolvedMaterial.TraitIds;
+
+                if (traitIds != null)
+                {
+                    for (int i = 0; i < traitIds.Length; i++)
+                    {
+                        string traitName = traitIds[i];
+
+                        if (string.IsNullOrEmpty(traitName))
+                        {
+                            continue;
+                        }
+
+                        int colonIdx = traitName.IndexOf(':');
+
+                        if (colonIdx >= 0 && colonIdx < traitName.Length - 1)
+                        {
+                            traitName = traitName.Substring(colonIdx + 1);
+                        }
+
+                        if (traitName.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        traitName = char.ToUpper(traitName[0]) + traitName.Substring(1);
+
+                        Label traitLabel = new(traitName);
+                        traitLabel.AddToClassList("lf-trait-label");
+                        _materialTraitsContainer.Add(traitLabel);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Creates a single stat row with a label name and colored value for the info panel.</summary>
+        private static VisualElement BuildStatLine(string label, string value, Color valueColor)
+        {
+            VisualElement row = new();
+            row.AddToClassList("lf-stat-row");
+
+            Label nameLabel = new(label);
+            nameLabel.AddToClassList("lf-stat-name");
+
+            Label valueLabel = new(value);
+            valueLabel.AddToClassList("lf-stat-value");
+            valueLabel.style.color = valueColor;
+
+            row.Add(nameLabel);
+            row.Add(valueLabel);
+            return row;
+        }
+
+        /// <summary>Formats a float multiplier as a string with multiplication sign prefix.</summary>
+        private static string FormatMultiplier(float mult)
+        {
+            return "\u00d7" + mult.ToString("F2");
+        }
+
+        /// <summary>Returns a color based on whether a multiplier is positive, negative, or neutral.</summary>
+        private static Color MultiplierColor(float mult)
+        {
+            if (mult > 1.0f)
+            {
+                return new Color(0.4f, 0.85f, 0.4f, 1f);
+            }
+
+            if (mult < 1.0f)
+            {
+                return new Color(1f, 0.3f, 0.3f, 1f);
+            }
+
+            return new Color(1f, 1f, 1f, 1f);
         }
 
         /// <summary>Returns the material cost for the recipe, falling back to the resolved material's default cost.</summary>

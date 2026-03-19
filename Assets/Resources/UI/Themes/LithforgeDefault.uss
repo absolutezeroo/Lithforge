@@ -310,3 +310,184 @@
     color: var(--lf-text-primary);
     -unity-text-align: middle-center;
 }
+
+/* ─── Station Layout (3-column) ─── */
+
+.lf-station-content {
+    flex-direction: row;
+    min-height: 180px;
+    margin-bottom: 8px;
+}
+
+.lf-station-sidebar {
+    flex-direction: column;
+    width: 48px;
+    margin-right: 8px;
+    padding-top: 4px;
+}
+
+.lf-station-slots {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+}
+
+.lf-station-output-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+/* ─── Icon Button (tool type / pattern) ─── */
+
+.lf-icon-btn {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 4px;
+    background-color: rgba(51, 51, 51, 1);
+    background-image: var(--lf-btn-bg-image);
+    -unity-slice-left: var(--lf-slot-slice);
+    -unity-slice-right: var(--lf-slot-slice);
+    -unity-slice-top: var(--lf-slot-slice);
+    -unity-slice-bottom: var(--lf-slot-slice);
+    -unity-slice-scale: var(--lf-slice-scale);
+    border-width: 2px;
+    border-radius: 2px;
+    border-top-color: var(--lf-slot-border-highlight);
+    border-left-color: var(--lf-slot-border-highlight);
+    border-bottom-color: var(--lf-slot-border-shadow);
+    border-right-color: var(--lf-slot-border-shadow);
+    padding: 4px;
+    align-items: center;
+    justify-content: center;
+}
+
+.lf-icon-btn:hover {
+    background-color: rgba(70, 70, 70, 1);
+}
+
+.lf-icon-btn.lf-btn--selected {
+    background-color: rgba(77, 128, 77, 1);
+    border-top-color: rgba(120, 180, 120, 0.9);
+    border-left-color: rgba(120, 180, 120, 0.9);
+    border-bottom-color: rgba(40, 80, 40, 0.9);
+    border-right-color: rgba(40, 80, 40, 0.9);
+}
+
+.lf-icon-btn__icon {
+    width: 100%;
+    height: 100%;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* ─── Pattern grid (Part Builder sidebar) ─── */
+
+.lf-pattern-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 48px;
+}
+
+/* ─── Part column (slot + label) ─── */
+
+.lf-part-col {
+    align-items: center;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.lf-slot-label {
+    font-size: 10px;
+    color: var(--lf-text-muted);
+    margin-bottom: 2px;
+    -unity-text-align: middle-center;
+}
+
+/* ─── Mode label ─── */
+
+.lf-mode-label {
+    font-size: 12px;
+    color: var(--lf-text-muted);
+    -unity-text-align: middle-center;
+    margin-bottom: 6px;
+    -unity-font-style: italic;
+}
+
+/* ─── Info Panel (right column) ─── */
+
+.lf-info-panel {
+    width: 160px;
+    padding: 8px;
+    background-color: rgba(30, 30, 30, 0.6);
+    border-radius: 2px;
+}
+
+.lf-info-title {
+    font-size: 14px;
+    color: var(--lf-text-primary);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+    white-space: normal;
+}
+
+.lf-info-separator {
+    height: 1px;
+    background-color: var(--lf-separator-color);
+    margin-top: 4px;
+    margin-bottom: 6px;
+}
+
+.lf-preview-image {
+    width: 64px;
+    height: 64px;
+    align-self: center;
+    margin-bottom: 6px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* ─── Stats ─── */
+
+.lf-stats-container {
+    margin-bottom: 6px;
+}
+
+.lf-stat-row {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.lf-stat-name {
+    font-size: 11px;
+    color: var(--lf-text-muted);
+}
+
+.lf-stat-value {
+    font-size: 11px;
+    color: var(--lf-text-primary);
+    -unity-font-style: bold;
+}
+
+/* ─── Traits ─── */
+
+.lf-traits-container {
+    margin-top: 4px;
+}
+
+.lf-trait-label {
+    font-size: 11px;
+    color: rgba(100, 180, 255, 1);
+    -unity-font-style: italic;
+    margin-bottom: 1px;
+}
+
+/* ─── Cost labels ─── */
+
+.lf-cost-label {
+    font-size: 11px;
+    color: var(--lf-text-muted);
+    margin-top: 2px;
+    -unity-text-align: middle-center;
+}

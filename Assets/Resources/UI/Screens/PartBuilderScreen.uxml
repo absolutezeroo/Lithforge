@@ -3,43 +3,51 @@
     <ui:Template name="PlayerInventorySections" src="PlayerInventorySections.uxml" />
     <ui:VisualElement name="part-builder-panel" class="lf-panel">
         <ui:Label name="title-label" text="Part Builder" class="lf-panel__title" />
-        <ui:VisualElement name="content-row"
-            style="flex-direction: row; margin-bottom: 8px;">
-            <ui:VisualElement name="pattern-column"
-                style="width: 160px; margin-right: 8px;">
-                <ui:Label text="Patterns" class="lf-section-label" />
-                <ui:ScrollView name="pattern-scroll"
-                    mode="Vertical" style="max-height: 120px;">
-                    <ui:VisualElement name="pattern-button-container"
-                        style="flex-direction: row; flex-wrap: wrap;" />
-                </ui:ScrollView>
-            </ui:VisualElement>
-            <ui:VisualElement name="slots-column">
+
+        <ui:VisualElement name="main-content" class="lf-station-content">
+
+            <!-- Left sidebar: part type icon buttons (scrollable) -->
+            <ui:ScrollView name="pattern-sidebar" mode="Vertical"
+                class="lf-station-sidebar">
+                <ui:VisualElement name="pattern-button-container"
+                    class="lf-pattern-grid" />
+            </ui:ScrollView>
+
+            <!-- Center: pattern + material slots + arrow + output + cost -->
+            <ui:VisualElement name="slots-column" class="lf-station-slots">
                 <ui:VisualElement name="input-row" class="lf-craft-section">
-                    <ui:VisualElement name="pattern-col">
-                        <ui:Label text="Pattern" class="lf-section-label" />
+                    <ui:VisualElement name="pattern-col" class="lf-part-col">
+                        <ui:Label text="Pattern" class="lf-slot-label" />
                         <ui:VisualElement name="pattern-slot" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="material-col">
-                        <ui:Label text="Material" class="lf-section-label" />
+                    <ui:VisualElement name="material-col" class="lf-part-col">
+                        <ui:Label text="Material" class="lf-slot-label" />
                         <ui:VisualElement name="material-slot" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="arrow-col" class="lf-craft-arrow-col">
-                        <ui:VisualElement class="lf-craft-arrow" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="output-col">
-                        <ui:Label text="Result" class="lf-section-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="output-row" class="lf-station-output-row">
+                    <ui:VisualElement class="lf-craft-arrow" />
+                    <ui:VisualElement name="output-col" class="lf-part-col">
+                        <ui:Label text="Result" class="lf-slot-label" />
                         <ui:VisualElement name="output-slot" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:Label name="material-label" text="" class="lf-section-label"
-                    style="margin-top: 4px;" />
-                <ui:Label name="cost-label" text="" class="lf-section-label"
-                    style="font-size: 10px;" />
-                <ui:Label name="have-label" text="" class="lf-section-label"
-                    style="font-size: 10px;" />
+                <ui:Label name="cost-label" text="" class="lf-cost-label" />
+                <ui:Label name="have-label" text="" class="lf-cost-label" />
             </ui:VisualElement>
+
+            <!-- Right: material info panel -->
+            <ui:VisualElement name="info-panel" class="lf-info-panel">
+                <ui:Label name="material-label" text="" class="lf-info-title" />
+                <ui:VisualElement class="lf-info-separator" />
+                <ui:VisualElement name="material-stats-container"
+                    class="lf-stats-container" />
+                <ui:VisualElement name="material-traits-container"
+                    class="lf-traits-container" />
+            </ui:VisualElement>
+
         </ui:VisualElement>
+
         <ui:Instance template="PlayerInventorySections" />
     </ui:VisualElement>
 </ui:UXML>
