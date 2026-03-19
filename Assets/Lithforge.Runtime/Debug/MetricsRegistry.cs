@@ -17,45 +17,67 @@ namespace Lithforge.Runtime.Debug
     /// </summary>
     public sealed class MetricsRegistry
     {
+        /// <summary>The most recently committed metric snapshot.</summary>
         private MetricSnapshot _current;
 
-        // Rolling FPS smoother (exponential moving average)
+        /// <summary>Exponentially smoothed FPS value for stable display.</summary>
         private float _fpsSmoothed;
+
+        /// <summary>Smoothing factor for the exponential moving average FPS filter (0..1).</summary>
         private float _fpsAlpha = 0.1f;
 
-        // Frame-time ring buffer (300 samples) for graph and benchmark
+        /// <summary>Number of frame-time samples stored in the ring buffer.</summary>
         public const int HistorySize = 300;
 
-        // External references set at Initialize time
+        /// <summary>Chunk mesh store reference for reading GPU buffer usage and VRAM stats.</summary>
         private ChunkMeshStore _chunkMeshStore;
+
+        /// <summary>Chunk pool reference for reading available/checked-out/total counts.</summary>
         private ChunkPool _chunkPool;
+
+        /// <summary>Player controller reference for reading fly mode, noclip, and speed.</summary>
         private PlayerController _playerController;
+
+        /// <summary>Game loop reference for reading queue depths and tick count.</summary>
         private GameLoopPoco _gameLoopPoco;
+
+        /// <summary>Frame profiler reference for reading per-section timings.</summary>
         private IFrameProfiler _frameProfiler;
+
+        /// <summary>Pipeline stats reference for reading per-frame and cumulative counters.</summary>
         private IPipelineStats _pipelineStats;
 
+        /// <summary>Network metrics source for bandwidth and peer tracking, or null if not connected.</summary>
         private INetworkMetricsSource _networkMetrics;
 
-        // Scratch histogram — reused each frame (no alloc)
+        /// <summary>Scratch array reused each frame for chunk state histogram (avoids allocation).</summary>
         private readonly int[] _histogramScratch = new int[8];
 
+        /// <summary>Gets the most recently committed metric snapshot.</summary>
         public MetricSnapshot CurrentSnapshot
         {
             get { return _current; }
         }
 
+        /// <summary>Gets the snapshot from the frame before the current one.</summary>
         public MetricSnapshot PreviousSnapshot { get; private set; }
 
+        /// <summary>Ring buffer of per-frame wall-clock times in milliseconds for graph display.</summary>
         public float[] FrameTimeHistory { get; } = new float[HistorySize];
 
+        /// <summary>Current write position in the frame-time ring buffer.</summary>
         public int HistoryHead { get; private set; }
 
+        /// <summary>Number of valid entries in the frame-time ring buffer (0..HistorySize).</summary>
         public int HistoryFilled { get; private set; }
 
+        /// <summary>Chunk manager reference exposed for minimap rendering.</summary>
         public ChunkManager ChunkManager { get; private set; }
 
+        /// <summary>Main camera reference exposed for minimap and position queries.</summary>
         public Camera MainCamera { get; private set; }
 
+        /// <summary>Initializes all external references needed for metric sampling.</summary>
         public void Initialize(
             ChunkManager chunkManager,
             ChunkMeshStore chunkMeshStore,

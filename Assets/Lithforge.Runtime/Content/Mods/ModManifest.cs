@@ -72,6 +72,7 @@ namespace Lithforge.Runtime.Content.Mods
             get { return dependencies; }
         }
 
+        /// <summary>Editor callback that auto-fills the mod name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(modName))

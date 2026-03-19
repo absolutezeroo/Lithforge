@@ -11,8 +11,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 14: Bakes managed StateRegistry and atlas data into Burst-compatible NativeContainers.</summary>
     public sealed class BakeNativePhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -21,6 +23,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Bakes the NativeStateRegistry and NativeAtlasLookup from managed content data.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             ctx.NativeStateRegistry = ctx.StateRegistry.BakeNative(Allocator.Persistent);
@@ -28,6 +31,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
                 ctx.StateRegistry, ctx.AtlasResult, ctx.ResolvedFaces);
         }
 
+        /// <summary>Builds a NativeAtlasLookup from the state registry, atlas result, and resolved face textures.</summary>
         internal static NativeAtlasLookup BakeAtlasLookup(
             StateRegistry stateRegistry,
             AtlasResult atlasResult,
@@ -100,6 +104,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             return new NativeAtlasLookup(entries, textureCount);
         }
 
+        /// <summary>Packs six per-face 2-bit tint types into a single ushort (12 bits total).</summary>
         private static ushort PackFaceTints(
             byte posX, byte negX, byte posY, byte negY, byte posZ, byte negZ)
         {
@@ -112,6 +117,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
                 (negZ & 0x3) << 10);
         }
 
+        /// <summary>Returns the atlas layer index for an overlay texture, or 0xFFFF if none.</summary>
         private static ushort GetOverlayIndex(AtlasResult atlas, Texture2D texture)
         {
             if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))

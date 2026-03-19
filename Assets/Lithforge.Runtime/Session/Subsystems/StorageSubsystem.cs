@@ -6,10 +6,13 @@ using Lithforge.Voxel.Storage;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates world storage and loads or creates world metadata.</summary>
     public sealed class StorageSubsystem : IGameSubsystem
     {
+        /// <summary>The owned world storage instance.</summary>
         private WorldStorage _worldStorage;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -18,16 +21,19 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on session lock to prevent concurrent access.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(SessionLockSubsystem),
         };
 
+        /// <summary>Only created for sessions with a local world directory.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.HasLocalWorld;
         }
 
+        /// <summary>Opens world storage, loads or creates metadata, and registers both.</summary>
         public void Initialize(SessionContext context)
         {
             string worldPath;
@@ -79,14 +85,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(metadata);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes world storage and flushes any pending region writes.</summary>
         public void Dispose()
         {
             if (_worldStorage != null)

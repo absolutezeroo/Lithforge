@@ -16,11 +16,16 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the pause menu screen with quit, resume, settings, and Open-to-LAN.</summary>
     public sealed class PauseMenuSubsystem : IGameSubsystem
     {
+        /// <summary>LAN broadcaster created when singleplayer opens to LAN.</summary>
         private LanBroadcaster _lanBroadcaster;
+
+        /// <summary>UTP transport created when singleplayer opens to LAN.</summary>
         private INetworkTransport _lanTransport;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -29,16 +34,19 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on settings screen for options button wiring.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(SettingsScreenSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the pause menu screen GameObject and registers it.</summary>
         public void Initialize(SessionContext context)
         {
             PanelSettings panelSettings = SessionInitArgsHolder.Current?.PanelSettings;
@@ -49,6 +57,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(pauseMenuScreen);
         }
 
+        /// <summary>Wires pause/resume/quit callbacks, screen manager, and Open-to-LAN action.</summary>
         public void PostInitialize(SessionContext context)
         {
             PauseMenuScreen pauseMenuScreen = context.Get<PauseMenuScreen>();
@@ -135,10 +144,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             };
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes LAN broadcaster and transport created by Open-to-LAN if active.</summary>
         public void Dispose()
         {
             // PauseMenuScreen GO destroyed in session cleanup

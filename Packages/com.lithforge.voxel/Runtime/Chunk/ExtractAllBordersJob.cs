@@ -27,27 +27,61 @@ namespace Lithforge.Voxel.Chunk
     [BurstCompile]
     public struct ExtractAllBordersJob : IJob
     {
+        /// <summary>Voxel data from the +X neighbor chunk (or dummy if missing).</summary>
         [ReadOnly] public NativeArray<StateId> NeighborPosXData;
+
+        /// <summary>Voxel data from the -X neighbor chunk (or dummy if missing).</summary>
         [ReadOnly] public NativeArray<StateId> NeighborNegXData;
+
+        /// <summary>Voxel data from the +Y neighbor chunk (or dummy if missing).</summary>
         [ReadOnly] public NativeArray<StateId> NeighborPosYData;
+
+        /// <summary>Voxel data from the -Y neighbor chunk (or dummy if missing).</summary>
         [ReadOnly] public NativeArray<StateId> NeighborNegYData;
+
+        /// <summary>Voxel data from the +Z neighbor chunk (or dummy if missing).</summary>
         [ReadOnly] public NativeArray<StateId> NeighborPosZData;
+
+        /// <summary>Voxel data from the -Z neighbor chunk (or dummy if missing).</summary>
         [ReadOnly] public NativeArray<StateId> NeighborNegZData;
 
+        /// <summary>Whether the +X neighbor exists (false = skip extraction, output stays zero).</summary>
         public bool HasPosX;
+
+        /// <summary>Whether the -X neighbor exists.</summary>
         public bool HasNegX;
+
+        /// <summary>Whether the +Y neighbor exists.</summary>
         public bool HasPosY;
+
+        /// <summary>Whether the -Y neighbor exists.</summary>
         public bool HasNegY;
+
+        /// <summary>Whether the +Z neighbor exists.</summary>
         public bool HasPosZ;
+
+        /// <summary>Whether the -Z neighbor exists.</summary>
         public bool HasNegZ;
 
+        /// <summary>Output: 1024-element border slice from the +X neighbor's -X face.</summary>
         [WriteOnly] public NativeArray<StateId> OutputPosX;
+
+        /// <summary>Output: 1024-element border slice from the -X neighbor's +X face.</summary>
         [WriteOnly] public NativeArray<StateId> OutputNegX;
+
+        /// <summary>Output: 1024-element border slice from the +Y neighbor's -Y face.</summary>
         [WriteOnly] public NativeArray<StateId> OutputPosY;
+
+        /// <summary>Output: 1024-element border slice from the -Y neighbor's +Y face.</summary>
         [WriteOnly] public NativeArray<StateId> OutputNegY;
+
+        /// <summary>Output: 1024-element border slice from the +Z neighbor's -Z face.</summary>
         [WriteOnly] public NativeArray<StateId> OutputPosZ;
+
+        /// <summary>Output: 1024-element border slice from the -Z neighbor's +Z face.</summary>
         [WriteOnly] public NativeArray<StateId> OutputNegZ;
 
+        /// <summary>Extracts all 6 border slices from present neighbors in a single pass.</summary>
         public void Execute()
         {
             int size = ChunkConstants.Size;

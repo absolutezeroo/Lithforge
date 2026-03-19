@@ -23,6 +23,9 @@ namespace Lithforge.Network.Chunk
             public int Version;
         }
 
+        /// <summary>
+        /// Maps chunk coordinates to their cached serialized data and version.
+        /// </summary>
         private readonly Dictionary<int3, CacheEntry> _cache = new();
 
         /// <summary>Number of cache entries currently stored.</summary>

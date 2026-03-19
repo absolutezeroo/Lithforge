@@ -6,6 +6,9 @@ namespace Lithforge.Network.Transport
     /// </summary>
     public static class DirectTransportPair
     {
+        /// <summary>
+        /// Creates a matched server/client pair sharing crossed in-memory channels.
+        /// </summary>
         public static void Create(out DirectTransportServer server, out DirectTransportClient client)
         {
             // Channel A: client→server (client writes, server reads)

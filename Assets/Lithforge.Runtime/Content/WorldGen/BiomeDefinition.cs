@@ -302,6 +302,7 @@ namespace Lithforge.Runtime.Content.WorldGen
             get { return scatterTimeRestriction; }
         }
 
+        /// <summary>Editor callback that auto-fills the biome name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(biomeName))

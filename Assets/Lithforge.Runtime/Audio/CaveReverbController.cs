@@ -9,15 +9,28 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class CaveReverbController
     {
+        /// <summary>Unity AudioReverbFilter component being driven.</summary>
         private readonly AudioReverbFilter _reverbFilter;
+
+        /// <summary>Enclosure probe providing the current enclosure ratio.</summary>
         private readonly EnclosureProbe _enclosureProbe;
+
+        /// <summary>Minimum enclosure ratio required to activate reverb.</summary>
         private readonly float _threshold;
+
+        /// <summary>Interpolation speed for smoothing reverb parameter changes.</summary>
         private readonly float _lerpSpeed;
 
+        /// <summary>Target reverb decay time in seconds, driven by enclosure ratio.</summary>
         private float _targetDecayTime;
+
+        /// <summary>Target dry level in dB.</summary>
         private float _targetDryLevel;
+
+        /// <summary>Target room level in dB, driven by enclosure ratio.</summary>
         private float _targetRoom;
 
+        /// <summary>Creates the controller and initializes the reverb filter to silent defaults.</summary>
         public CaveReverbController(
             AudioReverbFilter reverbFilter,
             EnclosureProbe enclosureProbe,

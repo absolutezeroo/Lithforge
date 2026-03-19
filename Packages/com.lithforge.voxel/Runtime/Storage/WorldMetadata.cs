@@ -7,24 +7,41 @@ using Newtonsoft.Json.Linq;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     World metadata stored in world.json at the root of each world directory.
+    ///     Contains seed, game mode, timestamps, player state, and content hash.
+    ///     Saved atomically via temp-file + rename pattern.
+    /// </summary>
     public sealed class WorldMetadata
     {
+        /// <summary>Human-readable world name shown in the world selection UI.</summary>
         public string DisplayName { get; set; } = "New World";
 
+        /// <summary>World generation seed.</summary>
         public long Seed { get; set; }
 
+        /// <summary>Game mode (Survival or Creative).</summary>
         public GameMode GameMode { get; set; } = GameMode.Survival;
 
+        /// <summary>UTC timestamp when the world was first created.</summary>
         public DateTime CreationDate { get; set; } = DateTime.UtcNow;
 
+        /// <summary>UTC timestamp of the most recent play session (updated on every save).</summary>
         public DateTime LastPlayed { get; set; } = DateTime.UtcNow;
 
+        /// <summary>Save format version for migration compatibility.</summary>
         public int DataVersion { get; set; } = 2;
 
+        /// <summary>Hash of the content pipeline output, used to detect content pack changes.</summary>
         public string ContentHash { get; set; } = "";
 
+        /// <summary>Serialized player position, rotation, inventory, and time of day.</summary>
         public WorldPlayerState PlayerState { get; set; }
 
+        /// <summary>
+        ///     Serializes this metadata to a JSON file at the given path.
+        ///     Uses atomic write (temp file + rename) to prevent corruption.
+        /// </summary>
         public void Save(string filePath)
         {
             LastPlayed = DateTime.UtcNow;
@@ -155,6 +172,10 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Loads metadata from a world.json file. Returns null if the file
+        ///     does not exist or parsing fails. Supports both v1 and v2 format fields.
+        /// </summary>
         public static WorldMetadata Load(string filePath)
         {
             if (!File.Exists(filePath))

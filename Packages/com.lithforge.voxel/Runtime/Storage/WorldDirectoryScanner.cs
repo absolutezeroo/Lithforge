@@ -5,11 +5,22 @@ using System.Text.RegularExpressions;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     Discovers, creates, and deletes world directories under the worlds root folder.
+    ///     Each world is a subdirectory containing a world.json metadata file.
+    /// </summary>
     public static class WorldDirectoryScanner
     {
+        /// <summary>Maximum character length for sanitized world directory names.</summary>
         private const int MaxNameLength = 64;
+
+        /// <summary>Regex matching characters not allowed in directory names.</summary>
         private static readonly Regex s_invalidChars = new(@"[^a-zA-Z0-9_\-]", RegexOptions.Compiled);
 
+        /// <summary>
+        ///     Scans the worlds root for subdirectories, reads their metadata, and returns
+        ///     entries sorted by last-played date (most recent first).
+        /// </summary>
         public static List<WorldScanEntry> ScanWorlds(string worldsRoot)
         {
             List<WorldScanEntry> entries = new();
@@ -68,6 +79,10 @@ namespace Lithforge.Voxel.Storage
             return entries;
         }
 
+        /// <summary>
+        ///     Creates a new world directory with initial metadata.
+        ///     Returns the full path to the newly created world directory.
+        /// </summary>
         public static string CreateWorld(string worldsRoot, string displayName, long seed, GameMode mode)
         {
             if (!Directory.Exists(worldsRoot))
@@ -104,6 +119,7 @@ namespace Lithforge.Voxel.Storage
             return worldDir;
         }
 
+        /// <summary>Recursively deletes the specified world directory and all its contents.</summary>
         public static void DeleteWorld(string worldDir)
         {
             if (Directory.Exists(worldDir))
@@ -112,6 +128,10 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Sanitizes a display name into a filesystem-safe directory slug.
+        ///     Replaces spaces with underscores, strips invalid characters, and truncates to MaxNameLength.
+        /// </summary>
         public static string SanitizeName(string displayName)
         {
             if (string.IsNullOrEmpty(displayName))

@@ -10,13 +10,16 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public sealed class AudioEnvironmentTickAdapter : ITickable
     {
+        /// <summary>The audio environment controller to tick.</summary>
         private readonly AudioEnvironmentController _controller;
 
+        /// <summary>Creates an audio environment tick adapter wrapping the given controller.</summary>
         public AudioEnvironmentTickAdapter(AudioEnvironmentController controller)
         {
             _controller = controller;
         }
 
+        /// <summary>Re-evaluates slow-changing audio state (biome, underwater, enclosure).</summary>
         public void Tick(float tickDt)
         {
             _controller.Tick();

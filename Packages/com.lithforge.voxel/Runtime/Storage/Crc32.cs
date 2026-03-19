@@ -1,9 +1,15 @@
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     CRC-32 checksum implementation using the standard IEEE 802.3 polynomial (0xEDB88320).
+    ///     Used by <see cref="ChunkSerializer"/> to verify chunk data integrity on save/load.
+    /// </summary>
     internal static class Crc32
     {
+        /// <summary>Pre-computed CRC lookup table (256 entries, built once in the static constructor).</summary>
         private static readonly uint[] s_table = new uint[256];
 
+        /// <summary>Builds the CRC lookup table from the IEEE 802.3 polynomial.</summary>
         static Crc32()
         {
             const uint polynomial = 0xEDB88320u;
@@ -28,6 +34,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Computes the CRC-32 checksum over a byte range.</summary>
         public static uint Compute(byte[] data, int offset, int length)
         {
             uint crc = 0xFFFFFFFFu;

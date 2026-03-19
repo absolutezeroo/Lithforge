@@ -13,8 +13,10 @@ namespace Lithforge.Runtime.Content.Tools
     /// </summary>
     public sealed class ToolTemplateRegistry
     {
+        /// <summary>Maps item ResourceIds to their pre-baked ToolInstance CustomData byte arrays.</summary>
         private readonly Dictionary<ResourceId, byte[]> _templates;
 
+        /// <summary>Creates the registry by copying the provided template dictionary.</summary>
         public ToolTemplateRegistry(Dictionary<ResourceId, byte[]> templates)
         {
             _templates = new Dictionary<ResourceId, byte[]>();
@@ -45,6 +47,7 @@ namespace Lithforge.Runtime.Content.Tools
             return null;
         }
 
+        /// <summary>Returns true if this item has a legacy tool template registered.</summary>
         public bool IsLegacyTool(ResourceId itemId)
         {
             return _templates.ContainsKey(itemId);

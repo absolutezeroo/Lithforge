@@ -21,10 +21,16 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that creates the network server, transport layer, and server game loop
+    ///     for singleplayer (DirectTransport), host (Direct+UTP), and dedicated server modes.
+    /// </summary>
     public sealed class NetworkServerSubsystem : IGameSubsystem
     {
+        /// <summary>Composite transport combining direct and UTP transports.</summary>
         private CompositeTransport _compositeTransport;
 
+        /// <summary>Direct in-memory server transport for local player connection.</summary>
         private DirectTransportServer _directServer;
 
         /// <summary>
@@ -33,10 +39,13 @@ namespace Lithforge.Runtime.Session.Subsystems
         /// </summary>
         private PlayerTransformHolder _playerHolder;
 
+        /// <summary>The owned network server managing connections and message dispatch.</summary>
         private NetworkServer _server;
 
+        /// <summary>The server-side game loop processing player commands and chunk streaming.</summary>
         private ServerGameLoop _serverGameLoop;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -45,6 +54,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on chunk manager, physics, and tick registry for server simulation.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
@@ -52,6 +62,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(TickRegistrySubsystem),
         };
 
+        /// <summary>Created for singleplayer, host, and dedicated server modes.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             // Always-server: singleplayer now runs a server too
@@ -60,6 +71,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 or SessionConfig.DedicatedServer;
         }
 
+        /// <summary>Creates the server, transport layer, and game loop based on session mode.</summary>
         public void Initialize(SessionContext context)
         {
             ILogger logger = context.App.Logger;
@@ -206,6 +218,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Wires player transform, LAN broadcaster, and network metrics.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Capture player transform for the accept callback's spawn teleport.
@@ -229,10 +242,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes the network server and all transport layers.</summary>
         public void Dispose()
         {
             if (_server != null)

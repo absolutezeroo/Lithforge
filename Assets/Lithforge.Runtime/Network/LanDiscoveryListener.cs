@@ -18,18 +18,25 @@ namespace Lithforge.Runtime.Network
         /// <summary>Seconds after which a server is considered gone.</summary>
         private const float ExpirySeconds = 5f;
 
+        /// <summary>Map of IP address to discovered LAN server entry, maintained on the main thread.</summary>
         private readonly Dictionary<string, LanServerEntry> _discovered = new();
 
+        /// <summary>Thread-safe queue of raw packets received by the background listener thread.</summary>
         private readonly ConcurrentQueue<(byte[] data, string address, DateTime time)> _receiveQueue = new();
 
+        /// <summary>Reusable list for collecting expired entries during the drain sweep (fill pattern).</summary>
         private readonly List<LanServerEntry> _resultCache = new();
 
+        /// <summary>Volatile flag checked by the background thread to signal shutdown.</summary>
         private volatile bool _running;
 
+        /// <summary>Background thread running the listener loop.</summary>
         private Thread _thread;
 
+        /// <summary>UDP socket used for receiving broadcast packets.</summary>
         private UdpClient _udpClient;
 
+        /// <summary>Stops the listener thread, closes the UDP socket, and waits for thread exit.</summary>
         public void Dispose()
         {
             _running = false;
@@ -144,6 +151,7 @@ namespace Lithforge.Runtime.Network
             }
         }
 
+        /// <summary>Background thread entry point that receives UDP packets and enqueues them for main-thread processing.</summary>
         private void ListenLoop()
         {
             try

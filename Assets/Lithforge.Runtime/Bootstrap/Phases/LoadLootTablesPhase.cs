@@ -8,8 +8,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 9: Loads LootTable ScriptableObjects and converts them to LootTableDefinition.</summary>
     public sealed class LoadLootTablesPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -18,6 +20,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads loot table assets and builds the loot table dictionary.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             LootTable[] lootTableAssets = Resources.LoadAll<LootTable>("Content/LootTables");
@@ -35,6 +38,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             ctx.Logger.LogInfo($"Loaded {lootTables.Count} loot tables.");
         }
 
+        /// <summary>Converts a LootTable ScriptableObject to a runtime LootTableDefinition.</summary>
         private static LootTableDefinition ConvertLootTable(LootTable lt, ResourceId id)
         {
             LootTableDefinition def = new(id)

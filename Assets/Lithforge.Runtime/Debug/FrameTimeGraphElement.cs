@@ -11,21 +11,40 @@ namespace Lithforge.Runtime.Debug
     /// </summary>
     public sealed class FrameTimeGraphElement : VisualElement
     {
+        /// <summary>Bar color for frames under 16.67ms (meeting 60 FPS target).</summary>
         private static readonly Color s_green = new(0f, 0.78f, 0f, 1f);
+
+        /// <summary>Bar color for frames between 16.67ms and 33.33ms (30-60 FPS).</summary>
         private static readonly Color s_yellow = new(0.86f, 0.78f, 0f, 1f);
+
+        /// <summary>Bar color for frames exceeding 33.33ms (below 30 FPS).</summary>
         private static readonly Color s_red = new(0.86f, 0.16f, 0.16f, 1f);
+
+        /// <summary>Semi-transparent black background color for the graph area.</summary>
         private static readonly Color s_bgColor = new(0f, 0f, 0f, 0.63f);
+
+        /// <summary>Reference line color for the 60 FPS (16.67ms) threshold.</summary>
         private static readonly Color s_line60 = new(0f, 0.7f, 0f, 0.35f);
+
+        /// <summary>Reference line color for the 30 FPS (33.33ms) threshold.</summary>
         private static readonly Color s_line30 = new(0.86f, 0.16f, 0.16f, 0.35f);
+
+        /// <summary>Number of valid entries in the history ring buffer.</summary>
         private int _filled;
+
+        /// <summary>Current write position in the history ring buffer.</summary>
         private int _head;
+
+        /// <summary>Frame time history ring buffer (shared reference from MetricsRegistry).</summary>
         private float[] _history;
 
+        /// <summary>Registers the visual content generation callback for Painter2D rendering.</summary>
         public FrameTimeGraphElement()
         {
             generateVisualContent += OnGenerateVisualContent;
         }
 
+        /// <summary>Updates the frame time data source for the next repaint cycle.</summary>
         public void SetData(float[] history, int head, int filled)
         {
             _history = history;
@@ -33,6 +52,7 @@ namespace Lithforge.Runtime.Debug
             _filled = filled;
         }
 
+        /// <summary>Paints the background, reference lines, and per-frame color-coded bars.</summary>
         private void OnGenerateVisualContent(MeshGenerationContext mgc)
         {
             Painter2D p = mgc.painter2D;
@@ -101,6 +121,7 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>Draws a horizontal reference line at the specified frame time threshold.</summary>
         private static void DrawRefLine(Painter2D p, float w, float h, float ms, float maxMs, Color color)
         {
             float y = h - ms / maxMs * h;
@@ -120,6 +141,7 @@ namespace Lithforge.Runtime.Debug
             p.Fill();
         }
 
+        /// <summary>Computes the Y-axis scale in milliseconds based on the peak frame time in history.</summary>
         private float ComputeScale()
         {
             float maxMs = 0f;

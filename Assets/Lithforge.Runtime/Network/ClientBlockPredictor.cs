@@ -23,15 +23,19 @@ namespace Lithforge.Runtime.Network
     /// </summary>
     public sealed class ClientBlockPredictor
     {
+        /// <summary>Chunk manager for reading/writing block state optimistically.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Cached list for collecting dirtied chunk coordinates.</summary>
         private readonly List<int3> _dirtiedChunksCache = new();
 
         /// <summary>Reusable key list for the expiry sweep (fill pattern, no per-tick allocation).</summary>
         private readonly List<ushort> _expiredKeys = new();
 
+        /// <summary>Network client for sending block commands to the server.</summary>
         private readonly INetworkClient _networkClient;
 
+        /// <summary>Map of sequence ID to pending prediction awaiting server acknowledgement.</summary>
         private readonly Dictionary<ushort, PendingPrediction> _pending = new();
 
         /// <summary>
@@ -41,8 +45,10 @@ namespace Lithforge.Runtime.Network
         /// </summary>
         private readonly Dictionary<int3, OriginalStateEntry> _originalStateByPosition = new();
 
+        /// <summary>Monotonically increasing sequence ID for correlating predictions with ACKs.</summary>
         private ushort _sequenceId;
 
+        /// <summary>Creates the predictor and registers the ACK handler on the network dispatcher.</summary>
         public ClientBlockPredictor(
             ChunkManager chunkManager,
             INetworkClient networkClient)
@@ -218,6 +224,7 @@ namespace Lithforge.Runtime.Network
             _networkClient.Send(msg, PipelineId.ReliableSequenced);
         }
 
+        /// <summary>Handles an ACK from the server: discards accepted predictions, reverts rejected ones.</summary>
         private void OnAcknowledge(ConnectionId connId, byte[] data, int offset, int length)
         {
             AcknowledgeBlockChangeMessage msg =

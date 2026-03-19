@@ -10,10 +10,13 @@ namespace Lithforge.Voxel.Tag
     /// </summary>
     public sealed class TagRegistry
     {
+        /// <summary>Shared empty array returned when a tag or member has no entries.</summary>
         private static readonly ResourceId[] s_emptySet = System.Array.Empty<ResourceId>();
 
+        /// <summary>Forward index: tag id → set of member resource ids.</summary>
         private readonly Dictionary<ResourceId, HashSet<ResourceId>> _tagToMembers = new();
 
+        /// <summary>Reverse index: member resource id → set of tag ids it belongs to.</summary>
         private readonly Dictionary<ResourceId, HashSet<ResourceId>> _memberToTags = new();
 
         /// <summary>

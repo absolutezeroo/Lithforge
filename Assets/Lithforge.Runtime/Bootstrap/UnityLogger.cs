@@ -8,13 +8,16 @@ namespace Lithforge.Runtime.Bootstrap
     /// </summary>
     internal sealed class UnityLogger : ILogger
     {
+        /// <summary>Minimum log level; messages below this are discarded.</summary>
         private readonly LogLevel _minLevel;
 
+        /// <summary>Creates a logger with the specified minimum severity level.</summary>
         public UnityLogger(LogLevel minLevel = LogLevel.Debug)
         {
             _minLevel = minLevel;
         }
 
+        /// <summary>Logs a message at the specified level if it meets the minimum threshold.</summary>
         public void Log(LogLevel level, string message)
         {
             if (level < _minLevel)
@@ -42,6 +45,7 @@ namespace Lithforge.Runtime.Bootstrap
             }
         }
 
+        /// <summary>Logs a debug-level message if the minimum level allows it.</summary>
         public void LogDebug(string message)
         {
             if (_minLevel > LogLevel.Debug)
@@ -52,6 +56,7 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.Debug.Log($"[DEBUG] {message}");
         }
 
+        /// <summary>Logs an info-level message if the minimum level allows it.</summary>
         public void LogInfo(string message)
         {
             if (_minLevel > LogLevel.Info)
@@ -62,6 +67,7 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.Debug.Log($"[INFO] {message}");
         }
 
+        /// <summary>Logs a warning-level message if the minimum level allows it.</summary>
         public void LogWarning(string message)
         {
             if (_minLevel > LogLevel.Warning)
@@ -72,6 +78,7 @@ namespace Lithforge.Runtime.Bootstrap
             UnityEngine.Debug.LogWarning(message);
         }
 
+        /// <summary>Logs an error-level message (always emitted regardless of minimum level).</summary>
         public void LogError(string message)
         {
             UnityEngine.Debug.LogError(message);

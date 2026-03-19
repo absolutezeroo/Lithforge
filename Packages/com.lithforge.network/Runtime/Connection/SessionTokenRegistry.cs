@@ -14,8 +14,10 @@ namespace Lithforge.Network.Connection
         /// <summary>Seconds before an issued token expires and can no longer be used for reconnection.</summary>
         public const float TokenLifetimeSeconds = 120f;
 
+        /// <summary>Random number generator for producing unique token values.</summary>
         private readonly Random _random = new();
 
+        /// <summary>Map from raw token values to their associated player ID and issue time.</summary>
         private readonly Dictionary<ulong, TokenEntry> _tokens = new();
 
         /// <summary>Scratch list for expiry sweep to avoid modifying the dictionary during iteration.</summary>
@@ -118,6 +120,7 @@ namespace Lithforge.Network.Connection
             _tokens.Clear();
         }
 
+        /// <summary>Generates a random non-zero 64-bit token value.</summary>
         private ulong GenerateTokenValue()
         {
             byte[] bytes = new byte[8];

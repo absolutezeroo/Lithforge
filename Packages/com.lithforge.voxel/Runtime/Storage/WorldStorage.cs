@@ -13,20 +13,32 @@ using UnityEngine.Profiling;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     High-level storage layer that reads and writes chunk data via region files.
+    ///     Each region file covers a 32x32 XZ area. Region files are opened lazily
+    ///     and cached for the session lifetime. Thread-safe via _regionFilesLock.
+    /// </summary>
     public sealed class WorldStorage : IDisposable
     {
+        /// <summary>Reusable list for collecting dirty regions during FlushAll (avoids per-call allocation).</summary>
         private readonly List<RegionFile> _flushCache = new();
 
+        /// <summary>Logger for error reporting on load/save failures.</summary>
         private readonly ILogger _logger;
 
+        /// <summary>Full filesystem path to the "region" subdirectory within the world directory.</summary>
         private readonly string _regionDir;
 
+        /// <summary>Cache of open region files, keyed by region coordinate (chunk coord / 32).</summary>
         private readonly Dictionary<int3, RegionFile> _regionFiles = new();
 
+        /// <summary>Lock protecting _regionFiles for thread-safe region access from AsyncChunkSaver.</summary>
         private readonly object _regionFilesLock = new();
 
+        /// <summary>Whether this storage instance has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Opens or creates the world storage at the given world directory path.</summary>
         public WorldStorage(string worldDir, ILogger logger = null)
         {
             WorldDir = worldDir;
@@ -39,8 +51,10 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Full filesystem path to the world directory.</summary>
         public string WorldDir { get; }
 
+        /// <summary>Disposes all open region files and releases their resources.</summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -59,6 +73,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Returns true if the region file for this chunk has data for the given coordinate.</summary>
         public bool HasChunk(int3 chunkCoord)
         {
             try
@@ -76,6 +91,10 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Loads and deserializes a chunk from the region file into pre-allocated NativeArrays.
+        ///     Returns false if the chunk does not exist or deserialization fails.
+        /// </summary>
         public bool LoadChunk(int3 chunkCoord,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
@@ -122,6 +141,10 @@ namespace Lithforge.Voxel.Storage
             return LoadChunk(chunkCoord, chunkData, lightData, out Dictionary<int, IBlockEntity> _);
         }
 
+        /// <summary>
+        ///     Serializes and saves a chunk to the region file cache.
+        ///     Data is not written to disk until FlushAll or region Dispose.
+        /// </summary>
         public void SaveChunk(
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
@@ -201,6 +224,10 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Flushes all (or only dirty) region files to disk via atomic write.
+        ///     Called at shutdown and during incremental save.
+        /// </summary>
         public void FlushAll(bool onlyDirty = false)
         {
             _flushCache.Clear();
@@ -233,6 +260,7 @@ namespace Lithforge.Voxel.Storage
             _flushCache.Clear();
         }
 
+        /// <summary>Saves a minimal world.json with seed and content hash.</summary>
         public void SaveMetadata(long seed, string contentHash)
         {
             WorldMetadata meta = new()
@@ -242,6 +270,7 @@ namespace Lithforge.Voxel.Storage
             meta.Save(Path.Combine(WorldDir, "world.json"));
         }
 
+        /// <summary>Saves a complete WorldMetadata to world.json (player state, timestamps, etc.).</summary>
         public void SaveMetadataFull(WorldMetadata metadata)
         {
             if (metadata == null)
@@ -252,11 +281,13 @@ namespace Lithforge.Voxel.Storage
             metadata.Save(Path.Combine(WorldDir, "world.json"));
         }
 
+        /// <summary>Loads world.json metadata, or returns null if the file does not exist.</summary>
         public WorldMetadata LoadMetadata()
         {
             return WorldMetadata.Load(Path.Combine(WorldDir, "world.json"));
         }
 
+        /// <summary>Returns a cached RegionFile for the given region coordinate, opening it if needed.</summary>
         private RegionFile GetOrOpenRegion(int3 regionCoord)
         {
             lock (_regionFilesLock)
@@ -273,6 +304,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Converts a chunk coordinate to region coordinate and local XZ indices within the region.</summary>
         private static void GetRegionCoords(int3 chunkCoord, out int3 regionCoord, out int localX, out int localZ)
         {
             regionCoord = new int3(
@@ -284,6 +316,7 @@ namespace Lithforge.Voxel.Storage
             localZ = (chunkCoord.z % RegionFile.RegionSize + RegionFile.RegionSize) % RegionFile.RegionSize;
         }
 
+        /// <summary>Floor division that handles negative dividends correctly.</summary>
         private static int FloorDiv(int a, int b)
         {
             return a >= 0 ? a / b : (a - b + 1) / b;

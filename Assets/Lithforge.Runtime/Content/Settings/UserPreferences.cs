@@ -16,60 +16,94 @@ namespace Lithforge.Runtime.Content.Settings
     /// </summary>
     public sealed class UserPreferences
     {
+        /// <summary>Current schema version for forward-compatible JSON deserialization.</summary>
         private const int CurrentVersion = 1;
+
+        /// <summary>File name for the preferences JSON on disk.</summary>
         private const string FileName = "preferences.json";
 
-        // Legacy PlayerPrefs keys (for one-time migration)
+        /// <summary>Legacy PlayerPrefs key for render distance (pre-JSON migration).</summary>
         private const string LegacyPrefRenderDistance = "LF_RenderDistance";
+
+        /// <summary>Legacy PlayerPrefs key for field of view (pre-JSON migration).</summary>
         private const string LegacyPrefFOV = "LF_FOV";
+
+        /// <summary>Legacy PlayerPrefs key for mouse sensitivity (pre-JSON migration).</summary>
         private const string LegacyPrefMouseSensitivity = "LF_MouseSensitivity";
+
+        /// <summary>Legacy PlayerPrefs key for AO strength (pre-JSON migration).</summary>
         private const string LegacyPrefAOStrength = "LF_AOStrength";
 
+        /// <summary>Schema version stored in the JSON for forward compatibility.</summary>
         public int Version { get; set; } = CurrentVersion;
+
+        /// <summary>Preferred render distance in chunks, or -1 if unset.</summary>
         public int RenderDistance { get; set; } = -1;
+
+        /// <summary>Preferred camera field of view in degrees, or -1 if unset.</summary>
         public float FieldOfView { get; set; } = -1f;
+
+        /// <summary>Preferred mouse sensitivity multiplier, or -1 if unset.</summary>
         public float MouseSensitivity { get; set; } = -1f;
+
+        /// <summary>Preferred ambient occlusion strength [0..1], or -1 if unset.</summary>
         public float AOStrength { get; set; } = -1f;
+
+        /// <summary>Preferred master volume [0..1], or -1 if unset.</summary>
         public float MasterVolume { get; set; } = -1f;
+
+        /// <summary>Preferred SFX volume [0..1], or -1 if unset.</summary>
         public float SfxVolume { get; set; } = -1f;
+
+        /// <summary>Preferred music volume [0..1], or -1 if unset.</summary>
         public float MusicVolume { get; set; } = -1f;
+
+        /// <summary>Preferred ambient volume [0..1], or -1 if unset.</summary>
         public float AmbientVolume { get; set; } = -1f;
 
+        /// <summary>True if the user has explicitly set a render distance preference.</summary>
         public bool HasRenderDistance
         {
             get { return RenderDistance >= 0; }
         }
 
+        /// <summary>True if the user has explicitly set a field of view preference.</summary>
         public bool HasFieldOfView
         {
             get { return FieldOfView >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set a mouse sensitivity preference.</summary>
         public bool HasMouseSensitivity
         {
             get { return MouseSensitivity >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set an AO strength preference.</summary>
         public bool HasAOStrength
         {
             get { return AOStrength >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set a master volume preference.</summary>
         public bool HasMasterVolume
         {
             get { return MasterVolume >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set an SFX volume preference.</summary>
         public bool HasSfxVolume
         {
             get { return SfxVolume >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set a music volume preference.</summary>
         public bool HasMusicVolume
         {
             get { return MusicVolume >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set an ambient volume preference.</summary>
         public bool HasAmbientVolume
         {
             get { return AmbientVolume >= 0f; }
@@ -245,6 +279,7 @@ namespace Lithforge.Runtime.Content.Settings
             return prefs;
         }
 
+        /// <summary>Returns the full filesystem path for the preferences JSON file.</summary>
         private static string GetFilePath()
         {
             return Path.Combine(Application.persistentDataPath, FileName);

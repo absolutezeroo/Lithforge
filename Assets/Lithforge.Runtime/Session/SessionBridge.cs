@@ -9,6 +9,7 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class SessionBridge : MonoBehaviour
     {
+        /// <summary>Whether this bridge is actively forwarding Unity lifecycle calls.</summary>
         private bool _active;
 
         /// <summary>
@@ -17,8 +18,10 @@ namespace Lithforge.Runtime.Session
         /// </summary>
         public bool QuitRequested { get; set; }
 
+        /// <summary>The POCO game loop that receives forwarded Update/LateUpdate calls.</summary>
         public GameLoopPoco GameLoop { get; private set; }
 
+        /// <summary>Forwards Unity Update to the game loop each frame.</summary>
         private void Update()
         {
             if (_active && GameLoop != null)
@@ -27,6 +30,7 @@ namespace Lithforge.Runtime.Session
             }
         }
 
+        /// <summary>Forwards Unity LateUpdate to the game loop each frame.</summary>
         private void LateUpdate()
         {
             if (_active && GameLoop != null)
@@ -35,12 +39,14 @@ namespace Lithforge.Runtime.Session
             }
         }
 
+        /// <summary>Activates the bridge with the given game loop to begin forwarding updates.</summary>
         public void Activate(GameLoopPoco gameLoop)
         {
             GameLoop = gameLoop;
             _active = true;
         }
 
+        /// <summary>Deactivates the bridge, stopping all forwarded updates.</summary>
         public void Deactivate()
         {
             _active = false;

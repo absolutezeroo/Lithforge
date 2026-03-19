@@ -13,15 +13,23 @@ namespace Lithforge.Runtime.Content.Items.Affixes
     [System.Serializable]
     public struct AffixMiningEffect
     {
+        /// <summary>Type of mining modification this effect applies.</summary>
         [FormerlySerializedAs("Type")]
         public AffixEffectType type;
+
+        /// <summary>Magnitude of the effect (multiplier, flat bonus, or reduction amount).</summary>
         [FormerlySerializedAs("Value")]
         public float value;
+
+        /// <summary>Block material this effect targets. None matches all materials.</summary>
         [FormerlySerializedAs("TargetMaterial")]
         public BlockMaterialType targetMaterial;
+
+        /// <summary>Tool type this effect targets. None matches all tool types.</summary>
         [FormerlySerializedAs("TargetToolType")]
         public ToolType targetToolType;
 
+        /// <summary>Applies this effect to the mining context if material and tool type match.</summary>
         public MiningContext Apply(MiningContext ctx)
         {
             bool matMatch = targetMaterial == BlockMaterialType.None

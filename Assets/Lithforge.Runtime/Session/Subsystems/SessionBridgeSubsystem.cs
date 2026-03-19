@@ -32,13 +32,16 @@ namespace Lithforge.Runtime.Session.Subsystems
     /// </summary>
     public sealed class SessionBridgeSubsystem : IGameSubsystem
     {
+        /// <summary>The owned bridge GameObject hosting the SessionBridge MonoBehaviour.</summary>
         private GameObject _bridgeObject;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get { return "SessionBridge"; }
         }
 
+        /// <summary>Depends on all other subsystems; must be the last to initialize.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(AudioSubsystem),
@@ -48,11 +51,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(RemotePlayerManagerSubsystem),
         };
 
+        /// <summary>Always created for all session types.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return true;
         }
 
+        /// <summary>Creates the bridge GameObject; activation deferred to PostInitialize.</summary>
         public void Initialize(SessionContext context)
         {
             // Create the bridge GameObject; activation happens in PostInitialize
@@ -60,6 +65,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             _bridgeObject = new GameObject("SessionBridge");
         }
 
+        /// <summary>Assembles the GameLoopConfig, creates GameLoopPoco, and activates the bridge.</summary>
         public void PostInitialize(SessionContext context)
         {
             GameLoopConfig config = new();
@@ -222,10 +228,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Deactivates the bridge and destroys the bridge GameObject.</summary>
         public void Dispose()
         {
             if (_bridgeObject != null)
@@ -239,6 +247,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Builds the server-side loop POCO from registered subsystem services.</summary>
         private static ServerLoopPoco BuildServerLoop(
             SessionContext context,
             PlayerTransformHolder player)

@@ -11,7 +11,10 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class ChunkCulling
     {
+        /// <summary>Cached camera frustum planes (6 planes) for AABB intersection tests.</summary>
         private readonly Plane[] _frustumPlanes = new Plane[6];
+
+        /// <summary>Whether the frustum planes have been calculated from a valid camera.</summary>
         private bool _frustumValid;
 
         /// <summary>

@@ -13,16 +13,31 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class UnderwaterAudioFilter
     {
+        /// <summary>Camera transform for determining the player's head position.</summary>
         private readonly Transform _cameraTransform;
+
+        /// <summary>Chunk manager for querying block state at the head position.</summary>
         private readonly ChunkManager _chunkManager;
+
+        /// <summary>Unity low-pass filter component being driven.</summary>
         private readonly AudioLowPassFilter _filter;
+
+        /// <summary>Interpolation speed for smoothing cutoff frequency changes.</summary>
         private readonly float _lerpSpeed;
+
+        /// <summary>Native state registry for checking fluid flags on blocks.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
+
+        /// <summary>Low-pass cutoff frequency when on the surface (high = no filtering).</summary>
         private readonly float _surfaceCutoff;
+
+        /// <summary>Low-pass cutoff frequency when submerged (low = muffled).</summary>
         private readonly float _underwaterCutoff;
 
+        /// <summary>Target cutoff frequency that the filter interpolates toward.</summary>
         private float _targetCutoff;
 
+        /// <summary>Creates the filter with chunk lookup, filter component, and frequency thresholds.</summary>
         public UnderwaterAudioFilter(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -48,6 +63,7 @@ namespace Lithforge.Runtime.Audio
             }
         }
 
+        /// <summary>True if the player's head is currently inside a fluid block.</summary>
         public bool IsUnderwater { get; private set; }
 
         /// <summary>

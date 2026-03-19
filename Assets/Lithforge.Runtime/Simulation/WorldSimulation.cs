@@ -15,8 +15,13 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class WorldSimulation : IWorldSimulation
     {
+        /// <summary>Player ID for the local player in singleplayer mode.</summary>
         private const ushort LocalPlayerId = 0;
+
+        /// <summary>Accumulates per-frame input into discrete per-tick snapshots.</summary>
         private readonly InputSnapshotBuilder _inputSnapshotBuilder;
+
+        /// <summary>Manages the local player's physics body for tick-rate simulation.</summary>
         private readonly PlayerPhysicsManager _playerPhysicsManager;
 
         /// <summary>
@@ -26,9 +31,8 @@ namespace Lithforge.Runtime.Simulation
         /// </summary>
         private readonly CommandRingBuffer<MoveCommand> _predictionBuffer;
 
+        /// <summary>Registry of all ITickable systems driven each simulation tick.</summary>
         private readonly TickRegistry _tickRegistry;
-
-        // Starts at 1 so tick 0 remains the "empty slot" sentinel in CommandRingBuffer.
 
         /// <summary>
         ///     Per-player monotonic sequence counter for prediction.
@@ -38,6 +42,7 @@ namespace Lithforge.Runtime.Simulation
         /// </summary>
         private ushort _moveSequenceId;
 
+        /// <summary>Creates a new singleplayer world simulation with the given tick systems.</summary>
         public WorldSimulation(
             TickRegistry tickRegistry,
             PlayerPhysicsManager playerPhysicsManager,
@@ -57,6 +62,7 @@ namespace Lithforge.Runtime.Simulation
             get { return _predictionBuffer; }
         }
 
+        /// <summary>Current server tick number, starting at 1 (tick 0 is the empty sentinel).</summary>
         public uint CurrentTick { get; private set; } = 1;
 
         /// <summary>

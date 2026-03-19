@@ -12,8 +12,10 @@ using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates all container UI screens (inventory, chest, furnace, etc.).</summary>
     public sealed class ContainerScreenSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -22,17 +24,20 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on player and block interaction for inventory and entity access.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
             typeof(BlockInteractionSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the container screen manager and registers all block entity screen factories.</summary>
         public void Initialize(SessionContext context)
         {
             PlayerTransformHolder player = context.Get<PlayerTransformHolder>();
@@ -123,6 +128,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(inventoryScreen);
         }
 
+        /// <summary>Wires the container screen manager to block interaction for entity UI opening.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Wire container screen manager to BlockInteraction
@@ -134,10 +140,12 @@ namespace Lithforge.Runtime.Session.Subsystems
                 beScheduler, screenManager, context.Content.ToolTraitRegistry);
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources; GameObjects cleaned up separately.</summary>
         public void Dispose()
         {
         }

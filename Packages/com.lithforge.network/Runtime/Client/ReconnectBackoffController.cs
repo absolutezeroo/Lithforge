@@ -19,8 +19,10 @@ namespace Lithforge.Network.Client
         /// <summary>Maximum number of reconnection attempts before giving up.</summary>
         public const int MaxAttempts = 5;
 
+        /// <summary>Number of reconnection attempts made since the last reset.</summary>
         private int _attempts;
 
+        /// <summary>Wall-clock time at which the next reconnection attempt is permitted.</summary>
         private float _nextRetryTime;
 
         /// <summary>The session token to use for reconnection. Zero = not eligible.</summary>

@@ -12,6 +12,7 @@ namespace Lithforge.Runtime.Session.Subsystems
     /// </summary>
     public sealed class MaterialSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -20,13 +21,16 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No dependencies.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = Array.Empty<Type>();
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the three voxel materials (opaque, cutout, translucent) and assigns the texture atlas.</summary>
         public void Initialize(SessionContext context)
         {
             Material opaqueMaterial = context.App.VoxelMaterial;
@@ -97,14 +101,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(materials);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources; materials are cleaned up with the scene.</summary>
         public void Dispose()
         {
         }
@@ -113,14 +120,20 @@ namespace Lithforge.Runtime.Session.Subsystems
     /// <summary>Simple holder for the three voxel materials.</summary>
     public sealed class VoxelMaterials
     {
+        /// <summary>Creates a VoxelMaterials holder with the three render-layer materials.</summary>
         public VoxelMaterials(Material opaque, Material cutout, Material translucent)
         {
             Opaque = opaque;
             Cutout = cutout;
             Translucent = translucent;
         }
+        /// <summary>Material for opaque solid blocks.</summary>
         public Material Opaque { get; }
+
+        /// <summary>Material for cutout blocks (leaves, flowers) with alpha test.</summary>
         public Material Cutout { get; }
+
+        /// <summary>Material for translucent blocks (water, glass) with alpha blending.</summary>
         public Material Translucent { get; }
     }
 }

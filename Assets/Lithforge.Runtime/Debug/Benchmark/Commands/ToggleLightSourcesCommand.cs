@@ -18,19 +18,23 @@ namespace Lithforge.Runtime.Debug.Benchmark
     [CreateAssetMenu(fileName = "ToggleLightSourcesCommand", menuName = "Lithforge/Benchmark/Commands/Toggle Light Sources")]
     public sealed class ToggleLightSourcesCommand : BenchmarkCommand
     {
+        /// <summary>Number of light sources to place or remove.</summary>
         [Tooltip("Number of light sources to place"), Min(1), SerializeField]
          private int count = 200;
 
+        /// <summary>Spread radius in blocks from the player position for light placement.</summary>
         [Tooltip("Spread radius in blocks from player position"), Min(1), SerializeField]
          private int spreadRadius = 64;
 
+        /// <summary>If true, removes light sources (places air); otherwise places torches.</summary>
         [Tooltip("If true, removes light sources (places air); otherwise places torches"), SerializeField]
          private bool remove;
 
+        /// <summary>Random seed for reproducible light source placement positions.</summary>
         [Tooltip("Random seed for reproducible light placement"), SerializeField]
          private int seed = 42;
 
-        // Reusable scratch list for dirtied chunk coordinates
+        /// <summary>Reusable scratch list for dirtied chunk coordinates to avoid per-execution allocation.</summary>
         private readonly List<int3> _dirtiedChunks = new();
 
         public override IEnumerator Execute(BenchmarkContext context)

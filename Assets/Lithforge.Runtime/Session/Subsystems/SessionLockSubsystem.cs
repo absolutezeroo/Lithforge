@@ -6,10 +6,13 @@ using Lithforge.Voxel.Storage;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that acquires a filesystem lock to prevent concurrent world access.</summary>
     public sealed class SessionLockSubsystem : IGameSubsystem
     {
+        /// <summary>The owned session lock file handle.</summary>
         private SessionLockHandle _handle;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -18,13 +21,16 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No dependencies.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = Array.Empty<Type>();
 
+        /// <summary>Only created for sessions with a local world directory.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.HasLocalWorld;
         }
 
+        /// <summary>Attempts to acquire the session lock for the world directory.</summary>
         public void Initialize(SessionContext context)
         {
             string worldPath = context.Config switch
@@ -48,14 +54,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Releases the session lock file handle.</summary>
         public void Dispose()
         {
             if (_handle != null)

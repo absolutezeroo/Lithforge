@@ -15,12 +15,16 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class GameSession : IDisposable
     {
+        /// <summary>All initialized subsystems in topological order.</summary>
         private readonly List<IGameSubsystem> _subsystems = new();
 
+        /// <summary>Whether this session has already been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Whether all subsystems have been initialized and post-initialized.</summary>
         private bool _initialized;
 
+        /// <summary>The session context containing config, services, and lifetime tracker.</summary>
         public SessionContext Context { get; private set; }
 
         /// <summary>
@@ -129,6 +133,9 @@ namespace Lithforge.Runtime.Session
             }
         }
 
+        /// <summary>
+        ///     Completes in-flight Burst jobs then disposes all subsystems in reverse order.
+        /// </summary>
         private void ShutdownAndDispose()
         {
             // Complete any in-flight Burst jobs before disposing NativeContainers.

@@ -110,6 +110,7 @@ namespace Lithforge.Runtime.Content.Recipes
             get { return ingredients; }
         }
 
+        /// <summary>Editor callback that auto-fills the recipe name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(recipeName))

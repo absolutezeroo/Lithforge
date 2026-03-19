@@ -12,12 +12,24 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct ChunkDataMessage : INetworkMessage
     {
+        /// <summary>
+        /// Size of the fixed header portion in bytes (coordinates + payload length).
+        /// </summary>
         public const int HeaderSize = 4 + 4 + 4 + 4; // 16 bytes
 
+        /// <summary>
+        /// Chunk coordinate X.
+        /// </summary>
         public int ChunkX;
 
+        /// <summary>
+        /// Chunk coordinate Y.
+        /// </summary>
         public int ChunkY;
 
+        /// <summary>
+        /// Chunk coordinate Z.
+        /// </summary>
         public int ChunkZ;
 
         /// <summary>
@@ -25,11 +37,17 @@ namespace Lithforge.Network.Messages
         /// </summary>
         public byte[] Payload;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.ChunkData; }
         }
 
+        /// <summary>
+        /// Returns the total payload size including the header and variable-length chunk data.
+        /// </summary>
         public int GetSerializedSize()
         {
             int payloadLen = Payload?.Length ?? 0;
@@ -37,6 +55,9 @@ namespace Lithforge.Network.Messages
             return HeaderSize + payloadLen;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -60,6 +81,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static ChunkDataMessage Deserialize(byte[] buffer, int offset, int length)
         {
             ChunkDataMessage msg = new();

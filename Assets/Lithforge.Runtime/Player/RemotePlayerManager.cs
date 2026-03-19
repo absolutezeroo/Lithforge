@@ -19,40 +19,61 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class RemotePlayerManager : IDisposable
     {
-        // Shader property IDs (same as PlayerRenderer)
+        /// <summary>Shader property ID for the player model StructuredBuffer.</summary>
         private static readonly int s_playerVertexBufferId = Shader.PropertyToID("_PlayerVertexBuffer");
+
+        /// <summary>Shader property ID for the per-part transform StructuredBuffer.</summary>
         private static readonly int s_partTransformsId = Shader.PropertyToID("_PartTransforms");
+
+        /// <summary>Shader property ID for the skin texture.</summary>
         private static readonly int s_skinTexId = Shader.PropertyToID("_SkinTex");
 
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
         private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
-        // Shared materials
+        /// <summary>Material for the base (inner) model layer of all remote players.</summary>
         private readonly Material _baseModelMaterial;
 
-        // Entities
+        /// <summary>Map of player ID to live remote player entity.</summary>
         private readonly Dictionary<ushort, RemotePlayerEntity> _entities = new();
+
+        /// <summary>Material for name tag billboard quads.</summary>
         private readonly Material _nameTagMaterial;
+
+        /// <summary>Material for the overlay (outer) model layer of all remote players.</summary>
         private readonly Material _overlayModelMaterial;
+
+        /// <summary>Shared indirect arguments buffer (2 draw commands: base + overlay layer).</summary>
         private readonly GraphicsBuffer _sharedArgsBuffer;
+
+        /// <summary>Shared GPU index buffer for the player model mesh (static, built once).</summary>
         private readonly GraphicsBuffer _sharedIndexBuffer;
 
-        // Shared static GPU buffers (built once from PlayerModelMeshBuilder)
+        /// <summary>Shared GPU StructuredBuffer for player model vertices (static, built once).</summary>
         private readonly GraphicsBuffer _sharedVertexBuffer;
 
-        // Skin loader
+        /// <summary>Loads 64x64 skin textures from StreamingAssets for spawning entities.</summary>
         private readonly SkinLoader _skinLoader;
 
-        // Timeout sweep cache (fill pattern)
+        /// <summary>Reusable list for collecting timed-out entity IDs during the sweep (fill pattern).</summary>
         private readonly List<ushort> _timedOutIds = new();
 
+        /// <summary>True after Dispose has been called.</summary>
         private bool _disposed;
 
-        // Render time: offset so _renderTime aligns with server-tick-based timestamps
+        /// <summary>Monotonically advancing local render time, incremented by deltaTime each Tick.</summary>
         private float _renderTime;
+
+        /// <summary>True once the render clock offset has been calibrated from the first snapshot.</summary>
         private bool _renderTimeInitialized;
+
+        /// <summary>Offset added to _renderTime to align with server-tick-based timestamps.</summary>
         private float _renderTimeOffset;
 
+        /// <summary>
+        ///     Creates the manager, builds shared static model geometry (vertex/index/args buffers),
+        ///     and stores references to the materials used for all remote player draw calls.
+        /// </summary>
         public RemotePlayerManager(
             Material baseModelMaterial,
             Material overlayModelMaterial,
@@ -118,6 +139,7 @@ namespace Lithforge.Runtime.Player
             get { return _entities.Count; }
         }
 
+        /// <summary>Disposes all entities and releases shared GPU buffers.</summary>
         public void Dispose()
         {
             if (_disposed)

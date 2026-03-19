@@ -17,6 +17,7 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class PlayerInventoryScreen : ContainerScreen, IScreen
     {
+        /// <summary>Keyboard digit keys used for number-key slot swap shortcuts.</summary>
         private static readonly Key[] s_numberKeys =
         {
             Key.Digit1,
@@ -29,13 +30,23 @@ namespace Lithforge.Runtime.UI.Screens
             Key.Digit8,
             Key.Digit9,
         };
+
+        /// <summary>Container adapter wrapping the 2x2 crafting grid slots.</summary>
         private CraftingGridContainerAdapter _craftAdapter;
+
+        /// <summary>Local 2x2 crafting grid holding transient slot state during the session.</summary>
         private CraftingGrid _craftingGrid;
 
+        /// <summary>Container adapter wrapping the player hotbar slots (indices 0-8).</summary>
         private InventoryContainerAdapter _hotbarAdapter;
+
+        /// <summary>Container adapter wrapping the player main inventory slots (indices 9-35).</summary>
         private InventoryContainerAdapter _mainAdapter;
+
+        /// <summary>Container adapter for the crafting output slot with recipe match display.</summary>
         private CraftingOutputContainerAdapter _outputAdapter;
 
+        /// <summary>Handles E-key toggle, number-key slot swaps, and refreshes slot display each frame.</summary>
         private void Update()
         {
             if (Context == null)
@@ -92,15 +103,22 @@ namespace Lithforge.Runtime.UI.Screens
             UpdateTooltipKeyRefresh();
         }
 
+        /// <summary>Returns the screen name identifier for the player inventory.</summary>
         public string ScreenName { get { return ScreenNames.PlayerInventory; } }
+
+        /// <summary>Returns true because the inventory screen consumes all input when open.</summary>
         public bool IsInputOpaque { get { return true; } }
+
+        /// <summary>Returns true because the inventory screen requires a visible cursor.</summary>
         public bool RequiresCursor { get { return true; } }
 
+        /// <summary>Shows the inventory screen when pushed onto the navigation stack.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             SetVisible(true);
         }
 
+        /// <summary>Closes the inventory if open and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (IsOpen)
@@ -111,6 +129,7 @@ namespace Lithforge.Runtime.UI.Screens
             onComplete();
         }
 
+        /// <summary>Closes the inventory on Escape if open and returns true to consume the key event.</summary>
         public bool HandleEscape()
         {
             if (IsOpen)
@@ -122,6 +141,7 @@ namespace Lithforge.Runtime.UI.Screens
             return false;
         }
 
+        /// <summary>Creates the 2x2 crafting grid, adapters, loads the UXML template, and builds the slot layout.</summary>
         public void Initialize(ScreenContext context)
         {
             _craftingGrid = new CraftingGrid(2, 2);
@@ -140,6 +160,7 @@ namespace Lithforge.Runtime.UI.Screens
             BuildUI();
         }
 
+        /// <summary>Clones the UXML template and binds the 2x2 crafting grid, output, main inventory, and hotbar slots.</summary>
         private void BuildUI()
         {
             if (!CloneTemplate())
@@ -169,6 +190,7 @@ namespace Lithforge.Runtime.UI.Screens
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
+        /// <summary>Handles pointer-down: output take with shift-click crafting, shift-click transfers, and regular clicks.</summary>
         protected override void OnSlotPointerDown(ISlotContainer container, int slotIndex, PointerDownEvent evt)
         {
             if (!IsOpen)
@@ -227,6 +249,7 @@ namespace Lithforge.Runtime.UI.Screens
             evt.StopPropagation();
         }
 
+        /// <summary>Returns held items and remaining crafting grid items to the player inventory on close.</summary>
         protected override void OnClose()
         {
             // Return held items to inventory
@@ -275,6 +298,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Checks digit keys 1-9 and swaps the hovered slot with the corresponding hotbar slot.</summary>
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;

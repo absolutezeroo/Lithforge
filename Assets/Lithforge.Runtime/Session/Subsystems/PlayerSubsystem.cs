@@ -24,22 +24,27 @@ namespace Lithforge.Runtime.Session.Subsystems
     /// <summary>Simple holder for arm material references shared with RemotePlayerManagerSubsystem.</summary>
     public sealed class ArmMaterials
     {
+        /// <summary>Creates an ArmMaterials holder with the three arm rendering materials.</summary>
         public ArmMaterials(Material baseMat, Material overlayMat, Material heldItemMat)
         {
             Base = baseMat;
             Overlay = overlayMat;
             HeldItem = heldItemMat;
         }
+        /// <summary>Base skin-layer material for the player model.</summary>
         public Material Base { get; }
 
+        /// <summary>Overlay-layer material for the player model (hat, jacket, etc.).</summary>
         public Material Overlay { get; }
 
+        /// <summary>Material for the held item rendered in the player's hand.</summary>
         public Material HeldItem { get; }
     }
 
     /// <summary>Holds the player's Transform for registration in SessionContext.</summary>
     public sealed class PlayerTransformHolder
     {
+        /// <summary>Creates a player transform holder with all player-related references.</summary>
         public PlayerTransformHolder(
             Transform transform, Camera mainCamera, PlayerController controller,
             Inventory inventory, PlayerPhysicsBody physicsBody,
@@ -53,25 +58,38 @@ namespace Lithforge.Runtime.Session.Subsystems
             HasRestoredState = hasRestoredState;
             RestoredTimeOfDay = restoredTimeOfDay;
         }
+        /// <summary>The player's root Transform for position and rotation.</summary>
         public Transform Transform { get; }
 
+        /// <summary>The main camera attached under the player hierarchy.</summary>
         public Camera MainCamera { get; }
 
+        /// <summary>The player input controller component.</summary>
         public PlayerController Controller { get; }
 
+        /// <summary>The player's 36-slot inventory.</summary>
         public Inventory Inventory { get; }
 
+        /// <summary>The player's physics body for collision detection; may be swapped after handshake.</summary>
         public PlayerPhysicsBody PhysicsBody { get; set; }
 
+        /// <summary>The player model renderer for first-person arms and third-person body.</summary>
         public PlayerRenderer Renderer { get; set; }
 
+        /// <summary>Whether the player state was restored from a save file.</summary>
         public bool HasRestoredState { get; }
 
+        /// <summary>The time-of-day value restored from the save file (0-1).</summary>
         public float RestoredTimeOfDay { get; }
     }
 
+    /// <summary>
+    ///     Subsystem that creates the player object, camera, controller, physics body,
+    ///     inventory, renderer, and block highlight.
+    /// </summary>
     public sealed class PlayerSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -80,17 +98,20 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on chunk manager and physics for collision setup.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
             typeof(PlayerPhysicsSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the player hierarchy, camera, controller, inventory, renderer, and highlight.</summary>
         public void Initialize(SessionContext context)
         {
             PhysicsSettings physics = context.App.Settings.Physics;
@@ -277,14 +298,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Player GameObjects destroyed in session cleanup.</summary>
         public void Dispose()
         {
             // Player GameObjects destroyed in session cleanup

@@ -20,6 +20,7 @@ namespace Lithforge.Runtime.Player
         /// <summary>Box depth in pixels.</summary>
         public readonly int D;
 
+        /// <summary>Creates a part definition with the given UV origin and box dimensions.</summary>
         public SkinPartDefinition(int originU, int originV, int w, int h, int d)
         {
             OriginU = originU;

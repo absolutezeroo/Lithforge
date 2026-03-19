@@ -13,10 +13,17 @@ using Unity.Collections;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     Serializes and deserializes chunk data using a binary format with palette compression,
+    ///     LZ4 block compression, and CRC-32 integrity checking. Format version 3.
+    ///     Thread-safe via ThreadStatic scratch buffers.
+    /// </summary>
     public static class ChunkSerializer
     {
+        /// <summary>Current binary format version.</summary>
         private const byte Version = 3;
 
+        /// <summary>Magic bytes identifying the file as a Lithforge chunk ("LFCH").</summary>
         private static readonly byte[] s_magic =
         {
             (byte)'L',
@@ -25,12 +32,20 @@ namespace Lithforge.Voxel.Storage
             (byte)'H',
         };
 
+        /// <summary>Per-thread scratch buffer for voxel palette index encoding.</summary>
         [ThreadStatic] private static byte[] s_voxelBuffer;
 
+        /// <summary>Per-thread scratch buffer for light data encoding.</summary>
         [ThreadStatic] private static byte[] s_lightBuffer;
 
+        /// <summary>Per-thread reusable MemoryStream to avoid allocation per serialize call.</summary>
         [ThreadStatic] private static MemoryStream s_stream;
 
+        /// <summary>
+        ///     Serializes chunk data from NativeArrays (main-thread path).
+        ///     Palette-compresses voxel data, LZ4-compresses both voxel and light,
+        ///     includes block entities, and appends a CRC-32 checksum.
+        /// </summary>
         public static byte[] Serialize(
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
@@ -225,6 +240,7 @@ namespace Lithforge.Voxel.Storage
             return result;
         }
 
+        /// <summary>Writes the block entity section: count, then per-entity (flatIndex, typeId, length-prefixed payload).</summary>
         private static void WriteBlockEntities(BinaryWriter writer, Dictionary<int, IBlockEntity> blockEntities)
         {
             if (blockEntities is
@@ -257,6 +273,11 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Deserializes chunk data from a byte array into pre-allocated NativeArrays.
+        ///     Verifies CRC-32 checksum, magic bytes, and version before reading data.
+        ///     Returns false if the data is corrupted, truncated, or version-mismatched.
+        /// </summary>
         public static bool Deserialize(byte[] data,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,

@@ -15,6 +15,9 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class AppContext
     {
+        /// <summary>
+        ///     Creates an AppContext with all app-lifetime dependencies.
+        /// </summary>
         public AppContext(
             LoadedSettings settings,
             ILogger logger,
@@ -34,18 +37,25 @@ namespace Lithforge.Runtime.Session
             SavedServerList = savedServerList;
             CoroutineHost = coroutineHost;
         }
+        /// <summary>All loaded ScriptableObject settings (chunk, worldgen, rendering, etc.).</summary>
         public LoadedSettings Settings { get; }
 
+        /// <summary>Application-wide logger implementation.</summary>
         public ILogger Logger { get; }
 
+        /// <summary>Zero-alloc frame section profiler for timing measurements.</summary>
         public IFrameProfiler FrameProfiler { get; }
 
+        /// <summary>Pipeline counters tracking per-frame and cumulative statistics.</summary>
         public IPipelineStats PipelineStats { get; }
 
+        /// <summary>Persisted user preferences (volume, render distance, keybinds, etc.).</summary>
         public UserPreferences UserPreferences { get; }
 
+        /// <summary>UI screen stack manager for modal screen navigation.</summary>
         public ScreenManager ScreenManager { get; }
 
+        /// <summary>Persisted list of saved multiplayer server entries.</summary>
         public SavedServerList SavedServerList { get; }
 
         /// <summary>
@@ -57,8 +67,10 @@ namespace Lithforge.Runtime.Session
         /// <summary>Inspector-assigned or runtime-loaded compute shaders.</summary>
         public ComputeShader FrustumCullShader { get; set; }
 
+        /// <summary>Compute shader that generates the Hi-Z occlusion mipmap pyramid.</summary>
         public ComputeShader HiZGenerateShader { get; set; }
 
+        /// <summary>Compute shader for GPU buffer copy operations during resize.</summary>
         public ComputeShader BufferCopyShader { get; set; }
 
         /// <summary>Inspector-assigned or runtime-loaded voxel material.</summary>

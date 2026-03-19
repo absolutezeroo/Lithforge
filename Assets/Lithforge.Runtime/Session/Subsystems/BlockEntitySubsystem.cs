@@ -9,10 +9,13 @@ using Lithforge.Voxel.Chunk;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the block entity tick scheduler for furnaces, chests, etc.</summary>
     public sealed class BlockEntitySubsystem : IGameSubsystem
     {
+        /// <summary>The owned block entity tick scheduler.</summary>
         private BlockEntityTickScheduler _scheduler;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -21,16 +24,19 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on chunk manager for chunk data access.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
         };
 
+        /// <summary>Always created for all session types.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return true;
         }
 
+        /// <summary>Creates the block entity tick scheduler from chunk manager and registries.</summary>
         public void Initialize(SessionContext context)
         {
             ChunkManager chunkManager = context.Get<ChunkManager>();
@@ -43,6 +49,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_scheduler);
         }
 
+        /// <summary>Wires the tick adapter and chunk entity load events to the scheduler.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Wire to tick registry
@@ -58,10 +65,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources.</summary>
         public void Dispose()
         {
         }

@@ -21,40 +21,55 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class ServerBlockProcessor : IServerBlockProcessor
     {
+        /// <summary>Maximum distance in blocks a player can reach to interact with a block.</summary>
         private const float MaxReachDistance = 6f;
 
+        /// <summary>Extra tolerance on reach checks to account for client prediction drift.</summary>
         private const float PositionTolerance = 3f;
 
+        /// <summary>Maximum tokens in the per-player rate limiter bucket.</summary>
         private const float MaxTokens = 20f;
 
+        /// <summary>Rate at which tokens refill per second.</summary>
         private const float RefillRate = 20f;
 
+        /// <summary>Token cost per block operation (break or place).</summary>
         private const float CostPerOp = 1f;
 
+        /// <summary>Fraction of expected break time below which a FinishDigging is rejected as too fast.</summary>
         private const float BreakTimeTolerance = 0.5f;
 
+        /// <summary>Duration of one server tick in seconds (1/30 at 30 TPS).</summary>
         private const float TickDt = 1f / 30f;
 
+        /// <summary>Chunk manager for block reads/writes.</summary>
         private readonly ChunkManager _chunkManager;
 
-        // Per-player state
+        /// <summary>Per-player digging state tracking StartDigging position and timing.</summary>
         private readonly Dictionary<ushort, PlayerDiggingState> _diggingStates = new();
 
-        // Reusable list for SetBlock dirtied chunks (fill pattern)
+        /// <summary>Reusable list for SetBlock dirtied chunks (fill pattern).</summary>
         private readonly List<int3> _dirtiedChunksCache = new();
 
+        /// <summary>Mining speed multiplier when using bare hands (no tool).</summary>
         private readonly float _handMiningMultiplier;
 
+        /// <summary>Logger for validation warnings and diagnostics.</summary>
         private readonly ILogger _logger;
 
+        /// <summary>Burst-accessible state registry for block flag lookups.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
+        /// <summary>Per-player timestamp of last token refill for rate limiting.</summary>
         private readonly Dictionary<ushort, float> _rateLimitLastRefill = new();
 
+        /// <summary>Per-player current token count for rate limiting block operations.</summary>
         private readonly Dictionary<ushort, float> _rateLimitTokens = new();
 
+        /// <summary>Managed state registry for looking up block hardness and properties.</summary>
         private readonly StateRegistry _stateRegistry;
 
+        /// <summary>Creates a new server block processor with the given dependencies.</summary>
         public ServerBlockProcessor(
             ChunkManager chunkManager,
             StateRegistry stateRegistry,
@@ -69,6 +84,7 @@ namespace Lithforge.Runtime.Simulation
             _logger = logger;
         }
 
+        /// <summary>Initializes rate limit tokens and digging state for a newly connected player.</summary>
         public void AddPlayer(ushort playerId)
         {
             _diggingStates[playerId] = new PlayerDiggingState();
@@ -76,6 +92,7 @@ namespace Lithforge.Runtime.Simulation
             _rateLimitLastRefill[playerId] = 0f;
         }
 
+        /// <summary>Removes all per-player state (digging, rate limit) for a disconnecting player.</summary>
         public void RemovePlayer(ushort playerId)
         {
             _diggingStates.Remove(playerId);
@@ -83,6 +100,7 @@ namespace Lithforge.Runtime.Simulation
             _rateLimitLastRefill.Remove(playerId);
         }
 
+        /// <summary>Refills the player's rate limit tokens based on elapsed time since last refill.</summary>
         public void RefillRateLimitTokens(ushort playerId, float currentTime)
         {
             if (!_rateLimitLastRefill.TryGetValue(playerId, out float lastRefill))
@@ -103,6 +121,7 @@ namespace Lithforge.Runtime.Simulation
             _rateLimitLastRefill[playerId] = currentTime;
         }
 
+        /// <summary>Validates and begins tracking a digging action at the given position.</summary>
         public bool StartDigging(
             ushort playerId,
             int3 position,
@@ -158,6 +177,7 @@ namespace Lithforge.Runtime.Simulation
             return true;
         }
 
+        /// <summary>Clears the digging state for the given player (e.g. when they switch targets).</summary>
         public void CancelDigging(ushort playerId)
         {
             if (_diggingStates.ContainsKey(playerId))
@@ -167,6 +187,7 @@ namespace Lithforge.Runtime.Simulation
             }
         }
 
+        /// <summary>Validates and executes a block break, returning Accept with the old/new state or a rejection code.</summary>
         public BlockProcessResult TryBreakBlock(
             ushort playerId,
             int3 position,
@@ -249,6 +270,7 @@ namespace Lithforge.Runtime.Simulation
             return BlockProcessResult.Accept(currentState, StateId.Air);
         }
 
+        /// <summary>Validates and executes a block placement, returning Accept with the old/new state or a rejection code.</summary>
         public BlockProcessResult TryPlaceBlock(
             ushort playerId,
             int3 position,
@@ -340,11 +362,13 @@ namespace Lithforge.Runtime.Simulation
             return BlockProcessResult.Accept(currentState, blockState);
         }
 
+        /// <summary>Returns the block state at the given world position.</summary>
         public StateId GetBlock(int3 position)
         {
             return _chunkManager.GetBlock(position);
         }
 
+        /// <summary>Attempts to consume one token from the player's rate limit bucket. Returns false if empty.</summary>
         private bool ConsumeToken(ushort playerId)
         {
             if (!_rateLimitTokens.TryGetValue(playerId, out float tokens))
@@ -361,6 +385,7 @@ namespace Lithforge.Runtime.Simulation
             return true;
         }
 
+        /// <summary>Converts a BlockFace enum value to its corresponding direction vector.</summary>
         private static int3 FaceNormalToInt3(BlockFace face)
         {
             switch (face)

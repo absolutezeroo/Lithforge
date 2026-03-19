@@ -10,23 +10,50 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct BlockChangeMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 4 + 4 + 4 + 2; // 14 bytes
 
+        /// <summary>
+        /// World-space X coordinate of the changed block.
+        /// </summary>
         public int PositionX;
+
+        /// <summary>
+        /// World-space Y coordinate of the changed block.
+        /// </summary>
         public int PositionY;
+
+        /// <summary>
+        /// World-space Z coordinate of the changed block.
+        /// </summary>
         public int PositionZ;
+
+        /// <summary>
+        /// The new block state at this position.
+        /// </summary>
         public ushort NewState;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.BlockChange; }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -41,6 +68,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static BlockChangeMessage Deserialize(byte[] buffer, int offset, int length)
         {
             BlockChangeMessage msg = new();

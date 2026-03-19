@@ -17,12 +17,16 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class PlayerPhysicsManager : IPlayerManager
     {
+        /// <summary>Maps player IDs to their physics bodies.</summary>
         private readonly Dictionary<ushort, PlayerPhysicsBody> _bodies = new();
 
+        /// <summary>Chunk manager providing block data for collision queries.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Burst-accessible state registry for block collision shape lookups.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
+        /// <summary>Creates a new player physics manager backed by the given chunk and state data.</summary>
         public PlayerPhysicsManager(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry)
@@ -31,6 +35,7 @@ namespace Lithforge.Runtime.Simulation
             _nativeStateRegistry = nativeStateRegistry;
         }
 
+        /// <summary>Gets the feet-position of the player with the given ID, or zero if not found.</summary>
         public float3 GetPosition(ushort playerId)
         {
             if (_bodies.TryGetValue(playerId, out PlayerPhysicsBody body))
@@ -41,6 +46,7 @@ namespace Lithforge.Runtime.Simulation
             return float3.zero;
         }
 
+        /// <summary>Gets the yaw rotation in degrees for the given player, or 0 if not found.</summary>
         public float GetYaw(ushort playerId)
         {
             if (_bodies.TryGetValue(playerId, out PlayerPhysicsBody body))
@@ -51,6 +57,7 @@ namespace Lithforge.Runtime.Simulation
             return 0f;
         }
 
+        /// <summary>Returns true if the player exists and their spawn sequence is complete.</summary>
         public bool IsReady(ushort playerId)
         {
             if (_bodies.TryGetValue(playerId, out PlayerPhysicsBody body))
@@ -61,6 +68,7 @@ namespace Lithforge.Runtime.Simulation
             return false;
         }
 
+        /// <summary>Returns true if the given player is currently in fly mode.</summary>
         public bool IsFlying(ushort playerId)
         {
             if (_bodies.TryGetValue(playerId, out PlayerPhysicsBody body))

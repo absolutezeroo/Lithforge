@@ -10,8 +10,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Loads ToolMaterialDefinition ScriptableObjects and builds both ToolMaterialRegistry and MaterialInputRegistry.</summary>
     public sealed class LoadToolMaterialsPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -20,6 +22,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads tool material assets, builds the material registry, and populates the material input registry for part crafting.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             ctx.ToolMaterials =

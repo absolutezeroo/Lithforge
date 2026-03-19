@@ -7,6 +7,7 @@ namespace Lithforge.Network.Connection
     /// </summary>
     public sealed class PeerInfo
     {
+        /// <summary>Creates a new PeerInfo for the given connection with default initial values.</summary>
         public PeerInfo(ConnectionId connectionId)
         {
             ConnectionId = connectionId;
@@ -18,16 +19,22 @@ namespace Lithforge.Network.Connection
             InterestState = null;
         }
 
+        /// <summary>The transport-level connection ID for this peer.</summary>
         public ConnectionId ConnectionId { get; }
 
+        /// <summary>The connection state machine tracking this peer's lifecycle.</summary>
         public ConnectionStateMachine StateMachine { get; }
 
+        /// <summary>The player ID assigned during handshake acceptance. Zero if not yet assigned.</summary>
         public ushort AssignedPlayerId { get; internal set; }
 
+        /// <summary>The player's display name received during the handshake request.</summary>
         public string PlayerName { get; internal set; }
 
+        /// <summary>Wall-clock time of the last ping sent to this peer.</summary>
         public float LastPingTime { get; internal set; }
 
+        /// <summary>The most recently measured round-trip time for this peer in seconds.</summary>
         public float RoundTripTime { get; internal set; }
 
         /// <summary>Time of last received message from this peer. Used for idle timeout.</summary>

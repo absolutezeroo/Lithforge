@@ -28,20 +28,37 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public const int RetireFrameDelay = 3;
 
+        /// <summary>Shader property ID for the source ByteAddressBuffer in the copy kernel.</summary>
         private static readonly int s_srcId = Shader.PropertyToID("_Src");
+
+        /// <summary>Shader property ID for the destination ByteAddressBuffer in copy/zero kernels.</summary>
         private static readonly int s_dstId = Shader.PropertyToID("_Dst");
+
+        /// <summary>Shader property ID for the number of bytes to copy.</summary>
         private static readonly int s_byteCountId = Shader.PropertyToID("_ByteCount");
+
+        /// <summary>Shader property ID for the byte offset at which zeroing begins.</summary>
         private static readonly int s_zeroStartId = Shader.PropertyToID("_ZeroStart");
+
+        /// <summary>Shader property ID for the number of bytes to zero in the tail region.</summary>
         private static readonly int s_zeroByteCountId = Shader.PropertyToID("_ZeroByteCount");
+
+        /// <summary>Compute shader kernel index for the GPU-to-GPU byte copy operation.</summary>
         private readonly int _copyKernel;
 
+        /// <summary>Queue of old buffers awaiting deferred disposal after the GPU finishes reading.</summary>
         private readonly List<DeferredDisposal> _disposalQueue = new(8);
 
+        /// <summary>Compute shader used for GPU buffer copy and zero operations.</summary>
         private readonly ComputeShader _shader;
+
+        /// <summary>Compute shader kernel index for the zero-fill operation on buffer tails.</summary>
         private readonly int _zeroKernel;
 
+        /// <summary>Whether this resizer has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Creates a GPU buffer resizer using the specified compute shader for copy/zero operations.</summary>
         public GpuBufferResizer(ComputeShader bufferCopyShader)
         {
             if (bufferCopyShader == null)
@@ -172,14 +189,19 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Rounds a byte count up to the nearest 16-byte boundary for uint4 GPU loads.</summary>
         private static int AlignUp16(int value)
         {
             return value + 15 & ~15;
         }
 
+        /// <summary>Tracks a retired GPU buffer and the frame count at which it can safely be disposed.</summary>
         private struct DeferredDisposal
         {
+            /// <summary>The retired GPU buffer awaiting disposal.</summary>
             public GraphicsBuffer Buffer;
+
+            /// <summary>The frame count after which the GPU is guaranteed to have finished reading.</summary>
             public int RetireFrame;
         }
     }

@@ -15,12 +15,16 @@ namespace Lithforge.Runtime.Network
     /// </summary>
     public sealed class LocalChunkStreamingStrategy : IChunkStreamingStrategy
     {
+        /// <summary>Server chunk provider for checking generation state.</summary>
         private readonly IServerChunkProvider _chunkProvider;
 
+        /// <summary>Callback invoked when a chunk reaches Generated state.</summary>
         private readonly Action<int3> _onChunkReady;
 
+        /// <summary>Callback invoked when a chunk is unloaded from the client's view.</summary>
         private readonly Action<int3> _onChunkUnload;
 
+        /// <summary>Creates the strategy with chunk provider and lifecycle callbacks.</summary>
         public LocalChunkStreamingStrategy(
             IServerChunkProvider chunkProvider,
             Action<int3> onChunkReady,
@@ -31,6 +35,7 @@ namespace Lithforge.Runtime.Network
             _onChunkUnload = onChunkUnload;
         }
 
+        /// <summary>Checks if a chunk is generated and invokes the ready callback if so.</summary>
         public bool StreamChunk(PeerInfo peer, int3 coord)
         {
             if (!_chunkProvider.IsChunkGenerated(coord))
@@ -43,6 +48,7 @@ namespace Lithforge.Runtime.Network
             return true;
         }
 
+        /// <summary>Invokes the unload callback for the given chunk coordinate.</summary>
         public void SendUnload(PeerInfo peer, int3 coord)
         {
             _onChunkUnload?.Invoke(coord);

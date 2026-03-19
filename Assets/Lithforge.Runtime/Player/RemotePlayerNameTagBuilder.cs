@@ -9,7 +9,10 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public static class RemotePlayerNameTagBuilder
     {
+        /// <summary>Width of the name tag quad in world units.</summary>
         private const float QuadWidth = 1.2f;
+
+        /// <summary>Height of the name tag quad in world units.</summary>
         private const float QuadHeight = 0.2f;
 
         /// <summary>
@@ -92,6 +95,7 @@ namespace Lithforge.Runtime.Player
             return texture;
         }
 
+        /// <summary>Renders a simple pixel row pattern as a placeholder for the name text.</summary>
         private static void RenderNameToTexture(Texture2D texture, string name, int width, int height)
         {
             // Simple approach: render using a RenderTexture and GUI.Label

@@ -9,21 +9,40 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct PongMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 8;
 
+        /// <summary>
+        /// The original ping timestamp echoed back for RTT calculation.
+        /// </summary>
         public float EchoTimestamp;
+
+        /// <summary>
+        /// The server's current tick at the time the pong was sent.
+        /// </summary>
         public uint ServerTick;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.Pong; }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             MessageSerializer.WriteFloat(buffer, offset, EchoTimestamp);
@@ -31,6 +50,9 @@ namespace Lithforge.Network.Messages
             return Size;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static PongMessage Deserialize(byte[] buffer, int offset, int length)
         {
             PongMessage msg = new();

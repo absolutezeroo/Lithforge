@@ -8,8 +8,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 10: Loads Tag ScriptableObjects and builds the bidirectional TagRegistry.</summary>
     public sealed class LoadTagsPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -18,6 +20,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads tag assets from Resources and builds the bidirectional TagRegistry.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             Tag[] tagAssets = Resources.LoadAll<Tag>("Content/Tags");

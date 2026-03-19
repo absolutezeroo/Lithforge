@@ -13,23 +13,28 @@ namespace Lithforge.Runtime.Content.Tools
         menuName = "Lithforge/Content/Tool Trait Definition")]
     public sealed class ToolTraitDefinition : ScriptableObject
     {
+        /// <summary>Unique trait identifier (e.g. "lithforge:haste").</summary>
         [FormerlySerializedAs("TraitId"), Header("Identity")]
         [Tooltip("Unique trait identifier (e.g. lithforge:haste)")]
         public string traitId;
 
+        /// <summary>Display name shown in item tooltips.</summary>
         [FormerlySerializedAs("DisplayName")]
         [Tooltip("Display name shown in tooltip")]
         public string displayName;
 
+        /// <summary>Trait level for duplicate resolution (highest wins).</summary>
         [FormerlySerializedAs("TraitLevel"), Header("Level")]
         [Tooltip("Trait level for duplicate resolution (highest wins)")]
         [Min(1)]
         public int traitLevel = 1;
 
+        /// <summary>Application order: Additive=0-9, Multiplicative=10-19, Override=20+.</summary>
         [FormerlySerializedAs("Priority"), Header("Priority")]
         [Tooltip("Application order: Additive=0-9, Multiplicative=10-19, Override=20+")]
         public int priority = 10;
 
+        /// <summary>Mining effects applied when this trait is active on a tool.</summary>
         [FormerlySerializedAs("Effects"), Header("Mining Effects")]
         [Tooltip("Effects applied when this trait is active")]
         public ToolTraitMiningEffect[] effects = System.Array.Empty<ToolTraitMiningEffect>();

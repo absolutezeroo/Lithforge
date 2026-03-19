@@ -23,83 +23,181 @@ namespace Lithforge.Runtime.Debug.Benchmark
     /// </summary>
     public sealed class BenchmarkRunner : MonoBehaviour
     {
+        /// <summary>Duration in seconds to show the status toast before it auto-hides.</summary>
         private const float StatusDuration = 3f;
 
+        /// <summary>Duration in seconds to display the benchmark summary after completion.</summary>
         private const float SummaryDisplayDuration = 15f;
 
-        // Colors
+        /// <summary>Background color for the currently selected scenario row.</summary>
         private static readonly Color s_selectedBg = new(0.15f, 0.4f, 0.7f, 0.9f);
+
+        /// <summary>Background color for unselected scenario rows (transparent).</summary>
         private static readonly Color s_normalBg = new(0f, 0f, 0f, 0f);
+
+        /// <summary>Text color for the currently selected scenario row.</summary>
         private static readonly Color s_selectedText = new(1f, 1f, 1f);
+
+        /// <summary>Text color for unselected scenario rows.</summary>
         private static readonly Color s_normalText = new(0.78f, 0.78f, 0.78f);
+
+        /// <summary>Text color for the menu title label.</summary>
         private static readonly Color s_titleColor = new(0.4f, 0.8f, 1f);
+
+        /// <summary>Text color for the keyboard hint label at the bottom of the menu.</summary>
         private static readonly Color s_hintColor = new(0.5f, 0.5f, 0.5f);
+
+        /// <summary>Text color for the running status toast.</summary>
         private static readonly Color s_runningColor = new(1f, 0.8f, 0.2f);
 
-        // Pre-allocated StringBuilder for summary
+        /// <summary>Pre-allocated StringBuilder reused for building benchmark summary text.</summary>
         private readonly StringBuilder _summaryBuilder = new(2048);
 
+        /// <summary>Reference to the currently running benchmark coroutine, or null if idle.</summary>
         private Coroutine _activeCoroutine;
 
-        // Scenario selection
+        /// <summary>All BenchmarkScenario assets loaded from Resources, sorted alphabetically.</summary>
         private BenchmarkScenario[] _allScenarios;
 
-        // Pre-allocated parallel arrays for per-frame recording
+        /// <summary>Current capacity of the pre-allocated per-frame recording arrays.</summary>
         private int _capacity;
+
+        /// <summary>Context object shared with all benchmark commands during execution.</summary>
         private BenchmarkContext _context;
+
+        /// <summary>Per-frame wall-clock time in milliseconds.</summary>
         private float[] _frameMs;
+
+        /// <summary>Frame profiler instance for enabling/disabling profiling during benchmarks.</summary>
         private IFrameProfiler _frameProfiler;
+
+        /// <summary>Per-frame GC generation-0 collection count.</summary>
         private int[] _gcGen0;
+
+        /// <summary>Per-frame GC generation-1 collection count.</summary>
         private int[] _gcGen1;
+
+        /// <summary>Per-frame GC generation-2 (full) collection count.</summary>
         private int[] _gcGen2;
+
+        /// <summary>Per-frame worldgen jobs completed.</summary>
         private int[] _genCompleted;
+
+        /// <summary>Per-frame slowest generation Complete() call in milliseconds.</summary>
         private float[] _genCompleteMaxMs;
+
+        /// <summary>Per-frame count of generation Complete() calls that exceeded 1ms.</summary>
         private int[] _genCompleteStalls;
+
+        /// <summary>Per-frame size of the Generated state set.</summary>
         private int[] _generatedSetSize;
+
+        /// <summary>Per-frame worldgen jobs scheduled.</summary>
         private int[] _genScheduled;
+
+        /// <summary>Per-frame bytes uploaded to GPU.</summary>
         private long[] _gpuUploadBytes;
+
+        /// <summary>Per-frame GPU upload operation count.</summary>
         private int[] _gpuUploadCount;
+
+        /// <summary>Per-frame MegaMeshBuffer grow (reallocation) events.</summary>
         private int[] _growEvents;
+
+        /// <summary>UI label displaying keyboard shortcut hints at the bottom of the menu.</summary>
         private Label _hintLabel;
+
+        /// <summary>Per-frame chunk mesh invalidation count.</summary>
         private int[] _invalidateCount;
 
-        // Results display
+        /// <summary>Per-frame LOD>0 mesh jobs completed.</summary>
         private int[] _lodCompleted;
+
+        /// <summary>Per-frame LOD>0 mesh jobs scheduled.</summary>
         private int[] _lodScheduled;
+
+        /// <summary>Whether the scenario picker menu is currently visible.</summary>
         private bool _menuOpen;
+
+        /// <summary>Root visual element of the scenario picker menu panel.</summary>
         private VisualElement _menuPanel;
+
+        /// <summary>Per-frame LOD0 mesh jobs completed.</summary>
         private int[] _meshCompleted;
+
+        /// <summary>Per-frame slowest mesh Complete() call in milliseconds.</summary>
         private float[] _meshCompleteMaxMs;
+
+        /// <summary>Per-frame count of mesh Complete() calls that exceeded 1ms.</summary>
         private int[] _meshCompleteStalls;
+
+        /// <summary>Per-frame LOD0 mesh jobs scheduled.</summary>
         private int[] _meshScheduled;
+
+        /// <summary>Metrics registry for reading per-frame snapshots during measurement.</summary>
         private MetricsRegistry _metrics;
+
+        /// <summary>Pipeline stats instance for enabling/disabling stats during benchmarks.</summary>
         private IPipelineStats _pipelineStats;
+
+        /// <summary>Player controller reference for physics body control during benchmarks.</summary>
         private PlayerController _playerController;
 
+        /// <summary>UI labels for each scenario row in the picker menu.</summary>
         private Label[] _scenarioLabels;
+
+        /// <summary>Per-frame time spent allocating NativeArrays for mesh output.</summary>
         private float[] _schedMeshAllocMs;
+
+        /// <summary>Per-frame time spent filling the mesh candidate list.</summary>
         private float[] _schedMeshFillMs;
+
+        /// <summary>Per-frame time spent filtering and sorting mesh candidates.</summary>
         private float[] _schedMeshFilterMs;
+
+        /// <summary>Per-frame time spent flushing completed mesh data to GPU buffers.</summary>
         private float[] _schedMeshFlushMs;
+
+        /// <summary>Per-frame time spent calling Schedule() on mesh jobs.</summary>
         private float[] _schedMeshScheduleMs;
+
+        /// <summary>Per-frame per-section profiler timings (first dimension is section index).</summary>
         private float[][] _sectionMs;
+
+        /// <summary>Currently highlighted index in the scenario picker menu.</summary>
         private int _selectedIndex;
+
+        /// <summary>Debug settings asset containing default benchmark scenario and configuration.</summary>
         private DebugSettings _settings;
+
+        /// <summary>UI label for the status toast message.</summary>
         private Label _statusLabel;
+
+        /// <summary>Root visual element of the status toast panel.</summary>
         private VisualElement _statusPanel;
+
+        /// <summary>Countdown timer for auto-hiding the status toast.</summary>
         private float _statusTimer;
+
+        /// <summary>UI label for the menu title text.</summary>
         private Label _titleLabel;
 
-        // UI
+        /// <summary>UIDocument component hosting the benchmark UI elements.</summary>
         private UIDocument _uiDocument;
+
+        /// <summary>Root visual element of the UIDocument for all benchmark UI.</summary>
         private VisualElement _uiRoot;
 
+        /// <summary>Whether a benchmark scenario is currently executing.</summary>
         public bool IsRunning { get; private set; }
 
+        /// <summary>The formatted summary text from the most recently completed benchmark run.</summary>
         public string LastSummary { get; private set; }
 
+        /// <summary>Countdown timer for how long the summary remains displayed.</summary>
         public float SummaryDisplayTimer { get; private set; }
 
+        /// <summary>Gets the currently selected benchmark scenario in the picker menu, or null if none available.</summary>
         public BenchmarkScenario SelectedScenario
         {
             get
@@ -113,6 +211,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
         }
 
+        /// <summary>Handles per-frame input for menu navigation and status toast countdown.</summary>
         private void Update()
         {
             // Countdown summary display timer
@@ -188,6 +287,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
         }
 
+        /// <summary>Initializes the benchmark runner with all required dependencies and builds the UI.</summary>
         public void Initialize(
             BenchmarkContext context,
             DebugSettings settings,
@@ -251,6 +351,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
         }
 
+        /// <summary>Creates the UIDocument and builds the menu and status panel visual elements.</summary>
         private void BuildUI(PanelSettings panelSettings)
         {
             GameObject uiGo = new("BenchmarkUI");
@@ -275,6 +376,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _statusPanel.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Builds the centered scenario picker menu panel with title, rows, and hint labels.</summary>
         private void BuildMenuPanel()
         {
             // Centered container
@@ -382,6 +484,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _menuPanel.Add(_hintLabel);
         }
 
+        /// <summary>Builds the top-center status toast panel for displaying progress messages.</summary>
         private void BuildStatusPanel()
         {
             // Status toast — top-center
@@ -422,6 +525,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _statusPanel.Add(_statusLabel);
         }
 
+        /// <summary>Displays a timed status toast message with the specified text and color.</summary>
         private void ShowStatus(string message, Color color)
         {
             _statusLabel.text = message;
@@ -430,6 +534,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _statusTimer = StatusDuration;
         }
 
+        /// <summary>Opens the scenario picker menu and refreshes the highlight state.</summary>
         private void OpenMenu()
         {
             if (_allScenarios == null || _allScenarios.Length == 0)
@@ -442,12 +547,14 @@ namespace Lithforge.Runtime.Debug.Benchmark
             RefreshMenuHighlight();
         }
 
+        /// <summary>Hides the scenario picker menu.</summary>
         private void CloseMenu()
         {
             _menuOpen = false;
             _menuPanel.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Updates the visual highlight on scenario labels to reflect the current selection.</summary>
         private void RefreshMenuHighlight()
         {
             if (_scenarioLabels == null)
@@ -464,6 +571,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
         }
 
+        /// <summary>Creates a UI Toolkit label with the specified text, font size, and color.</summary>
         private static Label CreateLabel(string text, int fontSize, Color color)
         {
             Label label = new(text)
@@ -483,6 +591,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             return label;
         }
 
+        /// <summary>Allocates all per-frame parallel recording arrays at the specified capacity.</summary>
         private void AllocateArrays(int capacity)
         {
             _frameMs = new float[capacity];
@@ -518,6 +627,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _generatedSetSize = new int[capacity];
         }
 
+        /// <summary>Processes keyboard input for the scenario picker menu (navigation, selection, close).</summary>
         private void HandleMenuInput(Keyboard keyboard)
         {
             // Escape to close
@@ -580,6 +690,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             }
         }
 
+        /// <summary>Starts executing the specified benchmark scenario as a coroutine.</summary>
         public void StartScenario(BenchmarkScenario scenario)
         {
             if (IsRunning)
@@ -593,6 +704,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _activeCoroutine = StartCoroutine(RunScenarioCoroutine(scenario));
         }
 
+        /// <summary>Main benchmark coroutine that executes phases, records metrics, and produces results.</summary>
         private IEnumerator RunScenarioCoroutine(BenchmarkScenario scenario)
         {
             UnityEngine.Debug.Log("[Benchmark] Starting scenario: " + scenario.ScenarioName);
@@ -742,6 +854,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _activeCoroutine = null;
         }
 
+        /// <summary>Grows all per-frame recording arrays to the specified new capacity, preserving existing data.</summary>
         private void GrowArrays(int newCapacity)
         {
             float[] newFrameMs = new float[newCapacity];
@@ -850,6 +963,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _capacity = newCapacity;
         }
 
+        /// <summary>Computes timing statistics, pipeline totals, bottleneck detection, and pass/fail from recorded data.</summary>
         private BenchmarkResult BuildResult(BenchmarkScenario scenario, int totalFrames)
         {
             BenchmarkResult result = new()
@@ -1041,6 +1155,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             return result;
         }
 
+        /// <summary>Formats a human-readable benchmark summary string with FPS, timing, pipeline, and bottleneck data.</summary>
         private string BuildSummary(BenchmarkResult result)
         {
             if (result.TotalFrames == 0)
@@ -1136,6 +1251,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             return _summaryBuilder.ToString();
         }
 
+        /// <summary>Cleans up after a benchmark run, restoring physics control to the player.</summary>
         private void FinishRun(BenchmarkResult result)
         {
             IsRunning = false;

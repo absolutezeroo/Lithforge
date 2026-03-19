@@ -163,6 +163,7 @@ namespace Lithforge.Runtime.Content.Items
             get { return placesBlock != null; }
         }
 
+        /// <summary>Editor callback that auto-fills the item name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(itemName))

@@ -27,25 +27,34 @@ namespace Lithforge.Runtime.Network
     /// </summary>
     public sealed class ClientChunkHandler : IDisposable
     {
+        /// <summary>Chunk manager for loading deserialized data and applying block changes.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Network client for sending ACK messages.</summary>
         private readonly INetworkClient _client;
 
-        // Cached list for multi-block change deserialization
+        /// <summary>Cached list for collecting dirtied chunk coordinates during block changes.</summary>
         private readonly List<int3> _dirtiedChunksCache = new();
+
+        /// <summary>Callback invoked when a GameReady message arrives from the server.</summary>
         private readonly Action<GameReadyMessage> _onGameReady;
 
-        // Pending unloads — queued by network handler, drained by GameLoop
+        /// <summary>Queued chunk unload coordinates, drained by GameLoop each frame.</summary>
         private readonly List<int3> _pendingUnloads = new();
 
         /// <summary>Chunks received since the last ACK was sent.</summary>
         private int _unackedReceived;
 
+        /// <summary>Persistent light data buffer for chunk deserialization.</summary>
         private NativeArray<byte> _deserializeLightBuffer;
 
+        /// <summary>Persistent voxel data buffer for chunk deserialization.</summary>
         private NativeArray<StateId> _deserializeVoxelBuffer;
+
+        /// <summary>True after Dispose has been called.</summary>
         private bool _disposed;
 
+        /// <summary>Creates the handler, allocates persistent buffers, and registers message callbacks.</summary>
         public ClientChunkHandler(
             ChunkManager chunkManager,
             INetworkClient networkClient,
@@ -68,6 +77,7 @@ namespace Lithforge.Runtime.Network
             dispatcher.RegisterHandler(MessageType.GameReady, OnGameReady);
         }
 
+        /// <summary>Disposes persistent NativeArray buffers.</summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -126,6 +136,7 @@ namespace Lithforge.Runtime.Network
             _pendingUnloads.Clear();
         }
 
+        /// <summary>Deserializes a chunk data payload and loads it into ChunkManager.</summary>
         private void OnChunkData(ConnectionId connId, byte[] data, int offset, int length)
         {
             ChunkDataMessage msg = ChunkDataMessage.Deserialize(data, offset, length);
@@ -164,6 +175,7 @@ namespace Lithforge.Runtime.Network
             }
         }
 
+        /// <summary>Queues a chunk unload coordinate for GameLoop to process.</summary>
         private void OnChunkUnload(ConnectionId connId, byte[] data, int offset, int length)
         {
             ChunkUnloadMessage msg = ChunkUnloadMessage.Deserialize(data, offset, length);
@@ -173,6 +185,7 @@ namespace Lithforge.Runtime.Network
             _pendingUnloads.Add(chunkCoord);
         }
 
+        /// <summary>Applies a single block change from the server.</summary>
         private void OnBlockChange(ConnectionId connId, byte[] data, int offset, int length)
         {
             BlockChangeMessage msg = BlockChangeMessage.Deserialize(data, offset, length);
@@ -182,6 +195,7 @@ namespace Lithforge.Runtime.Network
             _chunkManager.SetBlock(position, newState, _dirtiedChunksCache);
         }
 
+        /// <summary>Applies a batch of block changes from the server within one chunk.</summary>
         private void OnMultiBlockChange(ConnectionId connId, byte[] data, int offset, int length)
         {
             MultiBlockChangeMessage msg = MultiBlockChangeMessage.Deserialize(data, offset, length);
@@ -208,6 +222,7 @@ namespace Lithforge.Runtime.Network
             }
         }
 
+        /// <summary>Deserializes the GameReady message and invokes the callback.</summary>
         private void OnGameReady(ConnectionId connId, byte[] data, int offset, int length)
         {
             GameReadyMessage msg = GameReadyMessage.Deserialize(data, offset, length);

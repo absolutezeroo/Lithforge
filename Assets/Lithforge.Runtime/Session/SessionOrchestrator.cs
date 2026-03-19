@@ -122,6 +122,9 @@ namespace Lithforge.Runtime.Session
             onSessionEnded?.Invoke();
         }
 
+        /// <summary>
+        ///     Saves dirty chunks and regions, then disposes the session and cleans up GameObjects.
+        /// </summary>
         private static IEnumerator SaveAndDispose(
             GameSession session,
             AppContext app,
@@ -312,6 +315,7 @@ namespace Lithforge.Runtime.Session
             DestroyComponent<BenchmarkRunner>(host);
         }
 
+        /// <summary>Destroys a component of type T on the given GameObject if present.</summary>
         private static void DestroyComponent<T>(GameObject host) where T : Component
         {
             T component = host.GetComponent<T>();
@@ -329,8 +333,10 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class SessionInitArgs
     {
+        /// <summary>The loading screen UI overlay created by the orchestrator.</summary>
         public LoadingScreen LoadingScreen { get; set; }
 
+        /// <summary>The UI Toolkit panel settings used for all session UI documents.</summary>
         public PanelSettings PanelSettings { get; set; }
     }
 
@@ -339,6 +345,7 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public static class SessionInitArgsHolder
     {
+        /// <summary>The current init args, set during session initialization and cleared afterward.</summary>
         public static SessionInitArgs Current { get; set; }
     }
 }

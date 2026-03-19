@@ -20,10 +20,19 @@ namespace Lithforge.Network.Client
     /// </summary>
     public sealed class ClientReadinessTracker
     {
+        /// <summary>
+        /// Delegate that checks whether a chunk at the given coordinate is available.
+        /// </summary>
         private readonly Func<int3, bool> _isChunkAvailable;
 
+        /// <summary>
+        /// Set of all chunk coordinates required for spawn readiness.
+        /// </summary>
         private readonly HashSet<int3> _requiredChunks = new();
 
+        /// <summary>
+        /// Whether Configure() has been called with a valid spawn volume.
+        /// </summary>
         private bool _configured;
 
         /// <summary>

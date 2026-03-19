@@ -10,38 +10,55 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public static class SkinUVMapper
     {
+        /// <summary>Skin texture dimension in pixels (64x64).</summary>
         private const float TexSize = 64f;
 
-        // Head (8x8x8)
+        /// <summary>Head base layer UV definition (8x8x8 box at origin 0,0).</summary>
         public static readonly SkinPartDefinition HeadBase = new(0, 0, 8, 8, 8);
+
+        /// <summary>Head overlay (hat) layer UV definition (8x8x8 box at origin 32,0).</summary>
         public static readonly SkinPartDefinition HeadOverlay = new(32, 0, 8, 8, 8);
 
-        // Body (8x12x4)
+        /// <summary>Body base layer UV definition (8x12x4 box at origin 16,16).</summary>
         public static readonly SkinPartDefinition BodyBase = new(16, 16, 8, 12, 4);
+
+        /// <summary>Body overlay (jacket) layer UV definition (8x12x4 box at origin 16,32).</summary>
         public static readonly SkinPartDefinition BodyOverlay = new(16, 32, 8, 12, 4);
 
-        // Right Arm (classic 4px wide)
+        /// <summary>Right arm base layer UV definition for classic 4-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition RightArmBase4 = new(40, 16, 4, 12, 4);
+
+        /// <summary>Right arm overlay (sleeve) layer UV definition for classic 4-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition RightArmOverlay4 = new(40, 32, 4, 12, 4);
 
-        // Right Arm (slim 3px wide)
+        /// <summary>Right arm base layer UV definition for slim 3-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition RightArmBase3 = new(40, 16, 3, 12, 4);
+
+        /// <summary>Right arm overlay (sleeve) layer UV definition for slim 3-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition RightArmOverlay3 = new(40, 32, 3, 12, 4);
 
-        // Left Arm (classic 4px wide)
+        /// <summary>Left arm base layer UV definition for classic 4-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition LeftArmBase4 = new(32, 48, 4, 12, 4);
+
+        /// <summary>Left arm overlay (sleeve) layer UV definition for classic 4-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition LeftArmOverlay4 = new(48, 48, 4, 12, 4);
 
-        // Left Arm (slim 3px wide)
+        /// <summary>Left arm base layer UV definition for slim 3-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition LeftArmBase3 = new(32, 48, 3, 12, 4);
+
+        /// <summary>Left arm overlay (sleeve) layer UV definition for slim 3-pixel-wide skins.</summary>
         public static readonly SkinPartDefinition LeftArmOverlay3 = new(48, 48, 3, 12, 4);
 
-        // Right Leg (4x12x4)
+        /// <summary>Right leg base layer UV definition (4x12x4 box at origin 0,16).</summary>
         public static readonly SkinPartDefinition RightLegBase = new(0, 16, 4, 12, 4);
+
+        /// <summary>Right leg overlay (pants) layer UV definition (4x12x4 box at origin 0,32).</summary>
         public static readonly SkinPartDefinition RightLegOverlay = new(0, 32, 4, 12, 4);
 
-        // Left Leg (4x12x4)
+        /// <summary>Left leg base layer UV definition (4x12x4 box at origin 16,48).</summary>
         public static readonly SkinPartDefinition LeftLegBase = new(16, 48, 4, 12, 4);
+
+        /// <summary>Left leg overlay (pants) layer UV definition (4x12x4 box at origin 0,48).</summary>
         public static readonly SkinPartDefinition LeftLegOverlay = new(0, 48, 4, 12, 4);
 
         /// <summary>

@@ -15,16 +15,22 @@ namespace Lithforge.Network.Client
     /// </summary>
     public sealed class NetworkClient : INetworkClient, INetworkMetricsSource
     {
+        /// <summary>Content hash for validating compatibility with the server during handshake.</summary>
         private readonly ContentHash _contentHash;
 
+        /// <summary>Logger instance for diagnostic messages.</summary>
         private readonly ILogger _logger;
 
+        /// <summary>Player name sent to the server during the handshake request.</summary>
         private readonly string _playerName;
 
+        /// <summary>Whether this client has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Wall-clock time of the last ping sent, for scheduling periodic pings.</summary>
         private float _lastPingTime;
 
+        /// <summary>Cached current wall-clock time, updated each Update call.</summary>
         private float _lastUpdateTime;
 
         /// <summary>Bytes received from the network since the last metrics reset.</summary>
@@ -39,16 +45,22 @@ namespace Lithforge.Network.Client
         /// <summary>Network messages sent since the last metrics reset.</summary>
         private int _metricsMessagesSent;
 
+        /// <summary>True if this client created the transport and is responsible for disposing it.</summary>
         private bool _ownsTransport;
 
+        /// <summary>Retry queue for failed reliable sends with exponential backoff.</summary>
         private ReliableSendQueue _sendQueue;
 
+        /// <summary>Connection ID of the server endpoint.</summary>
         private ConnectionId _serverConnectionId;
 
+        /// <summary>Connection state machine tracking the client's lifecycle.</summary>
         private ConnectionStateMachine _stateMachine;
 
+        /// <summary>The underlying network transport (UTP driver or direct transport).</summary>
         private INetworkTransport _transport;
 
+        /// <summary>Creates a new NetworkClient with the given logger, content hash, and player name.</summary>
         public NetworkClient(ILogger logger, ContentHash contentHash, string playerName)
         {
             _logger = logger;
@@ -56,6 +68,7 @@ namespace Lithforge.Network.Client
             _playerName = playerName ?? "";
         }
 
+        /// <summary>The current connection state of this client.</summary>
         public ConnectionState State
         {
             get
@@ -64,18 +77,25 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>The player ID assigned by the server during the handshake.</summary>
         public ushort LocalPlayerId { get; private set; }
 
+        /// <summary>The server tick at the time of handshake acceptance, for tick synchronization.</summary>
         public uint ServerTickAtHandshake { get; private set; }
 
+        /// <summary>The world seed received from the server during the handshake.</summary>
         public ulong WorldSeed { get; private set; }
 
+        /// <summary>The most recently measured round-trip time to the server in seconds.</summary>
         public float RoundTripTime { get; private set; }
 
+        /// <summary>The message dispatcher for routing incoming server messages to handlers.</summary>
         public MessageDispatcher Dispatcher { get; private set; }
 
+        /// <summary>Callback invoked when the handshake completes successfully.</summary>
         public Action OnHandshakeComplete { get; set; }
 
+        /// <summary>True if the client is in the Playing connection state.</summary>
         public bool IsPlaying
         {
             get
@@ -97,6 +117,7 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>True if the client is in any connected state (not Disconnected or Disconnecting).</summary>
         public bool IsConnected
         {
             get
@@ -110,6 +131,7 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>Connects to a remote server at the given address and port using a UTP transport.</summary>
         public void Connect(string address, ushort port, float currentTime)
         {
             if (_transport != null)
@@ -140,6 +162,7 @@ namespace Lithforge.Network.Client
             _logger.LogInfo($"Connecting to {address}:{port}");
         }
 
+        /// <summary>Connects using an externally provided transport (e.g. DirectTransport for SP/Host).</summary>
         public void ConnectDirect(INetworkTransport transport, float currentTime)
         {
             if (_transport != null)
@@ -171,6 +194,10 @@ namespace Lithforge.Network.Client
             _logger.LogInfo("Connecting via direct transport");
         }
 
+        /// <summary>
+        ///     Pumps the transport, dispatches received messages, checks handshake timeout,
+        ///     schedules pings, and flushes the reliable send queue.
+        /// </summary>
         public void Update(float currentTime)
         {
             if (_transport == null)
@@ -187,6 +214,7 @@ namespace Lithforge.Network.Client
             _sendQueue.Flush(_transport, currentTime);
         }
 
+        /// <summary>Serializes and sends a message to the server, queuing for retry on failure.</summary>
         public void Send(INetworkMessage message, int pipelineId)
         {
             if (_transport == null || !_serverConnectionId.IsValid)
@@ -207,6 +235,7 @@ namespace Lithforge.Network.Client
             _metricsMessagesSent++;
         }
 
+        /// <summary>Sends a graceful disconnect message to the server and cleans up resources.</summary>
         public void Disconnect()
         {
             if (_transport == null)
@@ -228,6 +257,7 @@ namespace Lithforge.Network.Client
             CleanUp();
         }
 
+        /// <summary>Disposes this client, cleaning up the transport if not already disposed.</summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -238,6 +268,7 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>Handles the transport Connect event by sending the handshake request.</summary>
         private void OnConnected(ConnectionId connectionId)
         {
             _serverConnectionId = connectionId;
@@ -254,6 +285,7 @@ namespace Lithforge.Network.Client
             _logger.LogInfo($"Connected to server, sending handshake (contentHash={_contentHash})");
         }
 
+        /// <summary>Handles the transport Disconnect event, transitioning to Disconnected and cleaning up.</summary>
         private void OnDisconnected(ConnectionId connectionId)
         {
             _logger.LogInfo("Disconnected from server");
@@ -263,6 +295,10 @@ namespace Lithforge.Network.Client
             CleanUp();
         }
 
+        /// <summary>
+        ///     Processes the handshake response from the server. On acceptance, stores
+        ///     player ID, tick, and seed, then transitions to Loading state.
+        /// </summary>
         private void OnHandshakeResponse(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             if (_stateMachine.Current != ConnectionState.Handshaking)
@@ -301,6 +337,7 @@ namespace Lithforge.Network.Client
             OnHandshakeComplete?.Invoke();
         }
 
+        /// <summary>Handles a Pong response, computing the round-trip time from the echoed timestamp.</summary>
         private void OnPong(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             PongMessage pong = PongMessage.Deserialize(data, offset, length);
@@ -308,6 +345,7 @@ namespace Lithforge.Network.Client
             RoundTripTime = _lastUpdateTime - pong.EchoTimestamp;
         }
 
+        /// <summary>Handles a Ping from the server by echoing back a Pong with the original timestamp.</summary>
         private void OnServerPing(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             PingMessage ping = PingMessage.Deserialize(data, offset, length);
@@ -319,6 +357,7 @@ namespace Lithforge.Network.Client
             Send(pong, PipelineId.UnreliableSequenced);
         }
 
+        /// <summary>Handles a server-initiated Disconnect message, transitioning to Disconnected and cleaning up.</summary>
         private void OnDisconnectMessage(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             DisconnectMessage msg = DisconnectMessage.Deserialize(data, offset, length);
@@ -330,6 +369,7 @@ namespace Lithforge.Network.Client
             CleanUp();
         }
 
+        /// <summary>Checks for handshake timeout during connecting/handshaking states.</summary>
         private void CheckTimeout(float currentTime)
         {
             ConnectionState state = _stateMachine.Current;
@@ -350,6 +390,7 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>Sends periodic Ping messages to the server for keepalive and RTT measurement.</summary>
         private void SchedulePing(float currentTime)
         {
             ConnectionState state = _stateMachine.Current;
@@ -372,6 +413,7 @@ namespace Lithforge.Network.Client
             }
         }
 
+        /// <summary>Clears the send queue and disposes the transport if this client owns it.</summary>
         private void CleanUp()
         {
             _sendQueue?.Clear();
@@ -384,6 +426,7 @@ namespace Lithforge.Network.Client
             _transport = null;
         }
 
+        /// <summary>Callback for tracking received bytes and message counts for metrics.</summary>
         private void OnDataReceivedMetrics(int byteCount)
         {
             _metricsBytesReceived += byteCount;

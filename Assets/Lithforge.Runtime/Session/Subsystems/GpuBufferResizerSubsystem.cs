@@ -8,10 +8,13 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the GPU buffer resizer for dynamic buffer capacity growth.</summary>
     public sealed class GpuBufferResizerSubsystem : IGameSubsystem
     {
+        /// <summary>The owned GPU buffer resizer instance.</summary>
         private GpuBufferResizer _resizer;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -20,13 +23,16 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No dependencies.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = Array.Empty<Type>();
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Loads the BufferCopy compute shader and creates the resizer.</summary>
         public void Initialize(SessionContext context)
         {
             ComputeShader copyShader = context.App.BufferCopyShader;
@@ -47,14 +53,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_resizer);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes the GPU buffer resizer.</summary>
         public void Dispose()
         {
             if (_resizer != null)

@@ -16,35 +16,76 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class HostSettingsModal : MonoBehaviour, IScreen
     {
+        /// <summary>Semi-transparent black overlay behind the modal panel.</summary>
         private static readonly Color s_overlayColor = new(0.0f, 0.0f, 0.0f, 0.7f);
+
+        /// <summary>Background color for the modal panel.</summary>
         private static readonly Color s_panelColor = new(0.10f, 0.10f, 0.13f, 0.95f);
+
+        /// <summary>Standard text color for labels and titles.</summary>
         private static readonly Color s_textColor = new(0.92f, 0.92f, 0.90f, 1.0f);
+
+        /// <summary>Dimmed text color for field labels.</summary>
         private static readonly Color s_dimTextColor = new(0.50f, 0.50f, 0.48f, 1.0f);
+
+        /// <summary>Background color for text input fields.</summary>
         private static readonly Color s_fieldBgColor = new(0.05f, 0.05f, 0.07f, 1.0f);
+
+        /// <summary>Border color for text input fields.</summary>
         private static readonly Color s_fieldBorderColor = new(0.25f, 0.25f, 0.30f, 1.0f);
+
+        /// <summary>Normal color for the Start Hosting button.</summary>
         private static readonly Color s_buttonColor = new(0.18f, 0.40f, 0.22f, 1.0f);
+
+        /// <summary>Hover color for the Start Hosting button.</summary>
         private static readonly Color s_buttonHoverColor = new(0.22f, 0.50f, 0.28f, 1.0f);
+
+        /// <summary>Normal color for the Cancel button.</summary>
         private static readonly Color s_cancelButtonColor = new(0.22f, 0.22f, 0.28f, 1.0f);
+
+        /// <summary>Hover color for the Cancel button.</summary>
         private static readonly Color s_cancelButtonHoverColor = new(0.30f, 0.30f, 0.38f, 1.0f);
+
+        /// <summary>Display name of the selected world, received from the context.</summary>
         private string _displayName;
 
+        /// <summary>UI Toolkit document hosting the modal overlay.</summary>
         private UIDocument _document;
+
+        /// <summary>Game mode of the selected world (creative/survival).</summary>
         private GameMode _gameMode;
+
+        /// <summary>Whether the selected world is newly created or existing.</summary>
         private bool _isNewWorld;
+
+        /// <summary>Text field for the maximum number of players allowed on the server.</summary>
         private TextField _maxPlayersField;
+
+        /// <summary>Callback invoked with the session config when the user clicks Start Hosting.</summary>
         private Action<SessionConfig> _onSessionCreated;
 
+        /// <summary>Text field for the server port number.</summary>
         private TextField _portField;
+
+        /// <summary>Screen manager for navigating back to the world selection screen.</summary>
         private ScreenManager _screenManager;
+
+        /// <summary>World seed received from the context for new world creation.</summary>
         private long _seed;
 
-        // World data received from WorldSelectionScreen via context
+        /// <summary>File system path of the selected world, received from the context.</summary>
         private string _worldPath;
 
+        /// <summary>Returns the screen name identifier for the host settings modal.</summary>
         public string ScreenName { get { return ScreenNames.HostSettings; } }
+
+        /// <summary>Returns true because this modal consumes all input.</summary>
         public bool IsInputOpaque { get { return true; } }
+
+        /// <summary>Returns true because this modal requires a visible cursor for its fields and buttons.</summary>
         public bool RequiresCursor { get { return true; } }
 
+        /// <summary>Shows the modal and extracts world data from the HostWorldContext.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -63,6 +104,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Hides the modal and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -73,6 +115,7 @@ namespace Lithforge.Runtime.UI.Screens
             onComplete();
         }
 
+        /// <summary>Returns false to allow the screen manager to pop back to world selection.</summary>
         public bool HandleEscape()
         {
             // Let ScreenManager pop us back to WorldSelectionScreen
@@ -100,6 +143,7 @@ namespace Lithforge.Runtime.UI.Screens
             _document.rootVisualElement.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Constructs the modal overlay with port field, max players field, and action buttons.</summary>
         private void BuildUI(VisualElement root)
         {
             root.pickingMode = PickingMode.Ignore;
@@ -211,6 +255,7 @@ namespace Lithforge.Runtime.UI.Screens
             buttonRow.Add(startBtn);
         }
 
+        /// <summary>Validates port and max players fields, builds a Host session config, and invokes the callback.</summary>
         private void OnStartClicked()
         {
             string portText = _portField.value?.Trim();
@@ -242,11 +287,13 @@ namespace Lithforge.Runtime.UI.Screens
             _onSessionCreated?.Invoke(hostConfig);
         }
 
+        /// <summary>Pops the screen manager stack to dismiss the modal.</summary>
         private void OnCancelClicked()
         {
             _screenManager.Pop();
         }
 
+        /// <summary>Applies consistent dark-theme styling to a text input field including inner text element.</summary>
         private void ApplyFieldStyle(TextField field)
         {
             field.style.fontSize = 14;
@@ -282,6 +329,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Creates a styled button with hover color transition effects.</summary>
         private Button BuildButton(string text, Color normalColor, Color hoverColor)
         {
             Button btn = new()

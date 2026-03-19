@@ -18,38 +18,94 @@ namespace Lithforge.Runtime.UI.Screens
     {
         /// <summary>Rotation speed for the spinner in degrees per second.</summary>
         private const float SpinnerSpeed = 360f;
+        /// <summary>Semi-transparent background color for the full-screen overlay.</summary>
         private static readonly Color s_backgroundColor = new(0.06f, 0.06f, 0.08f, 0.95f);
+
+        /// <summary>Background color for the center progress panel.</summary>
         private static readonly Color s_panelColor = new(0.10f, 0.10f, 0.13f, 0.95f);
+
+        /// <summary>Standard text color for stage labels.</summary>
         private static readonly Color s_textColor = new(0.92f, 0.92f, 0.90f, 1.0f);
+
+        /// <summary>Dimmed text color for detail labels.</summary>
         private static readonly Color s_dimTextColor = new(0.50f, 0.50f, 0.48f, 1.0f);
+
+        /// <summary>Background color for the progress bar track.</summary>
         private static readonly Color s_progressBgColor = new(0.05f, 0.05f, 0.07f, 1.0f);
+
+        /// <summary>Fill color for the progress bar and spinner border.</summary>
         private static readonly Color s_progressFillColor = new(0.18f, 0.40f, 0.22f, 1.0f);
+
+        /// <summary>Normal color for the Cancel button.</summary>
         private static readonly Color s_cancelButtonColor = new(0.45f, 0.18f, 0.18f, 1.0f);
+
+        /// <summary>Hover color for the Cancel button.</summary>
         private static readonly Color s_cancelButtonHoverColor = new(0.58f, 0.22f, 0.22f, 1.0f);
+
+        /// <summary>Normal color for the Retry and Back buttons.</summary>
         private static readonly Color s_retryButtonColor = new(0.22f, 0.22f, 0.28f, 1.0f);
+
+        /// <summary>Hover color for the Retry and Back buttons.</summary>
         private static readonly Color s_retryButtonHoverColor = new(0.30f, 0.30f, 0.38f, 1.0f);
+
+        /// <summary>Text color for error messages.</summary>
         private static readonly Color s_errorColor = new(0.90f, 0.30f, 0.30f, 1.0f);
+
+        /// <summary>Button that returns to the previous screen after an error.</summary>
         private Button _backButton;
+
+        /// <summary>Button that cancels the active connection attempt.</summary>
         private Button _cancelButton;
+
+        /// <summary>Detail string from the latest stage provider poll.</summary>
         private string _currentDetail;
+
+        /// <summary>Progress value (0-1) from the latest stage provider poll.</summary>
         private float _currentProgress;
 
+        /// <summary>Current connection stage being displayed.</summary>
         private ConnectionStage _currentStage;
+
+        /// <summary>Label showing additional detail text below the stage name.</summary>
         private Label _detailLabel;
 
+        /// <summary>UI Toolkit document hosting the connection progress panel.</summary>
         private UIDocument _document;
+
+        /// <summary>Container holding the error message label, hidden during normal connection.</summary>
         private VisualElement _errorContainer;
+
+        /// <summary>Label displaying the error message text.</summary>
         private Label _errorLabel;
+
+        /// <summary>Cached error message for display in the error state.</summary>
         private string _errorMessage;
+
+        /// <summary>True when this screen is currently visible and animating.</summary>
         private bool _isVisible;
+
+        /// <summary>Callback invoked when the user clicks Cancel to abort the connection.</summary>
         private Action _onCancel;
+
+        /// <summary>Container element for the progress bar track.</summary>
         private VisualElement _progressBarContainer;
+
+        /// <summary>Fill element inside the progress bar that expands based on connection progress.</summary>
         private VisualElement _progressBarFill;
+
+        /// <summary>Button that retries the connection after an error.</summary>
         private Button _retryButton;
+
+        /// <summary>Screen manager for navigating back on error.</summary>
         private ScreenManager _screenManager;
+
+        /// <summary>Current rotation angle of the spinner element in degrees.</summary>
         private float _spinnerAngle;
+
+        /// <summary>Circular spinner element that rotates during active connection.</summary>
         private VisualElement _spinnerElement;
 
+        /// <summary>Label displaying the current connection stage name.</summary>
         private Label _stageLabel;
 
         /// <summary>
@@ -63,6 +119,7 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         public Action OnRetry { get; set; }
 
+        /// <summary>Animates the spinner and polls the stage provider delegate to update the displayed state.</summary>
         private void Update()
         {
             if (!_isVisible)
@@ -94,6 +151,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Returns the screen name identifier for the connection progress screen.</summary>
         public string ScreenName
         {
             get
@@ -102,6 +160,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Returns true because this screen consumes all input during connection.</summary>
         public bool IsInputOpaque
         {
             get
@@ -110,6 +169,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Returns true because this screen requires a visible cursor for the Cancel button.</summary>
         public bool RequiresCursor
         {
             get
@@ -118,6 +178,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Shows the screen, resets to Connecting stage, and displays the spinner and progress bar.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -133,6 +194,7 @@ namespace Lithforge.Runtime.UI.Screens
             ShowConnectingState();
         }
 
+        /// <summary>Hides the screen and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -144,6 +206,7 @@ namespace Lithforge.Runtime.UI.Screens
             onComplete();
         }
 
+        /// <summary>Triggers Cancel on Escape and returns true to consume the key event.</summary>
         public bool HandleEscape()
         {
             // Escape triggers cancel
@@ -192,6 +255,7 @@ namespace Lithforge.Runtime.UI.Screens
             UpdateDisplay();
         }
 
+        /// <summary>Constructs the panel with spinner, stage/detail labels, progress bar, error container, and buttons.</summary>
         private void BuildUI(VisualElement root)
         {
             root.pickingMode = PickingMode.Ignore;
@@ -359,6 +423,7 @@ namespace Lithforge.Runtime.UI.Screens
             buttonContainer.Add(_backButton);
         }
 
+        /// <summary>Switches the UI to the normal connecting state: spinner visible, error hidden, Cancel shown.</summary>
         private void ShowConnectingState()
         {
             _spinnerElement.style.display = DisplayStyle.Flex;
@@ -369,6 +434,7 @@ namespace Lithforge.Runtime.UI.Screens
             _backButton.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Switches the UI to the error state: spinner hidden, error shown, Retry and Back visible.</summary>
         private void ShowErrorState(string message)
         {
             _spinnerElement.style.display = DisplayStyle.None;
@@ -383,6 +449,7 @@ namespace Lithforge.Runtime.UI.Screens
             _backButton.style.display = DisplayStyle.Flex;
         }
 
+        /// <summary>Updates the stage label, detail text, and progress bar width based on current connection state.</summary>
         private void UpdateDisplay()
         {
             if (_currentStage == ConnectionStage.Error)
@@ -433,11 +500,13 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Invokes the cancel callback to abort the active connection attempt.</summary>
         private void OnCancelClicked()
         {
             _onCancel?.Invoke();
         }
 
+        /// <summary>Resets the screen to Connecting state and invokes the retry delegate.</summary>
         private void OnRetryClicked()
         {
             _currentStage = ConnectionStage.Connecting;
@@ -447,11 +516,13 @@ namespace Lithforge.Runtime.UI.Screens
             OnRetry?.Invoke();
         }
 
+        /// <summary>Pops the screen manager stack to return to the previous screen.</summary>
         private void OnBackClicked()
         {
             _screenManager.Pop();
         }
 
+        /// <summary>Creates a styled button with hover color transition effects.</summary>
         private Button BuildButton(string text, Color normalColor, Color hoverColor)
         {
             Button btn = new()

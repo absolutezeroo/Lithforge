@@ -221,6 +221,7 @@ namespace Lithforge.Voxel.Chunk
             return BlockEntities;
         }
 
+        /// <summary>Creates a ManagedChunk at the given coordinate with pre-allocated voxel data.</summary>
         public ManagedChunk(int3 coord, NativeArray<StateId> data)
         {
             Coord = coord;

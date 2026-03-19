@@ -17,6 +17,7 @@ namespace Lithforge.Runtime.Network
         /// <summary>UTC time when this entry was last seen.</summary>
         public DateTime LastSeen { get; set; }
 
+        /// <summary>Creates an entry with the given address, info payload, and timestamp.</summary>
         public LanServerEntry(string address, LanServerInfo info, DateTime lastSeen)
         {
             Address = address;

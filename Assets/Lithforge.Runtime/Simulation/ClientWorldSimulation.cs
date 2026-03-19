@@ -21,12 +21,16 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class ClientWorldSimulation : IWorldSimulation
     {
+        /// <summary>Position error below this threshold is treated as floating-point noise and ignored.</summary>
         private const float ErrorThresholdIgnore = 0.001f;
 
+        /// <summary>Position error below this threshold triggers visual smoothing instead of full reconciliation.</summary>
         private const float ErrorThresholdSmooth = 0.04f;
 
+        /// <summary>Position error above this threshold triggers an immediate hard teleport.</summary>
         private const float ErrorThresholdTeleport = 4.0f;
 
+        /// <summary>Per-tick multiplicative decay factor for the visual position error offset.</summary>
         private const float PositionErrorDecay = 0.9f;
 
         /// <summary>
@@ -35,6 +39,7 @@ namespace Lithforge.Runtime.Simulation
         /// </summary>
         private readonly CommandRingBuffer<InputSnapshot> _inputBuffer;
 
+        /// <summary>Accumulates per-frame input into discrete per-tick snapshots.</summary>
         private readonly InputSnapshotBuilder _inputSnapshotBuilder;
 
         /// <summary>
@@ -45,17 +50,22 @@ namespace Lithforge.Runtime.Simulation
         /// </summary>
         private readonly bool _isSharedBody;
 
+        /// <summary>Network player ID assigned to this client by the server.</summary>
         private readonly ushort _localPlayerId;
 
+        /// <summary>Network client for sending input messages to the server.</summary>
         private readonly INetworkClient _networkClient;
 
+        /// <summary>Manages the local player's physics body for client-side prediction.</summary>
         private readonly PlayerPhysicsManager _playerPhysicsManager;
 
         /// <summary>Prediction buffer storing per-tick MoveCommands with predicted positions.</summary>
         private readonly CommandRingBuffer<MoveCommand> _predictionBuffer;
 
+        /// <summary>Registry of all ITickable systems driven each simulation tick.</summary>
         private readonly TickRegistry _tickRegistry;
 
+        /// <summary>Per-player monotonic sequence counter for input messages, wraps at 65535.</summary>
         private ushort _moveSequenceId;
 
         /// <summary>
@@ -64,6 +74,7 @@ namespace Lithforge.Runtime.Simulation
         /// </summary>
         private Action<PlayerStateMessage> _onRemotePlayerState;
 
+        /// <summary>Creates a new client-mode world simulation with prediction and reconciliation support.</summary>
         public ClientWorldSimulation(
             TickRegistry tickRegistry,
             PlayerPhysicsManager playerPhysicsManager,
@@ -99,6 +110,7 @@ namespace Lithforge.Runtime.Simulation
             get { return _predictionBuffer; }
         }
 
+        /// <summary>Current client-side tick number, initialized from the server's tick on connection.</summary>
         public uint CurrentTick { get; private set; }
 
         /// <summary>
@@ -270,6 +282,10 @@ namespace Lithforge.Runtime.Simulation
             FullReconciliation(msg, ackedTick);
         }
 
+        /// <summary>
+        ///     Performs full Gambetta reconciliation: snaps to server state, then replays
+        ///     all unacknowledged inputs from (ackedTick+1) through (currentTick-1).
+        /// </summary>
         private void FullReconciliation(PlayerStateMessage serverMsg, uint ackedTick)
         {
             PlayerPhysicsBody body = _playerPhysicsManager.GetBody(_localPlayerId);

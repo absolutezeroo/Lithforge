@@ -5,22 +5,43 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.World
 {
+    /// <summary>Periodically saves world metadata and flushes dirty chunks to disk.</summary>
     public sealed class AutoSaveManager
     {
+        /// <summary>World storage for flushing region files.</summary>
         private readonly WorldStorage _worldStorage;
+
+        /// <summary>World metadata containing player state and world properties.</summary>
         private readonly WorldMetadata _worldMetadata;
+
+        /// <summary>Player transform for capturing position in metadata.</summary>
         private readonly Transform _playerTransform;
+
+        /// <summary>Main camera for capturing rotation in metadata.</summary>
         private readonly Camera _mainCamera;
+
+        /// <summary>Delegate returning the current time of day for metadata.</summary>
         private readonly Func<float> _getTimeOfDay;
+
+        /// <summary>Player inventory for serializing slot contents.</summary>
         private readonly Inventory _inventory;
 
+        /// <summary>Optional async chunk saver flushed before region file writes.</summary>
         private AsyncChunkSaver _asyncSaver;
+
+        /// <summary>Realtime timestamp of the last chunk flush, or -1 if not yet run.</summary>
         private float _lastChunkFlushTime = -1f;
+
+        /// <summary>Realtime timestamp of the last metadata flush, or -1 if not yet run.</summary>
         private float _lastMetaFlushTime = -1f;
 
+        /// <summary>Seconds between chunk data flushes to disk.</summary>
         private const float ChunkFlushInterval = 60f;
+
+        /// <summary>Seconds between metadata saves to disk.</summary>
         private const float MetaFlushInterval = 30f;
 
+        /// <summary>Creates the auto-save manager with all required references.</summary>
         public AutoSaveManager(
             WorldStorage worldStorage,
             WorldMetadata worldMetadata,
@@ -46,6 +67,7 @@ namespace Lithforge.Runtime.World
             _asyncSaver = asyncSaver;
         }
 
+        /// <summary>Checks timers and flushes metadata and/or chunks when intervals elapse.</summary>
         public void Tick(float realtimeSinceStartup)
         {
             if (_worldStorage == null)
@@ -82,6 +104,7 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        /// <summary>Immediately saves metadata and flushes all region files.</summary>
         public void ForceSave()
         {
             SaveMetadata();
@@ -97,6 +120,7 @@ namespace Lithforge.Runtime.World
             SaveMetadata();
         }
 
+        /// <summary>Captures player state and persists world metadata to disk.</summary>
         private void SaveMetadata()
         {
             if (_worldStorage == null)

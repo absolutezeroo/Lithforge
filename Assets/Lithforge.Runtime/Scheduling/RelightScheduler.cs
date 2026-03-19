@@ -23,6 +23,7 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class RelightScheduler
     {
+        /// <summary>Maximum number of border light cascades to trigger per frame to avoid cascade storms.</summary>
         private const int MaxCascadesPerFrame = 12;
 
         /// <summary>
@@ -57,6 +58,7 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: RelightScheduler. Lifetime: application.
         /// </summary>
         private readonly Stack<List<BorderLightEntry>> _borderEntryListPool = new();
+        /// <summary>Chunk manager for state transitions and chunk queries.</summary>
         private readonly ChunkManager _chunkManager;
 
         /// <summary>
@@ -65,7 +67,10 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: RelightScheduler. Lifetime: application.
         /// </summary>
         private readonly List<PendingRelight> _inFlightRelights = new();
+        /// <summary>Maximum number of relight jobs to schedule per frame.</summary>
         private readonly int _maxRelightsPerFrame;
+
+        /// <summary>Burst-accessible state registry for block opacity lookups during relight.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         /// <summary>
@@ -90,6 +95,7 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private int _cascadesThisFrame;
 
+        /// <summary>Creates a new relight scheduler with the given dependencies and configuration.</summary>
         public RelightScheduler(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -541,6 +547,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Returns true if a relight job is already in-flight for the given chunk coordinate.</summary>
         private bool IsRelightInFlight(ManagedChunk chunk)
         {
             for (int i = 0; i < _inFlightRelights.Count; i++)
@@ -554,14 +561,28 @@ namespace Lithforge.Runtime.Scheduling
             return false;
         }
 
+        /// <summary>Tracks an in-flight relight job and its associated native containers for disposal.</summary>
         private struct PendingRelight
         {
+            /// <summary>The chunk being relit.</summary>
             public ManagedChunk Chunk;
+
+            /// <summary>Job system handle for the LightRemovalJob.</summary>
             public JobHandle Handle;
+
+            /// <summary>Number of frames since this job was scheduled.</summary>
             public int FrameAge;
+
+            /// <summary>Flat voxel indices of edited blocks that seeded the relight.</summary>
             public NativeArray<int> ChangedIndices;
+
+            /// <summary>Border light entries from neighboring chunks that need removal BFS.</summary>
             public NativeArray<NativeBorderLightEntry> BorderRemovalSeeds;
+
+            /// <summary>Output container for post-relight border light entries.</summary>
             public NativeList<NativeBorderLightEntry> BorderLightOutput;
+
+            /// <summary>Snapshot of the chunk's border entries before relight for old-vs-new diffing.</summary>
             public List<BorderLightEntry> OldBorderEntries;
         }
     }

@@ -5,8 +5,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 18: Loads SoundGroupDefinition ScriptableObjects and creates the ToolTemplateRegistry.</summary>
     public sealed class LoadSoundGroupsPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -15,6 +17,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads sound group assets, registers them by name, and creates an empty ToolTemplateRegistry.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             SoundGroupRegistry soundGroupRegistry = new();

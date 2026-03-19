@@ -106,6 +106,7 @@ namespace Lithforge.Runtime.Content.WorldGen
             get { return oreType; }
         }
 
+        /// <summary>Editor callback that auto-fills the ore name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(oreName))

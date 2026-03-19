@@ -10,18 +10,25 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class BlockHighlight : MonoBehaviour
     {
+        /// <summary>LineRenderer component used to draw the wireframe cube edges.</summary>
         private LineRenderer _lineRenderer;
+
+        /// <summary>Whether the highlight is currently displayed.</summary>
         private bool _visible;
+
+        /// <summary>Expansion amount in each direction to avoid z-fighting with block faces.</summary>
         private float _expand = 0.005f;
 
-        // A cube has 12 edges. We draw them as a continuous line strip
-        // visiting all edges by revisiting some vertices.
-        // Path: 0->1->2->3->0->4->5->1->5->6->2->6->7->3->7->4
+        /// <summary>
+        /// Vertex index sequence for drawing all 12 cube edges as a continuous line strip.
+        /// Path: 0->1->2->3->0->4->5->1->5->6->2->6->7->3->7->4.
+        /// </summary>
         private static readonly int[] s_lineIndices = new int[]
         {
             0, 1, 2, 3, 0, 4, 5, 1, 5, 6, 2, 6, 7, 3, 7, 4,
         };
 
+        /// <summary>Creates and configures the LineRenderer component for wireframe drawing.</summary>
         private void Awake()
         {
             _lineRenderer = gameObject.AddComponent<LineRenderer>();
@@ -37,6 +44,7 @@ namespace Lithforge.Runtime.Rendering
             _visible = false;
         }
 
+        /// <summary>Configures line width, color, and expansion from rendering settings.</summary>
         public void Initialize(RenderingSettings settings)
         {
             _lineRenderer.startWidth = settings.BlockHighlightLineWidth;

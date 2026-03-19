@@ -20,7 +20,14 @@ namespace Lithforge.Network.Chunk
     /// </summary>
     public static class ChunkNetSerializer
     {
+        /// <summary>
+        /// Version byte written at the start of full chunk packets for forward compatibility.
+        /// </summary>
         private const byte FullChunkVersion = 1;
+
+        /// <summary>
+        /// Zstd compression level (1 = fastest) for chunk data.
+        /// </summary>
         private const int ZstdCompressionLevel = 1;
 
         /// <summary>Batch header flag: bit 0 = compressed with zstd.</summary>
@@ -49,18 +56,39 @@ namespace Lithforge.Network.Chunk
             (byte)'C',
         };
 
+        /// <summary>
+        /// Thread-local reusable buffer for voxel palette index data during serialization.
+        /// </summary>
         [ThreadStatic] private static byte[] s_voxelBuffer;
 
+        /// <summary>
+        /// Thread-local reusable buffer for light data during serialization.
+        /// </summary>
         [ThreadStatic] private static byte[] s_lightBuffer;
 
+        /// <summary>
+        /// Thread-local reusable memory stream for building serialized payloads.
+        /// </summary>
         [ThreadStatic] private static MemoryStream s_stream;
 
+        /// <summary>
+        /// Thread-local zstd compressor instance, lazily initialized.
+        /// </summary>
         [ThreadStatic] private static Compressor s_compressor;
 
+        /// <summary>
+        /// Thread-local zstd decompressor instance, lazily initialized.
+        /// </summary>
         [ThreadStatic] private static Decompressor s_decompressor;
 
+        /// <summary>
+        /// Thread-local reusable buffer for the palette lookup during deserialization.
+        /// </summary>
         [ThreadStatic] private static ushort[] s_paletteBuffer;
 
+        /// <summary>
+        /// Returns the thread-local zstd compressor, creating it if needed.
+        /// </summary>
         private static Compressor GetCompressor()
         {
             if (s_compressor == null)
@@ -71,6 +99,9 @@ namespace Lithforge.Network.Chunk
             return s_compressor;
         }
 
+        /// <summary>
+        /// Returns the thread-local zstd decompressor, creating it if needed.
+        /// </summary>
         private static Decompressor GetDecompressor()
         {
             if (s_decompressor == null)
@@ -81,6 +112,9 @@ namespace Lithforge.Network.Chunk
             return s_decompressor;
         }
 
+        /// <summary>
+        /// Returns the thread-local memory stream, resetting it for reuse.
+        /// </summary>
         private static MemoryStream GetStream()
         {
             if (s_stream == null)
@@ -503,6 +537,9 @@ namespace Lithforge.Network.Chunk
             return true;
         }
 
+        /// <summary>
+        /// Converts a world-space coordinate to a chunk-local 0-31 coordinate.
+        /// </summary>
         private static int3 WorldToLocal(int3 worldCoord, int3 chunkCoord)
         {
             return new int3(
@@ -511,6 +548,9 @@ namespace Lithforge.Network.Chunk
                 worldCoord.z - chunkCoord.z * ChunkConstants.Size);
         }
 
+        /// <summary>
+        /// Converts a chunk-local coordinate back to world-space.
+        /// </summary>
         private static int3 LocalToWorld(int3 local, int3 chunkCoord)
         {
             return new int3(
@@ -519,6 +559,9 @@ namespace Lithforge.Network.Chunk
                 local.z + chunkCoord.z * ChunkConstants.Size);
         }
 
+        /// <summary>
+        /// Writes an int3 as 12 little-endian bytes to the buffer.
+        /// </summary>
         private static void WriteInt3(byte[] buffer, int offset, int3 value)
         {
             buffer[offset] = (byte)(value.x & 0xFF);
@@ -535,6 +578,9 @@ namespace Lithforge.Network.Chunk
             buffer[offset + 11] = (byte)(value.z >> 24 & 0xFF);
         }
 
+        /// <summary>
+        /// Reads an int3 from 12 little-endian bytes in the buffer.
+        /// </summary>
         private static int3 ReadInt3(byte[] buffer, int offset)
         {
             int x = buffer[offset] | buffer[offset + 1] << 8 |

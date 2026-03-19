@@ -9,10 +9,13 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the GPU-driven chunk mesh store for indirect rendering.</summary>
     public sealed class ChunkMeshStoreSubsystem : IGameSubsystem
     {
+        /// <summary>The owned chunk mesh store instance.</summary>
         private ChunkMeshStore _store;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -21,17 +24,20 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on materials and GPU buffer resizer for rendering setup.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(MaterialSubsystem),
             typeof(GpuBufferResizerSubsystem),
         };
 
+        /// <summary>Only created for sessions that render chunks.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the chunk mesh store with compute shaders, materials, and render distance.</summary>
         public void Initialize(SessionContext context)
         {
             VoxelMaterials materials = context.Get<VoxelMaterials>();
@@ -80,14 +86,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_store);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes the chunk mesh store and all GPU resources.</summary>
         public void Dispose()
         {
             if (_store != null)

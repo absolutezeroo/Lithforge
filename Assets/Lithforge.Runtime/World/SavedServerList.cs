@@ -13,10 +13,13 @@ namespace Lithforge.Runtime.World
     /// </summary>
     public sealed class SavedServerList
     {
+        /// <summary>Full filesystem path to the servers.json file.</summary>
         private readonly string _filePath;
 
+        /// <summary>In-memory representation of the saved server list.</summary>
         private SavedServerListData _data;
 
+        /// <summary>Creates the list and loads existing entries from disk.</summary>
         public SavedServerList()
         {
             _filePath = Path.Combine(Application.persistentDataPath, "servers.json");
@@ -88,6 +91,7 @@ namespace Lithforge.Runtime.World
             return best;
         }
 
+        /// <summary>Returns the index of the server matching address and port, or -1 if not found.</summary>
         private int FindIndex(string address, ushort port)
         {
             for (int i = 0; i < _data.servers.Count; i++)
@@ -104,6 +108,7 @@ namespace Lithforge.Runtime.World
             return -1;
         }
 
+        /// <summary>Reads the servers.json file from disk, or initializes an empty list.</summary>
         private void Load()
         {
             _data = new SavedServerListData();
@@ -132,6 +137,7 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        /// <summary>Atomically writes the server list to disk (write-to-temp, rotate, rename).</summary>
         private void Save()
         {
             try
@@ -167,7 +173,10 @@ namespace Lithforge.Runtime.World
         [Serializable]
         private sealed class SavedServerListData
         {
+            /// <summary>Schema version for forward compatibility.</summary>
             public int version = 1;
+
+            /// <summary>List of saved server entries.</summary>
             public List<SavedServerEntry> servers = new();
         }
     }

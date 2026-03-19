@@ -11,10 +11,12 @@ namespace Lithforge.Runtime.Debug.Benchmark
     [CreateAssetMenu(fileName = "SpawnBlockEntitiesCommand", menuName = "Lithforge/Benchmark/Commands/Spawn Block Entities")]
     public sealed class SpawnBlockEntitiesCommand : BenchmarkCommand
     {
+        /// <summary>Number of block entities to spawn.</summary>
         [Tooltip("Number of block entities to spawn")]
         [Min(1)]
         [SerializeField] private int count = 100;
 
+        /// <summary>Spread radius in blocks from the player position for entity placement.</summary>
         [Tooltip("Spread radius in blocks from player position")]
         [Min(1)]
         [SerializeField] private int spreadRadius = 32;

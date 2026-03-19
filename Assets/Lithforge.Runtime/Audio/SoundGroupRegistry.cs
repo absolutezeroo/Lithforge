@@ -9,10 +9,13 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class SoundGroupRegistry
     {
+        /// <summary>Maps sound group names to their definitions.</summary>
         private readonly Dictionary<string, SoundGroupDefinition> _groups = new();
 
+        /// <summary>Set of group names that have already emitted a missing-group warning.</summary>
         private readonly HashSet<string> _warnedGroups = new();
 
+        /// <summary>Number of registered sound groups.</summary>
         public int Count
         {
             get { return _groups.Count; }

@@ -8,17 +8,34 @@ namespace Lithforge.Network.Connection
     /// </summary>
     public sealed class PeerRegistry
     {
-        // Cached list for iteration to avoid allocating during broadcast
+        /// <summary>
+        /// Cached list rebuilt when peers change, avoiding allocation during broadcast iteration.
+        /// </summary>
         private readonly List<PeerInfo> _allPeersCache = new();
 
+        /// <summary>
+        /// Maps ConnectionId.Value to PeerInfo for connection-based lookups.
+        /// </summary>
         private readonly Dictionary<int, PeerInfo> _byConnection = new();
 
+        /// <summary>
+        /// Maps PlayerId to PeerInfo for player-based lookups.
+        /// </summary>
         private readonly Dictionary<ushort, PeerInfo> _byPlayerId = new();
 
+        /// <summary>
+        /// Whether the cached peer list needs to be rebuilt.
+        /// </summary>
         private bool _cacheDirty = true;
 
+        /// <summary>
+        /// Next player ID to allocate (starts at 1; 0 is reserved for host).
+        /// </summary>
         private ushort _nextPlayerId = 1;
 
+        /// <summary>
+        /// Returns the number of connected peers.
+        /// </summary>
         public int Count
         {
             get { return _byConnection.Count; }

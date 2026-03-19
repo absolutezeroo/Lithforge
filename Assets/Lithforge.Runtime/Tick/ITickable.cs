@@ -6,6 +6,7 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public interface ITickable
     {
+        /// <summary>Runs one fixed-rate tick with the given delta time.</summary>
         public void Tick(float tickDt);
     }
 }

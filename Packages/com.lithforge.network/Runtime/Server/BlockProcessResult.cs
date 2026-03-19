@@ -12,11 +12,29 @@ namespace Lithforge.Network.Server
     /// </summary>
     public struct BlockProcessResult
     {
+        /// <summary>
+        /// The command result code indicating success or the reason for rejection.
+        /// </summary>
         public CommandResult Result;
+
+        /// <summary>
+        /// The block state that existed before the command was processed.
+        /// </summary>
         public StateId PreviousState;
+
+        /// <summary>
+        /// The authoritative block state after processing (unchanged if rejected).
+        /// </summary>
         public StateId AcceptedState;
+
+        /// <summary>
+        /// Whether the block command was accepted and applied.
+        /// </summary>
         public bool Accepted;
 
+        /// <summary>
+        /// Creates a rejected result with the given reason, keeping the current block state unchanged.
+        /// </summary>
         public static BlockProcessResult Reject(CommandResult reason, StateId currentState)
         {
             return new BlockProcessResult
@@ -28,6 +46,9 @@ namespace Lithforge.Network.Server
             };
         }
 
+        /// <summary>
+        /// Creates an accepted result recording the state transition from previous to new.
+        /// </summary>
         public static BlockProcessResult Accept(StateId previousState, StateId newState)
         {
             return new BlockProcessResult

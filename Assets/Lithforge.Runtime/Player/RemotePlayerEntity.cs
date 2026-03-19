@@ -24,36 +24,52 @@ namespace Lithforge.Runtime.Player
         /// <summary>Destroy entity if no snapshot arrives for this long.</summary>
         public const float TimeoutSeconds = 5f;
 
-        // Animation
+        /// <summary>Drives walk animation from interpolated position deltas.</summary>
         public readonly RemotePlayerAnimator Animator;
 
-        // Name tag
+        /// <summary>Billboard quad mesh for rendering the player name above the entity.</summary>
         public readonly Mesh NameTagMesh;
 
-        // GPU per-entity state
+        /// <summary>Per-entity GPU StructuredBuffer holding 6 world-space part transform matrices.</summary>
         public readonly GraphicsBuffer PartTransformsBuffer;
+
+        /// <summary>CPU-side staging array for uploading part transforms to the GPU.</summary>
         public readonly Matrix4x4[] PartTransformUpload;
 
+        /// <summary>Network player ID assigned by the server.</summary>
         public readonly ushort PlayerId;
+
+        /// <summary>Display name of the remote player.</summary>
         public readonly string PlayerName;
 
-        // Skin
+        /// <summary>The 64x64 skin texture for this player entity.</summary>
         public readonly Texture2D SkinTexture;
 
-        // Interpolation
+        /// <summary>Ring buffer of timestamped snapshots for smooth interpolation.</summary>
         public readonly InterpolationBuffer<RemotePlayerSnapshot> SnapshotBuffer;
 
+        /// <summary>True after Dispose has been called.</summary>
         private bool _disposed;
 
-        // Render params (reference shared static buffers from RemotePlayerManager)
+        /// <summary>Render parameters for the base (inner) model layer draw call.</summary>
         public RenderParams BaseModelParams;
+
+        /// <summary>Server timestamp of the most recently received snapshot.</summary>
         public float LastSnapshotTime;
+
+        /// <summary>Render parameters for the name tag billboard draw call.</summary>
         public RenderParams NameTagParams;
+
+        /// <summary>Render parameters for the overlay (outer) model layer draw call.</summary>
         public RenderParams OverlayModelParams;
 
-        // Timeout safety net
+        /// <summary>Seconds since the last snapshot was received; entity is despawned when this exceeds TimeoutSeconds.</summary>
         public float TimeoutTimer;
 
+        /// <summary>
+        ///     Creates a remote player entity with initial snapshot, GPU transform buffer,
+        ///     skin texture, name tag mesh, and render parameters for all draw layers.
+        /// </summary>
         public RemotePlayerEntity(
             ushort playerId,
             string playerName,
@@ -133,6 +149,7 @@ namespace Lithforge.Runtime.Player
             };
         }
 
+        /// <summary>Releases the per-entity GPU transform buffer, skin texture, and name tag mesh.</summary>
         public void Dispose()
         {
             if (_disposed)

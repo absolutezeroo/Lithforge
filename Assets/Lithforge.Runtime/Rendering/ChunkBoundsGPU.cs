@@ -10,9 +10,16 @@ namespace Lithforge.Runtime.Rendering
     [StructLayout(LayoutKind.Sequential)]
     public struct ChunkBoundsGPU
     {
-        public float3 WorldMin;   // 12 bytes
-        public float Pad0;        // 4 bytes (align to 16)
-        public float3 WorldMax;   // 12 bytes
-        public float Pad1;        // 4 bytes (align to 16)
+        /// <summary>Minimum corner of the chunk AABB in world space (12 bytes).</summary>
+        public float3 WorldMin;
+
+        /// <summary>Padding to align WorldMin to 16 bytes for GPU cache alignment.</summary>
+        public float Pad0;
+
+        /// <summary>Maximum corner of the chunk AABB in world space (12 bytes).</summary>
+        public float3 WorldMax;
+
+        /// <summary>Padding to align WorldMax to 16 bytes for GPU cache alignment.</summary>
+        public float Pad1;
     }
 }

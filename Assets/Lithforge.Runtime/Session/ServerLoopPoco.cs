@@ -13,10 +13,13 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class ServerLoopPoco
     {
+        /// <summary>Configuration bag with all server-side dependencies.</summary>
         private readonly ServerLoopConfig _config;
 
+        /// <summary>Reusable list of coords unloaded during the current frame.</summary>
         private readonly List<int3> _unloadedCoords = new();
 
+        /// <summary>Creates a new server loop with the given config.</summary>
         public ServerLoopPoco(ServerLoopConfig config)
         {
             _config = config;
@@ -28,6 +31,7 @@ namespace Lithforge.Runtime.Session
             get { return _unloadedCoords; }
         }
 
+        /// <summary>Number of chunks awaiting generation job completion.</summary>
         public int PendingGenerationCount
         {
             get { return _config.GenerationScheduler?.PendingCount ?? 0; }

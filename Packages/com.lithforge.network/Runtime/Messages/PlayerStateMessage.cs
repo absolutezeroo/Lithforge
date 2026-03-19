@@ -11,31 +11,90 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct PlayerStateMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 2 + 4 + 2 + 12 + 12 + 4 + 4 + 1; // 41 bytes
 
+        /// <summary>
+        /// Network-assigned player identifier.
+        /// </summary>
         public ushort PlayerId;
+
+        /// <summary>
+        /// Server tick when this state was computed.
+        /// </summary>
         public uint ServerTick;
+
+        /// <summary>
+        /// Sequence ID of the last MoveInput the server processed for this player.
+        /// </summary>
         public ushort LastProcessedSeqId;
+
+        /// <summary>
+        /// Authoritative player X position.
+        /// </summary>
         public float PositionX;
+
+        /// <summary>
+        /// Authoritative player Y position.
+        /// </summary>
         public float PositionY;
+
+        /// <summary>
+        /// Authoritative player Z position.
+        /// </summary>
         public float PositionZ;
+
+        /// <summary>
+        /// Authoritative player X velocity.
+        /// </summary>
         public float VelocityX;
+
+        /// <summary>
+        /// Authoritative player Y velocity.
+        /// </summary>
         public float VelocityY;
+
+        /// <summary>
+        /// Authoritative player Z velocity.
+        /// </summary>
         public float VelocityZ;
+
+        /// <summary>
+        /// Camera yaw angle in degrees.
+        /// </summary>
         public float Yaw;
+
+        /// <summary>
+        /// Camera pitch angle in degrees.
+        /// </summary>
         public float Pitch;
+
+        /// <summary>
+        /// Physics state flags (on ground, swimming, etc.).
+        /// </summary>
         public byte Flags;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.PlayerState; }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -66,6 +125,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static PlayerStateMessage Deserialize(byte[] buffer, int offset, int length)
         {
             PlayerStateMessage msg = new();

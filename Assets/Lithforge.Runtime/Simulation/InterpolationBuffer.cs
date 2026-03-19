@@ -10,14 +10,22 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class InterpolationBuffer<T> where T : struct
     {
+        /// <summary>Maximum number of snapshots stored in the circular buffer.</summary>
         private const int Capacity = 32;
+
+        /// <summary>Maximum duration in seconds to extrapolate beyond the newest snapshot.</summary>
         private const float MaxExtrapolationSeconds = 0.25f;
 
         /// <summary>Interpolation delay: 2 ticks behind real-time to absorb jitter.</summary>
         public static readonly float InterpolationDelay = 2f * FixedTickRate.TickDeltaTime;
 
+        /// <summary>Circular array of snapshot values.</summary>
         private readonly T[] _snapshots = new T[Capacity];
+
+        /// <summary>Circular array of server timestamps corresponding to each snapshot.</summary>
         private readonly float[] _timestamps = new float[Capacity];
+
+        /// <summary>Next write position in the circular buffer, wraps at Capacity.</summary>
         private int _writeIndex = 0;
 
         /// <summary>

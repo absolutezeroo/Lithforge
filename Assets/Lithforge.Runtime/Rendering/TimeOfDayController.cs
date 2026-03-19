@@ -14,18 +14,43 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class TimeOfDayController : MonoBehaviour
     {
+        /// <summary>Shader property ID for the sun light brightness factor.</summary>
         private static readonly int s_sunLightFactorId = Shader.PropertyToID("_SunLightFactor");
+
+        /// <summary>Shader property ID for the ambient light level.</summary>
         private static readonly int s_ambientLightId = Shader.PropertyToID("_AmbientLight");
+
+        /// <summary>Additional materials registered for sun/ambient updates (e.g., held item materials).</summary>
         private readonly List<Material> _additionalMaterials = new();
+
+        /// <summary>Cutout (alpha-test) voxel material receiving sun/ambient updates.</summary>
         private Material _cutoutMaterial;
+
+        /// <summary>Ambient light level during full daylight.</summary>
         private float _dayAmbient;
+
+        /// <summary>Real-time seconds for one full day/night cycle.</summary>
         private float _dayLengthSeconds;
+
+        /// <summary>AnimationCurve mapping time-of-day [0,1] to sun factor [0,1], or null for cosine fallback.</summary>
         private AnimationCurve _dayNightCurve;
+
+        /// <summary>Minimum sun intensity (floor) to prevent total darkness at midnight.</summary>
         private float _minSunIntensity;
+
+        /// <summary>Ambient light level during nighttime.</summary>
         private float _nightAmbient;
+
+        /// <summary>Rotational offset in degrees applied to the sun's elevation angle.</summary>
         private float _sunAngleOffset;
+
+        /// <summary>Azimuth angle in degrees for the directional light's Y rotation.</summary>
         private float _sunAzimuth;
+
+        /// <summary>Translucent (water) voxel material receiving sun/ambient updates.</summary>
         private Material _translucentMaterial;
+
+        /// <summary>Opaque voxel material receiving sun/ambient updates.</summary>
         private Material _voxelMaterial;
 
         /// <summary>Normalized time of day in [0,1). 0 = midnight, 0.5 = noon.</summary>
@@ -37,14 +62,17 @@ namespace Lithforge.Runtime.Rendering
             get { return ComputeSunFactor(TimeOfDay); }
         }
 
+        /// <summary>The scene directional light rotated to match the sun's position.</summary>
         public Light DirectionalLight { get; private set; }
 
+        /// <summary>Gets or sets the real-time length of one full day/night cycle in seconds (minimum 1).</summary>
         public float DayLengthSeconds
         {
             get { return _dayLengthSeconds; }
             set { _dayLengthSeconds = Mathf.Max(1.0f, value); }
         }
 
+        /// <summary>Applies visual updates to materials and directional light rotation at frame rate.</summary>
         private void Update()
         {
             if (_voxelMaterial == null)
@@ -89,6 +117,7 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Sets the time of day directly, wrapping to [0,1) range.</summary>
         public void SetTimeOfDay(float time)
         {
             TimeOfDay = time % 1f;
@@ -99,6 +128,7 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Initializes all day/night settings, assigns materials, and finds the directional light.</summary>
         public void Initialize(
             Material voxelMaterial,
             Material cutoutMaterial,
@@ -158,6 +188,7 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Computes the sun brightness factor from the AnimationCurve or cosine fallback.</summary>
         private float ComputeSunFactor(float time)
         {
             // Use AnimationCurve if provided

@@ -12,16 +12,34 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct SpawnInitMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 4 + 4 + 4 + 1; // 13 bytes
 
+        /// <summary>
+        /// Spawn position X coordinate.
+        /// </summary>
         public float SpawnX;
 
+        /// <summary>
+        /// Spawn position Y coordinate.
+        /// </summary>
         public float SpawnY;
 
+        /// <summary>
+        /// Spawn position Z coordinate.
+        /// </summary>
         public float SpawnZ;
 
+        /// <summary>
+        /// Number of chunks around spawn the client needs before declaring readiness.
+        /// </summary>
         public byte ClientReadyRadius;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get
@@ -30,11 +48,17 @@ namespace Lithforge.Network.Messages
             }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -50,6 +74,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static SpawnInitMessage Deserialize(byte[] buffer, int offset, int length)
         {
             SpawnInitMessage msg = new();

@@ -21,9 +21,13 @@ namespace Lithforge.Runtime.Network
     /// </summary>
     public sealed class ClientRemotePlayerHandler
     {
+        /// <summary>Local player's network ID, used to ignore self-spawn messages.</summary>
         private readonly ushort _localPlayerId;
+
+        /// <summary>Remote player manager for spawning and despawning entities.</summary>
         private readonly RemotePlayerManager _remotePlayerManager;
 
+        /// <summary>Creates the handler and registers message callbacks on the network client's dispatcher.</summary>
         public ClientRemotePlayerHandler(
             RemotePlayerManager remotePlayerManager,
             INetworkClient networkClient,
@@ -55,6 +59,7 @@ namespace Lithforge.Runtime.Network
             _remotePlayerManager.PushSnapshot(msg.PlayerId, serverTimestamp, snapshot);
         }
 
+        /// <summary>Handles an incoming SpawnPlayer message by creating a remote player entity.</summary>
         private void OnSpawnPlayer(ConnectionId connId, byte[] data, int offset, int length)
         {
             SpawnPlayerMessage msg = SpawnPlayerMessage.Deserialize(data, offset, length);
@@ -76,6 +81,7 @@ namespace Lithforge.Runtime.Network
                 msg.Flags);
         }
 
+        /// <summary>Handles an incoming DespawnPlayer message by removing the remote player entity.</summary>
         private void OnDespawnPlayer(ConnectionId connId, byte[] data, int offset, int length)
         {
             DespawnPlayerMessage msg = DespawnPlayerMessage.Deserialize(data, offset, length);

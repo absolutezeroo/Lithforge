@@ -12,17 +12,28 @@ namespace Lithforge.Runtime.Debug
     /// </summary>
     public sealed class FrameProfiler : IFrameProfiler
     {
+        /// <summary>Per-section stopwatches, indexed by FrameProfilerSections constants.</summary>
         private readonly Stopwatch[] _stopwatches;
+
+        /// <summary>Most recent completed frame's timings in milliseconds per section.</summary>
         private readonly float[] _currentMs;
+
+        /// <summary>Per-section rolling history ring buffers (HistorySize frames each).</summary>
         private readonly float[][] _history;
+
+        /// <summary>Precomputed conversion factor from Stopwatch ticks to milliseconds.</summary>
         private readonly double _ticksToMs;
 
+        /// <summary>Enables or disables profiling. When false, Begin/End/BeginFrame are no-ops.</summary>
         public bool Enabled { get; set; }
 
+        /// <summary>Current write position in the history ring buffer.</summary>
         public int HistoryHead { get; private set; }
 
+        /// <summary>Number of valid entries filled in the history (0..HistorySize).</summary>
         public int HistoryFilled { get; private set; }
 
+        /// <summary>Allocates all stopwatches and history arrays for each profiler section.</summary>
         public FrameProfiler()
         {
             int count = FrameProfilerSections.SectionCount;

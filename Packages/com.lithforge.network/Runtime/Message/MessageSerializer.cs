@@ -10,6 +10,9 @@ namespace Lithforge.Network.Message
     {
         // Shared send buffer — only used on main thread, so no thread safety needed.
         // Resized as needed, never shrunk.
+        /// <summary>
+        /// Shared reusable send buffer to avoid per-message allocation. Grown as needed, never shrunk.
+        /// </summary>
         private static byte[] _sendBuffer = new byte[1024];
 
         /// <summary>
@@ -118,6 +121,9 @@ namespace Lithforge.Network.Message
             return *(float*)&bits;
         }
 
+        /// <summary>
+        /// Grows the shared send buffer to at least the required capacity by doubling.
+        /// </summary>
         private static void EnsureBufferCapacity(int required)
         {
             if (_sendBuffer.Length >= required)

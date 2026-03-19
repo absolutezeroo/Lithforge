@@ -18,21 +18,28 @@ namespace Lithforge.Runtime.Network
         /// <summary>Broadcast interval in milliseconds.</summary>
         private const int BroadcastIntervalMs = 1500;
 
+        /// <summary>Server info payload included in each broadcast packet.</summary>
         private readonly LanServerInfo _info;
 
+        /// <summary>Reusable buffer for serializing broadcast packets.</summary>
         private readonly byte[] _packetBuffer = new byte[LanDiscoveryPacket.MaxPacketSize];
 
+        /// <summary>Volatile flag checked by the background thread to signal shutdown.</summary>
         private volatile bool _running;
 
+        /// <summary>Background thread running the broadcast loop.</summary>
         private Thread _thread;
 
+        /// <summary>UDP socket used for sending broadcast packets.</summary>
         private UdpClient _udpClient;
 
+        /// <summary>Creates a broadcaster with the given server info payload.</summary>
         public LanBroadcaster(LanServerInfo info)
         {
             _info = info;
         }
 
+        /// <summary>Stops the broadcast thread and closes the UDP socket.</summary>
         public void Dispose()
         {
             _running = false;
@@ -87,6 +94,7 @@ namespace Lithforge.Runtime.Network
             _info.playerCount = count;
         }
 
+        /// <summary>Background thread entry point that serializes and sends broadcast packets in a loop.</summary>
         private void BroadcastLoop()
         {
             try

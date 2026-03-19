@@ -17,10 +17,16 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public static class PlayerModelMeshBuilder
     {
+        /// <summary>Inflation amount in model units for the head overlay (hat) layer.</summary>
         private const float HeadOverlayInflation = 0.5f;
+
+        /// <summary>Inflation amount in model units for body overlay (jacket, sleeves, pants) layers.</summary>
         private const float BodyOverlayInflation = 0.25f;
 
+        /// <summary>Number of vertices per box (6 faces * 4 vertices).</summary>
         private const int VertsPerBox = 24;
+
+        /// <summary>Number of indices per box (6 faces * 2 triangles * 3 indices).</summary>
         private const int IndicesPerBox = 36;
 
         /// <summary>Number of body parts (head, body, rightArm, leftArm, rightLeg, leftLeg).</summary>

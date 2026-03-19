@@ -6,6 +6,7 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public struct TickAccumulator
     {
+        /// <summary>Elapsed time accumulated but not yet consumed by ticks.</summary>
         private float _accumulated;
 
         /// <summary>

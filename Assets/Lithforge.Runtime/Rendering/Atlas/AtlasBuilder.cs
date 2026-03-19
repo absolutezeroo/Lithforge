@@ -17,9 +17,13 @@ namespace Lithforge.Runtime.Rendering.Atlas
     /// </summary>
     public sealed class AtlasBuilder
     {
+        /// <summary>Logger for reporting atlas build progress and texture size warnings.</summary>
         private readonly ILogger _logger;
+
+        /// <summary>Expected side length in pixels for each texture tile (default 16).</summary>
         private readonly int _tileSize;
 
+        /// <summary>Creates an atlas builder with the specified logger and tile resolution.</summary>
         public AtlasBuilder(ILogger logger, int tileSize = 16)
         {
             _logger = logger;

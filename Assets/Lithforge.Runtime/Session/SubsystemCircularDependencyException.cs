@@ -8,6 +8,7 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class SubsystemCircularDependencyException : Exception
     {
+        /// <summary>Creates a new exception with the given cycle description message.</summary>
         public SubsystemCircularDependencyException(string message) : base(message)
         {
         }

@@ -15,20 +15,40 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class FallSoundDetector
     {
+        /// <summary>Block sound player for playing fall impact sounds.</summary>
         private readonly BlockSoundPlayer _blockSoundPlayer;
+
+        /// <summary>Chunk manager for querying the block at the player's feet.</summary>
         private readonly ChunkManager _chunkManager;
+
+        /// <summary>Maximum fall height used for volume scaling.</summary>
         private readonly float _fallMaxHeight;
+
+        /// <summary>Maximum volume for fall impact sounds.</summary>
         private readonly float _fallMaxVolume;
+
+        /// <summary>Minimum fall distance in blocks before a fall sound plays.</summary>
         private readonly float _fallThreshold;
+
+        /// <summary>Delegate returning true if the player is currently flying.</summary>
         private readonly Func<bool> _isFlying;
 
+        /// <summary>Delegate returning true if the player is currently on the ground.</summary>
         private readonly Func<bool> _isOnGround;
+
+        /// <summary>Player transform for reading vertical position.</summary>
         private readonly Transform _playerTransform;
+
+        /// <summary>Highest Y reached during the current fall for height calculation.</summary>
         private float _highestY;
+
+        /// <summary>True while actively tracking a fall (player is airborne).</summary>
         private bool _tracking;
 
+        /// <summary>Previous frame's on-ground state for edge detection.</summary>
         private bool _wasOnGround;
 
+        /// <summary>Creates the detector with references to audio, physics, and player state.</summary>
         public FallSoundDetector(
             BlockSoundPlayer blockSoundPlayer,
             ChunkManager chunkManager,

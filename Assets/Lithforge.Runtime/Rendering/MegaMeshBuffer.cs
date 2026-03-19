@@ -27,6 +27,7 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class MegaMeshBuffer : IDisposable
     {
+        /// <summary>Byte stride of a single PackedMeshVertex, cached for buffer sizing and upload math.</summary>
         private static readonly int s_vertexStride = Marshal.SizeOf<PackedMeshVertex>();
 
         /// <summary>
@@ -41,6 +42,7 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Debug/log label identifying this layer (e.g. "Opaque", "Cutout").</summary>
         private readonly string _name;
 
+        /// <summary>Pipeline stats sink for recording GPU upload bytes and buffer grow events.</summary>
         private readonly IPipelineStats _pipelineStats;
 
         /// <summary>GPU buffer resize service — dispatches compute copy and defers disposal.</summary>
@@ -771,11 +773,22 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private struct SlotInfo
         {
+            /// <summary>Starting index in the vertex buffer where this chunk's vertices begin.</summary>
             public int VertexOffset;
+
+            /// <summary>Number of vertices currently written for this chunk.</summary>
             public int VertexCount;
+
+            /// <summary>Maximum vertices the slot can hold before requiring reallocation.</summary>
             public int VertexCapacity;
+
+            /// <summary>Starting index in the index buffer where this chunk's indices begin.</summary>
             public int IndexOffset;
+
+            /// <summary>Number of indices currently written for this chunk.</summary>
             public int IndexCount;
+
+            /// <summary>Maximum indices the slot can hold before requiring reallocation.</summary>
             public int IndexCapacity;
         }
 
@@ -785,16 +798,26 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private struct FreeRegion
         {
+            /// <summary>Starting index in the vertex buffer where the free region begins.</summary>
             public int VertexOffset;
+
+            /// <summary>Number of vertex entries available in this free region.</summary>
             public int VertexCapacity;
+
+            /// <summary>Starting index in the index buffer where the free region begins.</summary>
             public int IndexOffset;
+
+            /// <summary>Number of index entries available in this free region.</summary>
             public int IndexCapacity;
         }
 
         /// <summary>Half-open interval [Start, End) marking a dirty region in the CPU mirror.</summary>
         private struct DirtyRange
         {
+            /// <summary>Inclusive start index of the dirty interval.</summary>
             public int Start;
+
+            /// <summary>Exclusive end index of the dirty interval.</summary>
             public int End;
         }
 
@@ -806,8 +829,10 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private struct DirtyRangeList
         {
+            /// <summary>Maximum number of disjoint intervals before collapsing to a single bounding range.</summary>
             private const int MaxRanges = 16;
 
+            /// <summary>Backing array for the sorted dirty intervals, lazily allocated on first Add.</summary>
             private DirtyRange[] _ranges;
 
             /// <summary>Number of disjoint dirty intervals currently tracked.</summary>

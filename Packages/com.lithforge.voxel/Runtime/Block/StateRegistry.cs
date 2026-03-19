@@ -15,10 +15,16 @@ namespace Lithforge.Voxel.Block
     /// </summary>
     public sealed class StateRegistry
     {
+        /// <summary>Registered block entries, one per block type.</summary>
         private readonly List<StateRegistryEntry> _entries = new();
+
+        /// <summary>All block states (StateId 0 = air, then sequential by registration).</summary>
         private readonly List<BlockStateCompact> _states = new();
+
+        /// <summary>Whether the registry has been frozen via BakeNative.</summary>
         private bool _frozen;
 
+        /// <summary>Initializes the registry with StateId(0) = AIR.</summary>
         public StateRegistry()
         {
             // StateId(0) = AIR, hardcoded invariant
@@ -36,11 +42,13 @@ namespace Lithforge.Voxel.Block
             _states.Add(airState);
         }
 
+        /// <summary>Total number of registered states (including air at index 0).</summary>
         public int TotalStateCount
         {
             get { return _states.Count; }
         }
 
+        /// <summary>All registered block entries in registration order.</summary>
         public IReadOnlyList<StateRegistryEntry> Entries
         {
             get { return _entries; }
@@ -214,6 +222,7 @@ namespace Lithforge.Voxel.Block
             _states[id.Value] = state;
         }
 
+        /// <summary>Computes the packed flag byte from block registration properties.</summary>
         private static byte ComputeFlagsFromData(BlockRegistrationData data)
         {
             byte flags = 0;
@@ -250,6 +259,7 @@ namespace Lithforge.Voxel.Block
             return flags;
         }
 
+        /// <summary>Maps a render layer string to its byte index (0=opaque, 1=cutout, 2=translucent).</summary>
         private static byte ParseRenderLayer(string renderLayer)
         {
             if (string.Equals(renderLayer, "cutout", StringComparison.Ordinal))
@@ -265,6 +275,7 @@ namespace Lithforge.Voxel.Block
             return 0; // opaque
         }
 
+        /// <summary>Maps a collision shape string to its byte value (0=none, 1=full_cube).</summary>
         private static byte ParseCollisionShape(string collisionShape)
         {
             if (string.Equals(collisionShape, "none", StringComparison.Ordinal))

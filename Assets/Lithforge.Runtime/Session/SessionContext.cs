@@ -13,8 +13,10 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class SessionContext
     {
+        /// <summary>Map of registered service types to their instances.</summary>
         private readonly Dictionary<Type, object> _services = new();
 
+        /// <summary>Creates a new SessionContext for one game session.</summary>
         public SessionContext(
             SessionConfig config,
             AppContext app,

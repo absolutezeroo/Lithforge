@@ -19,22 +19,31 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class HiZPyramid : IDisposable
     {
+        /// <summary>Shader property ID for the camera depth source texture input.</summary>
         private static readonly int s_depthSourceId = Shader.PropertyToID("_DepthSource");
 
+        /// <summary>Shader property ID for the mip 0 output texture in the copy kernel.</summary>
         private static readonly int s_hiZMip0Id = Shader.PropertyToID("_HiZMip0");
 
+        /// <summary>Shader property ID for the previous (higher-resolution) mip input in the downsample kernel.</summary>
         private static readonly int s_hiZPrevMipId = Shader.PropertyToID("_HiZPrevMip");
 
+        /// <summary>Shader property ID for the next (lower-resolution) mip output in the downsample kernel.</summary>
         private static readonly int s_hiZNextMipId = Shader.PropertyToID("_HiZNextMip");
 
+        /// <summary>Shader property ID for the mip 0 copy dispatch dimensions.</summary>
         private static readonly int s_copySizeId = Shader.PropertyToID("_CopySize");
 
+        /// <summary>Shader property ID for the downsample dispatch dimensions at each mip level.</summary>
         private static readonly int s_downsampleSizeId = Shader.PropertyToID("_DownsampleSize");
 
+        /// <summary>Compute kernel index for the depth-to-mip0 copy pass.</summary>
         private readonly int _copyKernel;
 
+        /// <summary>Compute kernel index for the 2x2 min-downsample pass.</summary>
         private readonly int _downsampleKernel;
 
+        /// <summary>Compute shader used for Hi-Z copy and downsample operations.</summary>
         private readonly ComputeShader _hiZShader;
 
         /// <summary>Combined mipmapped RT for compute shader sampling in occlusion test.</summary>
@@ -43,6 +52,7 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Per-mip-level RenderTextures. Index 0 = full resolution.</summary>
         private RenderTexture[] _mipTextures;
 
+        /// <summary>Creates a Hi-Z pyramid using the given compute shader for copy and downsample kernels.</summary>
         public HiZPyramid(ComputeShader hiZShader)
         {
             _hiZShader = hiZShader;
@@ -71,8 +81,10 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Full-resolution width of the Hi-Z pyramid in pixels.</summary>
         public int Width { get; private set; }
 
+        /// <summary>Full-resolution height of the Hi-Z pyramid in pixels.</summary>
         public int Height { get; private set; }
 
         /// <summary>
@@ -83,6 +95,7 @@ namespace Lithforge.Runtime.Rendering
             get { return _combinedTexture; }
         }
 
+        /// <summary>Releases all mip RenderTextures and marks the pyramid as invalid.</summary>
         public void Dispose()
         {
             ReleaseMipTextures();
@@ -161,6 +174,10 @@ namespace Lithforge.Runtime.Rendering
             return _mipTextures[mipLevel];
         }
 
+        /// <summary>
+        ///     Allocates per-mip RenderTextures and the combined mipmapped texture for the
+        ///     given resolution. Called when the pyramid is first generated or when resolution changes.
+        /// </summary>
         private void CreateMipTextures(int width, int height)
         {
             Width = width;
@@ -202,6 +219,7 @@ namespace Lithforge.Runtime.Rendering
             _combinedTexture.Create();
         }
 
+        /// <summary>Releases and destroys all per-mip and combined RenderTextures.</summary>
         private void ReleaseMipTextures()
         {
             if (_mipTextures == null)

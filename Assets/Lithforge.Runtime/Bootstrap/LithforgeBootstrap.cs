@@ -26,26 +26,35 @@ namespace Lithforge.Runtime.Bootstrap
     /// </summary>
     public sealed class LithforgeBootstrap : MonoBehaviour
     {
+        /// <summary>Material for opaque voxel rendering assigned in the Inspector.</summary>
         [FormerlySerializedAs("_voxelMaterial"), SerializeField]
         private Material voxelMaterial;
 
+        /// <summary>Compute shader for GPU frustum culling assigned in the Inspector.</summary>
         [FormerlySerializedAs("_frustumCullShader"), SerializeField]
         private ComputeShader frustumCullShader;
 
+        /// <summary>Compute shader for Hi-Z pyramid generation assigned in the Inspector.</summary>
         [FormerlySerializedAs("_hiZGenerateShader"), SerializeField]
         private ComputeShader hiZGenerateShader;
 
+        /// <summary>Compute shader for GPU buffer copy operations assigned in the Inspector.</summary>
         [SerializeField]
         private ComputeShader bufferCopyShader;
 
+        /// <summary>App-lifetime context holding settings, logger, and shared resources.</summary>
         private AppContext _appContext;
 
+        /// <summary>Session config set by menu screens to trigger session start.</summary>
         private SessionConfig _pendingSession;
 
+        /// <summary>Persisted list of saved multiplayer server entries.</summary>
         private SavedServerList _savedServerList;
 
+        /// <summary>Screen stack manager for modal navigation.</summary>
         private ScreenManager _screenManager;
 
+        /// <summary>Creates app-lifetime resources: settings, logger, profiler, screen manager.</summary>
         private void Awake()
         {
             LoadedSettings settings = SettingsLoader.Load();
@@ -69,6 +78,7 @@ namespace Lithforge.Runtime.Bootstrap
 
         }
 
+        /// <summary>Main lifecycle loop: alternates between main menu and game sessions.</summary>
         private IEnumerator Start()
         {
             PanelSettings panelSettings =
@@ -94,6 +104,7 @@ namespace Lithforge.Runtime.Bootstrap
             }
         }
 
+        /// <summary>Synchronous save fallback when the application is quit mid-session.</summary>
         private void OnDestroy()
         {
             // Synchronous save fallback when the application is quit mid-session
@@ -135,6 +146,7 @@ namespace Lithforge.Runtime.Bootstrap
             _appContext.CurrentSession = null;
         }
 
+        /// <summary>Creates all main menu screens (main menu, world selection, host settings, join game).</summary>
         private void CreateMenuScreens(PanelSettings panelSettings)
         {
             Action<SessionConfig> onSessionSelected = session =>

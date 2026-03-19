@@ -17,12 +17,22 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class ServerSimulation : IServerSimulation
     {
+        /// <summary>Server-side block command validator and executor.</summary>
         private readonly ServerBlockProcessor _blockProcessor;
+
+        /// <summary>Physics settings used when creating new player bodies.</summary>
         private readonly PhysicsSettings _physicsSettings;
+
+        /// <summary>Manages physics bodies for all connected players.</summary>
         private readonly PlayerPhysicsManager _playerPhysicsManager;
+
+        /// <summary>Registry of all ITickable systems driven each server tick.</summary>
         private readonly TickRegistry _tickRegistry;
+
+        /// <summary>Callback returning the current time-of-day value for state broadcasts.</summary>
         private readonly Func<float> _timeOfDayProvider;
 
+        /// <summary>Creates a new server simulation with the given runtime dependencies.</summary>
         public ServerSimulation(
             PlayerPhysicsManager playerPhysicsManager,
             TickRegistry tickRegistry,
@@ -37,6 +47,7 @@ namespace Lithforge.Runtime.Simulation
             _timeOfDayProvider = timeOfDayProvider ?? (() => 0f);
         }
 
+        /// <summary>Creates a physics body for a new player and returns their initial state.</summary>
         public PlayerPhysicsState AddPlayer(ushort playerId, float3 spawnPosition)
         {
             PlayerPhysicsBody body = _playerPhysicsManager.AddPlayer(
@@ -46,12 +57,14 @@ namespace Lithforge.Runtime.Simulation
             return body.GetState();
         }
 
+        /// <summary>Removes the physics body and block processor state for a disconnecting player.</summary>
         public void RemovePlayer(ushort playerId)
         {
             _blockProcessor?.RemovePlayer(playerId);
             _playerPhysicsManager.RemovePlayer(playerId);
         }
 
+        /// <summary>Reconstructs an InputSnapshot from wire-format flags and ticks the player's physics.</summary>
         public PlayerPhysicsState ApplyMoveInput(
             ushort playerId, float yaw, float pitch, byte flags, float tickDt)
         {
@@ -76,16 +89,19 @@ namespace Lithforge.Runtime.Simulation
             return _playerPhysicsManager.GetState(playerId);
         }
 
+        /// <summary>Ticks all registered world systems (time-of-day, block entities, etc.).</summary>
         public void TickWorldSystems(float tickDt)
         {
             _tickRegistry.TickAll(tickDt);
         }
 
+        /// <summary>Returns the current physics state for the given player.</summary>
         public PlayerPhysicsState GetPlayerState(ushort playerId)
         {
             return _playerPhysicsManager.GetState(playerId);
         }
 
+        /// <summary>Returns the current time-of-day value from the provider callback.</summary>
         public float GetTimeOfDay()
         {
             return _timeOfDayProvider();

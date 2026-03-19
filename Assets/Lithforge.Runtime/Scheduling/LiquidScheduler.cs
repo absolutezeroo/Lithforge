@@ -23,34 +23,49 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class LiquidScheduler : IDisposable
     {
+        /// <summary>Reusable cache for candidate chunks eligible for liquid simulation. Avoids per-tick allocation.</summary>
         private readonly List<ManagedChunk> _candidateCache;
 
+        /// <summary>Chunk manager for state transitions, block edits, and chunk queries.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Reusable cache tracking chunks dirtied during liquid result application.</summary>
         private readonly List<int3> _dirtiedChunksCache;
 
+        /// <summary>Maps even-parity chunk coords to their job handles for odd-parity dependency wiring.</summary>
         private readonly Dictionary<int3, JobHandle> _evenHandles;
 
+        /// <summary>Reusable set for collecting unique chunk coords that need force-completion before edits.</summary>
         private readonly HashSet<int3> _forceCompleteCache;
 
+        /// <summary>Reusable cache for full-scan liquid active set building when no prior set exists.</summary>
         private readonly List<int> _fullScanCache;
 
+        /// <summary>Set of chunk coordinates with in-flight liquid jobs, preventing double-scheduling.</summary>
         private readonly HashSet<int3> _inFlightCoords;
 
+        /// <summary>Liquid sim jobs currently running on worker threads.</summary>
         private readonly List<PendingLiquidJob> _inFlightJobs;
 
+        /// <summary>Pool of NativeArray byte buffers for liquid data recycling.</summary>
         private readonly LiquidPool _liquidPool;
 
+        /// <summary>Burst-accessible state registry for block solidity lookups during liquid simulation.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
+        /// <summary>Configuration parameters for the water liquid type (flow rate, max level, etc.).</summary>
         private readonly LiquidJobConfig _waterConfig;
 
+        /// <summary>Guard flag set while applying liquid job results to prevent recursive OnBlockChanged calls.</summary>
         private bool _applyingLiquidResults;
 
+        /// <summary>Whether this scheduler has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Optional mesh scheduler for force-completing border extraction jobs before writing block data.</summary>
         private MeshScheduler _meshScheduler;
 
+        /// <summary>Creates a new liquid scheduler with the given dependencies and water configuration.</summary>
         public LiquidScheduler(
             ChunkManager chunkManager,
             LiquidPool liquidPool,
@@ -71,6 +86,7 @@ namespace Lithforge.Runtime.Scheduling
             _forceCompleteCache = new HashSet<int3>();
         }
 
+        /// <summary>Shuts down the scheduler and releases the liquid pool.</summary>
         public void Dispose()
         {
             if (_disposed)
@@ -261,6 +277,10 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>
+        ///     Allocates native containers, copies ghost slabs from neighbors, and schedules a
+        ///     LiquidSimJob on the given chunk with the specified dependency and parity.
+        /// </summary>
         private PendingLiquidJob ScheduleJob(ManagedChunk chunk, JobHandle dependency, byte parity)
         {
             NativeArray<int> inputActiveSet = BuildInputActiveSet(chunk);
@@ -343,6 +363,10 @@ namespace Lithforge.Runtime.Scheduling
             };
         }
 
+        /// <summary>
+        ///     Builds a NativeArray of active liquid voxel indices for the given chunk.
+        ///     If no prior active set exists (null), performs a full scan of all liquid data.
+        /// </summary>
         private NativeArray<int> BuildInputActiveSet(ManagedChunk chunk)
         {
             if (chunk.LiquidActiveSet == null)
@@ -384,6 +408,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Copies a single liquid ghost slab from the neighbor at the given face into the output array.</summary>
         private void CopyGhostSlab(ManagedChunk chunk, int face, NativeArray<byte> output)
         {
             ManagedChunk neighbor = chunk.Neighbors[face];
@@ -480,6 +505,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Copies a block-solidity ghost slab from the neighbor at the given face for cross-boundary solid checks.</summary>
         private void CopyBlockSolidGhostSlab(ManagedChunk chunk, int face, NativeArray<byte> output)
         {
             ManagedChunk neighbor = chunk.Neighbors[face];
@@ -619,6 +645,10 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>
+        ///     Applies completed liquid job results: rebuilds active set, force-completes
+        ///     conflicting jobs, and applies block edits via ChunkManager.SetBlock.
+        /// </summary>
         private void ApplyJobResults(PendingLiquidJob pending)
         {
             // Update active set on the chunk
@@ -817,6 +847,10 @@ namespace Lithforge.Runtime.Scheduling
             WakeChunkAndNeighbors(chunkCoord, localX, localY, localZ, chunk);
         }
 
+        /// <summary>
+        ///     Resets the liquid active set for the given chunk and clears the settled flag on
+        ///     adjacent liquid voxels so they re-evaluate flow. Also wakes border-adjacent neighbor chunks.
+        /// </summary>
         private void WakeChunkAndNeighbors(int3 chunkCoord, int lx, int ly, int lz, ManagedChunk chunk)
         {
             chunk.LiquidActiveSet = null;
@@ -861,6 +895,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Clears the settled flag on the liquid cell at the given local position if within bounds.</summary>
         private void ClearSettledAt(ManagedChunk chunk, int lx, int ly, int lz)
         {
             int size = ChunkConstants.Size;
@@ -885,6 +920,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Resets the liquid active set on a neighbor chunk so it re-scans all liquid voxels next tick.</summary>
         private void WakeNeighborChunk(int3 neighborCoord)
         {
             ManagedChunk neighbor = _chunkManager.TryGetChunk(neighborCoord);

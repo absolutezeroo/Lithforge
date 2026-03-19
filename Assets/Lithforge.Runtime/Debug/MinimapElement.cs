@@ -14,6 +14,7 @@ namespace Lithforge.Runtime.Debug
     /// </summary>
     public sealed class MinimapElement : VisualElement
     {
+        /// <summary>Color palette indexed by ChunkState ordinal for minimap cell rendering.</summary>
         private static readonly Color[] s_stateColors =
         {
             new(0.08f, 0.08f, 0.08f, 1f), // Unloaded
@@ -25,20 +26,26 @@ namespace Lithforge.Runtime.Debug
             new(0.78f, 0.78f, 0f, 1f),    // Meshing
             new(0f, 0.71f, 0f, 1f),       // Ready
         };
+        /// <summary>Chunk manager for querying chunk state at each grid position.</summary>
         private ChunkManager _chunkManager;
+
+        /// <summary>Main camera for determining the center chunk of the minimap view.</summary>
         private Camera _mainCamera;
 
+        /// <summary>Registers the visual content generation callback for Painter2D rendering.</summary>
         public MinimapElement()
         {
             generateVisualContent += OnGenerateVisualContent;
         }
 
+        /// <summary>Sets the chunk manager and camera references needed for rendering.</summary>
         public void Initialize(ChunkManager chunkManager, Camera mainCamera)
         {
             _chunkManager = chunkManager;
             _mainCamera = mainCamera;
         }
 
+        /// <summary>Paints the minimap grid with color-coded chunk states and a white camera marker.</summary>
         private void OnGenerateVisualContent(MeshGenerationContext mgc)
         {
             if (_chunkManager == null || _mainCamera == null)

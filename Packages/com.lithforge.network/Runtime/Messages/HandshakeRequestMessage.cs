@@ -12,17 +12,37 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct HandshakeRequestMessage : INetworkMessage
     {
+        /// <summary>
+        /// Minimum payload size without the player name string.
+        /// </summary>
         public const int MinSize = 2 + 8 + 8 + 1; // 19 bytes without name
 
+        /// <summary>
+        /// The client's network protocol version.
+        /// </summary>
         public ushort ProtocolVersion;
+
+        /// <summary>
+        /// Hash of the client's content definitions for compatibility verification.
+        /// </summary>
         public ContentHash ContentHash;
+
+        /// <summary>
+        /// The player's display name (UTF-8 encoded, max MaxPlayerNameLength bytes).
+        /// </summary>
         public string PlayerName;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.HandshakeRequest; }
         }
 
+        /// <summary>
+        /// Returns the payload size including the variable-length player name.
+        /// </summary>
         public int GetSerializedSize()
         {
             int nameLength = 0;
@@ -40,6 +60,9 @@ namespace Lithforge.Network.Messages
             return MinSize + nameLength;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -68,6 +91,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static HandshakeRequestMessage Deserialize(byte[] buffer, int offset, int length)
         {
             HandshakeRequestMessage msg = new();

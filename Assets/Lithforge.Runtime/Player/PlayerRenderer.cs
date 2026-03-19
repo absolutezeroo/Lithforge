@@ -26,49 +26,87 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class PlayerRenderer : IDisposable
     {
-        // Shader property IDs
+        /// <summary>Shader property ID for the player model StructuredBuffer.</summary>
         private static readonly int s_playerVertexBufferId = Shader.PropertyToID("_PlayerVertexBuffer");
+
+        /// <summary>Shader property ID for the held item StructuredBuffer.</summary>
         private static readonly int s_heldItemVertexBufferId = Shader.PropertyToID("_HeldItemVertexBuffer");
+
+        /// <summary>Shader property ID for the per-part transform StructuredBuffer.</summary>
         private static readonly int s_partTransformsId = Shader.PropertyToID("_PartTransforms");
+
+        /// <summary>Shader property ID for the skin texture.</summary>
         private static readonly int s_skinTexId = Shader.PropertyToID("_SkinTex");
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
         private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
 
-        // Animation
+        /// <summary>Drives walk, swing, and equip animations for the local player model.</summary>
         private readonly PlayerModelAnimator _animator;
 
-        // Render params
+        /// <summary>Render parameters for the base (inner) model layer draw call.</summary>
         private readonly RenderParams _baseModelParams;
+
+        /// <summary>Lookup for per-item first-person display transform matrices.</summary>
         private readonly ItemDisplayTransformLookup _displayTransformLookup;
+
+        /// <summary>Render parameters for the held item draw call.</summary>
         private readonly RenderParams _heldItemParams;
 
-        // Held item tracking
+        /// <summary>Player inventory, polled each frame to detect held item changes.</summary>
         private readonly Inventory _inventory;
+
+        /// <summary>Item registry for resolving item IDs to block/flat item metadata.</summary>
         private readonly ItemRegistry _itemRegistry;
+
+        /// <summary>Render parameters for the overlay (outer) model layer draw call.</summary>
         private readonly RenderParams _overlayModelParams;
 
-        // GPU buffers — shared per-part transforms (updated per frame)
+        /// <summary>GPU StructuredBuffer holding 6 world-space part transform matrices, uploaded per frame.</summary>
         private readonly GraphicsBuffer _partTransformsBuffer;
+
+        /// <summary>CPU-side staging array for uploading part transforms to the GPU.</summary>
         private readonly Matrix4x4[] _partTransformUpload = new Matrix4x4[6];
+
+        /// <summary>Indirect arguments buffer for the player model (2 draw commands: base + overlay).</summary>
         private readonly GraphicsBuffer _playerArgsBuffer;
+
+        /// <summary>GPU index buffer for the player model mesh (static, built once).</summary>
         private readonly GraphicsBuffer _playerIndexBuffer;
 
-        // GPU buffers — player model mesh (static)
+        /// <summary>GPU StructuredBuffer for player model vertices (static, built once).</summary>
         private readonly GraphicsBuffer _playerVertexBuffer;
 
-        // Skin texture
+        /// <summary>The 64x64 skin texture applied to the player model.</summary>
         private readonly Texture2D _skinTexture;
+
+        /// <summary>State registry for resolving block texture indices when building held block meshes.</summary>
         private readonly StateRegistry _stateRegistry;
+
+        /// <summary>True when valid held item GPU buffers exist and a draw call should be issued.</summary>
         private bool _hasHeldItemMesh;
+
+        /// <summary>True if the previously rendered frame had a held item (for change detection).</summary>
         private bool _hasLastHeldItem;
+
+        /// <summary>Indirect arguments buffer for the held item (1 draw command).</summary>
         private GraphicsBuffer _heldItemArgsBuffer;
+
+        /// <summary>GPU index buffer for the held item mesh (rebuilt on item change).</summary>
         private GraphicsBuffer _heldItemIndexBuffer;
 
-        // GPU buffers — held item mesh (rebuilt on item change)
+        /// <summary>GPU StructuredBuffer for held item vertices (rebuilt on item change).</summary>
         private GraphicsBuffer _heldItemVertexBuffer;
+
+        /// <summary>ResourceId of the last rendered held item, for change detection.</summary>
         private ResourceId _lastHeldItemId;
+
+        /// <summary>Last observed selected hotbar slot index, for change detection.</summary>
         private int _lastSelectedSlot = -1;
 
+        /// <summary>
+        ///     Creates the renderer, builds static player model GPU buffers, and configures
+        ///     render parameters for base, overlay, and held item draw calls.
+        /// </summary>
         public PlayerRenderer(
             Material modelBaseMaterial,
             Material modelOverlayMaterial,
@@ -178,6 +216,7 @@ namespace Lithforge.Runtime.Player
             };
         }
 
+        /// <summary>Releases all GPU buffers and destroys the skin texture.</summary>
         public void Dispose()
         {
             _playerVertexBuffer?.Dispose();
@@ -359,6 +398,7 @@ namespace Lithforge.Runtime.Player
             _hasHeldItemMesh = true;
         }
 
+        /// <summary>Releases the held item GPU buffers (vertex, index, args) and clears the mesh flag.</summary>
         private void DisposeHeldItemBuffers()
         {
             _heldItemVertexBuffer?.Dispose();

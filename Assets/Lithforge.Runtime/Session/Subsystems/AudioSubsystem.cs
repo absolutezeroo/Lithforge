@@ -17,12 +17,19 @@ using AudioSettings = Lithforge.Runtime.Content.Settings.AudioSettings;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that creates the full audio pipeline: SFX pool, block sounds,
+    ///     footsteps, fall detection, underwater filter, cave reverb, and biome ambient.
+    /// </summary>
     public sealed class AudioSubsystem : IGameSubsystem
     {
+        /// <summary>The owned biome ambient audio player.</summary>
         private BiomeAmbientPlayer _biomeAmbientPlayer;
 
+        /// <summary>The owned SFX audio source pool.</summary>
         private SfxSourcePool _sfxSourcePool;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -31,6 +38,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on player, chunks, block interaction, and tick registry for audio wiring.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
@@ -39,11 +47,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(TickRegistrySubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the complete audio pipeline and registers all components.</summary>
         public void Initialize(SessionContext context)
         {
             AudioSettings audioSettings = context.App.Settings.Audio;
@@ -231,14 +241,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(audioEnvController);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes the SFX source pool and biome ambient player.</summary>
         public void Dispose()
         {
             if (_sfxSourcePool != null)

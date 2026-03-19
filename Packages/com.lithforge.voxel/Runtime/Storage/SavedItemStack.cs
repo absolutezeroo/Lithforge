@@ -3,8 +3,14 @@ using System.Collections.Generic;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     JSON-serializable representation of an inventory slot for world save files.
+    ///     Contains the item identity (namespace + name), stack count, durability,
+    ///     and optional component data for block entities.
+    /// </summary>
     public sealed class SavedItemStack
     {
+        /// <summary>Default constructor for JSON deserialization.</summary>
         public SavedItemStack()
         {
             Slot = 0;
@@ -16,6 +22,7 @@ namespace Lithforge.Voxel.Storage
             CustomDataBase64 = null;
         }
 
+        /// <summary>Creates a saved item stack with identity and count (no component data).</summary>
         public SavedItemStack(int slot, string ns, string name, int count, int durability)
         {
             Slot = slot;
@@ -27,6 +34,7 @@ namespace Lithforge.Voxel.Storage
             CustomDataBase64 = null;
         }
 
+        /// <summary>Creates a saved item stack with typed component data (v2 format).</summary>
         public SavedItemStack(int slot, string ns, string name, int count, int durability,
             List<SavedComponentEntry> components)
         {
@@ -54,14 +62,19 @@ namespace Lithforge.Voxel.Storage
             Components = null;
             CustomDataBase64 = customDataBase64;
         }
+        /// <summary>Inventory slot index this stack occupies (0-based).</summary>
         public int Slot { get; set; }
 
+        /// <summary>ResourceId namespace (e.g. "lithforge").</summary>
         public string Ns { get; set; }
 
+        /// <summary>ResourceId name (e.g. "stone_pickaxe").</summary>
         public string Name { get; set; }
 
+        /// <summary>Number of items in the stack.</summary>
         public int Count { get; set; }
 
+        /// <summary>Remaining durability (-1 = no durability / infinite).</summary>
         public int Durability { get; set; }
 
         /// <summary>

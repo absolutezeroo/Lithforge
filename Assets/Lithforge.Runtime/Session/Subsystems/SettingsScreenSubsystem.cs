@@ -14,8 +14,10 @@ using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the in-game settings screen with live-apply sliders.</summary>
     public sealed class SettingsScreenSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -24,6 +26,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on player, mesh store, and time-of-day for settings controls.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
@@ -31,11 +34,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(TimeOfDaySubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the settings screen GameObject and registers it.</summary>
         public void Initialize(SessionContext context)
         {
             PanelSettings panelSettings = SessionInitArgsHolder.Current?.PanelSettings;
@@ -46,6 +51,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(settingsScreen);
         }
 
+        /// <summary>Wires the settings screen to camera, time-of-day, mesh store, and audio mixer.</summary>
         public void PostInitialize(SessionContext context)
         {
             SettingsScreen settingsScreen = context.Get<SettingsScreen>();
@@ -86,10 +92,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             settingsScreen.ApplyPersistedVolumes();
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources; settings screen is a GameObject.</summary>
         public void Dispose()
         {
         }

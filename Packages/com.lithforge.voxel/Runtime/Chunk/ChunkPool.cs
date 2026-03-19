@@ -16,10 +16,16 @@ namespace Lithforge.Voxel.Chunk
     /// </summary>
     public sealed class ChunkPool : IDisposable
     {
+        /// <summary>Stack of pooled NativeArrays available for checkout.</summary>
         private readonly Stack<NativeArray<StateId>> _available;
+
+        /// <summary>Set of currently checked-out arrays for leak-free disposal.</summary>
         private readonly HashSet<NativeArray<StateId>> _checkedOut;
+
+        /// <summary>Whether the pool has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Creates a pool with the specified number of pre-allocated arrays.</summary>
         public ChunkPool(int initialCapacity)
         {
             _available = new Stack<NativeArray<StateId>>(initialCapacity);
@@ -36,18 +42,22 @@ namespace Lithforge.Voxel.Chunk
             TotalAllocated = initialCapacity;
         }
 
+        /// <summary>Number of arrays currently in the pool.</summary>
         public int AvailableCount
         {
             get { return _available.Count; }
         }
 
+        /// <summary>Number of arrays currently checked out.</summary>
         public int CheckedOutCount
         {
             get { return _checkedOut.Count; }
         }
 
+        /// <summary>Total number of arrays ever allocated (pooled + checked out).</summary>
         public int TotalAllocated { get; private set; }
 
+        /// <summary>Disposes all arrays (both pooled and checked out).</summary>
         public void Dispose()
         {
             if (_disposed)

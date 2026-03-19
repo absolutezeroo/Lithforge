@@ -55,10 +55,13 @@ namespace Lithforge.Runtime.Scheduling
             4,
         };
 
+        /// <summary>Chunk manager for state transitions and chunk queries.</summary>
         private readonly ChunkManager _chunkManager;
 
         /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
         private readonly float _completionBudgetMs;
+
+        /// <summary>Managed decoration stage that runs trees, flowers, etc. after generation jobs complete.</summary>
         private readonly DecorationStage _decorationStage;
 
         /// <summary>
@@ -66,6 +69,7 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
         private readonly List<ManagedChunk> _generateCandidateCache = new();
+        /// <summary>Burst-compiled worldgen pipeline that produces chunk data on worker threads.</summary>
         private readonly GenerationPipeline _generationPipeline;
 
         /// <summary>
@@ -80,7 +84,10 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
         private readonly List<ManagedChunk> _lightUpdateCache = new();
+        /// <summary>Maximum number of cross-chunk light update jobs to schedule per frame.</summary>
         private readonly int _maxLightUpdatesPerFrame;
+
+        /// <summary>Burst-accessible state registry for block opacity lookups during light updates.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         /// <summary>
@@ -103,8 +110,13 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: GenerationScheduler. Lifetime: application.
         /// </summary>
         private readonly List<PendingLightUpdate> _pendingLightUpdates = new();
+        /// <summary>Pipeline statistics tracker for generation/completion/invalidation counters.</summary>
         private readonly IPipelineStats _pipelineStats;
+
+        /// <summary>World seed used for deterministic terrain generation.</summary>
         private readonly long _seed;
+
+        /// <summary>Persistence layer for loading previously saved chunks from disk.</summary>
         private readonly WorldStorage _worldStorage;
 
         /// <summary>
@@ -124,7 +136,10 @@ namespace Lithforge.Runtime.Scheduling
         ///     Set via SetLiquidScheduler after construction.
         /// </summary>
         private LiquidScheduler _liquidScheduler;
+        /// <summary>Maximum number of generation job completions to poll per frame.</summary>
         private int _maxGenCompletionsPerFrame;
+
+        /// <summary>Maximum number of generation jobs to schedule per frame.</summary>
         private int _maxGenerationsPerFrame;
 
         /// <summary>
@@ -134,6 +149,7 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         public Action<int3, ManagedChunk> OnChunkEntitiesLoaded;
 
+        /// <summary>Creates a new generation scheduler with the given dependencies and configuration.</summary>
         public GenerationScheduler(
             ChunkManager chunkManager,
             GenerationPipeline generationPipeline,
@@ -739,17 +755,29 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Tracks an in-flight generation job and its associated handle for disposal.</summary>
         private struct PendingGeneration
         {
+            /// <summary>World chunk coordinate being generated.</summary>
             public int3 Coord;
+
+            /// <summary>Generation pipeline handle containing all native containers and the final job handle.</summary>
             public GenerationHandle Handle;
         }
 
+        /// <summary>Tracks an in-flight cross-chunk light update job.</summary>
         private struct PendingLightUpdate
         {
+            /// <summary>The chunk receiving incoming border light.</summary>
             public ManagedChunk Chunk;
+
+            /// <summary>Job system handle for the LightUpdateJob.</summary>
             public JobHandle Handle;
+
+            /// <summary>Border light seed entries collected from neighboring chunks.</summary>
             public NativeList<NativeBorderLightEntry> SeedEntries;
+
+            /// <summary>Number of frames since this job was scheduled.</summary>
             public int FrameAge;
         }
     }

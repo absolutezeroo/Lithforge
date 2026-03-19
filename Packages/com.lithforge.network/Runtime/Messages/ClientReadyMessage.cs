@@ -10,11 +10,17 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct ClientReadyMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 1;
 
         /// <summary>The ready radius the client used to determine readiness (for server logging).</summary>
         public byte ReadyRadius;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get
@@ -23,11 +29,17 @@ namespace Lithforge.Network.Messages
             }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             buffer[offset] = ReadyRadius;
@@ -35,6 +47,9 @@ namespace Lithforge.Network.Messages
             return Size;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static ClientReadyMessage Deserialize(byte[] buffer, int offset, int length)
         {
             ClientReadyMessage msg = new();

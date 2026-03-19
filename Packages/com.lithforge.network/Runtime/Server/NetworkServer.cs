@@ -16,14 +16,19 @@ namespace Lithforge.Network.Server
     /// </summary>
     public sealed class NetworkServer : INetworkServer, INetworkMetricsSource
     {
+        /// <summary>Logger instance for diagnostic messages.</summary>
         private readonly ILogger _logger;
 
+        /// <summary>Maximum number of concurrent connections the server accepts.</summary>
         private readonly int _maxConnections;
 
+        /// <summary>Scratch list of connection IDs to disconnect during timeout sweep.</summary>
         private readonly List<ConnectionId> _timeoutDisconnectList = new();
 
+        /// <summary>Cached current wall-clock time, updated each Update call.</summary>
         private float _currentTime;
 
+        /// <summary>Whether this server has been disposed.</summary>
         private bool _disposed;
 
         /// <summary>Bytes received from the network since the last metrics reset.</summary>
@@ -38,14 +43,19 @@ namespace Lithforge.Network.Server
         /// <summary>Network messages sent since the last metrics reset.</summary>
         private int _metricsMessagesSent;
 
+        /// <summary>Registry of all connected peers indexed by connection ID and player ID.</summary>
         private PeerRegistry _peerRegistry;
 
+        /// <summary>Retry queue for failed reliable sends with exponential backoff.</summary>
         private ReliableSendQueue _sendQueue;
 
+        /// <summary>The underlying network transport (UTP driver or direct transport).</summary>
         private INetworkTransport _transport;
 
+        /// <summary>Callback invoked when a peer completes the handshake and is accepted.</summary>
         public Action<PeerInfo> OnPeerAccepted;
 
+        /// <summary>Creates a new NetworkServer with the given logger, content hash, and connection limit.</summary>
         public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
         {
             _logger = logger;
@@ -62,19 +72,25 @@ namespace Lithforge.Network.Server
             get { return _peerRegistry.AllPeers; }
         }
 
+        /// <summary>Number of currently connected peers.</summary>
         public int PeerCount
         {
             get { return _peerRegistry?.Count ?? 0; }
         }
 
+        /// <summary>The content hash used to validate connecting clients.</summary>
         public ContentHash ServerContentHash { get; }
 
+        /// <summary>The message dispatcher for routing incoming messages to handlers.</summary>
         public MessageDispatcher Dispatcher { get; private set; }
 
+        /// <summary>The current server tick number, set by ServerGameLoop each tick.</summary>
         public uint CurrentTick { get; set; }
 
+        /// <summary>The world seed, sent to clients during the handshake response.</summary>
         public ulong WorldSeed { get; set; }
 
+        /// <summary>Starts the server on the given UDP port using a NetworkDriverWrapper transport.</summary>
         public bool Start(ushort port)
         {
             INetworkTransport transport = new NetworkDriverWrapper(_logger);
@@ -97,6 +113,7 @@ namespace Lithforge.Network.Server
             return true;
         }
 
+        /// <summary>Starts the server using an externally provided transport (e.g. DirectTransport for SP/Host).</summary>
         public bool StartWithTransport(INetworkTransport transport)
         {
             InitCommon(transport);
@@ -106,6 +123,10 @@ namespace Lithforge.Network.Server
             return true;
         }
 
+        /// <summary>
+        ///     Pumps the transport, dispatches received messages, checks timeouts,
+        ///     schedules pings, and flushes the reliable send queue.
+        /// </summary>
         public void Update(float currentTime)
         {
             if (_transport == null)
@@ -122,6 +143,7 @@ namespace Lithforge.Network.Server
             _sendQueue.Flush(_transport, currentTime);
         }
 
+        /// <summary>Serializes and sends a message to a specific peer, queuing for retry on failure.</summary>
         public void SendTo(ConnectionId connectionId, INetworkMessage message, int pipelineId)
         {
             int totalBytes = MessageSerializer.WriteMessage(message, out byte[] buffer);
@@ -136,6 +158,7 @@ namespace Lithforge.Network.Server
             _metricsMessagesSent++;
         }
 
+        /// <summary>Serializes a message once and sends it to all peers in Playing state.</summary>
         public void Broadcast(INetworkMessage message, int pipelineId)
         {
             int totalBytes = MessageSerializer.WriteMessage(message, out byte[] buffer);
@@ -164,6 +187,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Broadcasts a message to all Playing peers except the specified connection.</summary>
         public void BroadcastExcept(ConnectionId excludeId, INetworkMessage message, int pipelineId)
         {
             int totalBytes = MessageSerializer.WriteMessage(message, out byte[] buffer);
@@ -196,6 +220,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Sends a disconnect message to the peer, removes it from the registry, and closes the connection.</summary>
         public void DisconnectPeer(ConnectionId connectionId, DisconnectReason reason)
         {
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
@@ -220,12 +245,14 @@ namespace Lithforge.Network.Server
                 $"Disconnected peer {connectionId} (player {peer.AssignedPlayerId}): {reason}");
         }
 
+        /// <summary>Returns the player ID assigned to the given connection, or 0 if not found.</summary>
         public ushort GetPlayerId(ConnectionId connectionId)
         {
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
             return peer?.AssignedPlayerId ?? 0;
         }
 
+        /// <summary>Disconnects all peers with ServerShutdown reason, clears the send queue, and disposes the transport.</summary>
         public void Shutdown()
         {
             if (_peerRegistry != null)
@@ -245,6 +272,7 @@ namespace Lithforge.Network.Server
             _logger.LogInfo("NetworkServer shut down");
         }
 
+        /// <summary>Disposes this server, calling Shutdown if not already disposed.</summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -254,6 +282,10 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>
+        ///     Shared initialization for both Start and StartWithTransport. Sets up the transport,
+        ///     dispatcher, peer registry, send queue, and core message handlers.
+        /// </summary>
         private void InitCommon(INetworkTransport transport)
         {
             _transport = transport;
@@ -301,6 +333,7 @@ namespace Lithforge.Network.Server
 
         // --- Event handlers ---
 
+        /// <summary>Handles a new transport connection: registers the peer or rejects if full.</summary>
         private void OnPeerConnected(ConnectionId connectionId)
         {
             if (_peerRegistry.Count >= _maxConnections)
@@ -319,6 +352,7 @@ namespace Lithforge.Network.Server
             _logger.LogDebug($"Peer connected: {connectionId}, awaiting handshake");
         }
 
+        /// <summary>Handles a transport disconnect: removes the peer from the registry and send queue.</summary>
         private void OnPeerDisconnected(ConnectionId connectionId)
         {
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
@@ -335,6 +369,10 @@ namespace Lithforge.Network.Server
                 $"Peer disconnected: {connectionId} (player {peer.AssignedPlayerId})");
         }
 
+        /// <summary>
+        ///     Validates protocol version and content hash from the handshake request,
+        ///     assigns a player ID on success, and transitions through the connection states.
+        /// </summary>
         private void OnHandshakeRequest(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             TouchPeer(connectionId);
@@ -397,6 +435,7 @@ namespace Lithforge.Network.Server
             OnPeerAccepted?.Invoke(peer);
         }
 
+        /// <summary>Handles a Ping message by echoing the timestamp back in a Pong response.</summary>
         private void OnPing(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             TouchPeer(connectionId);
@@ -408,6 +447,7 @@ namespace Lithforge.Network.Server
             SendTo(connectionId, pong, PipelineId.UnreliableSequenced);
         }
 
+        /// <summary>Handles a graceful Disconnect message from a client, removing the peer.</summary>
         private void OnDisconnectMessage(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             TouchPeer(connectionId);
@@ -419,6 +459,7 @@ namespace Lithforge.Network.Server
             _peerRegistry.Remove(connectionId);
         }
 
+        /// <summary>Sends a rejection response and immediately disconnects the peer.</summary>
         private void SendHandshakeReject(ConnectionId connectionId, HandshakeRejectReason reason)
         {
             HandshakeResponseMessage response = new()
@@ -437,6 +478,10 @@ namespace Lithforge.Network.Server
             _peerRegistry.Remove(connectionId);
         }
 
+        /// <summary>
+        ///     Scans all peers for handshake, loading, and idle timeouts, disconnecting
+        ///     any that have exceeded their threshold.
+        /// </summary>
         private void CheckTimeouts(float currentTime)
         {
             _timeoutDisconnectList.Clear();
@@ -479,6 +524,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Sends periodic Ping messages to all Playing peers for keepalive and RTT measurement.</summary>
         private void SchedulePings(float currentTime)
         {
             IReadOnlyList<PeerInfo> peers = _peerRegistry.AllPeers;
@@ -504,6 +550,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Callback for tracking received bytes and message counts for metrics.</summary>
         private void OnDataReceivedMetrics(int byteCount)
         {
             _metricsBytesReceived += byteCount;

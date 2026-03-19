@@ -11,7 +11,14 @@ namespace Lithforge.Network
     /// </summary>
     public static class ContentHashComputer
     {
+        /// <summary>
+        /// FNV-1a 64-bit offset basis constant.
+        /// </summary>
         private const ulong Fnv64OffsetBasis = 14695981039346656037UL;
+
+        /// <summary>
+        /// FNV-1a 64-bit prime multiplier constant.
+        /// </summary>
         private const ulong Fnv64Prime = 1099511628211UL;
 
         /// <summary>
@@ -64,6 +71,9 @@ namespace Lithforge.Network
             return new ContentHash(high, low);
         }
 
+        /// <summary>
+        /// Folds a single byte into the running FNV-1a hash.
+        /// </summary>
         private static ulong HashByte(ulong hash, byte value)
         {
             hash ^= value;
@@ -71,6 +81,9 @@ namespace Lithforge.Network
             return hash;
         }
 
+        /// <summary>
+        /// Folds a ushort (2 bytes, little-endian order) into the running FNV-1a hash.
+        /// </summary>
         private static ulong HashUShort(ulong hash, ushort value)
         {
             hash = HashByte(hash, (byte)(value & 0xFF));
@@ -78,6 +91,9 @@ namespace Lithforge.Network
             return hash;
         }
 
+        /// <summary>
+        /// Folds a 32-bit int (4 bytes, little-endian order) into the running FNV-1a hash.
+        /// </summary>
         private static ulong HashInt(ulong hash, int value)
         {
             hash = HashByte(hash, (byte)(value & 0xFF));
@@ -87,6 +103,9 @@ namespace Lithforge.Network
             return hash;
         }
 
+        /// <summary>
+        /// Folds a 32-bit uint (4 bytes, little-endian order) into the running FNV-1a hash.
+        /// </summary>
         private static ulong HashUInt(ulong hash, uint value)
         {
             hash = HashByte(hash, (byte)(value & 0xFF));
@@ -96,6 +115,9 @@ namespace Lithforge.Network
             return hash;
         }
 
+        /// <summary>
+        /// Folds a float (reinterpreted as 4 bytes via bit cast) into the running FNV-1a hash.
+        /// </summary>
         private static ulong HashFloat(ulong hash, float value)
         {
             unsafe
@@ -105,6 +127,9 @@ namespace Lithforge.Network
             }
         }
 
+        /// <summary>
+        /// Folds a UTF-8 encoded string into the running FNV-1a hash, followed by its byte length as a terminator.
+        /// </summary>
         private static ulong HashString(ulong hash, string value)
         {
             if (value == null)

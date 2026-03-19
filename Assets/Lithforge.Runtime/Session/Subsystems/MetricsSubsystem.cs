@@ -8,8 +8,10 @@ using Lithforge.Voxel.Chunk;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the metrics registry for collecting debug overlay and benchmark data.</summary>
     public sealed class MetricsSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -18,6 +20,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on player, mesh store, and chunk pool for metric data sources.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
@@ -25,11 +28,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(ChunkPoolSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates and initializes the metrics registry with all data sources.</summary>
         public void Initialize(SessionContext context)
         {
             PlayerTransformHolder player = context.Get<PlayerTransformHolder>();
@@ -53,14 +58,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(metricsRegistry);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources.</summary>
         public void Dispose()
         {
         }

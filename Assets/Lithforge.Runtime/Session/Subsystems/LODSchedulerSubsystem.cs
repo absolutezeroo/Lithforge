@@ -9,10 +9,13 @@ using Lithforge.Voxel.Chunk;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the LOD scheduler for downsampled mesh generation at distance.</summary>
     public sealed class LODSchedulerSubsystem : IGameSubsystem
     {
+        /// <summary>The owned LOD scheduler instance.</summary>
         private LODScheduler _scheduler;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -21,6 +24,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on chunk manager, mesh store, and mesh scheduler for LOD pipeline.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
@@ -28,11 +32,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(MeshSchedulerSubsystem),
         };
 
+        /// <summary>Only created for sessions that render chunks.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the LOD scheduler with distance-based LOD level configuration.</summary>
         public void Initialize(SessionContext context)
         {
             ChunkManager chunkManager = context.Get<ChunkManager>();
@@ -58,15 +64,18 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_scheduler);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>Completes all in-flight LOD mesh jobs before shutdown.</summary>
         public void Shutdown()
         {
             _scheduler?.Shutdown();
         }
 
+        /// <summary>No owned disposable resources beyond the scheduler.</summary>
         public void Dispose()
         {
         }

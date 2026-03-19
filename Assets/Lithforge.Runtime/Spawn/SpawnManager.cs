@@ -15,26 +15,40 @@ namespace Lithforge.Runtime.Spawn
     /// </summary>
     public sealed class SpawnManager
     {
+        /// <summary>Chunk manager for querying chunk readiness and block state.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Fallback Y coordinate if no safe surface is found.</summary>
         private readonly int _fallbackY;
 
+        /// <summary>Native state registry for checking block solidity during safe-spawn search.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
+        /// <summary>Player transform to position once spawn is resolved.</summary>
         private readonly Transform _playerTransform;
 
+        /// <summary>Chunk coordinate at the center of the spawn volume.</summary>
         private readonly int3 _spawnChunkCoord;
 
+        /// <summary>Radius in chunks around the spawn coordinate that must reach Ready state.</summary>
         private readonly int _spawnRadius;
 
+        /// <summary>Maximum chunk-Y offset (inclusive) above the spawn chunk for readiness checks.</summary>
         private readonly int _yMax;
 
+        /// <summary>Minimum chunk-Y offset (inclusive) below the spawn chunk for readiness checks.</summary>
         private readonly int _yMin;
 
+        /// <summary>Mutable spawn progress snapshot, updated each tick.</summary>
         private SpawnProgress _progress;
 
+        /// <summary>When true, skips FindingY and Teleporting if the saved position is safe.</summary>
         private bool _skipSpawnSearch;
 
+        /// <summary>
+        ///     Creates the spawn manager, computes the spawn volume from the player's
+        ///     initial position, and clamped radius to render distance.
+        /// </summary>
         public SpawnManager(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -123,6 +137,7 @@ namespace Lithforge.Runtime.Spawn
             }
         }
 
+        /// <summary>Counts Ready chunks in the spawn volume; transitions to FindingY when all are ready.</summary>
         private void TickChecking()
         {
             int readyCount = 0;
@@ -176,6 +191,7 @@ namespace Lithforge.Runtime.Spawn
             }
         }
 
+        /// <summary>Finds a safe Y coordinate at the center of the spawn volume and transitions to Teleporting.</summary>
         private void TickFindingY()
         {
             int spawnX = _spawnChunkCoord.x * ChunkConstants.Size + ChunkConstants.Size / 2;
@@ -188,6 +204,7 @@ namespace Lithforge.Runtime.Spawn
             _progress.Phase = SpawnState.Teleporting;
         }
 
+        /// <summary>Teleports the player to the resolved spawn position and transitions to Done.</summary>
         private void TickTeleporting()
         {
             if (_playerTransform != null)
@@ -207,6 +224,7 @@ namespace Lithforge.Runtime.Spawn
             _progress.ReadyChunks = _progress.TotalChunks;
         }
 
+        /// <summary>Checks whether the player's current saved position has non-solid blocks at feet and head height.</summary>
         private bool IsRestoredPositionSafe()
         {
             Vector3 pos = _playerTransform.position;
@@ -219,6 +237,7 @@ namespace Lithforge.Runtime.Spawn
                 _chunkManager.GetBlock, _nativeStateRegistry, feetBlock);
         }
 
+        /// <summary>Scans downward through the spawn volume to find a safe Y coordinate for the given XZ column.</summary>
         private int FindSafeSpawnY(int worldX, int worldZ)
         {
             return SpawnUtility.FindSafeSpawnY(

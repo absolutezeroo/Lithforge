@@ -16,14 +16,19 @@ namespace Lithforge.Voxel.Jobs
     [BurstCompile]
     public struct FillColumnJob : IJob
     {
+        /// <summary>Output chunk voxel data to fill with stone and air.</summary>
         public NativeArray<StateId> ChunkStates;
 
+        /// <summary>Stone state for solid terrain below surface.</summary>
         [ReadOnly] public StateId StoneState;
 
+        /// <summary>Air state for empty space above surface.</summary>
         [ReadOnly] public StateId AirState;
 
+        /// <summary>Y level at which stone transitions to air.</summary>
         [ReadOnly] public int SurfaceHeight;
 
+        /// <summary>Fills the entire chunk with stone below surface height and air above.</summary>
         public void Execute()
         {
             for (int y = 0; y < ChunkConstants.Size; y++)

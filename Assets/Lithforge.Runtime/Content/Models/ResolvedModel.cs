@@ -9,8 +9,10 @@ namespace Lithforge.Runtime.Content.Models
     /// </summary>
     public sealed class ResolvedModel
     {
+        /// <summary>Fully resolved per-face Texture2D references for this block state.</summary>
         public ResolvedFaceTextures2D Textures { get; set; }
 
+        /// <summary>Merged element list from the model parent chain (child replaces parent).</summary>
         public List<ModelElement> Elements { get; set; }
 
         /// <summary>

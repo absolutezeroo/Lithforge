@@ -8,8 +8,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 11: Loads RecipeDefinition ScriptableObjects and builds the CraftingEngine.</summary>
     public sealed class LoadCraftingRecipesPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -18,6 +20,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads recipe assets and converts them into RecipeEntry objects for the CraftingEngine.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             RecipeDefinition[] recipeAssets =
@@ -34,6 +37,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             ctx.Logger.LogInfo($"Loaded {recipes.Count} crafting recipes.");
         }
 
+        /// <summary>Converts a RecipeDefinition ScriptableObject to a runtime RecipeEntry.</summary>
         private static RecipeEntry ConvertRecipe(RecipeDefinition source)
         {
             ResourceId id = new(source.Namespace, source.RecipeName);

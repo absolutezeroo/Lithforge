@@ -13,10 +13,19 @@ namespace Lithforge.Network.SendQueue
     /// </summary>
     public sealed class ReliableSendQueue
     {
+        /// <summary>
+        /// Logger instance for warning about dropped messages.
+        /// </summary>
         private readonly ILogger _logger;
 
+        /// <summary>
+        /// List of pending sends awaiting retry.
+        /// </summary>
         private readonly List<PendingSend> _pending = new();
 
+        /// <summary>
+        /// Creates a new ReliableSendQueue with the given logger.
+        /// </summary>
         public ReliableSendQueue(ILogger logger)
         {
             _logger = logger;

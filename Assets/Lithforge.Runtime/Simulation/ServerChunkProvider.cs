@@ -15,16 +15,20 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class ServerChunkProvider : IServerChunkProvider
     {
+        /// <summary>Chunk manager providing chunk state queries and block data access.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Burst-accessible state registry for block collision lookups during spawn Y search.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
+        /// <summary>Creates a new server chunk provider backed by the given chunk manager.</summary>
         public ServerChunkProvider(ChunkManager chunkManager, NativeStateRegistry nativeStateRegistry)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
         }
 
+        /// <summary>Returns true if the chunk at the given coordinate is in the Ready state.</summary>
         public bool IsChunkReady(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
@@ -35,6 +39,7 @@ namespace Lithforge.Runtime.Simulation
             };
         }
 
+        /// <summary>Serializes the chunk at the given coordinate for network transmission, returning null if unavailable.</summary>
         public byte[] SerializeChunk(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
@@ -59,6 +64,7 @@ namespace Lithforge.Runtime.Simulation
             return ChunkNetSerializer.SerializeFullChunk(chunk.Data, chunk.LightData);
         }
 
+        /// <summary>Searches for a safe Y coordinate to spawn a player at the given XZ position.</summary>
         public int FindSafeSpawnY(int worldX, int worldZ, int chunkYMin, int chunkYMax, int fallbackY)
         {
             return SpawnUtility.FindSafeSpawnY(
@@ -66,6 +72,7 @@ namespace Lithforge.Runtime.Simulation
                 worldX, worldZ, chunkYMin, chunkYMax, fallbackY);
         }
 
+        /// <summary>Returns true if the chunk at the given coordinate has completed generation.</summary>
         public bool IsChunkGenerated(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
@@ -80,6 +87,7 @@ namespace Lithforge.Runtime.Simulation
             };
         }
 
+        /// <summary>Returns true if the chunk at the given coordinate is generated and contains only air.</summary>
         public bool IsChunkAllAir(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
@@ -91,6 +99,7 @@ namespace Lithforge.Runtime.Simulation
             };
         }
 
+        /// <summary>Returns the network version counter for the given chunk, or -1 if not loaded.</summary>
         public int GetChunkNetworkVersion(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);

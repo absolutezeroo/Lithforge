@@ -9,8 +9,10 @@ using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the F3 debug overlay and chunk border renderer.</summary>
     public sealed class F3OverlaySubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -19,17 +21,20 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on metrics and player for overlay data sources.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(MetricsSubsystem),
             typeof(PlayerSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the chunk border renderer and F3 overlay on the bootstrap GameObject.</summary>
         public void Initialize(SessionContext context)
         {
             MetricsRegistry metricsRegistry = context.Get<MetricsRegistry>();
@@ -60,14 +65,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(chunkBorderRenderer);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>MonoBehaviours cleaned up by bootstrap GameObject destruction.</summary>
         public void Dispose()
         {
             // MonoBehaviours cleaned up by bootstrap GO destruction

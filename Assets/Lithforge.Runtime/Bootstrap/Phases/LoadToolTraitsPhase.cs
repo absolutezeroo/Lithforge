@@ -5,8 +5,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Loads ToolTraitDefinition ScriptableObjects and builds the ToolTraitRegistry.</summary>
     public sealed class LoadToolTraitsPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -15,6 +17,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads tool trait assets, converts them to Tier 2 data, and registers them.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             ToolTraitDefinition[] toolTraits =

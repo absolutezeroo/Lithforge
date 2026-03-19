@@ -8,8 +8,10 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public sealed class TickRegistry
     {
+        /// <summary>Ordered list of tickable systems.</summary>
         private readonly List<ITickable> _tickables = new();
 
+        /// <summary>Adds a tickable system to the registry in registration order.</summary>
         public void Register(ITickable tickable)
         {
             _tickables.Add(tickable);

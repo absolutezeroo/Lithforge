@@ -6,8 +6,10 @@ using Lithforge.Voxel.Storage;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the auto-save manager for periodic world persistence.</summary>
     public sealed class AutoSaveSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -16,17 +18,20 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on storage and player subsystems for save data access.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(StorageSubsystem),
             typeof(PlayerSubsystem),
         };
 
+        /// <summary>Only created for sessions with a local world to persist.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.HasLocalWorld;
         }
 
+        /// <summary>Creates the auto-save manager from world storage and player state.</summary>
         public void Initialize(SessionContext context)
         {
             WorldStorage worldStorage = context.Get<WorldStorage>();
@@ -49,15 +54,18 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(autoSave);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>Metadata save handled by SessionOrchestrator during quit.</summary>
         public void Shutdown()
         {
             // AutoSaveManager.SaveMetadataOnly called by SessionOrchestrator
         }
 
+        /// <summary>No owned disposable resources.</summary>
         public void Dispose()
         {
         }

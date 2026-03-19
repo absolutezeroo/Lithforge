@@ -20,16 +20,34 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class BiomeTintManager : IDisposable
     {
+        /// <summary>Shader property ID for the global biome parameter texture.</summary>
         private static readonly int s_biomeParamMapId = Shader.PropertyToID("_BiomeParamMap");
+
+        /// <summary>Shader property ID for the biome map scale vector (used for toroidal UV).</summary>
         private static readonly int s_biomeMapScaleId = Shader.PropertyToID("_BiomeMapScale");
+
+        /// <summary>Shader property ID for the grass colormap lookup texture.</summary>
         private static readonly int s_grassColormapId = Shader.PropertyToID("_GrassColormap");
+
+        /// <summary>Shader property ID for the foliage colormap lookup texture.</summary>
         private static readonly int s_foliageColormapId = Shader.PropertyToID("_FoliageColormap");
+
+        /// <summary>Shader property ID for the water color LUT (256x1, one pixel per biome).</summary>
         private static readonly int s_waterColorLutId = Shader.PropertyToID("_WaterColorLUT");
+
+        /// <summary>Chunk size in blocks, matching the global chunk dimension.</summary>
         private readonly int _chunkSize;
+
+        /// <summary>Global toroidal biome parameter texture (RGBA32: R=temp, G=humidity, B=biomeId).</summary>
         private readonly Texture2D _globalMap;
 
+        /// <summary>Side length of the global biome map texture in texels.</summary>
         private readonly int _mapSize;
+
+        /// <summary>Staging texture for chunk-sized uploads before CopyTexture to the global map.</summary>
         private readonly Texture2D _staging;
+
+        /// <summary>256x1 water color lookup texture indexed by biome ID.</summary>
         private readonly Texture2D _waterColorLut;
 
         /// <summary>
@@ -40,6 +58,7 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private readonly HashSet<int2> _writtenChunks = new();
 
+        /// <summary>Creates the global biome map, staging texture, water LUT, and binds them to shaders.</summary>
         public BiomeTintManager(
             int mapSize,
             int chunkSize,
@@ -130,6 +149,7 @@ namespace Lithforge.Runtime.Rendering
             Shader.SetGlobalTexture(s_waterColorLutId, _waterColorLut);
         }
 
+        /// <summary>Destroys the global map, staging texture, and water color LUT.</summary>
         public void Dispose()
         {
             if (_globalMap != null)
@@ -206,6 +226,7 @@ namespace Lithforge.Runtime.Rendering
             _writtenChunks.Remove(new int2(chunkCoord.x, chunkCoord.z));
         }
 
+        /// <summary>Computes the always-positive modulo of x with respect to m.</summary>
         private static int Mod(int x, int m)
         {
             int r = x % m;

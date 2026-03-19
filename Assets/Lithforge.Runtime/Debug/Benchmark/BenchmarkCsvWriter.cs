@@ -10,6 +10,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
     /// </summary>
     public static class BenchmarkCsvWriter
     {
+        /// <summary>Writes per-frame benchmark data to a CSV file in the specified output directory.</summary>
         public static void Write(BenchmarkResult result, string outputDir, string timestamp)
         {
             int count = result.TotalFrames;

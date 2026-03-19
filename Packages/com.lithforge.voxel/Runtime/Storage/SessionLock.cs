@@ -4,16 +4,30 @@ using System.IO;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     OS-level file locking to prevent multiple processes from opening the same world.
+    ///     Uses exclusive FileShare.None on session.lock. Includes stale lock detection
+    ///     via PID and timestamp checks.
+    /// </summary>
     public static class SessionLock
     {
+        /// <summary>Name of the lock file created in each world directory.</summary>
         private const string LockFileName = "session.lock";
+
+        /// <summary>Minutes after which a lock with a dead PID is considered stale.</summary>
         private const int StaleThresholdMinutes = 10;
 
+        /// <summary>Returns the full path to the session.lock file for a world directory.</summary>
         public static string LockFilePath(string worldDir)
         {
             return Path.Combine(worldDir, LockFileName);
         }
 
+        /// <summary>
+        ///     Acquires an exclusive file lock on the world directory.
+        ///     Writes a UTC timestamp and PID to the lock file for stale detection.
+        ///     Throws IOException if another process holds the lock.
+        /// </summary>
         public static SessionLockHandle Acquire(string worldDir)
         {
             string lockPath = LockFilePath(worldDir);
@@ -39,6 +53,7 @@ namespace Lithforge.Voxel.Storage
             return new SessionLockHandle(fs);
         }
 
+        /// <summary>Attempts to acquire the session lock. Returns false on IOException without throwing.</summary>
         public static bool TryAcquire(string worldDir, out SessionLockHandle handle)
         {
             handle = null;
@@ -54,6 +69,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Returns true if the world directory's session.lock is held by another process.</summary>
         public static bool IsLocked(string worldDir)
         {
             string lockPath = LockFilePath(worldDir);
@@ -82,6 +98,10 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Returns true if the lock file is stale (timestamp older than threshold
+        ///     and the recorded PID no longer exists).
+        /// </summary>
         public static bool IsStale(string worldDir)
         {
             string lockPath = LockFilePath(worldDir);
@@ -135,6 +155,7 @@ namespace Lithforge.Voxel.Storage
             return false;
         }
 
+        /// <summary>Forcibly deletes the session.lock file (best effort). Use only for stale locks.</summary>
         public static void ForceBreak(string worldDir)
         {
             string lockPath = LockFilePath(worldDir);

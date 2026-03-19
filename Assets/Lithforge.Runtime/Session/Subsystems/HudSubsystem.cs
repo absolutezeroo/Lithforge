@@ -10,8 +10,10 @@ using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the crosshair and hotbar HUD elements.</summary>
     public sealed class HudSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -20,16 +22,19 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on player subsystem for inventory and item data.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the crosshair and hotbar display GameObjects.</summary>
         public void Initialize(SessionContext context)
         {
             PlayerTransformHolder player = context.Get<PlayerTransformHolder>();
@@ -53,6 +58,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(hotbarDisplay);
         }
 
+        /// <summary>Creates the HUD visibility controller and wires loading screen dismissal.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Create HudVisibilityController and register it for other subsystems.
@@ -72,10 +78,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources; HUD GameObjects cleaned up separately.</summary>
         public void Dispose()
         {
         }

@@ -8,8 +8,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 8: Loads ItemDefinition ScriptableObjects and converts them to ItemEntry.</summary>
     public sealed class LoadItemsPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -18,6 +20,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads item definitions and builds ItemEntry list from them.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             ctx.Items = Resources.LoadAll<ItemDefinition>("Content/Items");
@@ -34,6 +37,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             ctx.ItemEntries = itemEntries;
         }
 
+        /// <summary>Converts an ItemDefinition ScriptableObject to a runtime ItemEntry.</summary>
         private static ItemEntry ConvertItem(ItemDefinition item)
         {
             ResourceId id = new(item.Namespace, item.ItemName);

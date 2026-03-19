@@ -10,8 +10,10 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public sealed class BlockPredictionTickAdapter : ITickable
     {
+        /// <summary>The client block predictor to sweep for expired predictions.</summary>
         private readonly ClientBlockPredictor _predictor;
 
+        /// <summary>Creates a block prediction tick adapter wrapping the given predictor.</summary>
         public BlockPredictionTickAdapter(ClientBlockPredictor predictor)
         {
             _predictor = predictor;

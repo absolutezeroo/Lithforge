@@ -11,10 +11,13 @@ namespace Lithforge.Runtime.Content.Models
     /// </summary>
     public sealed class ContentModelResolver
     {
+        /// <summary>Maximum parent chain depth before aborting to prevent infinite loops.</summary>
         private const int MaxParentDepth = 16;
 
+        /// <summary>Cache of already-resolved models to avoid redundant parent chain walks.</summary>
         private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache = new();
 
+        /// <summary>Resolves a BlockModel to its per-face Texture2D references by walking the parent chain.</summary>
         public ResolvedFaceTextures2D Resolve(BlockModel model)
         {
             if (model == null)
@@ -193,6 +196,7 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
+        /// <summary>Follows #variable indirection chains to resolve a TextureVariable to a concrete Texture2D.</summary>
         private static Texture2D ResolveTextureVariable(
             TextureVariable texVar,
             Dictionary<string, TextureVariable> mergedTextures)
@@ -237,6 +241,7 @@ namespace Lithforge.Runtime.Content.Models
             return null;
         }
 
+        /// <summary>Dispatches to the appropriate built-in parent resolver based on the terminal parent type.</summary>
         private static ResolvedFaceTextures2D ResolveWithBuiltIn(
             BuiltInParentType parentType,
             Dictionary<string, Texture2D> textures)
@@ -253,6 +258,7 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
+        /// <summary>Resolves a CubeAll model: all six faces use the "all" variable.</summary>
         private static ResolvedFaceTextures2D ResolveCubeAll(Dictionary<string, Texture2D> textures)
         {
             if (textures.TryGetValue("all", out Texture2D allTex))
@@ -271,6 +277,7 @@ namespace Lithforge.Runtime.Content.Models
             return ResolveCube(textures);
         }
 
+        /// <summary>Resolves a CubeColumn model: top/bottom use "end", sides use "side".</summary>
         private static ResolvedFaceTextures2D ResolveCubeColumn(Dictionary<string, Texture2D> textures)
         {
             if (textures.TryGetValue("end", out Texture2D endTex) &&
@@ -290,6 +297,7 @@ namespace Lithforge.Runtime.Content.Models
             return ResolveCube(textures);
         }
 
+        /// <summary>Resolves a Cube model: each face uses its own named variable with fallback chains.</summary>
         private static ResolvedFaceTextures2D ResolveCube(Dictionary<string, Texture2D> textures)
         {
             return new ResolvedFaceTextures2D
@@ -303,6 +311,7 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
+        /// <summary>Resolves a CubeBottomTop model: distinct top/bottom, four sides use "side".</summary>
         private static ResolvedFaceTextures2D ResolveCubeBottomTop(Dictionary<string, Texture2D> textures)
         {
             Texture2D top = GetWithFallbacks(textures, null, "top", "end");
@@ -320,6 +329,7 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
+        /// <summary>Resolves an Orientable model: distinguished front face, with fallback chains for other faces.</summary>
         private static ResolvedFaceTextures2D ResolveOrientable(Dictionary<string, Texture2D> textures)
         {
             return new ResolvedFaceTextures2D
@@ -333,6 +343,7 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
+        /// <summary>Resolves a Cross model: all faces use the "cross" variable with "all" fallback.</summary>
         private static ResolvedFaceTextures2D ResolveCross(Dictionary<string, Texture2D> textures)
         {
             Texture2D cross = GetWithFallbacks(textures, null, "cross", "all");
@@ -348,6 +359,7 @@ namespace Lithforge.Runtime.Content.Models
             };
         }
 
+        /// <summary>Looks up a texture by trying keys in order, returning the fallback if none match.</summary>
         private static Texture2D GetWithFallbacks(
             Dictionary<string, Texture2D> textures,
             Texture2D fallback,
@@ -405,6 +417,7 @@ namespace Lithforge.Runtime.Content.Models
             return null;
         }
 
+        /// <summary>Creates a ResolvedFaceTextures2D with all faces set to null (missing texture).</summary>
         private static ResolvedFaceTextures2D CreateMissing()
         {
             return new ResolvedFaceTextures2D

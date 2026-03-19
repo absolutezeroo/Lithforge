@@ -11,23 +11,50 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct MoveInputMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 2 + 4 + 4 + 1; // 11 bytes
 
+        /// <summary>
+        /// Client-assigned sequence number for prediction reconciliation.
+        /// </summary>
         public ushort SequenceId;
+
+        /// <summary>
+        /// Camera yaw angle in degrees.
+        /// </summary>
         public float Yaw;
+
+        /// <summary>
+        /// Camera pitch angle in degrees.
+        /// </summary>
         public float Pitch;
+
+        /// <summary>
+        /// Bit-packed input flags (forward, back, left, right, jump, sprint, sneak).
+        /// </summary>
         public byte Flags;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.MoveInput; }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -42,6 +69,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static MoveInputMessage Deserialize(byte[] buffer, int offset, int length)
         {
             MoveInputMessage msg = new();

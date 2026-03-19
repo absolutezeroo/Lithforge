@@ -16,13 +16,16 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class LocalInventoryCommandProcessor : IInventoryCommandProcessor
     {
+        /// <summary>The player inventory used for state ID validation.</summary>
         private readonly Inventory _inventory;
 
+        /// <summary>Creates a new local processor backed by the given inventory.</summary>
         public LocalInventoryCommandProcessor(Inventory inventory)
         {
             _inventory = inventory;
         }
 
+        /// <summary>Validates slot bounds, click type, and state ID, returning a result code.</summary>
         public CommandResult ProcessSlotClick(in SlotClickCommand command)
         {
             // Validate slot bounds (-1 is valid: outside container = drop)

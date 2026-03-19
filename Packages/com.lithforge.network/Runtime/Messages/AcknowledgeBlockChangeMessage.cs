@@ -11,30 +11,60 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct AcknowledgeBlockChangeMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 2 + 1 + 4 + 4 + 4 + 2; // 17 bytes
 
+        /// <summary>
+        /// Client-assigned sequence number to correlate with the original command.
+        /// </summary>
         public ushort SequenceId;
 
+        /// <summary>
+        /// Non-zero if the block command was accepted, zero if rejected.
+        /// </summary>
         public byte Accepted;
 
+        /// <summary>
+        /// World-space X coordinate of the affected block.
+        /// </summary>
         public int PositionX;
 
+        /// <summary>
+        /// World-space Y coordinate of the affected block.
+        /// </summary>
         public int PositionY;
 
+        /// <summary>
+        /// World-space Z coordinate of the affected block.
+        /// </summary>
         public int PositionZ;
 
+        /// <summary>
+        /// The authoritative block state after the server processed the command.
+        /// </summary>
         public ushort CorrectedState;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.AcknowledgeBlockChange; }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             int start = offset;
@@ -53,6 +83,9 @@ namespace Lithforge.Network.Messages
             return offset - start;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static AcknowledgeBlockChangeMessage Deserialize(byte[] buffer, int offset, int length)
         {
             AcknowledgeBlockChangeMessage msg = new();

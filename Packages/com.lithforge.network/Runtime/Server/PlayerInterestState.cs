@@ -117,6 +117,9 @@ namespace Lithforge.Network.Server
         /// </summary>
         public int MaxInFlightChunks;
 
+        /// <summary>
+        /// Creates a new PlayerInterestState with the given view radius and default values.
+        /// </summary>
         public PlayerInterestState(int viewRadius)
         {
             ViewRadius = viewRadius;

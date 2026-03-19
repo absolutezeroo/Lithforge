@@ -15,22 +15,31 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class ScatterSoundPlayer
     {
+        /// <summary>Delegate returning normalized time of day [0..1] for day/night filtering.</summary>
         private readonly Func<float> _getTimeOfDay;
 
+        /// <summary>Maximum distance from the player for scatter sound placement.</summary>
         private readonly float _maxDistance;
 
+        /// <summary>Maximum seconds between scatter sounds.</summary>
         private readonly float _maxInterval;
 
+        /// <summary>Minimum distance from the player for scatter sound placement.</summary>
         private readonly float _minDistance;
 
+        /// <summary>Minimum seconds between scatter sounds.</summary>
         private readonly float _minInterval;
 
+        /// <summary>Player transform for computing scatter sound positions.</summary>
         private readonly Transform _playerTransform;
 
+        /// <summary>SFX source pool for one-shot spatial playback.</summary>
         private readonly SfxSourcePool _pool;
 
+        /// <summary>Random number generator for interval, clip, and position variation.</summary>
         private readonly Random _rng;
 
+        /// <summary>Time.time value at which the next scatter sound may play.</summary>
         private float _nextScatterTime;
 
         /// <summary>
@@ -130,6 +139,7 @@ namespace Lithforge.Runtime.Audio
             _pool.Play(clip, position, 0.6f, 0.9f + (float)_rng.NextDouble() * 0.2f);
         }
 
+        /// <summary>Returns a random interval between min and max scatter interval.</summary>
         private float RandomInterval()
         {
             return _minInterval + (float)_rng.NextDouble() * (_maxInterval - _minInterval);

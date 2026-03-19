@@ -12,6 +12,7 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public static class StateIdHelper
     {
+        /// <summary>Finds the base StateId for a BlockDefinition, returning Air if null.</summary>
         public static StateId FindStateIdForBlock(
             ContentPipelineResult content, BlockDefinition blockDef)
         {
@@ -23,6 +24,7 @@ namespace Lithforge.Runtime.Session
             return FindStateId(content, blockDef.Namespace + ":" + blockDef.BlockName);
         }
 
+        /// <summary>Finds the base StateId for a "namespace:name" identifier string.</summary>
         public static StateId FindStateId(ContentPipelineResult content, string idString)
         {
             if (string.IsNullOrEmpty(idString) || !idString.Contains(':'))

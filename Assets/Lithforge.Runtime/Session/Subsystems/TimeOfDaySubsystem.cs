@@ -11,11 +11,16 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the time-of-day controller and procedural sky for the day/night cycle.</summary>
     public sealed class TimeOfDaySubsystem : IGameSubsystem
     {
+        /// <summary>The owned procedural sky controller.</summary>
         private SkyController _skyController;
+
+        /// <summary>The owned time-of-day controller driving sun light and material updates.</summary>
         private TimeOfDayController _timeOfDay;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -24,17 +29,20 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on mesh store for materials and player for restored state.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkMeshStoreSubsystem),
             typeof(PlayerSubsystem),
         };
 
+        /// <summary>Only created for sessions that render chunks.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the time-of-day controller, sky controller, and restores saved time.</summary>
         public void Initialize(SessionContext context)
         {
             ChunkMeshStore meshStore = context.Get<ChunkMeshStore>();
@@ -84,6 +92,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_skyController);
         }
 
+        /// <summary>Registers the time-of-day tick adapter in the fixed-rate tick loop.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Register time-of-day adapter in the fixed tick loop
@@ -93,10 +102,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>MonoBehaviour controllers are destroyed with the bootstrap GameObject.</summary>
         public void Dispose()
         {
             // TimeOfDayController and SkyController are MonoBehaviours,

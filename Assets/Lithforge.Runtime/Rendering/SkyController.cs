@@ -12,25 +12,55 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class SkyController : MonoBehaviour
     {
+        /// <summary>Interval in seconds between DynamicGI.UpdateEnvironment() calls.</summary>
         private const float DynamicGIInterval = 2.0f;
 
+        /// <summary>Shader property ID for the horizon sky color.</summary>
         private static readonly int s_horizonColorId = Shader.PropertyToID("_HorizonColor");
+
+        /// <summary>Shader property ID for the zenith sky color.</summary>
         private static readonly int s_zenithColorId = Shader.PropertyToID("_ZenithColor");
+
+        /// <summary>Shader property ID for the sun direction vector.</summary>
         private static readonly int s_sunDirectionId = Shader.PropertyToID("_SunDirection");
+
+        /// <summary>Shader property ID for star field visibility (0 = hidden, 1 = full).</summary>
         private static readonly int s_starVisibilityId = Shader.PropertyToID("_StarVisibility");
+
+        /// <summary>Gradient mapping time-of-day to ambient light color.</summary>
         private Gradient _ambientGradient;
+
+        /// <summary>Base fog density before render-distance scaling is applied.</summary>
         private float _baseFogDensity;
+
+        /// <summary>Chunk manager reference for render distance based fog scaling.</summary>
         private ChunkManager _chunkManager;
+
+        /// <summary>Scene directional light driven by the sun rotation.</summary>
         private Light _directionalLight;
 
+        /// <summary>Accumulator for throttling DynamicGI environment updates.</summary>
         private float _dynamicGITimer;
+
+        /// <summary>Gradient mapping time-of-day to fog color.</summary>
         private Gradient _fogGradient;
+
+        /// <summary>Dynamically created procedural skybox material instance.</summary>
         private Material _skyboxMaterial;
+
+        /// <summary>Gradient mapping time-of-day to horizon sky color.</summary>
         private Gradient _skyGradient;
+
+        /// <summary>Gradient mapping time-of-day to zenith sky color.</summary>
         private Gradient _skyZenithGradient;
+
+        /// <summary>Gradient mapping time-of-day to directional light color.</summary>
         private Gradient _sunColorGradient;
+
+        /// <summary>Time-of-day controller providing the current normalized day cycle value.</summary>
         private TimeOfDayController _timeOfDayController;
 
+        /// <summary>Evaluates time-of-day gradients and applies sky, fog, ambient, and light updates.</summary>
         private void Update()
         {
             if (_timeOfDayController == null || _skyboxMaterial == null)
@@ -91,6 +121,7 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Destroys the dynamically created skybox material instance.</summary>
         private void OnDestroy()
         {
             if (_skyboxMaterial != null)
@@ -99,6 +130,7 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Initializes the sky controller with gradients, fog settings, and creates the skybox material.</summary>
         public void Initialize(
             TimeOfDayController timeOfDayController,
             Light directionalLight,

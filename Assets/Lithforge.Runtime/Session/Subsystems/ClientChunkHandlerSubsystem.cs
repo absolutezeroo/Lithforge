@@ -18,12 +18,19 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that creates the client-side chunk handler for receiving and processing
+    ///     chunk data from the server, plus the readiness tracker for spawn readiness.
+    /// </summary>
     public sealed class ClientChunkHandlerSubsystem : IGameSubsystem
     {
+        /// <summary>The owned client chunk handler instance.</summary>
         private ClientChunkHandler _handler;
 
+        /// <summary>Tracks whether enough chunks are loaded around spawn for readiness.</summary>
         private ClientReadinessTracker _readinessTracker;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -32,6 +39,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on network client, chunk manager, and HUD for chunk handling.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(NetworkClientSubsystem),
@@ -39,12 +47,14 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(HudSubsystem),
         };
 
+        /// <summary>Created for all rendering modes (SP/Host via DirectTransport, Client via UTP).</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             // All rendering modes need chunk handling (SP/Host via DirectTransport, Client via UTP)
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the readiness tracker, registers SpawnInit/GameReady handlers, and builds the chunk handler.</summary>
         public void Initialize(SessionContext context)
         {
             ChunkManager chunkManager = context.Get<ChunkManager>();
@@ -133,6 +143,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_readinessTracker);
         }
 
+        /// <summary>Creates the block predictor and wires loading screen progress source.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Create block predictor for optimistic block placement
@@ -169,10 +180,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }, onFadeComplete);
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes the client chunk handler.</summary>
         public void Dispose()
         {
             if (_handler != null)

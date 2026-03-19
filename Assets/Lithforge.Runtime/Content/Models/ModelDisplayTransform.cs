@@ -25,21 +25,25 @@ namespace Lithforge.Runtime.Content.Models
         [FormerlySerializedAs("_scale"),Tooltip("Scale per axis. Capped at 4.")]
         [SerializeField] private Vector3 scale = Vector3.one;
 
+        /// <summary>True if this display transform was explicitly configured in the model asset.</summary>
         public bool HasValue
         {
             get { return hasValue; }
         }
 
+        /// <summary>Euler rotation in degrees [X, Y, Z].</summary>
         public Vector3 Rotation
         {
             get { return rotation; }
         }
 
+        /// <summary>Translation offset in 1/16 block units, clamped to [-80, 80].</summary>
         public Vector3 Translation
         {
             get { return translation; }
         }
 
+        /// <summary>Scale per axis, capped at 4.</summary>
         public Vector3 Scale
         {
             get { return scale; }

@@ -10,10 +10,12 @@ namespace Lithforge.Runtime.Debug.Benchmark
     [CreateAssetMenu(fileName = "FlyForwardCommand", menuName = "Lithforge/Benchmark/Commands/Fly Forward")]
     public sealed class FlyForwardCommand : BenchmarkCommand
     {
+        /// <summary>Fly speed in blocks per second.</summary>
         [Tooltip("Fly speed in blocks per second")]
         [Min(1f)]
         [SerializeField] private float speed = 50f;
 
+        /// <summary>Duration of the fly-forward movement in seconds.</summary>
         [Tooltip("Duration in seconds")]
         [Min(0.1f)]
         [SerializeField] private float duration = 10f;

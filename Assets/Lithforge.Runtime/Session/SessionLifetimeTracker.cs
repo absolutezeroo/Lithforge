@@ -9,8 +9,10 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class SessionLifetimeTracker : IDisposable
     {
+        /// <summary>LIFO stack of disposables for reverse-order cleanup.</summary>
         private readonly Stack<IDisposable> _disposables = new();
 
+        /// <summary>Whether this tracker has already been disposed.</summary>
         private bool _disposed;
 
         /// <summary>

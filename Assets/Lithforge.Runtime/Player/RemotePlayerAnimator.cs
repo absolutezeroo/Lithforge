@@ -14,19 +14,37 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class RemotePlayerAnimator
     {
-        // Part pivots in block units (model pixels / 16), matching PlayerModelAnimator
+        /// <summary>Head pivot in block units (model pixels / 16).</summary>
         private static readonly float3 s_headPivot = new float3(0f, 24f, 0f) / 16f;
+
+        /// <summary>Body pivot in block units (model pixels / 16).</summary>
         private static readonly float3 s_bodyPivot = new float3(0f, 24f, 0f) / 16f;
+
+        /// <summary>Right arm pivot in block units (model pixels / 16).</summary>
         private static readonly float3 s_rightArmPivot = new float3(-6f, 22f, 0f) / 16f;
+
+        /// <summary>Left arm pivot in block units (model pixels / 16).</summary>
         private static readonly float3 s_leftArmPivot = new float3(6f, 22f, 0f) / 16f;
+
+        /// <summary>Right leg pivot in block units (model pixels / 16).</summary>
         private static readonly float3 s_rightLegPivot = new float3(-2f, 12f, 0f) / 16f;
+
+        /// <summary>Left leg pivot in block units (model pixels / 16).</summary>
         private static readonly float3 s_leftLegPivot = new float3(2f, 12f, 0f) / 16f;
 
+        /// <summary>Maximum arm swing angle in degrees during walking.</summary>
         private const float WalkSwingArmDeg = 40f;
+
+        /// <summary>Maximum leg swing angle in degrees during walking.</summary>
         private const float WalkSwingLegDeg = 45f;
+
+        /// <summary>Multiplier converting horizontal distance to walk phase advancement.</summary>
         private const float WalkSpeedScale = 0.6f;
 
+        /// <summary>World position from the previous frame, used to compute horizontal movement delta.</summary>
         private float3 _lastPosition;
+
+        /// <summary>Continuously advancing walk cycle phase; sin(_walkPhase * PI) drives limb swing.</summary>
         private float _walkPhase;
 
         /// <summary>
@@ -34,6 +52,7 @@ namespace Lithforge.Runtime.Player
         /// </summary>
         public float4x4[] PartTransforms { get; } = new float4x4[6];
 
+        /// <summary>Creates the animator with an initial world position for walk delta tracking.</summary>
         public RemotePlayerAnimator(float3 initialPosition)
         {
             _lastPosition = initialPosition;
@@ -100,6 +119,7 @@ namespace Lithforge.Runtime.Player
                 float4x4.RotateX(-legSwingRad));
         }
 
+        /// <summary>Advances or decays the walk phase based on horizontal movement distance.</summary>
         private void UpdateWalkPhase(float deltaTime, float3 currentPos, bool isOnGround, bool isFlying)
         {
             float3 delta = currentPos - _lastPosition;

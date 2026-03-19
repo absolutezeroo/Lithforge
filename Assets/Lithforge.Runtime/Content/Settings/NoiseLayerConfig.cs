@@ -12,24 +12,30 @@ namespace Lithforge.Runtime.Content.Settings
     [Serializable]
     public struct NoiseLayerConfig
     {
+        /// <summary>Base frequency of the noise layer.</summary>
         [Min(0.0001f)]
         [Tooltip("Base frequency of the noise layer")]
         public float frequency;
 
+        /// <summary>Octave frequency multiplier (each octave's frequency = previous * lacunarity).</summary>
         [Tooltip("Octave frequency multiplier")]
         public float lacunarity;
 
+        /// <summary>Octave amplitude decay factor (each octave's amplitude = previous * persistence).</summary>
         [Range(0f, 1f)]
         [Tooltip("Octave amplitude decay")]
         public float persistence;
 
+        /// <summary>Vertical scale applied to the final noise output.</summary>
         [Tooltip("Vertical scale applied to noise output")]
         public float heightScale;
 
+        /// <summary>Number of fractal noise octaves summed together.</summary>
         [Range(1, 8)]
         [Tooltip("Number of noise octaves")]
         public int octaves;
 
+        /// <summary>Seed offset added to the world seed for this noise layer.</summary>
         [Tooltip("Seed offset for this noise layer")]
         public int seedOffset;
 

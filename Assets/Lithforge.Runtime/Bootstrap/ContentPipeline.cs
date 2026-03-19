@@ -27,12 +27,16 @@ namespace Lithforge.Runtime.Bootstrap
     /// </summary>
     public sealed class ContentPipeline
     {
+        /// <summary>Tile size in pixels for atlas texture entries.</summary>
         private readonly int _atlasTileSize;
 
+        /// <summary>Logger for pipeline diagnostics.</summary>
         private readonly ILogger _logger;
 
+        /// <summary>Content validator for checking definition integrity.</summary>
         private readonly ContentValidator _validator;
 
+        /// <summary>Creates a content pipeline with the given logger, validator, and atlas tile size.</summary>
         public ContentPipeline(ILogger logger, ContentValidator validator, int atlasTileSize = 16)
         {
             _logger = logger;
@@ -321,6 +325,7 @@ namespace Lithforge.Runtime.Bootstrap
                 ctx.MaterialInputRegistry);
         }
 
+        /// <summary>Builds the "prop1=val1,prop2=val2" variant key from a state offset.</summary>
         private static string BuildVariantKey(BlockDefinition block, int stateOffset)
         {
             IReadOnlyList<BlockPropertyEntry> properties = block.Properties;
@@ -353,6 +358,7 @@ namespace Lithforge.Runtime.Bootstrap
             return sb.ToString();
         }
 
+        /// <summary>Finds the variant entry matching the given key in a block state mapping.</summary>
         private static BlockStateVariantEntry FindVariant(
             BlockStateMapping mapping,
             string variantKey)
@@ -370,6 +376,7 @@ namespace Lithforge.Runtime.Bootstrap
             return null;
         }
 
+        /// <summary>Returns the atlas index for a texture, or the missing texture index if not found.</summary>
         private static ushort GetTextureIndex(AtlasResult atlas, Texture2D texture)
         {
             if (texture != null && atlas.IndexByTexture.TryGetValue(texture, out int index))
@@ -547,6 +554,7 @@ namespace Lithforge.Runtime.Bootstrap
             return 0; // -1 or absent = no tint
         }
 
+        /// <summary>Resolves an overlay texture and tint type from a single model face entry.</summary>
         private static void ResolveOverlayFace(
             ModelFaceEntry face,
             Dictionary<string, Texture2D> resolvedTextures,

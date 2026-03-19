@@ -16,10 +16,10 @@ namespace Lithforge.Runtime.Debug
     /// </summary>
     public sealed class F3DebugOverlay : MonoBehaviour
     {
-        // Throttle
+        /// <summary>Minimum interval in seconds between throttled label updates (4 Hz).</summary>
         private const float ThrottleInterval = 0.25f;
 
-        // Display section indices (excludes UpdateTotal and Frame which are shown separately)
+        /// <summary>Profiler section indices displayed in the performance panel, excluding aggregates.</summary>
         private static readonly int[] s_displaySections =
         {
             FrameProfilerSections.TickLoop,
@@ -37,6 +37,7 @@ namespace Lithforge.Runtime.Debug
             FrameProfilerSections.Render,
         };
 
+        /// <summary>Right-padded section names for aligned display in the performance panel.</summary>
         private static readonly string[] s_paddedNames =
         {
             "TickLoop:   ",
@@ -54,70 +55,160 @@ namespace Lithforge.Runtime.Debug
             "Render:     ",
         };
 
-        // Reusable StringBuilder
+        /// <summary>Reusable StringBuilder for zero-allocation label text formatting.</summary>
         private readonly StringBuilder _sb = new(256);
+
+        /// <summary>Reference to the chunk border wireframe renderer toggled by F3+G.</summary>
         private ChunkBorderRenderer _borderRenderer;
+
+        /// <summary>Label displaying cutout render layer buffer usage (used/capacity).</summary>
         private Label _buffersCutoutLabel;
+
+        /// <summary>Label displaying opaque render layer buffer usage (used/capacity).</summary>
         private Label _buffersOpaqueLabel;
+
+        /// <summary>Label displaying translucent render layer buffer usage (used/capacity).</summary>
         private Label _buffersTransLabel;
+
+        /// <summary>Label displaying the camera's current chunk coordinates.</summary>
         private Label _chunkLabel;
+
+        /// <summary>Label displaying the total number of loaded chunks.</summary>
         private Label _chunksLoadedLabel;
+
+        /// <summary>Label displaying the active culling mode and VRAM usage.</summary>
         private Label _cullModeLabel;
+
+        /// <summary>Label displaying decoration pass count and timing.</summary>
         private Label _decorateLabel;
+
+        /// <summary>UIDocument component hosting the overlay UI elements.</summary>
         private UIDocument _document;
+
+        /// <summary>Forces an immediate update on the first frame after state change.</summary>
         private bool _firstUpdate = true;
+
+        /// <summary>Label displaying fly mode status, noclip state, and speed.</summary>
         private Label _flyLabel;
 
-        // Labels — pre-created, mutated in-place
+        /// <summary>Label displaying the smoothed FPS counter (updated every frame).</summary>
         private Label _fpsLabel;
 
-        // Custom elements
+        /// <summary>Custom Painter2D element rendering the frame-time bar graph.</summary>
         private FrameTimeGraphElement _frameGraph;
+
+        /// <summary>Label displaying the current frame time in milliseconds.</summary>
         private Label _frameMsLabel;
+
+        /// <summary>Frame profiler instance for enabling profiling when overlay becomes visible.</summary>
         private IFrameProfiler _frameProfiler;
+
+        /// <summary>Label displaying per-frame GC collection counts (gen0/gen1/gen2).</summary>
         private Label _gcLabel;
+
+        /// <summary>Label displaying the pending generation queue depth.</summary>
         private Label _genQueueLabel;
+
+        /// <summary>Label displaying generation throughput (per-frame and cumulative total).</summary>
         private Label _genThroughputLabel;
+
+        /// <summary>Visual element panel containing GPU buffer and upload statistics.</summary>
         private VisualElement _gpuPanel;
+
+        /// <summary>Label displaying GPU upload bytes and call count per frame.</summary>
         private Label _gpuUploadLabel;
+
+        /// <summary>Label displaying frame-time graph statistics (current, max, avg).</summary>
         private Label _graphStatsLabel;
+
+        /// <summary>Label displaying MegaMeshBuffer grow events and free list size.</summary>
         private Label _growLabel;
+
+        /// <summary>Label displaying frame budget headroom relative to 16.67ms target.</summary>
         private Label _headroomLabel;
+
+        /// <summary>Left column container for performance and world panels.</summary>
         private VisualElement _leftColumn;
+
+        /// <summary>Label displaying LOD mesh throughput (per-frame and cumulative total).</summary>
         private Label _lodThroughputLabel;
+
+        /// <summary>Label displaying the pending mesh and LOD mesh queue depths.</summary>
         private Label _meshQueueLabel;
+
+        /// <summary>Label displaying mesh throughput (per-frame and cumulative total).</summary>
         private Label _meshThroughputLabel;
+
+        /// <summary>Metrics registry providing the current MetricSnapshot for display.</summary>
         private MetricsRegistry _metrics;
 
-        // Panels
+        /// <summary>Top-left panel visible in both Minimal and Full states, containing the FPS label.</summary>
         private VisualElement _minimalPanel;
+
+        /// <summary>Custom Painter2D element rendering the chunk state minimap.</summary>
         private MinimapElement _minimap;
+
+        /// <summary>Label below the minimap showing the current Y-level slice.</summary>
         private Label _minimapLabel;
+
+        /// <summary>Label displaying the count of chunks pending light updates.</summary>
         private Label _needsLightLabel;
+
+        /// <summary>Label displaying the count of chunks pending remeshing.</summary>
         private Label _needsRemeshLabel;
+
+        /// <summary>Panel containing per-section profiler timings and frame budget info.</summary>
         private VisualElement _perfPanel;
+
+        /// <summary>Panel containing pipeline queue depths, throughput, and chunk state histogram.</summary>
         private VisualElement _pipelinePanel;
+
+        /// <summary>Pipeline stats instance for enabling stats when overlay becomes visible.</summary>
         private IPipelineStats _pipelineStats;
+
+        /// <summary>Label displaying chunk pool statistics (available/checked-out/total).</summary>
         private Label _poolLabel;
+
+        /// <summary>Label displaying the player's world position.</summary>
         private Label _posLabel;
+
+        /// <summary>Label displaying the active chunk renderer count.</summary>
         private Label _renderersLabel;
+
+        /// <summary>Right column container for pipeline and GPU panels.</summary>
         private VisualElement _rightColumn;
+
+        /// <summary>Root visual element of the UIDocument.</summary>
         private VisualElement _root;
+
+        /// <summary>Per-section profiler timing labels in the performance panel.</summary>
         private Label[] _sectionLabels;
 
-        // F3+G sub-toggle
+        /// <summary>Whether chunk border wireframes are enabled via F3+G sub-toggle.</summary>
         private bool _showChunkBorders;
 
-        // Three-state cycle
+        /// <summary>Label displaying the chunk state histogram (Gen/Done/Mesh/Ready counts).</summary>
         private Label _stateHistLabel;
+
+        /// <summary>Accumulator for throttling non-FPS label updates to 4 Hz.</summary>
         private float _throttleTimer;
+
+        /// <summary>Label displaying the fixed tick count executed this frame.</summary>
         private Label _tickCountLabel;
+
+        /// <summary>Label displaying the total Update() time in milliseconds.</summary>
         private Label _updateTotalLabel;
+
+        /// <summary>Label displaying total VRAM usage across all GPU buffers.</summary>
         private Label _vramLabel;
+
+        /// <summary>Panel containing world position, chunk info, and loaded chunk count.</summary>
         private VisualElement _worldPanel;
 
+        /// <summary>Current three-state overlay mode (Off, Minimal, or Full).</summary>
         public OverlayState State { get; private set; } = OverlayState.Off;
 
+        /// <summary>Updates FPS every frame and throttles all other labels to 4 Hz.</summary>
         private void Update()
         {
             HandleKeyInput();
@@ -162,6 +253,7 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>Shows or hides the entire overlay root element.</summary>
         public void SetVisible(bool visible)
         {
             if (_root != null)
@@ -170,6 +262,7 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>Initializes the overlay with all dependencies, builds the UI, and applies the initial state.</summary>
         public void Initialize(
             MetricsRegistry metrics,
             ChunkBorderRenderer borderRenderer,
@@ -203,6 +296,7 @@ namespace Lithforge.Runtime.Debug
             ApplyState();
         }
 
+        /// <summary>Constructs all visual elements, panels, labels, graph, and minimap.</summary>
         private void BuildUI()
         {
             // Root fills the screen
@@ -299,6 +393,7 @@ namespace Lithforge.Runtime.Debug
             _root.Add(minimapContainer);
         }
 
+        /// <summary>Builds the performance panel with frame time, section timings, headroom, and GC labels.</summary>
         private void BuildPerfPanel()
         {
             _perfPanel = CreatePanel();
@@ -332,6 +427,7 @@ namespace Lithforge.Runtime.Debug
             _leftColumn.Add(_perfPanel);
         }
 
+        /// <summary>Builds the world info panel with position, chunk, loaded count, and renderer labels.</summary>
         private void BuildWorldPanel()
         {
             _worldPanel = CreatePanel();
@@ -361,6 +457,7 @@ namespace Lithforge.Runtime.Debug
             _leftColumn.Add(_worldPanel);
         }
 
+        /// <summary>Builds the pipeline panel with queue depths, throughput, state histogram, and pool labels.</summary>
         private void BuildPipelinePanel()
         {
             _pipelinePanel = CreatePanel();
@@ -401,6 +498,7 @@ namespace Lithforge.Runtime.Debug
             _rightColumn.Add(_pipelinePanel);
         }
 
+        /// <summary>Builds the GPU panel with VRAM, per-layer buffer usage, upload, and grow labels.</summary>
         private void BuildGpuPanel()
         {
             _gpuPanel = CreatePanel();
@@ -430,6 +528,7 @@ namespace Lithforge.Runtime.Debug
             _rightColumn.Add(_gpuPanel);
         }
 
+        /// <summary>Handles F3 key to cycle overlay state and F3+G to toggle chunk borders.</summary>
         private void HandleKeyInput()
         {
             Keyboard kb = Keyboard.current;
@@ -467,6 +566,7 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>Shows or hides panels based on the current overlay state.</summary>
         private void ApplyState()
         {
             bool anyVisible = State != OverlayState.Off;
@@ -481,6 +581,7 @@ namespace Lithforge.Runtime.Debug
             _firstUpdate = true;
         }
 
+        /// <summary>Updates all full-mode panels from the current metric snapshot.</summary>
         private void UpdateAllPanels(MetricSnapshot snap)
         {
             UpdatePerfPanel(snap);
@@ -491,6 +592,7 @@ namespace Lithforge.Runtime.Debug
             UpdateMinimapLabel(snap);
         }
 
+        /// <summary>Updates the performance panel labels with frame time, section timings, headroom, and GC data.</summary>
         private void UpdatePerfPanel(MetricSnapshot snap)
         {
             _sb.Clear();
@@ -554,6 +656,7 @@ namespace Lithforge.Runtime.Debug
             _tickCountLabel.text = _sb.ToString();
         }
 
+        /// <summary>Updates the world panel labels with player position, chunk info, and fly mode status.</summary>
         private void UpdateWorldPanel(MetricSnapshot snap)
         {
             _sb.Clear();
@@ -614,6 +717,7 @@ namespace Lithforge.Runtime.Debug
             }
         }
 
+        /// <summary>Updates the pipeline panel labels with queue depths, throughput, state histogram, and pool stats.</summary>
         private void UpdatePipelinePanel(MetricSnapshot snap)
         {
             _sb.Clear();
@@ -690,6 +794,7 @@ namespace Lithforge.Runtime.Debug
             _poolLabel.text = _sb.ToString();
         }
 
+        /// <summary>Updates the GPU panel labels with VRAM, buffer usage, upload stats, and grow events.</summary>
         private void UpdateGpuPanel(MetricSnapshot snap)
         {
             _sb.Clear();
@@ -734,6 +839,7 @@ namespace Lithforge.Runtime.Debug
             _growLabel.text = _sb.ToString();
         }
 
+        /// <summary>Updates the graph statistics label with current, max, and average frame times.</summary>
         private void UpdateGraphStats(MetricSnapshot snap)
         {
             float maxMs = 0f;
@@ -769,6 +875,7 @@ namespace Lithforge.Runtime.Debug
             _graphStatsLabel.text = _sb.ToString();
         }
 
+        /// <summary>Updates the minimap caption label with the current Y-level slice.</summary>
         private void UpdateMinimapLabel(MetricSnapshot snap)
         {
             _sb.Clear();
@@ -778,6 +885,7 @@ namespace Lithforge.Runtime.Debug
             _minimapLabel.text = _sb.ToString();
         }
 
+        /// <summary>Creates a semi-transparent dark panel with rounded corners for grouping labels.</summary>
         private static VisualElement CreatePanel()
         {
             VisualElement panel = new()
@@ -799,6 +907,7 @@ namespace Lithforge.Runtime.Debug
             return panel;
         }
 
+        /// <summary>Creates a monospaced-style label with standard font size and light gray color.</summary>
         private static Label CreateLabel(string text)
         {
             Label label = new(text)

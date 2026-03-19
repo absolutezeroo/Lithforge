@@ -15,12 +15,24 @@ namespace Lithforge.Network.Server
     /// </summary>
     public sealed class NetworkChunkStreamingStrategy : IChunkStreamingStrategy
     {
+        /// <summary>
+        /// Cache of serialized chunk data keyed by coordinate and version.
+        /// </summary>
         private readonly CompressedChunkCache _cache = new();
 
+        /// <summary>
+        /// Provider for querying chunk readiness and serializing chunk data.
+        /// </summary>
         private readonly IServerChunkProvider _chunkProvider;
 
+        /// <summary>
+        /// The network server used to send messages to peers.
+        /// </summary>
         private readonly INetworkServer _server;
 
+        /// <summary>
+        /// Creates a new NetworkChunkStreamingStrategy with the given server and chunk provider.
+        /// </summary>
         public NetworkChunkStreamingStrategy(INetworkServer server, IServerChunkProvider chunkProvider)
         {
             _server = server;
@@ -33,6 +45,9 @@ namespace Lithforge.Network.Server
             get { return _cache.Count; }
         }
 
+        /// <summary>
+        /// Serializes and sends chunk data to the peer. Uses the cache to avoid redundant serialization.
+        /// </summary>
         public bool StreamChunk(PeerInfo peer, int3 coord)
         {
             int version = _chunkProvider.GetChunkNetworkVersion(coord);
@@ -68,6 +83,9 @@ namespace Lithforge.Network.Server
             return true;
         }
 
+        /// <summary>
+        /// Sends a ChunkUnloadMessage to the peer for the given coordinate.
+        /// </summary>
         public void SendUnload(PeerInfo peer, int3 coord)
         {
             ChunkUnloadMessage msg = new()

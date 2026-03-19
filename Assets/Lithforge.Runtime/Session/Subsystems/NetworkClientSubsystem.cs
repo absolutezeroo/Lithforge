@@ -18,15 +18,22 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that creates the network client and wires client-side world simulation.
+    ///     Connects via DirectTransport for SP/Host or UTP for remote Client mode.
+    /// </summary>
     public sealed class NetworkClientSubsystem : IGameSubsystem
     {
+        /// <summary>The owned network client instance.</summary>
         private NetworkClient _client;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get { return "NetworkClient"; }
         }
 
+        /// <summary>Depends on physics, tick, player, and server subsystems for simulation wiring.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerPhysicsSubsystem),
@@ -35,6 +42,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(NetworkServerSubsystem),
         };
 
+        /// <summary>Created for all rendering modes (SP, Host, Client).</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             // Always-server: all rendering modes use a NetworkClient
@@ -43,6 +51,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 or SessionConfig.Client;
         }
 
+        /// <summary>Creates the network client and connects via DirectTransport or UTP.</summary>
         public void Initialize(SessionContext context)
         {
             ILogger logger = context.App.Logger;
@@ -75,6 +84,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register<INetworkClient>(_client);
         }
 
+        /// <summary>Wires network metrics and defers ClientWorldSimulation creation until handshake completes.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Wire network metrics for client-only mode (SP/Host use the server as source)
@@ -155,10 +165,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             };
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disconnects and disposes the network client.</summary>
         public void Dispose()
         {
             if (_client != null)

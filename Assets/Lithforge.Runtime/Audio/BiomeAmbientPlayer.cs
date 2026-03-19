@@ -10,15 +10,28 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class BiomeAmbientPlayer
     {
+        /// <summary>Duration of the A/B crossfade in seconds.</summary>
         private readonly float _crossfadeTime;
+
+        /// <summary>First audio source in the A/B crossfade pair.</summary>
         private readonly AudioSource _sourceA;
+
+        /// <summary>Second audio source in the A/B crossfade pair.</summary>
         private readonly AudioSource _sourceB;
 
+        /// <summary>True if source A is the currently active (fading in) source.</summary>
         private bool _aIsActive;
+
+        /// <summary>The currently assigned ambient clip for deduplication.</summary>
         private AudioClip _currentClip;
+
+        /// <summary>Crossfade progress from 0 (start) to 1 (complete).</summary>
         private float _fadeProgress;
+
+        /// <summary>True while a crossfade transition is in progress.</summary>
         private bool _isCrossfading;
 
+        /// <summary>Creates the player with two child AudioSources for A/B crossfading.</summary>
         public BiomeAmbientPlayer(
             GameObject host,
             AudioMixerGroup ambientGroup,
@@ -97,6 +110,7 @@ namespace Lithforge.Runtime.Audio
             }
         }
 
+        /// <summary>Stops both audio sources and destroys their GameObjects.</summary>
         public void Dispose()
         {
             if (_sourceA != null)
@@ -112,6 +126,7 @@ namespace Lithforge.Runtime.Audio
             }
         }
 
+        /// <summary>Configures an AudioSource for looping 2D ambient playback.</summary>
         private static void ConfigureSource(AudioSource source, AudioMixerGroup group)
         {
             source.playOnAwake = false;

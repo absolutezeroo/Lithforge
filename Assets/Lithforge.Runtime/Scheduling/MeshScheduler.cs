@@ -22,13 +22,16 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class MeshScheduler
     {
+        /// <summary>Chunk manager for state transitions and chunk queries.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>GPU mesh store for uploading completed meshes (opaque, cutout, translucent submeshes).</summary>
         private readonly ChunkMeshStore _chunkMeshStore;
 
         /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
         private readonly float _completionBudgetMs;
 
+        /// <summary>Frustum culling helper for mesh scheduling prioritization.</summary>
         private readonly ChunkCulling _culling;
 
         /// <summary>
@@ -37,8 +40,10 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private readonly List<ManagedChunk> _meshCandidateCache = new();
 
+        /// <summary>Burst-accessible atlas lookup for texture indices during greedy meshing.</summary>
         private readonly NativeAtlasLookup _nativeAtlasLookup;
 
+        /// <summary>Burst-accessible state registry for block state lookups during greedy meshing.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         /// <summary>
@@ -50,6 +55,7 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>Mesh jobs currently running on worker threads.</summary>
         private readonly List<PendingMesh> _pendingMeshes = new();
 
+        /// <summary>Pipeline statistics tracker for mesh scheduled/completed/timing counters.</summary>
         private readonly IPipelineStats _pipelineStats;
 
         /// <summary>
@@ -66,8 +72,10 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private NativeArray<byte> _dummyLiquid;
 
+        /// <summary>Maximum number of mesh job completions to process per frame.</summary>
         private int _maxMeshCompletionsPerFrame;
 
+        /// <summary>Maximum number of mesh jobs to schedule per frame.</summary>
         private int _maxMeshesPerFrame;
 
         /// <summary>
@@ -76,6 +84,7 @@ namespace Lithforge.Runtime.Scheduling
         /// </summary>
         private int _throttleThreshold = 16;
 
+        /// <summary>Creates a new mesh scheduler with the given dependencies and configuration.</summary>
         public MeshScheduler(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -582,6 +591,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Returns true if the two chunk coordinates are face-adjacent (Manhattan distance of 1).</summary>
         private static bool IsAdjacentCoord(int3 a, int3 b)
         {
             int3 d = a - b;
@@ -860,12 +870,22 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Tracks an in-flight mesh job and its associated data for disposal on completion.</summary>
         private struct PendingMesh
         {
+            /// <summary>World chunk coordinate this mesh is being generated for.</summary>
             public int3 Coord;
+
+            /// <summary>Job system handle for the border extraction + greedy mesh job chain.</summary>
             public JobHandle Handle;
+
+            /// <summary>Native containers holding border slabs, vertices, and indices for all submeshes.</summary>
             public GreedyMeshData Data;
+
+            /// <summary>Number of frames since this job was scheduled.</summary>
             public int FrameAge;
+
+            /// <summary>Whether this mesh was triggered by a player edit (prioritized completion).</summary>
             public bool IsUrgent;
         }
     }

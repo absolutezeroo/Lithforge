@@ -13,8 +13,14 @@ namespace Lithforge.Network.Server
     /// </summary>
     public sealed class ClientReadinessWaiter
     {
+        /// <summary>
+        /// Maps ConnectionId.Value to the server tick when loading started.
+        /// </summary>
         private readonly Dictionary<int, uint> _loadStartTick = new();
 
+        /// <summary>
+        /// Maximum number of ticks a peer may remain in Loading before being force-transitioned.
+        /// </summary>
         private readonly uint _timeoutTicks;
 
         /// <summary>

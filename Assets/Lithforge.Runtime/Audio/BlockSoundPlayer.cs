@@ -18,14 +18,25 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class BlockSoundPlayer
     {
-        // Compound key: soundGroup hashcode ^ eventType — maps to last play time
+        /// <summary>Maps compound key (sound group hash + event type) to last play time for cooldown enforcement.</summary>
         private readonly Dictionary<long, float> _cooldowns = new();
+
+        /// <summary>Minimum seconds between plays of the same group+event combination.</summary>
         private readonly float _cooldownSeconds;
+
+        /// <summary>Pre-allocated pool of AudioSources for spatial playback.</summary>
         private readonly SfxSourcePool _pool;
+
+        /// <summary>Registry mapping sound group names to their definitions.</summary>
         private readonly SoundGroupRegistry _registry;
+
+        /// <summary>Random number generator for clip and pitch variation.</summary>
         private readonly Random _rng;
+
+        /// <summary>State registry for looking up block sound groups by StateId.</summary>
         private readonly StateRegistry _stateRegistry;
 
+        /// <summary>Creates the player with the given registry, state registry, pool, and cooldown.</summary>
         public BlockSoundPlayer(
             SoundGroupRegistry registry,
             StateRegistry stateRegistry,
@@ -93,11 +104,13 @@ namespace Lithforge.Runtime.Audio
             _cooldowns[key] = now;
         }
 
+        /// <summary>Returns the world-space center of the given block coordinate.</summary>
         private static Vector3 BlockCenter(int3 coord)
         {
             return new Vector3(coord.x + 0.5f, coord.y + 0.5f, coord.z + 0.5f);
         }
 
+        /// <summary>Computes a compound cooldown key from a sound group name and event type.</summary>
         private static long ComputeKey(string group, SoundEventType eventType)
         {
             return (long)group.GetHashCode() << 8 | (long)eventType;

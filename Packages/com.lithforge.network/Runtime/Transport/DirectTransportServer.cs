@@ -9,29 +9,56 @@ namespace Lithforge.Network.Transport
     /// </summary>
     public sealed class DirectTransportServer : INetworkTransport
     {
+        /// <summary>
+        /// Fixed connection ID for the single local client connection.
+        /// </summary>
         private static readonly ConnectionId LocalConnectionId = new(1);
 
+        /// <summary>
+        /// Channel for data flowing from client to this server.
+        /// </summary>
         private readonly DirectChannel _inbound;
 
+        /// <summary>
+        /// Channel for data flowing from this server to the client.
+        /// </summary>
         private readonly DirectChannel _outbound;
 
+        /// <summary>
+        /// Whether the local client is currently connected.
+        /// </summary>
         private bool _connected;
 
+        /// <summary>
+        /// Whether a synthetic Connect event is pending for the next PollEvent call.
+        /// </summary>
         private bool _connectEventPending;
 
+        /// <summary>
+        /// Whether this transport has been disposed.
+        /// </summary>
         private bool _disposed;
 
+        /// <summary>
+        /// Creates a new DirectTransportServer with the given inbound and outbound channels.
+        /// </summary>
         internal DirectTransportServer(DirectChannel inbound, DirectChannel outbound)
         {
             _inbound = inbound;
             _outbound = outbound;
         }
 
+        /// <summary>
+        /// No-op for direct transport; data is already in the queues.
+        /// </summary>
         public void Update()
         {
             // No driver to pump — data is already in the queues.
         }
 
+        /// <summary>
+        /// Marks the server as ready and queues a synthetic Connect event for the local client.
+        /// </summary>
         public bool Listen(ushort port)
         {
             // No-op for direct transport. Mark the connect event as pending
@@ -41,11 +68,17 @@ namespace Lithforge.Network.Transport
             return true;
         }
 
+        /// <summary>
+        /// Not supported; a server transport does not initiate outgoing connections.
+        /// </summary>
         public ConnectionId Connect(string address, ushort port)
         {
             throw new InvalidOperationException("DirectTransportServer does not initiate connections.");
         }
 
+        /// <summary>
+        /// Disconnects the local client, enqueuing a Disconnect event on the client side.
+        /// </summary>
         public void Disconnect(ConnectionId connectionId)
         {
             if (!_connected)
@@ -57,6 +90,9 @@ namespace Lithforge.Network.Transport
             _outbound.EnqueueEvent(NetworkEventType.Disconnect);
         }
 
+        /// <summary>
+        /// Polls the next event: synthesized Connect first, then events, then data packets.
+        /// </summary>
         public NetworkEventType PollEvent(
             out ConnectionId connectionId,
             out byte[] data,
@@ -101,6 +137,9 @@ namespace Lithforge.Network.Transport
             return NetworkEventType.Empty;
         }
 
+        /// <summary>
+        /// Enqueues data into the outbound channel for the client to read.
+        /// </summary>
         public bool Send(ConnectionId connectionId, int pipelineId, byte[] data, int offset, int length)
         {
             if (!_connected)
@@ -113,6 +152,9 @@ namespace Lithforge.Network.Transport
             return true;
         }
 
+        /// <summary>
+        /// Disposes this transport, marking it as disconnected.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)

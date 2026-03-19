@@ -17,24 +17,49 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class FootstepController
     {
+        /// <summary>Block sound player for playing step sounds.</summary>
         private readonly BlockSoundPlayer _blockSoundPlayer;
+
+        /// <summary>Chunk manager for querying block state at the player's feet.</summary>
         private readonly ChunkManager _chunkManager;
+
+        /// <summary>Delegate returning true if the player is currently flying.</summary>
         private readonly Func<bool> _isFlying;
 
-        // External state references
+        /// <summary>Delegate returning true if the player is currently on the ground.</summary>
         private readonly Func<bool> _isOnGround;
+
+        /// <summary>Delegate returning true if the player is currently sprinting.</summary>
         private readonly Func<bool> _isSprinting;
+
+        /// <summary>Native state registry for checking block flags (full-cube test for layering).</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
+
+        /// <summary>Player transform for tracking horizontal movement distance.</summary>
         private readonly Transform _playerTransform;
+
+        /// <summary>Horizontal distance threshold between footsteps while sprinting.</summary>
         private readonly float _sprintThreshold;
+
+        /// <summary>Managed state registry for looking up block entries by StateId.</summary>
         private readonly StateRegistry _stateRegistry;
+
+        /// <summary>Horizontal distance threshold between footsteps while walking.</summary>
         private readonly float _walkThreshold;
 
+        /// <summary>Accumulated horizontal distance since the last footstep sound.</summary>
         private float _accumulatedDistance;
+
+        /// <summary>True after the first Update call has captured the initial position.</summary>
         private bool _initialized;
+
+        /// <summary>Previous frame X position for distance calculation.</summary>
         private float _previousX;
+
+        /// <summary>Previous frame Z position for distance calculation.</summary>
         private float _previousZ;
 
+        /// <summary>Creates the controller with block sound, movement thresholds, and player state delegates.</summary>
         public FootstepController(
             BlockSoundPlayer blockSoundPlayer,
             ChunkManager chunkManager,

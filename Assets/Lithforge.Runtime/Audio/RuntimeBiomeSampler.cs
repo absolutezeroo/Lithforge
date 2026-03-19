@@ -10,9 +10,13 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class RuntimeBiomeSampler
     {
+        /// <summary>Array of all biome definitions for nearest-biome lookup.</summary>
         private readonly BiomeDefinition[] _biomes;
+
+        /// <summary>World seed used for position-based noise hashing.</summary>
         private readonly long _seed;
 
+        /// <summary>Creates the sampler with the biome array and world seed.</summary>
         public RuntimeBiomeSampler(BiomeDefinition[] biomes, long seed)
         {
             _biomes = biomes;
@@ -98,6 +102,7 @@ namespace Lithforge.Runtime.Audio
             CurrentBiomeIndex = bestIndex;
         }
 
+        /// <summary>Returns the fractional part of the given value.</summary>
         private static float Frac(float v)
         {
             return v - math.floor(v);

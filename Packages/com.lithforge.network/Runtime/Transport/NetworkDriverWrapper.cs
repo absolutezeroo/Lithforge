@@ -17,22 +17,64 @@ namespace Lithforge.Network.Transport
     /// </summary>
     public sealed class NetworkDriverWrapper : INetworkTransport
     {
+        /// <summary>
+        /// Maps our sequential ConnectionId.Value to the UTP NetworkConnection handle.
+        /// </summary>
         private readonly Dictionary<int, NetworkConnection> _connectionMap = new();
-        // Internal event buffer drained during Update, consumed by PollEvent
+
+        /// <summary>
+        /// Internal event buffer drained during Update, consumed by PollEvent.
+        /// </summary>
         private readonly List<BufferedEvent> _eventBuffer = new();
+
+        /// <summary>
+        /// Logger instance for diagnostic messages.
+        /// </summary>
         private readonly ILogger _logger;
+
+        /// <summary>
+        /// Array of configured UTP pipelines indexed by PipelineId constants.
+        /// </summary>
         private readonly NetworkPipeline[] _pipelines;
+
+        /// <summary>
+        /// Reverse map from UTP NetworkConnection to our sequential ConnectionId.Value.
+        /// </summary>
         private readonly Dictionary<NetworkConnection, int> _reverseMap = new();
 
+        /// <summary>
+        /// Active UTP connections tracked for event polling.
+        /// </summary>
         private NativeList<NetworkConnection> _connections;
+
+        /// <summary>
+        /// Whether this transport has been disposed.
+        /// </summary>
         private bool _disposed;
+
+        /// <summary>
+        /// The underlying Unity Transport Package network driver.
+        /// </summary>
         private NetworkDriver _driver;
+
+        /// <summary>
+        /// Current read position in the event buffer for PollEvent.
+        /// </summary>
         private int _eventIndex;
+
+        /// <summary>
+        /// Whether this wrapper is operating in server mode (accepting connections).
+        /// </summary>
         private bool _isServer;
 
-        // Sequential connection ID allocation (Fix 2 — avoids GetHashCode collision risk)
+        /// <summary>
+        /// Monotonically increasing counter for assigning collision-free connection IDs.
+        /// </summary>
         private int _nextConnectionId;
 
+        /// <summary>
+        /// Creates a new NetworkDriverWrapper with configured pipelines and transport settings.
+        /// </summary>
         public NetworkDriverWrapper(ILogger logger)
         {
             _logger = logger;
@@ -64,6 +106,9 @@ namespace Lithforge.Network.Transport
                 NetworkConstants.MaxConnections, Allocator.Persistent);
         }
 
+        /// <summary>
+        /// Pumps the UTP driver, buffers all events, and accepts new connections if in server mode.
+        /// </summary>
         public void Update()
         {
             _driver.ScheduleUpdate().Complete();
@@ -167,6 +212,9 @@ namespace Lithforge.Network.Transport
             }
         }
 
+        /// <summary>
+        /// Binds the driver to the given port and begins listening for incoming connections.
+        /// </summary>
         public bool Listen(ushort port)
         {
             _isServer = true;
@@ -191,6 +239,9 @@ namespace Lithforge.Network.Transport
             return true;
         }
 
+        /// <summary>
+        /// Initiates a connection to the given address and port. Returns the assigned ConnectionId.
+        /// </summary>
         public ConnectionId Connect(string address, ushort port)
         {
             NetworkEndpoint endpoint = NetworkEndpoint.Parse(address, port);
@@ -199,6 +250,9 @@ namespace Lithforge.Network.Transport
             return AllocateId(conn);
         }
 
+        /// <summary>
+        /// Gracefully disconnects the given connection and removes its ID mapping.
+        /// </summary>
         public void Disconnect(ConnectionId connectionId)
         {
             if (!TryGetConnection(connectionId, out NetworkConnection conn))
@@ -219,6 +273,9 @@ namespace Lithforge.Network.Transport
             }
         }
 
+        /// <summary>
+        /// Returns the next buffered event, advancing the read cursor.
+        /// </summary>
         public NetworkEventType PollEvent(
             out ConnectionId connectionId,
             out byte[] data,
@@ -244,6 +301,9 @@ namespace Lithforge.Network.Transport
             return evt.EventType;
         }
 
+        /// <summary>
+        /// Sends data on the specified pipeline. Returns false if the send queue is full.
+        /// </summary>
         public bool Send(ConnectionId connectionId, int pipelineId, byte[] data, int offset, int length)
         {
             if (!TryGetConnection(connectionId, out NetworkConnection conn))
@@ -284,6 +344,9 @@ namespace Lithforge.Network.Transport
             return true;
         }
 
+        /// <summary>
+        /// Disposes the UTP driver, disconnecting all connections and freeing native memory.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)
@@ -318,6 +381,9 @@ namespace Lithforge.Network.Transport
 
         // --- Connection ID management (Fix 2) ---
 
+        /// <summary>
+        /// Allocates a new sequential ConnectionId for the given UTP NetworkConnection.
+        /// </summary>
         private ConnectionId AllocateId(NetworkConnection conn)
         {
             int id = _nextConnectionId++;
@@ -326,6 +392,9 @@ namespace Lithforge.Network.Transport
             return new ConnectionId(id);
         }
 
+        /// <summary>
+        /// Resolves the ConnectionId for a UTP NetworkConnection, allocating on-the-fly as fallback.
+        /// </summary>
         private ConnectionId ResolveId(NetworkConnection conn)
         {
             if (_reverseMap.TryGetValue(conn, out int id))
@@ -337,11 +406,17 @@ namespace Lithforge.Network.Transport
             return AllocateId(conn);
         }
 
+        /// <summary>
+        /// Looks up the UTP NetworkConnection for the given ConnectionId. Returns false if not found.
+        /// </summary>
         private bool TryGetConnection(ConnectionId connId, out NetworkConnection conn)
         {
             return _connectionMap.TryGetValue(connId.Value, out conn);
         }
 
+        /// <summary>
+        /// Removes the ID mapping for the given UTP NetworkConnection.
+        /// </summary>
         private void RemoveId(NetworkConnection conn)
         {
             if (_reverseMap.TryGetValue(conn, out int id))
@@ -353,6 +428,9 @@ namespace Lithforge.Network.Transport
 
         // --- ArrayPool buffer management (Fix 3) ---
 
+        /// <summary>
+        /// Returns all pooled byte arrays from the event buffer back to ArrayPool.
+        /// </summary>
         private void ReturnEventBuffers()
         {
             for (int i = 0; i < _eventBuffer.Count; i++)
@@ -370,13 +448,39 @@ namespace Lithforge.Network.Transport
             }
         }
 
+        /// <summary>
+        /// Internal struct storing a buffered network event for deferred consumption by PollEvent.
+        /// </summary>
         private struct BufferedEvent
         {
+            /// <summary>
+            /// The type of network event.
+            /// </summary>
             public NetworkEventType EventType;
+
+            /// <summary>
+            /// The connection this event belongs to.
+            /// </summary>
             public ConnectionId ConnectionId;
+
+            /// <summary>
+            /// Raw data buffer (null for non-Data events).
+            /// </summary>
             public byte[] Data;
+
+            /// <summary>
+            /// Start offset within the data buffer.
+            /// </summary>
             public int Offset;
+
+            /// <summary>
+            /// Number of valid bytes starting from offset.
+            /// </summary>
             public int Length;
+
+            /// <summary>
+            /// Whether the Data array was rented from ArrayPool and needs to be returned.
+            /// </summary>
             public bool Pooled;
         }
     }

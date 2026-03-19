@@ -12,8 +12,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 15: Builds the item sprite atlas and first-person display transform lookup.</summary>
     public sealed class BuildItemSpritesPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -22,6 +24,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Builds tool part textures, item sprite atlas, and item display transform lookup for held items.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             // Phase 15: Build tool part texture database + item sprite atlas

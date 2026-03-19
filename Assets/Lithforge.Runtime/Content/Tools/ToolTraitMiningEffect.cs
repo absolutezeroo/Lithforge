@@ -12,15 +12,19 @@ namespace Lithforge.Runtime.Content.Tools
     [System.Serializable]
     public struct ToolTraitMiningEffect
     {
+        /// <summary>Type of mining modification this effect applies.</summary>
         [FormerlySerializedAs("Type")]
         public MiningEffectType type;
 
+        /// <summary>Magnitude of the effect (multiplier, flat bonus, or reduction amount).</summary>
         [FormerlySerializedAs("Value")]
         public float value;
 
+        /// <summary>Block material this effect targets. None matches all materials.</summary>
         [FormerlySerializedAs("TargetMaterial")]
         public BlockMaterialType targetMaterial;
 
+        /// <summary>Tool type this effect targets. None matches all tool types.</summary>
         [FormerlySerializedAs("TargetToolType")]
         public ToolType targetToolType;
 

@@ -4,8 +4,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 7: Loads BiomeDefinition and OreDefinition ScriptableObjects from Resources.</summary>
     public sealed class LoadBiomesAndOresPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -14,6 +16,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads biome and ore definitions into the context.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             ctx.BiomeDefinitions = Resources.LoadAll<BiomeDefinition>("Content/Biomes");

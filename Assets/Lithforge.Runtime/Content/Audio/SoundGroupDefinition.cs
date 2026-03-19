@@ -94,6 +94,7 @@ namespace Lithforge.Runtime.Audio
         [Range(0.5f, 2f)]
         [SerializeField] private float fallPitchMax = 1.0f;
 
+        /// <summary>Sound group name that must match BlockDefinition.soundGroup for lookup.</summary>
         public string GroupName
         {
             get { return groupName; }
@@ -169,6 +170,7 @@ namespace Lithforge.Runtime.Audio
             return min + (float)rng.NextDouble() * (max - min);
         }
 
+        /// <summary>Returns the clip array for the given event type, or null if unassigned.</summary>
         private AudioClip[] GetClips(SoundEventType eventType)
         {
             return eventType switch
@@ -182,6 +184,7 @@ namespace Lithforge.Runtime.Audio
             };
         }
 
+        /// <summary>Editor callback that auto-fills the group name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(groupName))

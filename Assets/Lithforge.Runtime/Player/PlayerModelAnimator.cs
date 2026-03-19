@@ -12,54 +12,85 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class PlayerModelAnimator
     {
-        // Part pivots in block units (model pixels / 16), relative to body root (feet position)
-        // These match the Minecraft model spec
+        /// <summary>Head pivot in block units (model pixels / 16), relative to body root.</summary>
         private static readonly float3 s_headPivot = new float3(0f, 24f, 0f) / 16f;
+
+        /// <summary>Body pivot in block units (model pixels / 16), relative to body root.</summary>
         private static readonly float3 s_bodyPivot = new float3(0f, 24f, 0f) / 16f;
+
+        /// <summary>Right arm pivot in block units (model pixels / 16), relative to body root.</summary>
         private static readonly float3 s_rightArmPivot = new float3(-6f, 22f, 0f) / 16f;
+
+        /// <summary>Left arm (main hand) pivot in block units (model pixels / 16), relative to body root.</summary>
         private static readonly float3 s_leftArmPivot = new float3(6f, 22f, 0f) / 16f;
+
+        /// <summary>Right leg pivot in block units (model pixels / 16), relative to body root.</summary>
         private static readonly float3 s_rightLegPivot = new float3(-2f, 12f, 0f) / 16f;
+
+        /// <summary>Left leg pivot in block units (model pixels / 16), relative to body root.</summary>
         private static readonly float3 s_leftLegPivot = new float3(2f, 12f, 0f) / 16f;
 
-        // Body offset: shift the model backward (in body-local Z) so the camera sits
-        // at the front of the face (eye position) rather than at the center of the head.
-        // Without this, looking down shows only the body top face ("neck hole").
-        // With it, looking down reveals the body front face (shirt), arms, and legs.
+        /// <summary>
+        ///     Body-local Z offset so the camera sits at the front of the face (eye position)
+        ///     rather than at the center of the head. Reveals the shirt, arms, and legs when looking down.
+        /// </summary>
         private const float BodyBackwardOffset = 0.15f;
 
-        // Walk animation parameters
+        /// <summary>Maximum arm swing angle in degrees during walking.</summary>
         private const float WalkSwingArmDeg = 40f;
+
+        /// <summary>Maximum leg swing angle in degrees during walking.</summary>
         private const float WalkSwingLegDeg = 45f;
+
+        /// <summary>Multiplier converting horizontal distance to walk phase advancement.</summary>
         private const float WalkSpeedScale = 0.6f;
 
-        // Swing animation parameters (mining/attack)
+        /// <summary>Duration of the mining/attack swing animation in seconds.</summary>
         private const float SwingDuration = 0.3f;
+
+        /// <summary>Peak pitch rotation in degrees during the swing animation.</summary>
         private const float SwingPitchDeg = -80f;
+
+        /// <summary>Peak yaw rotation in degrees during the swing animation.</summary>
         private const float SwingYawDeg = -20f;
+
+        /// <summary>Peak roll rotation in degrees during the swing animation.</summary>
         private const float SwingRollDeg = -20f;
 
-        // Equip animation parameters
+        /// <summary>Duration of the equip (item change) animation in seconds.</summary>
         private const float EquipDuration = 0.2f;
+
+        /// <summary>Arm drop angle in degrees at the start of the equip animation.</summary>
         private const float EquipDropDeg = 40f;
 
+        /// <summary>Player body transform, used for world position and yaw.</summary>
         private readonly Transform _playerTransform;
+
+        /// <summary>Camera transform, used for yaw and pitch extraction.</summary>
         private readonly Transform _cameraTransform;
 
-        // Walk state
+        /// <summary>World position from the previous frame, used to compute horizontal movement delta.</summary>
         private float3 _lastPlayerPos;
+
+        /// <summary>Continuously advancing walk cycle phase; sin(_walkPhase * PI) drives limb swing.</summary>
         private float _walkPhase;
 
-        // Swing state
+        /// <summary>True while the swing (mining/attack) animation is playing.</summary>
         private bool _isSwinging;
+
+        /// <summary>Elapsed time in the current swing animation.</summary>
         private float _swingTimer;
+
+        /// <summary>Mining state from the previous frame, used to detect mining start edges.</summary>
         private bool _wasMining;
 
-        // Equip state
+        /// <summary>True while the equip (item change) animation is playing.</summary>
         private bool _isEquipping;
+
+        /// <summary>Elapsed time in the current equip animation.</summary>
         private float _equipTimer;
 
-        // Output matrices (indices: 0=head, 1=body, 2=rightArm, 3=leftArm, 4=rightLeg, 5=leftLeg)
-
+        /// <summary>Creates the animator with references to the player body and camera transforms.</summary>
         public PlayerModelAnimator(Transform playerTransform, Transform cameraTransform)
         {
             _playerTransform = playerTransform;
@@ -175,6 +206,7 @@ namespace Lithforge.Runtime.Player
                 float4x4.RotateX(-legSwingRad));
         }
 
+        /// <summary>Advances or decays the walk phase based on horizontal movement distance.</summary>
         private void UpdateWalkPhase(float deltaTime, bool isOnGround, bool isFlying)
         {
             float3 currentPos = ((float3)_playerTransform.position);
@@ -195,6 +227,7 @@ namespace Lithforge.Runtime.Player
             }
         }
 
+        /// <summary>Advances the swing timer and clears the animation when it expires.</summary>
         private void UpdateSwing(float deltaTime)
         {
             if (!_isSwinging)
@@ -211,6 +244,7 @@ namespace Lithforge.Runtime.Player
             }
         }
 
+        /// <summary>Advances the equip timer and clears the animation when it expires.</summary>
         private void UpdateEquip(float deltaTime)
         {
             if (!_isEquipping)

@@ -7,8 +7,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Phase 16: Loads SmeltingRecipeDefinition ScriptableObjects and builds the SmeltingRecipeRegistry.</summary>
     public sealed class LoadSmeltingRecipesPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -17,6 +19,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads smelting recipe assets, converts them to SmeltingRecipeEntry objects, and registers them.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             SmeltingRecipeRegistry smeltingRecipeRegistry = new();

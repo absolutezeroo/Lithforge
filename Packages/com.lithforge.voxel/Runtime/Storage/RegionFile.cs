@@ -4,29 +4,44 @@ using System.IO;
 
 namespace Lithforge.Voxel.Storage
 {
+    /// <summary>
+    ///     Read-through cache for a single region file on disk. A region covers 32x32 chunks
+    ///     in XZ. Chunk data is cached in memory on SaveChunk and flushed atomically on Flush.
+    ///     Flush uses write-to-temp + rename to prevent corruption on crash.
+    /// </summary>
     public sealed class RegionFile : IDisposable
     {
+        /// <summary>Number of chunks per axis in a region (32x32 XZ grid).</summary>
         public const int RegionSize = 32;
 
+        /// <summary>Header size in bytes (32*32 entries * 8 bytes per entry = 8192).</summary>
         private const int HeaderSize = RegionSize * RegionSize * 8;
 
+        /// <summary>Minimum allocation unit (unused in current implementation but reserved).</summary>
         private const int SectorSize = 4096;
 
+        /// <summary>In-memory cache of serialized chunk data, keyed by local index (z*32+x).</summary>
         private readonly Dictionary<int, byte[]> _cache = new();
 
+        /// <summary>Lock protecting _cache for thread-safe access from AsyncChunkSaver.</summary>
         private readonly object _cacheLock = new();
 
+        /// <summary>Full filesystem path to this region file (.lfrg).</summary>
         private readonly string _filePath;
 
+        /// <summary>Whether this region file has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Creates a region file handle for the given file path (file need not exist yet).</summary>
         public RegionFile(string filePath)
         {
             _filePath = filePath;
         }
 
+        /// <summary>True if the cache contains data that has not been flushed to disk.</summary>
         public bool IsDirty { get; private set; }
 
+        /// <summary>Flushes cached data to disk and marks the region as disposed.</summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -37,6 +52,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Returns true if data exists for the chunk at the given local XZ position (cache or disk).</summary>
         public bool HasChunk(int localX, int localZ)
         {
             int key = GetKey(localX, localZ);
@@ -72,6 +88,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Loads serialized chunk data from cache or disk. Returns null if not found.</summary>
         public byte[] LoadChunk(int localX, int localZ)
         {
             int key = GetKey(localX, localZ);
@@ -119,6 +136,7 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>Stores serialized chunk data in the cache and marks the region dirty.</summary>
         public void SaveChunk(int localX, int localZ, byte[] data)
         {
             int key = GetKey(localX, localZ);
@@ -130,6 +148,11 @@ namespace Lithforge.Voxel.Storage
             }
         }
 
+        /// <summary>
+        ///     Atomically writes all cached chunk data to disk. Reads existing data from
+        ///     the file, merges cached updates, writes to a .tmp file, then renames to
+        ///     replace the original. Removes flushed entries from the cache.
+        /// </summary>
         public void Flush()
         {
             Dictionary<int, byte[]> snapshot;
@@ -271,6 +294,7 @@ namespace Lithforge.Voxel.Storage
 
         }
 
+        /// <summary>Computes the flat cache key from local XZ coordinates (z * RegionSize + x).</summary>
         private static int GetKey(int localX, int localZ)
         {
             return localZ * RegionSize + localX;

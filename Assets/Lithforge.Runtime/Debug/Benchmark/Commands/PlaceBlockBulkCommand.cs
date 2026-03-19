@@ -17,16 +17,19 @@ namespace Lithforge.Runtime.Debug.Benchmark
     [CreateAssetMenu(fileName = "PlaceBlockBulkCommand", menuName = "Lithforge/Benchmark/Commands/Place Block Bulk")]
     public sealed class PlaceBlockBulkCommand : BenchmarkCommand
     {
+        /// <summary>Half-size of the cube region (e.g., 16 produces a 32x32x32 region).</summary>
         [Tooltip("Half-size of the cube region (e.g., 16 = 32x32x32 region)"), Min(1), SerializeField]
          private int halfSize = 16;
 
+        /// <summary>If true, clears the region (sets blocks to air) instead of filling with stone.</summary>
         [Tooltip("If true, clears the region (sets to air) instead of filling"), SerializeField]
          private bool clearRegion;
 
+        /// <summary>Offset from the player position to the center of the placed region.</summary>
         [Tooltip("Offset from player position to place the region center"), SerializeField]
          private Vector3 offset = new(0f, 0f, 32f);
 
-        // Reusable scratch list for dirtied chunk coordinates
+        /// <summary>Reusable scratch list for dirtied chunk coordinates to avoid per-execution allocation.</summary>
         private readonly List<int3> _dirtiedChunks = new();
 
         public override IEnumerator Execute(BenchmarkContext context)

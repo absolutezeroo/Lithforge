@@ -24,10 +24,16 @@ namespace Lithforge.Voxel.Chunk
     [BurstCompile]
     public struct ExtractSingleBorderJob : IJob
     {
+        /// <summary>Source chunk voxel data to extract the border slice from.</summary>
         [ReadOnly] public NativeArray<StateId> ChunkData;
+
+        /// <summary>Face direction (0-5) to extract. See class summary for mapping.</summary>
         public int FaceDirection;
+
+        /// <summary>Output: 1024-element border slice array.</summary>
         [WriteOnly] public NativeArray<StateId> Output;
 
+        /// <summary>Extracts the border slice for the specified face direction.</summary>
         public void Execute()
         {
             int size = ChunkConstants.Size;

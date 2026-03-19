@@ -7,8 +7,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Loads PartBuilderRecipeDefinition ScriptableObjects and builds the PartBuilderRecipeRegistry.</summary>
     public sealed class LoadPartBuilderRecipesPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -17,6 +19,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads part builder recipe assets and registers them into the PartBuilderRecipeRegistry.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             PartBuilderRecipeDefinition[] pbRecipeDefs =

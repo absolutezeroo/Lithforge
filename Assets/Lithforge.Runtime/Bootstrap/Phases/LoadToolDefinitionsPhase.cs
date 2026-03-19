@@ -4,8 +4,10 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Bootstrap.Phases
 {
+    /// <summary>Loads ToolDefinition ScriptableObjects that define tool types and their part layouts.</summary>
     public sealed class LoadToolDefinitionsPhase : IContentPhase
     {
+        /// <summary>Loading screen description.</summary>
         public string Description
         {
             get
@@ -14,6 +16,7 @@ namespace Lithforge.Runtime.Bootstrap.Phases
             }
         }
 
+        /// <summary>Loads tool definition assets from Resources into the content phase context.</summary>
         public void Execute(ContentPhaseContext ctx)
         {
             ctx.ToolDefinitions =

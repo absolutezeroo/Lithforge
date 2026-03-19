@@ -250,6 +250,7 @@ namespace Lithforge.Runtime.Content.Blocks
             }
         }
 
+        /// <summary>Editor callback that auto-fills the block name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(blockName))

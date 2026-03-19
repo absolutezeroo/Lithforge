@@ -35,18 +35,28 @@ namespace Lithforge.Network.Server
         /// </summary>
         private const float YPriorityWeight = 0.5f;
 
+        /// <summary>Reusable list of candidate chunk coordinates for streaming queue rebuild.</summary>
         private readonly List<int3> _candidateChunks = new();
 
+        /// <summary>Parallel array of priority scores for candidate chunks (Schwartzian transform).</summary>
         private readonly List<float> _candidateScores = new();
 
+        /// <summary>Provider for querying chunk readiness and all-air status.</summary>
         private readonly IServerChunkProvider _chunkProvider;
 
+        /// <summary>Logger instance for diagnostic messages.</summary>
         private readonly ILogger _logger;
 
+        /// <summary>Scratch set for computing the new interest region during boundary crossings.</summary>
         private readonly HashSet<int3> _newInterestSet = new();
 
+        /// <summary>Scratch list of chunk coordinates to unload during boundary crossings.</summary>
         private readonly List<int3> _unloadCandidates = new();
 
+        /// <summary>
+        ///     Creates a new ChunkStreamingManager with the given Y-range, ready radius,
+        ///     chunk provider, and logger.
+        /// </summary>
         public ChunkStreamingManager(
             int yLoadMin,
             int yLoadMax,
@@ -61,8 +71,10 @@ namespace Lithforge.Network.Server
             _logger = logger;
         }
 
+        /// <summary>Minimum Y chunk coordinate for the streaming vertical range.</summary>
         public int YLoadMin { get; }
 
+        /// <summary>Maximum Y chunk coordinate for the streaming vertical range.</summary>
         public int YLoadMax { get; }
 
         /// <summary>The spawn-ready radius used for readiness gating.</summary>
@@ -327,6 +339,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Converts a world-space position to chunk coordinates by floor division.</summary>
         private static int3 WorldToChunk(float3 worldPos)
         {
             return new int3(

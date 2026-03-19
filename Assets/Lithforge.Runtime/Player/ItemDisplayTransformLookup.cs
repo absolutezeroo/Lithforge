@@ -15,6 +15,7 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class ItemDisplayTransformLookup
     {
+        /// <summary>Map of item ResourceId to its resolved display transform matrix.</summary>
         private readonly Dictionary<ResourceId, float4x4> _transforms = new();
 
         /// <summary>

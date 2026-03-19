@@ -12,10 +12,13 @@ using Lithforge.WorldGen.Pipeline;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the generation scheduler for Burst terrain generation jobs.</summary>
     public sealed class GenerationSchedulerSubsystem : IGameSubsystem
     {
+        /// <summary>The owned generation scheduler instance.</summary>
         private GenerationScheduler _scheduler;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -24,6 +27,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on chunk manager, mesh store, world gen, and decoration for full pipeline.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
@@ -32,11 +36,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(DecorationSubsystem),
         };
 
+        /// <summary>Only created for sessions with local world generation (not pure clients).</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.HasLocalWorld && config is not SessionConfig.Client;
         }
 
+        /// <summary>Creates the generation scheduler with world seed, pipeline, and scheduling budgets.</summary>
         public void Initialize(SessionContext context)
         {
             ChunkManager chunkManager = context.Get<ChunkManager>();
@@ -71,6 +77,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_scheduler);
         }
 
+        /// <summary>Wires the biome tint manager, block entity registry, and liquid scheduler.</summary>
         public void PostInitialize(SessionContext context)
         {
             if (context.TryGet(out BiomeTintManager tint))
@@ -86,11 +93,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Completes all in-flight generation jobs before shutdown.</summary>
         public void Shutdown()
         {
             _scheduler?.Shutdown();
         }
 
+        /// <summary>No owned disposable resources beyond the scheduler.</summary>
         public void Dispose()
         {
             // GenerationScheduler doesn't implement IDisposable; nothing to dispose.

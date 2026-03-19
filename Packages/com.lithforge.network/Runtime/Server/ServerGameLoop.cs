@@ -28,46 +28,151 @@ namespace Lithforge.Network.Server
     /// </summary>
     public sealed class ServerGameLoop : IDisposable
     {
+        /// <summary>
+        /// Fixed delta time per server tick (1/30 second).
+        /// </summary>
         private const float TickDt = 1f / 30f;
+
+        /// <summary>
+        /// Maximum accumulated time to prevent spiral-of-death catch-up (5 ticks).
+        /// </summary>
         private const float MaxAccumulatedTime = TickDt * 5f;
+
+        /// <summary>
+        /// Maximum block interaction reach distance in blocks.
+        /// </summary>
         private const float MaxReachDistance = 6f;
+
+        /// <summary>
+        /// Default chunk view radius assigned to new players.
+        /// </summary>
         private const int DefaultViewRadius = 10;
+
+        /// <summary>
+        /// Server-side block command processor for validating and executing block changes.
+        /// </summary>
         private readonly IServerBlockProcessor _blockProcessor;
+
+        /// <summary>
+        /// Pool of reusable int lists for the spatial hash cell entries.
+        /// </summary>
         private readonly List<List<int>> _cellListPool = new();
+
+        /// <summary>
+        /// Provider for querying chunk readiness and spawning.
+        /// </summary>
         private readonly IServerChunkProvider _chunkProvider;
+
+        /// <summary>
+        /// Reusable cache for collecting player IDs to despawn during presence broadcasts.
+        /// </summary>
         private readonly List<ushort> _despawnCache = new();
+
+        /// <summary>
+        /// Reusable cache for dirty chunk coordinates.
+        /// </summary>
         private readonly List<int3> _dirtiedChunksCache = new();
+
+        /// <summary>
+        /// Tracks per-chunk block changes for network delta batching.
+        /// </summary>
         private readonly ChunkDirtyTracker _dirtyTracker;
+
+        /// <summary>
+        /// Reusable cache for host-side despawn notifications.
+        /// </summary>
         private readonly List<ushort> _hostDespawnCache = new();
 
-        // Host-local entity tracking (mirrors SpawnedRemotePlayers on network peers)
+        /// <summary>
+        /// Set of player IDs the host has spawned locally (mirrors SpawnedRemotePlayers on network peers).
+        /// </summary>
         private readonly HashSet<ushort> _hostSpawnedPlayers = new();
+
+        /// <summary>
+        /// Reusable cache for peers in Loading state.
+        /// </summary>
         private readonly List<PeerInfo> _loadingPeersCache = new();
+
+        /// <summary>
+        /// Logger instance for diagnostic messages.
+        /// </summary>
         private readonly ILogger _logger;
+
+        /// <summary>
+        /// Reusable cache for indices of nearby players from the spatial hash.
+        /// </summary>
         private readonly List<int> _nearbyCache = new();
 
         /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
         private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
+        /// <summary>
+        /// Reverse lookup from player ID to index in _playingPeersCache.
+        /// </summary>
         private readonly Dictionary<ushort, int> _playerIdToIndex = new();
 
-        // Cached collections (fill pattern, reused every tick)
+        /// <summary>
+        /// Reusable cache for peers in Playing state, filled each tick.
+        /// </summary>
         private readonly List<PeerInfo> _playingPeersCache = new();
+
+        /// <summary>
+        /// Tracks per-peer Loading-state timeouts for force-transitioning unresponsive clients.
+        /// </summary>
         private readonly ClientReadinessWaiter _readinessWaiter;
 
+        /// <summary>
+        /// The network server interface for sending messages and managing peers.
+        /// </summary>
         private readonly INetworkServer _server;
+
+        /// <summary>
+        /// Concrete NetworkServer reference for internal operations (peer lookup, etc.).
+        /// </summary>
         private readonly NetworkServer _serverImpl;
+
+        /// <summary>
+        /// Bridge to the gameplay simulation for player physics and world tick systems.
+        /// </summary>
         private readonly IServerSimulation _simulation;
 
-        // Spatial index: maps coarse grid cells to player indices in _playingPeersCache.
-        // Rebuilt every tick in O(N). Queried in O(27 * K) per subject where K = players per cell.
+        /// <summary>
+        /// Spatial hash mapping coarse grid cells to player indices for O(K) proximity queries.
+        /// </summary>
         private readonly Dictionary<int3, List<int>> _spatialCells = new();
+
+        /// <summary>
+        /// Manages per-player chunk streaming queues and rate limiting.
+        /// </summary>
         private readonly ChunkStreamingManager _streamingManager;
+
+        /// <summary>
+        /// Current rental cursor into the cell list pool.
+        /// </summary>
         private int _cellPoolCursor;
+
+        /// <summary>
+        /// Default chunk streaming strategy used for peers without a per-connection override.
+        /// </summary>
         private IChunkStreamingStrategy _defaultStrategy;
 
+        /// <summary>
+        /// Whether this game loop has been disposed.
+        /// </summary>
         private bool _disposed;
+
+        /// <summary>
+        /// The currentTime value from the most recent Update call, cached for use in callbacks.
+        /// </summary>
         private float _lastCurrentTime;
+
+        /// <summary>
+        /// Debug counter for stream operations (diagnostic only).
+        /// </summary>
         private int _streamDebugCounter;
+
+        /// <summary>
+        /// Accumulated time for fixed-rate tick scheduling.
+        /// </summary>
         private float _tickAccumulator;
 
         /// <summary>Fires when a remote player leaves the host's view.</summary>
@@ -92,6 +197,9 @@ namespace Lithforge.Network.Server
         /// <summary>Fired when the number of playing peers changes. Parameter is the new count.</summary>
         public Action<int> OnPlayerCountChanged;
 
+        /// <summary>
+        /// Creates a new ServerGameLoop wiring together all server-side subsystems.
+        /// </summary>
         public ServerGameLoop(
             NetworkServer server,
             IServerSimulation simulation,
@@ -126,8 +234,14 @@ namespace Lithforge.Network.Server
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
         }
 
+        /// <summary>
+        /// The current server tick number, starting at 1.
+        /// </summary>
         public uint CurrentTick { get; private set; } = 1;
 
+        /// <summary>
+        /// Disposes this game loop, clearing all callbacks and host-local tracking.
+        /// </summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -183,6 +297,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Runs one full 6-phase server tick at the fixed tick rate.</summary>
         private void ExecuteTick(float currentTime)
         {
             _lastCurrentTime = currentTime;
@@ -214,6 +329,10 @@ namespace Lithforge.Network.Server
             CurrentTick++;
         }
 
+        /// <summary>
+        ///     Phase 2: drains each playing peer's move buffer, applies authoritative movement
+        ///     via the simulation, updates chunk coordinates, and processes block commands.
+        /// </summary>
         private void ProcessPlayerInputs()
         {
             for (int i = 0; i < _playingPeersCache.Count; i++)
@@ -267,6 +386,10 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>
+        ///     Drains pending StartDigging, BreakBlock, and PlaceBlock commands for a single
+        ///     peer, validating each through the block processor and sending ACKs.
+        /// </summary>
         private void ProcessBlockCommands(PeerInfo peer, PlayerInterestState interest, PlayerPhysicsState playerState)
         {
             ushort playerId = peer.AssignedPlayerId;
@@ -332,6 +455,10 @@ namespace Lithforge.Network.Server
             interest.PendingPlaceCommands.Clear();
         }
 
+        /// <summary>
+        ///     Phase 5a: sends each playing peer's authoritative state to the owning client
+        ///     (for prediction reconciliation) and to spatially nearby observers.
+        /// </summary>
         private void BroadcastPlayerStates()
         {
             for (int i = 0; i < _playingPeersCache.Count; i++)
@@ -563,6 +690,11 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>
+        ///     Phase 5c: sends block change deltas to all playing peers whose interest region
+        ///     includes the modified chunk. Single changes use BlockChangeMessage; batches use
+        ///     MultiBlockChangeMessage. Skips the local peer (already predicted).
+        /// </summary>
         private void BroadcastBlockChanges(Dictionary<int3, List<BlockChangeEntry>> dirtyChanges)
         {
             if (dirtyChanges.Count == 0)
@@ -635,6 +767,10 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>
+        ///     Phase 5d: drives per-peer chunk streaming for all Loading and Playing peers,
+        ///     and enforces the ClientReady timeout for Loading peers.
+        /// </summary>
         private void ProcessChunkStreaming(float currentTime)
         {
             IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
@@ -666,6 +802,10 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>
+        ///     Transitions a Loading peer to Playing state, clears initial load mode,
+        ///     sends the GameReady message, and fires the player count changed event.
+        /// </summary>
         private void TransitionToPlaying(PeerInfo peer, float currentTime)
         {
             bool transitioned = peer.StateMachine.Transition(ConnectionState.Playing, currentTime);
@@ -697,6 +837,7 @@ namespace Lithforge.Network.Server
             OnPlayerCountChanged?.Invoke(CountPlayingPeers());
         }
 
+        /// <summary>Handles ClientReady messages from Loading peers, triggering transition to Playing.</summary>
         private void OnClientReady(ConnectionId connId, byte[] data, int offset, int length)
         {
             PeerInfo peer = _serverImpl.GetPeer(connId);
@@ -713,6 +854,7 @@ namespace Lithforge.Network.Server
             TransitionToPlaying(peer, _lastCurrentTime);
         }
 
+        /// <summary>Handles ChunkBatchAck messages, decrementing the peer's in-flight chunk count.</summary>
         private void OnChunkBatchAck(ConnectionId connId, byte[] data, int offset, int length)
         {
             PeerInfo peer = _serverImpl.GetPeer(connId);
@@ -732,6 +874,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Handles MoveInput messages, buffering the command for the owning peer's tick processing.</summary>
         private void OnMoveInput(ConnectionId connId, byte[] data, int offset, int length)
         {
             _serverImpl.TouchPeer(connId);
@@ -758,6 +901,7 @@ namespace Lithforge.Network.Server
             peer.InterestState.MoveBuffer.Add(CurrentTick, cmd);
         }
 
+        /// <summary>Handles PlaceBlockCmd messages, queuing the command for Phase 2 block processing.</summary>
         private void OnPlaceBlockCmd(ConnectionId connId, byte[] data, int offset, int length)
         {
             _serverImpl.TouchPeer(connId);
@@ -784,6 +928,7 @@ namespace Lithforge.Network.Server
             peer.InterestState.PendingPlaceCommands.Add(cmd);
         }
 
+        /// <summary>Handles BreakBlockCmd messages, queuing the command for Phase 2 block processing.</summary>
         private void OnBreakBlockCmd(ConnectionId connId, byte[] data, int offset, int length)
         {
             _serverImpl.TouchPeer(connId);
@@ -805,6 +950,7 @@ namespace Lithforge.Network.Server
             peer.InterestState.PendingBreakCommands.Add(cmd);
         }
 
+        /// <summary>Handles StartDiggingCmd messages, queuing the command for Phase 2 block processing.</summary>
         private void OnStartDiggingCmd(ConnectionId connId, byte[] data, int offset, int length)
         {
             _serverImpl.TouchPeer(connId);
@@ -826,6 +972,10 @@ namespace Lithforge.Network.Server
             peer.InterestState.PendingStartDiggingCommands.Add(cmd);
         }
 
+        /// <summary>
+        ///     Internal callback wired to NetworkServer.OnPeerAccepted. Computes the spawn
+        ///     position and delegates to OnPlayerAccepted.
+        /// </summary>
         private void OnPeerAcceptedInternal(PeerInfo peer)
         {
             int spawnX = 0;
@@ -956,6 +1106,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Rents a cleared list from the cell list pool, growing the pool if needed.</summary>
         private List<int> RentCellList()
         {
             if (_cellPoolCursor < _cellListPool.Count)
@@ -1002,6 +1153,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Converts a chunk coordinate to a spatial hash cell coordinate by integer floor division.</summary>
         private static int3 ChunkToCell(int3 chunkCoord, int cellSize)
         {
             return new int3(
@@ -1010,6 +1162,7 @@ namespace Lithforge.Network.Server
                 FloorDiv(chunkCoord.z, cellSize));
         }
 
+        /// <summary>Integer floor division that rounds toward negative infinity for negative dividends.</summary>
         private static int FloorDiv(int a, int b)
         {
             if (a >= 0)
@@ -1020,6 +1173,7 @@ namespace Lithforge.Network.Server
             return (a - b + 1) / b;
         }
 
+        /// <summary>Counts the number of peers currently in Playing state.</summary>
         private int CountPlayingPeers()
         {
             int count = 0;
@@ -1036,6 +1190,7 @@ namespace Lithforge.Network.Server
             return count;
         }
 
+        /// <summary>Fills the result list with all peers matching the target connection state.</summary>
         private void GatherPeersByState(List<PeerInfo> result, ConnectionState targetState)
         {
             result.Clear();
@@ -1050,6 +1205,7 @@ namespace Lithforge.Network.Server
             }
         }
 
+        /// <summary>Returns the per-connection strategy override if registered, otherwise the default strategy.</summary>
         private IChunkStreamingStrategy GetStrategyForPeer(ConnectionId connectionId)
         {
             if (_peerStrategies.TryGetValue(connectionId.Value, out IChunkStreamingStrategy strategy))

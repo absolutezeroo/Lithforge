@@ -60,6 +60,7 @@ namespace Lithforge.Runtime.World
         private ScrollView _worldListScroll;
         private string _worldsRoot;
 
+        /// <summary>Polls for scan completion and populates the UI when ready.</summary>
         private void Update()
         {
             if (_scanComplete && !_uiPopulated)
@@ -69,10 +70,16 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        /// <summary>Screen identifier used by ScreenManager for push/pop.</summary>
         public string ScreenName { get { return ScreenNames.WorldSelection; } }
+
+        /// <summary>True because the world selection screen captures all input.</summary>
         public bool IsInputOpaque { get { return true; } }
+
+        /// <summary>True because the world selection screen requires a visible cursor.</summary>
         public bool RequiresCursor { get { return true; } }
 
+        /// <summary>Shows the screen and starts a world directory scan if not returning from a modal.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -114,6 +121,7 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        /// <summary>Hides the UI document and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             if (_document != null && _document.rootVisualElement != null)
@@ -124,6 +132,7 @@ namespace Lithforge.Runtime.World
             onComplete();
         }
 
+        /// <summary>Closes the modal if open; otherwise returns false to let ScreenManager pop.</summary>
         public bool HandleEscape()
         {
             // If modal is open, close it
@@ -161,6 +170,7 @@ namespace Lithforge.Runtime.World
             _document.rootVisualElement.style.display = DisplayStyle.None;
         }
 
+        /// <summary>Kicks off a background thread to scan the worlds directory.</summary>
         private void StartScan()
         {
             if (_scanRunning)
@@ -179,6 +189,7 @@ namespace Lithforge.Runtime.World
             scanThread.Start();
         }
 
+        /// <summary>Background thread entry point that scans world directories.</summary>
         private void ScanWorker()
         {
             _scanResults = WorldDirectoryScanner.ScanWorlds(_worldsRoot);
@@ -186,6 +197,7 @@ namespace Lithforge.Runtime.World
             _scanRunning = false;
         }
 
+        /// <summary>Constructs the entire UI hierarchy: logo, world list, detail panel, and buttons.</summary>
         private void BuildUI(VisualElement root)
         {
             root.pickingMode = PickingMode.Ignore;
@@ -373,6 +385,7 @@ namespace Lithforge.Runtime.World
             root.Add(_modalOverlay);
         }
 
+        /// <summary>Fills the scroll view with world entries from the scan results.</summary>
         private void PopulateWorldList()
         {
             _worldListScroll.Clear();
@@ -515,6 +528,7 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        /// <summary>Highlights the selected world entry and updates the detail panel.</summary>
         private void SelectWorld(int index)
         {
             // Deselect previous
@@ -556,6 +570,7 @@ namespace Lithforge.Runtime.World
             }
         }
 
+        /// <summary>Launches the selected world in singleplayer or pushes the host settings modal.</summary>
         private void OnPlayClicked()
         {
             if (_selectedIndex < 0 || _selectedIndex >= _scanResults.Count)
@@ -591,11 +606,13 @@ namespace Lithforge.Runtime.World
             _onWorldSelected?.Invoke(session);
         }
 
+        /// <summary>Opens the create-new-world modal dialog.</summary>
         private void OnCreateNewClicked()
         {
             ShowCreateModal();
         }
 
+        /// <summary>Opens the delete confirmation modal for the selected world.</summary>
         private void OnDeleteClicked()
         {
             if (_selectedIndex < 0 || _selectedIndex >= _scanResults.Count)
@@ -613,6 +630,7 @@ namespace Lithforge.Runtime.World
             ShowDeleteConfirmModal(entry);
         }
 
+        /// <summary>Builds and displays the create-new-world modal with name, seed, and mode fields.</summary>
         private void ShowCreateModal()
         {
             _modalOverlay.Clear();
@@ -760,6 +778,7 @@ namespace Lithforge.Runtime.World
             _modalOverlay.Add(panel);
         }
 
+        /// <summary>Builds and displays a confirmation modal before deleting a world.</summary>
         private void ShowDeleteConfirmModal(WorldScanEntry entry)
         {
             _modalOverlay.Clear();
@@ -833,6 +852,7 @@ namespace Lithforge.Runtime.World
             _modalOverlay.Add(panel);
         }
 
+        /// <summary>Creates a centered modal panel with rounded corners and dark background.</summary>
         private VisualElement CreateModalPanel(int width)
         {
             VisualElement panel = new()
@@ -854,6 +874,7 @@ namespace Lithforge.Runtime.World
             return panel;
         }
 
+        /// <summary>Creates a styled button with hover color transitions and a click handler.</summary>
         private Button CreateButton(string text, Color normalColor, Color hoverColor, Action onClick)
         {
             Button btn = new()
@@ -892,6 +913,7 @@ namespace Lithforge.Runtime.World
             return btn;
         }
 
+        /// <summary>Applies dark-themed styling to a text input field.</summary>
         private void StyleTextField(TextField field)
         {
             field.style.backgroundColor = new Color(0.08f, 0.08f, 0.10f, 1.0f);
@@ -906,6 +928,7 @@ namespace Lithforge.Runtime.World
             field.style.paddingRight = 8;
         }
 
+        /// <summary>Applies dark-themed styling to a dropdown field.</summary>
         private void StyleDropdown(DropdownField field)
         {
             field.style.backgroundColor = new Color(0.08f, 0.08f, 0.10f, 1.0f);

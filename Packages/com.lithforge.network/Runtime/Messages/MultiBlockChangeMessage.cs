@@ -18,16 +18,25 @@ namespace Lithforge.Network.Messages
         /// </summary>
         public byte[] BatchData;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.MultiBlockChange; }
         }
 
+        /// <summary>
+        /// Returns the payload size (the length of the raw batch data).
+        /// </summary>
         public int GetSerializedSize()
         {
             return BatchData?.Length ?? 0;
         }
 
+        /// <summary>
+        /// Writes the raw batch data into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             if (BatchData == null || BatchData.Length == 0)
@@ -39,6 +48,9 @@ namespace Lithforge.Network.Messages
             return BatchData.Length;
         }
 
+        /// <summary>
+        /// Reads the message by copying the raw batch data from the buffer.
+        /// </summary>
         public static MultiBlockChangeMessage Deserialize(byte[] buffer, int offset, int length)
         {
             MultiBlockChangeMessage msg = new();

@@ -9,12 +9,15 @@ namespace Lithforge.Runtime.Content.Settings
     [CreateAssetMenu(fileName = "AudioSettings", menuName = "Lithforge/Settings/Audio Settings", order = 6)]
     public sealed class AudioSettings : ScriptableObject
     {
+        /// <summary>Number of pre-allocated AudioSources in the one-shot SFX pool.</summary>
         [FormerlySerializedAs("_sfxPoolSize"), Header("SFX Pool"), Tooltip("Number of pre-allocated AudioSources for one-shot SFX"), Range(8, 64), SerializeField]
         private int sfxPoolSize = 24;
 
+        /// <summary>Minimum milliseconds between sounds of the same group+event combination.</summary>
         [FormerlySerializedAs("_soundCooldownMs"), Header("Cooldown"), Tooltip("Minimum time between sounds of the same group+event (ms)"), Range(10, 200), SerializeField]
         private int soundCooldownMs = 50;
 
+        /// <summary>Horizontal distance in blocks walked before a footstep sound plays.</summary>
         [FormerlySerializedAs("_footstepDistance"), Header("Footsteps"), Tooltip("Distance walked before a footstep sound plays"), Range(0.5f, 5f), SerializeField]
         private float footstepDistance = 2.5f;
 
@@ -72,26 +75,67 @@ namespace Lithforge.Runtime.Content.Settings
         [FormerlySerializedAs("_scatterMaxDistance"), Tooltip("Maximum distance for scatter sound placement from player"), Range(5f, 40f), SerializeField]
         private float scatterMaxDistance = 15f;
 
+        /// <summary>Number of pre-allocated AudioSources in the one-shot SFX pool.</summary>
         public int SfxPoolSize { get { return sfxPoolSize; } }
+
+        /// <summary>Minimum milliseconds between sounds of the same group+event combination.</summary>
         public int SoundCooldownMs { get { return soundCooldownMs; } }
+
+        /// <summary>Horizontal distance in blocks walked before a footstep sound plays.</summary>
         public float FootstepDistance { get { return footstepDistance; } }
+
+        /// <summary>Horizontal distance in blocks walked before a footstep sound plays while sprinting.</summary>
         public float SprintFootstepDistance { get { return sprintFootstepDistance; } }
+
+        /// <summary>Minimum fall height in blocks before a fall sound plays.</summary>
         public float FallSoundThreshold { get { return fallSoundThreshold; } }
+
+        /// <summary>Maximum fall sound volume, reached at FallMaxHeight.</summary>
         public float FallMaxVolume { get { return fallMaxVolume; } }
+
+        /// <summary>Fall height in blocks at which volume reaches maximum.</summary>
         public float FallMaxHeight { get { return fallMaxHeight; } }
+
+        /// <summary>Number of ticks between mining hit sounds.</summary>
         public int MiningHitInterval { get { return miningHitInterval; } }
+
+        /// <summary>Low-pass cutoff frequency in Hz when fully submerged.</summary>
         public float UnderwaterCutoff { get { return underwaterCutoff; } }
+
+        /// <summary>Low-pass cutoff frequency in Hz on the surface (effectively no filtering).</summary>
         public float SurfaceCutoff { get { return surfaceCutoff; } }
+
+        /// <summary>Speed of low-pass filter transition (higher = faster).</summary>
         public float UnderwaterLerpSpeed { get { return underwaterLerpSpeed; } }
+
+        /// <summary>Number of DDA rays for enclosure probing.</summary>
         public int EnclosureRayCount { get { return enclosureRayCount; } }
+
+        /// <summary>Maximum ray distance in blocks for enclosure probing.</summary>
         public int EnclosureMaxDistance { get { return enclosureMaxDistance; } }
+
+        /// <summary>Ticks between enclosure re-evaluations.</summary>
         public int EnclosureUpdateTicks { get { return enclosureUpdateTicks; } }
+
+        /// <summary>Enclosure ratio above which reverb starts increasing.</summary>
         public float EnclosureReverbThreshold { get { return enclosureReverbThreshold; } }
+
+        /// <summary>Speed of reverb level transitions (higher = faster).</summary>
         public float ReverbLerpSpeed { get { return reverbLerpSpeed; } }
+
+        /// <summary>Crossfade duration in seconds when switching biome ambient loops.</summary>
         public float AmbientCrossfadeTime { get { return ambientCrossfadeTime; } }
+
+        /// <summary>Minimum interval in seconds between scatter sounds.</summary>
         public float ScatterMinInterval { get { return scatterMinInterval; } }
+
+        /// <summary>Maximum interval in seconds between scatter sounds.</summary>
         public float ScatterMaxInterval { get { return scatterMaxInterval; } }
+
+        /// <summary>Minimum distance from the player for scatter sound placement.</summary>
         public float ScatterMinDistance { get { return scatterMinDistance; } }
+
+        /// <summary>Maximum distance from the player for scatter sound placement.</summary>
         public float ScatterMaxDistance { get { return scatterMaxDistance; } }
     }
 }

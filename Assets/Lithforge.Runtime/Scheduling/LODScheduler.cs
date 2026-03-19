@@ -22,26 +22,58 @@ namespace Lithforge.Runtime.Scheduling
     /// </summary>
     public sealed class LODScheduler
     {
+        /// <summary>Chunk manager for state transitions and chunk queries.</summary>
         private readonly ChunkManager _chunkManager;
+
+        /// <summary>GPU mesh store for uploading completed LOD meshes.</summary>
         private readonly ChunkMeshStore _chunkMeshStore;
+
+        /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
         private readonly float _completionBudgetMs;
+
+        /// <summary>Frustum culling helper for LOD transition prioritization.</summary>
         private readonly ChunkCulling _culling;
+
+        /// <summary>Reusable cache for generated chunks during LOD level assignment.</summary>
         private readonly List<ManagedChunk> _generatedChunksCache = new();
+
+        /// <summary>Reusable cache for generated chunks with LOD level greater than zero.</summary>
         private readonly List<ManagedChunk> _generatedLODCache = new();
+
+        /// <summary>Burst-accessible atlas lookup for texture indices during LOD meshing.</summary>
         private readonly NativeAtlasLookup _nativeAtlasLookup;
+
+        /// <summary>Burst-accessible state registry for block state lookups during LOD meshing.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
+
+        /// <summary>LOD mesh jobs whose chunks were unloaded while in-flight, awaiting deferred disposal.</summary>
         private readonly List<PendingLODMesh> _pendingLODDisposals = new();
+
+        /// <summary>LOD mesh jobs currently running on worker threads.</summary>
         private readonly List<PendingLODMesh> _pendingLODMeshes = new();
+
+        /// <summary>Pipeline statistics tracker for LOD scheduled/completed counters.</summary>
         private readonly IPipelineStats _pipelineStats;
 
-        // Reusable caches to avoid per-frame allocation
+        /// <summary>Reusable cache for Ready chunks during LOD level assignment. Avoids per-frame allocation.</summary>
         private readonly List<ManagedChunk> _readyChunksCache = new();
+
+        /// <summary>Chebyshev XZ chunk distance at which LOD1 (2x2x2 merge) begins.</summary>
         private int _lod1Distance;
+
+        /// <summary>Chebyshev XZ chunk distance at which LOD2 (4x4x4 merge) begins.</summary>
         private int _lod2Distance;
+
+        /// <summary>Chebyshev XZ chunk distance at which LOD3 (8x8x8 merge) begins.</summary>
         private int _lod3Distance;
+
+        /// <summary>Maximum number of LOD mesh completions to process per frame.</summary>
         private int _maxLODCompletionsPerFrame;
+
+        /// <summary>Maximum number of LOD mesh jobs to schedule per frame.</summary>
         private int _maxLODMeshesPerFrame;
 
+        /// <summary>Creates a new LOD scheduler with the given dependencies and configuration.</summary>
         public LODScheduler(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
@@ -70,11 +102,13 @@ namespace Lithforge.Runtime.Scheduling
             _lod3Distance = lod3Distance;
         }
 
+        /// <summary>Number of LOD mesh jobs currently in-flight on worker threads.</summary>
         public int PendingCount
         {
             get { return _pendingLODMeshes.Count; }
         }
 
+        /// <summary>Re-derives LOD scheduling limits and distances from the current render distance.</summary>
         public void UpdateConfig(int renderDistance)
         {
             _maxLODMeshesPerFrame = SchedulingConfig.MaxLODMeshesPerFrame(renderDistance);
@@ -84,6 +118,10 @@ namespace Lithforge.Runtime.Scheduling
             _lod3Distance = SchedulingConfig.LOD3Distance(renderDistance);
         }
 
+        /// <summary>
+        ///     Polls in-flight LOD mesh jobs for completion, uploads finished meshes to
+        ///     the GPU, and transitions chunk states. Time-budgeted to avoid frame spikes.
+        /// </summary>
         public void PollCompleted()
         {
             Profiler.BeginSample("LOD.PollCompleted");
@@ -233,6 +271,7 @@ namespace Lithforge.Runtime.Scheduling
             Profiler.EndSample();
         }
 
+        /// <summary>Moves any in-flight LOD mesh job for the given coord to the deferred disposal queue.</summary>
         public void CleanupCoord(int3 coord)
         {
             for (int i = _pendingLODMeshes.Count - 1; i >= 0; i--)
@@ -245,6 +284,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Force-completes all in-flight and deferred LOD mesh jobs and disposes their data.</summary>
         public void Shutdown()
         {
             for (int i = 0; i < _pendingLODMeshes.Count; i++)
@@ -282,6 +322,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Assigns LOD levels to the given chunks based on Chebyshev XZ distance from the camera chunk.</summary>
         private void AssignLODLevels(List<ManagedChunk> chunks, int3 cameraChunkCoord)
         {
             for (int i = 0; i < chunks.Count; i++)
@@ -322,6 +363,7 @@ namespace Lithforge.Runtime.Scheduling
             }
         }
 
+        /// <summary>Returns true if a LOD mesh job is already in-flight for the given coordinate.</summary>
         private bool IsLODPending(int3 coord)
         {
             for (int i = 0; i < _pendingLODMeshes.Count; i++)
@@ -335,6 +377,7 @@ namespace Lithforge.Runtime.Scheduling
             return false;
         }
 
+        /// <summary>Schedules a VoxelDownsampleJob followed by a LODGreedyMeshJob for the given chunk.</summary>
         private void ScheduleLODMesh(ManagedChunk chunk)
         {
             int lodLevel = chunk.LODLevel;
@@ -375,11 +418,19 @@ namespace Lithforge.Runtime.Scheduling
             _pipelineStats.IncrLODScheduled();
         }
 
+        /// <summary>Tracks an in-flight LOD mesh job and its associated data for disposal on completion.</summary>
         private struct PendingLODMesh
         {
+            /// <summary>World chunk coordinate this LOD mesh is being generated for.</summary>
             public int3 Coord;
+
+            /// <summary>Job system handle for the downsample + mesh job chain.</summary>
             public JobHandle Handle;
+
+            /// <summary>Native containers holding downsampled voxel data and mesh output.</summary>
             public LODMeshData Data;
+
+            /// <summary>LOD level (1, 2, or 3) determining the voxel merge scale.</summary>
             public int LODLevel;
         }
     }

@@ -13,6 +13,7 @@ namespace Lithforge.Runtime.Tick
     /// </summary>
     public sealed class InputSnapshotBuilder
     {
+        /// <summary>Digit key codes 1-9 for hotbar slot selection.</summary>
         private static readonly Key[] s_digitKeys =
         {
             Key.Digit1,
@@ -25,18 +26,34 @@ namespace Lithforge.Runtime.Tick
             Key.Digit8,
             Key.Digit9,
         };
+        /// <summary>Camera transform for pitch sampling.</summary>
         private readonly Transform _cameraTransform;
+
+        /// <summary>Player transform for yaw sampling.</summary>
         private readonly Transform _playerTransform;
+
+        /// <summary>OR-latched fly toggle edge across frames.</summary>
         private bool _flyTogglePressed;
+
+        /// <summary>First hotbar digit key pressed between ticks (-1 = none).</summary>
         private sbyte _hotbarSlotPressed = -1;
 
-        // Edge-triggered accumulators (OR-latched across frames between ticks)
+        /// <summary>OR-latched jump edge across frames.</summary>
         private bool _jumpPressed;
+
+        /// <summary>OR-latched noclip toggle edge across frames.</summary>
         private bool _noclipTogglePressed;
+
+        /// <summary>OR-latched left mouse button edge across frames.</summary>
         private bool _primaryPressed;
+
+        /// <summary>Net scroll delta accumulated across frames between ticks.</summary>
         private int _scrollDelta;
+
+        /// <summary>OR-latched right mouse button edge across frames.</summary>
         private bool _secondaryPressed;
 
+        /// <summary>Creates a new input snapshot builder sampling from the given transforms.</summary>
         public InputSnapshotBuilder(Transform playerTransform, Transform cameraTransform)
         {
             _playerTransform = playerTransform;

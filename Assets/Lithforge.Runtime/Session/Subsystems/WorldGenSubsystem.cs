@@ -17,14 +17,22 @@ using UnityEngine;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that creates the Burst generation pipeline with native biome and ore data
+    ///     for terrain generation, caves, ores, and surface building.
+    /// </summary>
     public sealed class WorldGenSubsystem : IGameSubsystem
     {
+        /// <summary>Persistent NativeArray of baked biome data for Burst jobs.</summary>
         private NativeArray<NativeBiomeData> _nativeBiomeData;
 
+        /// <summary>Persistent NativeArray of baked ore configurations for Burst jobs.</summary>
         private NativeArray<NativeOreConfig> _nativeOreConfigs;
 
+        /// <summary>The owned generation pipeline.</summary>
         private GenerationPipeline _pipeline;
 
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -33,16 +41,19 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on chunk manager for chunk data storage.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
         };
 
+        /// <summary>Only created for sessions with local world generation (not pure clients).</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.HasLocalWorld && config is not SessionConfig.Client;
         }
 
+        /// <summary>Bakes biome and ore data to NativeArrays and creates the generation pipeline.</summary>
         public void Initialize(SessionContext context)
         {
             WorldGenSettings wg = context.App.Settings.WorldGen;
@@ -149,14 +160,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(new NativeBiomeDataHolder(_nativeBiomeData));
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>Disposes persistent NativeArrays of biome and ore data.</summary>
         public void Dispose()
         {
             if (_nativeBiomeData.IsCreated)
@@ -170,6 +184,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Builds the byte flag mask for biome surface properties (ocean, frozen, beach).</summary>
         private static byte BuildSurfaceFlags(BiomeDefinition def)
         {
             byte flags = 0;
@@ -192,6 +207,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             return flags;
         }
 
+        /// <summary>Packs an RGBA color into a single uint32 for Burst-compatible storage.</summary>
         private static uint PackColor(Color c)
         {
             byte r = (byte)(Mathf.Clamp01(c.r) * 255f);
@@ -208,11 +224,13 @@ namespace Lithforge.Runtime.Session.Subsystems
     /// </summary>
     public sealed class NativeBiomeDataHolder
     {
+        /// <summary>Wraps the given NativeArray for session context registration.</summary>
         public NativeBiomeDataHolder(NativeArray<NativeBiomeData> data)
         {
             Data = data;
         }
 
+        /// <summary>The wrapped NativeArray of biome data.</summary>
         public NativeArray<NativeBiomeData> Data { get; }
     }
 }

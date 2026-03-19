@@ -11,6 +11,7 @@ namespace Lithforge.Runtime.Player
     /// </summary>
     public sealed class SkinLoader
     {
+        /// <summary>Subfolder name within StreamingAssets where skin PNGs are stored.</summary>
         private const string SkinsFolder = "Skins";
 
         /// <summary>

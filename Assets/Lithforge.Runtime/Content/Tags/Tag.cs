@@ -66,6 +66,7 @@ namespace Lithforge.Runtime.Content.Tags
             get { return entryIds; }
         }
 
+        /// <summary>Editor callback that auto-fills the tag name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(tagName))

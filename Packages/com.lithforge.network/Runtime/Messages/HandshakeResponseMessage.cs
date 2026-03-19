@@ -9,24 +9,55 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct HandshakeResponseMessage : INetworkMessage
     {
+        /// <summary>
+        /// Total payload size in bytes.
+        /// </summary>
         public const int Size = 1 + 1 + 2 + 4 + 8; // 16 bytes
 
+        /// <summary>
+        /// Whether the handshake was accepted by the server.
+        /// </summary>
         public bool Accepted;
+
+        /// <summary>
+        /// Reason code if the handshake was rejected; None if accepted.
+        /// </summary>
         public HandshakeRejectReason RejectReason;
+
+        /// <summary>
+        /// Server-assigned player identifier (valid only when accepted).
+        /// </summary>
         public ushort PlayerId;
+
+        /// <summary>
+        /// Current server tick at the time of acceptance.
+        /// </summary>
         public uint ServerTick;
+
+        /// <summary>
+        /// World seed for deterministic world generation on the client.
+        /// </summary>
         public ulong WorldSeed;
 
+        /// <summary>
+        /// Returns the MessageType for this message.
+        /// </summary>
         public MessageType Type
         {
             get { return MessageType.HandshakeResponse; }
         }
 
+        /// <summary>
+        /// Returns the fixed payload size in bytes.
+        /// </summary>
         public int GetSerializedSize()
         {
             return Size;
         }
 
+        /// <summary>
+        /// Writes the message payload into the buffer at the given offset.
+        /// </summary>
         public int Serialize(byte[] buffer, int offset)
         {
             buffer[offset] = Accepted ? (byte)1 : (byte)0;
@@ -37,6 +68,9 @@ namespace Lithforge.Network.Messages
             return Size;
         }
 
+        /// <summary>
+        /// Reads the message from the buffer. Returns a default message if the buffer is too small.
+        /// </summary>
         public static HandshakeResponseMessage Deserialize(byte[] buffer, int offset, int length)
         {
             HandshakeResponseMessage msg = new();

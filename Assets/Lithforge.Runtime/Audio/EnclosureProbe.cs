@@ -18,15 +18,28 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class EnclosureProbe
     {
+        /// <summary>Camera transform used as the raycast origin.</summary>
         private readonly Transform _cameraTransform;
 
+        /// <summary>Pre-computed fibonacci-sphere ray directions.</summary>
         private readonly float3[] _directions;
+
+        /// <summary>Delegate returning true if a voxel coordinate is solid.</summary>
         private readonly Func<int3, bool> _isSolidDelegate;
+
+        /// <summary>Maximum ray distance in blocks.</summary>
         private readonly int _maxDistance;
+
+        /// <summary>Number of rays cast per evaluation.</summary>
         private readonly int _rayCount;
+
+        /// <summary>Number of ticks between enclosure evaluations.</summary>
         private readonly int _updateTicks;
+
+        /// <summary>Tick counter for rate-limiting evaluations.</summary>
         private int _tickCounter;
 
+        /// <summary>Creates the probe with the specified ray configuration and tick interval.</summary>
         public EnclosureProbe(
             Func<int3, bool> isSolidDelegate,
             Transform cameraTransform,
@@ -43,6 +56,7 @@ namespace Lithforge.Runtime.Audio
             _directions = GenerateFibonacciSphere(rayCount);
         }
 
+        /// <summary>Ratio of rays that hit solid blocks (0 = open sky, 1 = fully enclosed).</summary>
         public float EnclosureRatio { get; private set; }
 
         /// <summary>

@@ -11,9 +11,11 @@ namespace Lithforge.Runtime.Debug.Benchmark
     [CreateAssetMenu(fileName = "TeleportCameraCommand", menuName = "Lithforge/Benchmark/Commands/Teleport Camera")]
     public sealed class TeleportCameraCommand : BenchmarkCommand
     {
+        /// <summary>If true, treats the position value as a relative offset from the current player position.</summary>
         [Tooltip("Use relative offset from current position instead of absolute position"), SerializeField]
          private bool relativeOffset = true;
 
+        /// <summary>Target world position or relative offset depending on the relativeOffset flag.</summary>
         [Tooltip("Target position or offset in world coordinates"), SerializeField]
          private Vector3 position = new(2000f, 0f, 0f);
 

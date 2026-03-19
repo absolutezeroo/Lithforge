@@ -22,16 +22,22 @@ namespace Lithforge.Runtime.Session
     /// </summary>
     public sealed class GameLoopPoco
     {
+        /// <summary>Configuration bag with all game loop dependencies.</summary>
         private readonly GameLoopConfig _config;
 
+        /// <summary>Reusable list for network-triggered chunk unload coords.</summary>
         private readonly List<int3> _networkUnloadCache = new();
 
+        /// <summary>Reusable list of all coords unloaded during the current frame.</summary>
         private readonly List<int3> _unloadedCoords = new();
 
+        /// <summary>Whether the client disconnect callback has already been invoked.</summary>
         private bool _clientDisconnectNotified;
 
+        /// <summary>Current game state controlling pause behavior.</summary>
         private GameState _gameState = GameState.Playing;
 
+        /// <summary>Accumulator for fixed-rate tick advancement.</summary>
         private TickAccumulator _tickAccumulator;
 
         /// <summary>
@@ -39,28 +45,34 @@ namespace Lithforge.Runtime.Session
         /// </summary>
         public Action OnClientDisconnected;
 
+        /// <summary>Creates a new game loop with the given config.</summary>
         public GameLoopPoco(GameLoopConfig config)
         {
             _config = config;
         }
 
+        /// <summary>Number of chunks awaiting generation job completion.</summary>
         public int PendingGenerationCount
         {
             get { return _config.ServerLoop?.PendingGenerationCount ?? 0; }
         }
 
+        /// <summary>Number of chunks awaiting mesh job completion.</summary>
         public int PendingMeshCount
         {
             get { return _config.MeshScheduler?.PendingCount ?? 0; }
         }
 
+        /// <summary>Number of chunks awaiting LOD mesh job completion.</summary>
         public int PendingLODMeshCount
         {
             get { return _config.LODScheduler?.PendingCount ?? 0; }
         }
 
+        /// <summary>Number of fixed-rate ticks executed during the current frame.</summary>
         public int TicksThisFrame { get; private set; }
 
+        /// <summary>Whether the player is ready to spawn (chunks loaded around spawn point).</summary>
         public bool SpawnReady
         {
             get
@@ -74,6 +86,7 @@ namespace Lithforge.Runtime.Session
             }
         }
 
+        /// <summary>Sets the current game state, controlling pause and tick behavior.</summary>
         public void SetGameState(GameState state)
         {
             _gameState = state;
@@ -90,11 +103,13 @@ namespace Lithforge.Runtime.Session
             _config.WorldSimulation = worldSimulation;
         }
 
+        /// <summary>Sets the player physics body after deferred initialization.</summary>
         public void SetPlayerPhysicsBody(PlayerPhysicsBody body)
         {
             _config.PlayerPhysicsBody = body;
         }
 
+        /// <summary>Propagates a render distance setting change to all affected schedulers.</summary>
         public void NotifyRenderDistanceChanged(int renderDistance)
         {
             _config.ServerLoop?.NotifyRenderDistanceChanged(renderDistance);
@@ -102,6 +117,7 @@ namespace Lithforge.Runtime.Session
             _config.LODScheduler?.UpdateConfig(renderDistance);
         }
 
+        /// <summary>Runs all per-frame game loop work: polling, ticking, scheduling, and audio.</summary>
         public void Update()
         {
             _config.GpuBufferResizer?.Tick();
@@ -302,6 +318,7 @@ namespace Lithforge.Runtime.Session
             _config.MetricsRegistry?.CommitFrame();
         }
 
+        /// <summary>Runs late-frame work: position interpolation, audio, and rendering.</summary>
         public void LateUpdate()
         {
             IFrameProfiler profiler = _config.FrameProfiler ?? new NullFrameProfiler();
@@ -348,6 +365,7 @@ namespace Lithforge.Runtime.Session
             profiler.End(FrameProfilerSections.Render);
         }
 
+        /// <summary>Completes all in-flight jobs and disposes player and remote player renderers.</summary>
         public void Shutdown()
         {
             _config.ServerLoop?.Shutdown();
@@ -362,6 +380,7 @@ namespace Lithforge.Runtime.Session
             _config.RemotePlayerManager = null;
         }
 
+        /// <summary>Computes the chunk coordinate that contains the main camera position.</summary>
         private int3 GetCameraChunkCoord()
         {
             Vector3 camPos = _config.MainCamera != null

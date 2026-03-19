@@ -10,9 +10,24 @@ namespace Lithforge.Network.Message
     /// </summary>
     public sealed class MessageDispatcher
     {
+        /// <summary>
+        /// Logger instance for diagnostic messages.
+        /// </summary>
         private readonly ILogger _logger;
+
+        /// <summary>
+        /// Array of registered message handlers indexed by MessageType byte value.
+        /// </summary>
         private readonly MessageHandler[] _handlers = new MessageHandler[256];
+
+        /// <summary>
+        /// Callback invoked when a Connect event is received from the transport.
+        /// </summary>
         private Action<ConnectionId> _onConnect;
+
+        /// <summary>
+        /// Callback invoked when a Disconnect event is received from the transport.
+        /// </summary>
         private Action<ConnectionId> _onDisconnect;
 
         /// <summary>
@@ -21,6 +36,9 @@ namespace Lithforge.Network.Message
         /// </summary>
         private Action<int> _onDataReceived;
 
+        /// <summary>
+        /// Creates a new MessageDispatcher with the given logger.
+        /// </summary>
         public MessageDispatcher(ILogger logger)
         {
             _logger = logger;
@@ -92,6 +110,9 @@ namespace Lithforge.Network.Message
             }
         }
 
+        /// <summary>
+        /// Parses the message header from a data event and dispatches to the registered handler.
+        /// </summary>
         private void ProcessDataEvent(ConnectionId connectionId, byte[] data, int offset, int length)
         {
             _onDataReceived?.Invoke(length);

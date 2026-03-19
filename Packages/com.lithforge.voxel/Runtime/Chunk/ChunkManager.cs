@@ -36,6 +36,7 @@ namespace Lithforge.Voxel.Chunk
             new(0, 0, -1), // 5: -Z
         };
 
+        /// <summary>Alias for FaceOffsets used internally.</summary>
         private static readonly int3[] s_neighborOffsets = FaceOffsets;
 
         /// <summary>
@@ -51,23 +52,58 @@ namespace Lithforge.Voxel.Chunk
             5,
             4,
         };
+        /// <summary>Primary dictionary of all loaded chunks, keyed by chunk coordinate.</summary>
         private readonly Dictionary<int3, ManagedChunk> _chunks = new();
+
+        /// <summary>Secondary index: coordinates of chunks with NeedsLightUpdate = true.</summary>
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new();
+
+        /// <summary>Reusable list for collecting dirtied chunk coords during deferred edit application.</summary>
         private readonly List<int3> _deferredDirtiedCache = new();
+
+        /// <summary>Secondary index: chunks in the Generated state (excluding LightJobInFlight).</summary>
         private readonly HashSet<ManagedChunk> _generatedChunks = new();
+
+        /// <summary>Ordered list of chunk coordinates to load, rebuilt by UpdateLoadingQueue.</summary>
         private readonly List<int3> _loadQueue = new();
+
+        /// <summary>Scratch buffer for FillChunksToMesh top-K selection.</summary>
         private readonly List<ManagedChunk> _meshCandidateCache = new();
+
+        /// <summary>Parallel score array for FillChunksToMesh insertion sort.</summary>
         private readonly List<int> _meshScoreCache = new();
+
+        /// <summary>ChunkPool for NativeArray checkout and return.</summary>
         private readonly ChunkPool _pool;
+
+        /// <summary>Secondary index: chunks in the Ready state.</summary>
         private readonly HashSet<ManagedChunk> _readyChunks = new();
+
+        /// <summary>Secondary index: chunks in the RelightPending state.</summary>
         private readonly HashSet<ManagedChunk> _relightPendingChunks = new();
+
+        /// <summary>Reusable list for collecting unload candidates in UnloadDistantChunks.</summary>
         private readonly List<int3> _toRemoveCache = new();
+
+        /// <summary>Maximum chunk Y coordinate (inclusive) for loading.</summary>
         private readonly int _yLoadMax;
+
+        /// <summary>Minimum chunk Y coordinate (inclusive) for loading.</summary>
         private readonly int _yLoadMin;
+
+        /// <summary>Maximum chunk Y coordinate (inclusive) for unloading threshold.</summary>
         private readonly int _yUnloadMax;
+
+        /// <summary>Minimum chunk Y coordinate (inclusive) for unloading threshold.</summary>
         private readonly int _yUnloadMin;
+
+        /// <summary>Optional background chunk saver for async serialization on unload.</summary>
         private AsyncChunkSaver _asyncSaver;
+
+        /// <summary>Whether this ChunkManager has been disposed.</summary>
         private bool _disposed;
+
+        /// <summary>Last camera chunk coordinate passed to UpdateLoadingQueue.</summary>
         private int3 _lastCameraChunkCoord = new(int.MinValue, int.MinValue, int.MinValue);
 
         /// <summary>
@@ -81,6 +117,7 @@ namespace Lithforge.Voxel.Chunk
         ///     Must be set after content pipeline completes.
         /// </summary>
         private NativeStateRegistry _nativeStateRegistry;
+        /// <summary>Parallel coordinate array for Schwartzian sort in UpdateLoadingQueue.</summary>
         private int3[] _sortCoordCache = Array.Empty<int3>();
 
         /// <summary>
@@ -88,6 +125,7 @@ namespace Lithforge.Voxel.Chunk
         ///     Resized on demand, never shrunk. Owner: ChunkManager.
         /// </summary>
         private float[] _sortScoreCache = Array.Empty<float>();
+        /// <summary>Parallel coordinate array for Schwartzian sort in UnloadDistantChunks.</summary>
         private int3[] _unloadCoordCache = Array.Empty<int3>();
 
         /// <summary>
@@ -115,6 +153,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public Action<int3, int, StateId> OnBlockEntityRemoved;
 
+        /// <summary>Creates a ChunkManager with the given pool, render distance, and Y load/unload bounds.</summary>
         public ChunkManager(
             ChunkPool pool,
             int renderDistance,
@@ -131,23 +170,28 @@ namespace Lithforge.Voxel.Chunk
             _yUnloadMax = yUnloadMax;
         }
 
+        /// <summary>Total number of currently loaded chunks.</summary>
         public int LoadedCount
         {
             get { return _chunks.Count; }
         }
 
+        /// <summary>Number of chunks in the Generated state (mesh-eligible).</summary>
         public int GeneratedChunkCount
         {
             get { return _generatedChunks.Count; }
         }
 
+        /// <summary>Number of remaining entries in the load queue.</summary>
         public int PendingLoadCount
         {
             get { return _loadQueue.Count - _loadQueueIndex; }
         }
 
+        /// <summary>Current render distance in chunks (Chebyshev XZ radius).</summary>
         public int RenderDistance { get; private set; }
 
+        /// <summary>Completes all in-flight jobs and returns all chunk NativeArrays to the pool.</summary>
         public void Dispose()
         {
             if (_disposed)
@@ -189,6 +233,7 @@ namespace Lithforge.Voxel.Chunk
             _relightPendingChunks.Clear();
         }
 
+        /// <summary>Updates the render distance (clamped to at least 1).</summary>
         public void SetRenderDistance(int distance)
         {
             RenderDistance = math.max(1, distance);
@@ -306,6 +351,10 @@ namespace Lithforge.Voxel.Chunk
             _asyncSaver = asyncSaver;
         }
 
+        /// <summary>
+        ///     Rebuilds the loading queue with chunks sorted by forward-weighted distance
+        ///     from the camera. Only rebuilds if the camera moved far enough or the queue is empty.
+        /// </summary>
         public void UpdateLoadingQueue(int3 cameraChunkCoord, float3 cameraForward)
         {
             int3 diff = cameraChunkCoord - _lastCameraChunkCoord;
@@ -384,6 +433,10 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
+        /// <summary>
+        ///     Pops up to maxCount entries from the load queue, checks out NativeArrays
+        ///     from the pool, creates ManagedChunks, and returns them for generation scheduling.
+        /// </summary>
         public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)
         {
             result.Clear();
@@ -686,6 +739,7 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
+        /// <summary>Returns the chunk at the given coordinate, or null if not loaded.</summary>
         public ManagedChunk GetChunk(int3 coord)
         {
             _chunks.TryGetValue(coord, out ManagedChunk chunk);
@@ -938,6 +992,7 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
+        /// <summary>Marks a neighbor chunk for remesh if it is Ready, or flags NeedsRemesh if Meshing.</summary>
         private void DirtyNeighborChunk(int3 neighborCoord, List<int3> dirtiedChunks)
         {
             ManagedChunk neighbor = GetChunk(neighborCoord);
@@ -972,11 +1027,16 @@ namespace Lithforge.Voxel.Chunk
                 FloorDiv(worldCoord.z, ChunkConstants.Size));
         }
 
+        /// <summary>Floor division that handles negative dividends correctly.</summary>
         private static int FloorDiv(int a, int b)
         {
             return a >= 0 ? a / b : (a - b + 1) / b;
         }
 
+        /// <summary>
+        ///     Unloads chunks outside the render distance, saving dirty ones via AsyncChunkSaver.
+        ///     Processes farthest-first within a time budget to avoid frame spikes.
+        /// </summary>
         public void UnloadDistantChunks(
             int3 cameraChunkCoord,
             List<int3> unloaded,
@@ -1128,6 +1188,7 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
+        /// <summary>Synchronously saves all dirty chunks to storage (used at shutdown).</summary>
         public void SaveAllChunks(WorldStorage storage)
         {
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
@@ -1277,6 +1338,10 @@ namespace Lithforge.Voxel.Chunk
             }
         }
 
+        /// <summary>
+        ///     Marks all Ready neighbors of the given coord as Generated (needing remesh),
+        ///     and flags any Meshing neighbors for re-mesh after their current job completes.
+        /// </summary>
         public void InvalidateReadyNeighbors(int3 coord)
         {
             ManagedChunk chunk = GetChunk(coord);

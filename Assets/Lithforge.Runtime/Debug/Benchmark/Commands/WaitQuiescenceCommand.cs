@@ -10,6 +10,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
     [CreateAssetMenu(fileName = "WaitQuiescenceCommand", menuName = "Lithforge/Benchmark/Commands/Wait Quiescence")]
     public sealed class WaitQuiescenceCommand : BenchmarkCommand
     {
+        /// <summary>Maximum seconds to wait before continuing regardless of pipeline state.</summary>
         [Tooltip("Maximum seconds to wait before continuing regardless")]
         [Min(0.1f)]
         [SerializeField] private float timeoutSeconds = 30f;

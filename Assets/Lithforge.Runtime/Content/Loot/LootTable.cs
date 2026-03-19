@@ -53,6 +53,7 @@ namespace Lithforge.Runtime.Content.Loot
             get { return pools; }
         }
 
+        /// <summary>Editor callback that auto-fills the table name from the asset name if empty.</summary>
         private void OnValidate()
         {
             if (string.IsNullOrEmpty(tableName))

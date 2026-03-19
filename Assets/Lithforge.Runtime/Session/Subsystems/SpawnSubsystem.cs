@@ -11,8 +11,13 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that creates the spawn manager for safe spawn point finding.
+    ///     Currently disabled in always-server mode; spawn is driven by GameReady messages.
+    /// </summary>
     public sealed class SpawnSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -21,12 +26,14 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on player and chunk manager for spawn point calculation.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
             typeof(ChunkManagerSubsystem),
         };
 
+        /// <summary>Currently disabled; always-server mode uses GameReady for spawn.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             // In always-server mode, SP and Host use server-driven spawn via GameReady message.
@@ -34,6 +41,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             return false;
         }
 
+        /// <summary>Creates the spawn manager from player and chunk manager.</summary>
         public void Initialize(SessionContext context)
         {
             PlayerTransformHolder player = context.Get<PlayerTransformHolder>();
@@ -69,14 +77,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(spawnManager);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No owned disposable resources.</summary>
         public void Dispose()
         {
         }

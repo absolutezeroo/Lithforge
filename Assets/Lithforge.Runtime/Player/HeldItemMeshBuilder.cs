@@ -235,6 +235,7 @@ namespace Lithforge.Runtime.Player
             indices[11] = 6;
         }
 
+        /// <summary>Returns the UV coordinate for a block face vertex by index (0–3).</summary>
         private static float2 GetBlockFaceUV(int vertexIndex)
         {
             switch (vertexIndex)
@@ -252,6 +253,7 @@ namespace Lithforge.Runtime.Player
             }
         }
 
+        /// <summary>Returns the UV coordinate for a flat item quad vertex by index (0–3).</summary>
         private static float2 GetItemQuadUV(int vertexIndex)
         {
             switch (vertexIndex)

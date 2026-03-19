@@ -26,43 +26,73 @@ namespace Lithforge.Runtime.Rendering
     /// </summary>
     public sealed class ChunkMeshStore : IDisposable
     {
+        /// <summary>Shader property ID for the vertex StructuredBuffer binding.</summary>
         private static readonly int s_vertexBufferId = Shader.PropertyToID("_VertexBuffer");
+
+        /// <summary>Shader property ID for the chunk bounds StructuredBuffer in the cull shader.</summary>
         private static readonly int s_chunkBoundsBufferId = Shader.PropertyToID("_ChunkBoundsBuffer");
+
+        /// <summary>Shader property ID for the per-chunk indirect args buffer in the cull shader.</summary>
         private static readonly int s_perChunkArgsBufferId = Shader.PropertyToID("_PerChunkArgsBuffer");
+
+        /// <summary>Shader property ID for the frustum plane vector array in the cull shader.</summary>
         private static readonly int s_frustumPlanesId = Shader.PropertyToID("_FrustumPlanes");
+
+        /// <summary>Shader property ID for the active slot count uniform in the cull shader.</summary>
         private static readonly int s_slotCountId = Shader.PropertyToID("_SlotCount");
+
+        /// <summary>Shader property ID for the Hi-Z pyramid texture in the occlusion cull shader.</summary>
         private static readonly int s_hiZTextureId = Shader.PropertyToID("_HiZTexture");
+
+        /// <summary>Shader property ID for the view-projection matrix in the occlusion cull shader.</summary>
         private static readonly int s_viewProjMatrixId = Shader.PropertyToID("_ViewProjMatrix");
+
+        /// <summary>Shader property ID for the Hi-Z texture dimensions in the occlusion cull shader.</summary>
         private static readonly int s_hiZSizeId = Shader.PropertyToID("_HiZSize");
+
+        /// <summary>Shader property ID for the Hi-Z mip level count in the occlusion cull shader.</summary>
         private static readonly int s_hiZMipCountId = Shader.PropertyToID("_HiZMipCount");
 
         /// <summary>Very large bounds so URP never frustum-culls the procedural draws.</summary>
         private static readonly Bounds s_worldBounds = new(Vector3.zero, new Vector3(100000f, 100000f, 100000f));
+
+        /// <summary>Single-element array for uploading one chunk's AABB to the bounds buffer.</summary>
         private readonly ChunkBoundsGPU[] _boundsUpload = new ChunkBoundsGPU[1];
 
-        // --- Shared slot ID space (same slot ID for a chunk across all 3 layers) ---
-        // Swap-and-pop: active slots are always contiguous in 0.._activeCount-1.
-        // When a chunk is destroyed, its slot is swapped with the last active slot.
+        /// <summary>Maps chunk coordinate to its shared slot ID across all three render layers.</summary>
         private readonly Dictionary<int3, int> _coordToSlotId = new();
+
+        /// <summary>Render parameters for the cutout (alpha-test) indirect draw call.</summary>
         private readonly RenderParams _cutoutParams;
+
+        /// <summary>Compute kernel index for the frustum culling pass.</summary>
         private readonly int _frustumCullKernel;
 
-        // --- GPU frustum culling ---
+        /// <summary>Compute shader that performs frustum and occlusion culling on per-chunk indirect args.</summary>
         private readonly ComputeShader _frustumCullShader;
+
+        /// <summary>Cached camera frustum planes for extraction into Vector4 format.</summary>
         private readonly Plane[] _frustumPlanes = new Plane[6];
 
         /// <summary>Cached frustum plane vectors to avoid per-frame array allocation.</summary>
         private readonly Vector4[] _frustumPlaneVectors = new Vector4[6];
 
-        // --- Hi-Z occlusion culling ---
+        /// <summary>Hi-Z mipmap pyramid for GPU occlusion culling, or null if Hi-Z shader was not provided.</summary>
         private readonly HiZPyramid _hiZPyramid;
+
+        /// <summary>Compute kernel index for the combined frustum + Hi-Z occlusion culling pass.</summary>
         private readonly int _occlusionCullKernel;
 
+        /// <summary>Render parameters for the opaque indirect draw call.</summary>
         private readonly RenderParams _opaqueParams;
+
+        /// <summary>Compute kernel index for the reset pass that restores instanceCount before culling.</summary>
         private readonly int _resetCullKernel;
 
         /// <summary>GPU buffer resize service — dispatches compute copy and defers disposal.</summary>
         private readonly GpuBufferResizer _resizer;
+
+        /// <summary>Render parameters for the translucent (water) indirect draw call.</summary>
         private readonly RenderParams _translucentParams;
 
         /// <summary>
@@ -70,9 +100,18 @@ namespace Lithforge.Runtime.Rendering
         ///     Slot IDs are keyed to the opaque buffer's coordToSlotId.
         /// </summary>
         private GraphicsBuffer _chunkBoundsBuffer;
+
+        /// <summary>Maximum number of concurrent chunk draw slots, grown by doubling when exceeded.</summary>
         private int _maxChunkSlots;
+
+        /// <summary>Reverse mapping from slot ID to chunk coordinate, used for swap-and-pop on destroy.</summary>
         private int3[] _slotToCoord;
 
+        /// <summary>
+        ///     Creates a ChunkMeshStore with three MegaMeshBuffers (opaque, cutout, translucent),
+        ///     a shared per-chunk bounds buffer, and configures GPU frustum and occlusion culling.
+        ///     Buffer capacities are estimated from render distance and Y load range.
+        /// </summary>
         public ChunkMeshStore(
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
             int renderDistance, int yLoadMin, int yLoadMax,
@@ -165,18 +204,25 @@ namespace Lithforge.Runtime.Rendering
             _slotToCoord = new int3[maxChunkSlots];
         }
 
+        /// <summary>Number of active chunk draw slots (contiguous in 0..RendererCount-1).</summary>
         public int RendererCount { get; private set; }
 
+        /// <summary>Persistent GPU buffer for opaque chunk mesh data.</summary>
         public MegaMeshBuffer OpaqueBuffer { get; }
 
+        /// <summary>Persistent GPU buffer for cutout (alpha-test) chunk mesh data.</summary>
         public MegaMeshBuffer CutoutBuffer { get; }
 
+        /// <summary>Persistent GPU buffer for translucent (water) chunk mesh data.</summary>
         public MegaMeshBuffer TranslucentBuffer { get; }
 
+        /// <summary>Material used for opaque voxel rendering.</summary>
         public Material OpaqueMaterial { get; }
 
+        /// <summary>Material used for cutout (alpha-test) voxel rendering.</summary>
         public Material CutoutMaterial { get; }
 
+        /// <summary>Material used for translucent (water) voxel rendering.</summary>
         public Material TranslucentMaterial { get; }
 
         /// <summary>Whether Hi-Z occlusion culling is active (pyramid generated successfully).</summary>
@@ -191,6 +237,7 @@ namespace Lithforge.Runtime.Rendering
             }
         }
 
+        /// <summary>Releases all GPU buffers, CPU mirrors, and the Hi-Z pyramid.</summary>
         public void Dispose()
         {
             _hiZPyramid?.Dispose();
@@ -472,6 +519,10 @@ namespace Lithforge.Runtime.Rendering
                 commandCount);
         }
 
+        /// <summary>
+        ///     Frees all mesh data for the given chunk and reclaims its slot via swap-and-pop,
+        ///     keeping active slots contiguous for efficient compute dispatch.
+        /// </summary>
         public void DestroyRenderer(int3 coord)
         {
             OpaqueBuffer.Free(coord);

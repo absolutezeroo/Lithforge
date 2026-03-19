@@ -10,8 +10,13 @@ namespace Lithforge.Runtime.Audio
     /// </summary>
     public sealed class SfxSourcePool
     {
+        /// <summary>Tracks which pooled sources are currently playing.</summary>
         private readonly bool[] _inUse;
+
+        /// <summary>Pre-allocated array of AudioSource components.</summary>
         private readonly AudioSource[] _sources;
+
+        /// <summary>Round-robin index for the next source to acquire.</summary>
         private int _nextIndex;
 
         /// <summary>

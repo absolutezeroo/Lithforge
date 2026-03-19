@@ -12,8 +12,10 @@ using UnityEngine.UIElements;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>Subsystem that creates the benchmark runner for automated performance testing.</summary>
     public sealed class BenchmarkSubsystem : IGameSubsystem
     {
+        /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
             get
@@ -22,6 +24,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Depends on metrics, player, and block interaction for benchmark commands.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(MetricsSubsystem),
@@ -29,11 +32,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(BlockInteractionSubsystem),
         };
 
+        /// <summary>Only created for sessions that render.</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Creates the benchmark runner with context, metrics, and player references.</summary>
         public void Initialize(SessionContext context)
         {
             MetricsRegistry metricsRegistry = context.Get<MetricsRegistry>();
@@ -67,14 +72,17 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(benchmarkRunner);
         }
 
+        /// <summary>No post-initialization wiring needed.</summary>
         public void PostInitialize(SessionContext context)
         {
         }
 
+        /// <summary>No in-flight jobs to complete.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>MonoBehaviour cleaned up by bootstrap GameObject destruction.</summary>
         public void Dispose()
         {
             // MonoBehaviour cleaned up by bootstrap GO destruction
