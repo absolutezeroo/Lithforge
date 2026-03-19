@@ -9,6 +9,8 @@ using Lithforge.Voxel.Chunk;
 
 using Unity.Mathematics;
 
+using UnityEngine;
+
 namespace Lithforge.Runtime.Network
 {
     /// <summary>
@@ -16,15 +18,35 @@ namespace Lithforge.Runtime.Network
     ///     the change is applied locally immediately and the command is sent to the server.
     ///     On receiving <see cref="AcknowledgeBlockChangeMessage" />, accepted predictions are
     ///     discarded; rejected predictions are reverted to the server's corrected state.
+    ///     Unacknowledged predictions are expired after <see cref="NetworkConstants.PredictionExpirySeconds" />
+    ///     to prevent unbounded growth of the pending map.
     /// </summary>
     public sealed class ClientBlockPredictor
     {
         private readonly ChunkManager _chunkManager;
+
         private readonly List<int3> _dirtiedChunksCache = new();
+
+        /// <summary>Reusable key list for the expiry sweep (fill pattern, no per-tick allocation).</summary>
+        private readonly List<ushort> _expiredKeys = new();
+
         private readonly INetworkClient _networkClient;
+
         private readonly Dictionary<ushort, PendingPrediction> _pending = new();
 
         private ushort _sequenceId;
+
+        public ClientBlockPredictor(
+            ChunkManager chunkManager,
+            INetworkClient networkClient)
+        {
+            _chunkManager = chunkManager;
+            _networkClient = networkClient;
+
+            MessageDispatcher dispatcher = networkClient.Dispatcher;
+            dispatcher.RegisterHandler(
+                MessageType.AcknowledgeBlockChange, OnAcknowledge);
+        }
 
         /// <summary>
         ///     Returns true when the predictor is ready to accept commands (network
@@ -37,16 +59,37 @@ namespace Lithforge.Runtime.Network
             get { return _networkClient.IsPlaying; }
         }
 
-        public ClientBlockPredictor(
-            ChunkManager chunkManager,
-            INetworkClient networkClient)
+        /// <summary>
+        ///     Called each fixed tick (30 TPS). Expires predictions older than
+        ///     <see cref="NetworkConstants.PredictionExpirySeconds" /> by reverting the block
+        ///     to its pre-prediction state, preventing unbounded pending map growth.
+        /// </summary>
+        public void Tick(float currentRealtime)
         {
-            _chunkManager = chunkManager;
-            _networkClient = networkClient;
+            if (_pending.Count == 0)
+            {
+                return;
+            }
 
-            MessageDispatcher dispatcher = networkClient.Dispatcher;
-            dispatcher.RegisterHandler(
-                MessageType.AcknowledgeBlockChange, OnAcknowledge);
+            _expiredKeys.Clear();
+
+            foreach (KeyValuePair<ushort, PendingPrediction> pair in _pending)
+            {
+                if (currentRealtime - pair.Value.Timestamp >= NetworkConstants.PredictionExpirySeconds)
+                {
+                    _expiredKeys.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < _expiredKeys.Count; i++)
+            {
+                ushort key = _expiredKeys[i];
+                PendingPrediction prediction = _pending[key];
+                _pending.Remove(key);
+
+                _dirtiedChunksCache.Clear();
+                _chunkManager.SetBlock(prediction.Position, prediction.OldState, _dirtiedChunksCache);
+            }
         }
 
         /// <summary>
@@ -92,7 +135,7 @@ namespace Lithforge.Runtime.Network
             // Record prediction for potential revert
             _pending[seqId] = new PendingPrediction
             {
-                Position = position, OldState = oldState,
+                Position = position, OldState = oldState, Timestamp = Time.realtimeSinceStartup,
             };
 
             // Send command to server
@@ -129,7 +172,7 @@ namespace Lithforge.Runtime.Network
             // Record prediction for potential revert
             _pending[seqId] = new PendingPrediction
             {
-                Position = position, OldState = oldState,
+                Position = position, OldState = oldState, Timestamp = Time.realtimeSinceStartup,
             };
 
             // Send command to server

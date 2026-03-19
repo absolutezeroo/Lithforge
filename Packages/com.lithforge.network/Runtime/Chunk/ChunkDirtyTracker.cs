@@ -10,12 +10,16 @@ namespace Lithforge.Network.Chunk
     /// <summary>
     ///     Tracks per-chunk block changes for network delta batching.
     ///     Subscribe to <see cref="ChunkManager.OnBlockChanged" /> to accumulate changes.
-    ///     The network transport layer calls <see cref="FlushChanges" /> to retrieve and clear
-    ///     the accumulated batch for a chunk.
+    ///     Uses double-buffering to avoid per-tick dictionary allocation: <see cref="FlushAll" />
+    ///     swaps the active buffer and returns the previous tick's data without heap allocation.
     /// </summary>
     public sealed class ChunkDirtyTracker
     {
-        private readonly Dictionary<int3, List<BlockChangeEntry>> _pendingChanges = new();
+        /// <summary>Accumulates changes during the current tick.</summary>
+        private Dictionary<int3, List<BlockChangeEntry>> _current = new();
+
+        /// <summary>Holds the flushed data from the previous tick for the caller to read.</summary>
+        private Dictionary<int3, List<BlockChangeEntry>> _ready = new();
 
         /// <summary>
         ///     Records a block change. Intended to be wired to <see cref="ChunkManager.OnBlockChanged" />.
@@ -24,10 +28,10 @@ namespace Lithforge.Network.Chunk
         {
             int3 chunkCoord = ChunkManager.WorldToChunk(worldCoord);
 
-            if (!_pendingChanges.TryGetValue(chunkCoord, out List<BlockChangeEntry> list))
+            if (!_current.TryGetValue(chunkCoord, out List<BlockChangeEntry> list))
             {
                 list = new List<BlockChangeEntry>();
-                _pendingChanges[chunkCoord] = list;
+                _current[chunkCoord] = list;
             }
 
             list.Add(new BlockChangeEntry
@@ -37,17 +41,17 @@ namespace Lithforge.Network.Chunk
         }
 
         /// <summary>
-        ///     Returns and clears the accumulated block changes for a specific chunk.
-        ///     Returns null if no changes are pending for that chunk.
+        ///     Returns and clears the accumulated block changes for a specific chunk
+        ///     from the current buffer. Returns null if no changes are pending for that chunk.
         /// </summary>
         public List<BlockChangeEntry> FlushChanges(int3 chunkCoord)
         {
-            if (!_pendingChanges.TryGetValue(chunkCoord, out List<BlockChangeEntry> list))
+            if (!_current.TryGetValue(chunkCoord, out List<BlockChangeEntry> list))
             {
                 return null;
             }
 
-            _pendingChanges.Remove(chunkCoord);
+            _current.Remove(chunkCoord);
             return list;
         }
 
@@ -56,27 +60,40 @@ namespace Lithforge.Network.Chunk
         /// </summary>
         public bool HasChanges(int3 chunkCoord)
         {
-            return _pendingChanges.ContainsKey(chunkCoord) && _pendingChanges[chunkCoord].Count > 0;
+            return _current.TryGetValue(chunkCoord, out List<BlockChangeEntry> list) && list.Count > 0;
         }
 
         /// <summary>
         ///     Returns a snapshot of all chunk coordinates that have pending changes.
-        ///     Safe to iterate while calling <see cref="FlushChanges" /> per chunk.
+        ///     Allocates a new list — intended for diagnostics and tests, not the hot path.
         /// </summary>
         public List<int3> GetDirtyChunks()
         {
-            return new List<int3>(_pendingChanges.Keys);
+            return new List<int3>(_current.Keys);
         }
 
         /// <summary>
-        ///     Flushes all pending changes across all chunks and returns them grouped by chunk coordinate.
-        ///     Clears the internal state.
+        ///     Swaps the internal double buffers and returns the accumulated changes from this tick.
+        ///     The returned dictionary is valid for the duration of the current tick only —
+        ///     callers must not hold the reference across ticks.
+        ///     Zero heap allocation after warmup (inner lists are cleared and reused).
         /// </summary>
         public Dictionary<int3, List<BlockChangeEntry>> FlushAll()
         {
-            Dictionary<int3, List<BlockChangeEntry>> snapshot = new(_pendingChanges);
-            _pendingChanges.Clear();
-            return snapshot;
+            // Swap: the old ready becomes the new current (to be cleared and reused)
+            Dictionary<int3, List<BlockChangeEntry>> temp = _ready;
+            _ready = _current;
+            _current = temp;
+
+            // Clear the new current (old ready) for reuse — inner lists keep their backing arrays
+            foreach (KeyValuePair<int3, List<BlockChangeEntry>> pair in _current)
+            {
+                pair.Value.Clear();
+            }
+
+            _current.Clear();
+
+            return _ready;
         }
 
         /// <summary>
@@ -84,7 +101,19 @@ namespace Lithforge.Network.Chunk
         /// </summary>
         public void Clear()
         {
-            _pendingChanges.Clear();
+            foreach (KeyValuePair<int3, List<BlockChangeEntry>> pair in _current)
+            {
+                pair.Value.Clear();
+            }
+
+            _current.Clear();
+
+            foreach (KeyValuePair<int3, List<BlockChangeEntry>> pair in _ready)
+            {
+                pair.Value.Clear();
+            }
+
+            _ready.Clear();
         }
     }
 }

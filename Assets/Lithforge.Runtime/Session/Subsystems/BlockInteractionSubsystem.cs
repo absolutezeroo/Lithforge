@@ -101,6 +101,9 @@ namespace Lithforge.Runtime.Session.Subsystems
 
                 NetworkCommandProcessor networkProcessor = new(predictor, _inventoryProcessor);
                 blockInteraction.SetCommandProcessor(networkProcessor);
+
+                // Wire prediction expiry sweep into the tick loop (reuses registry from above)
+                registry?.Register(new BlockPredictionTickAdapter(predictor));
             }
         }
 

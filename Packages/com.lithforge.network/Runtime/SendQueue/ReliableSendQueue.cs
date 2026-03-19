@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 using Lithforge.Core.Logging;
@@ -7,13 +6,15 @@ using Lithforge.Network.Transport;
 namespace Lithforge.Network.SendQueue
 {
     /// <summary>
-    ///     Buffers sends that failed with error -5 (send queue full) for retry next frame.
-    ///     Each entry is retried up to MaxSendRetries times before being dropped.
+    ///     Buffers sends that failed with error -5 (send queue full) for retry with
+    ///     exponential backoff. Each entry is retried up to <see cref="NetworkConstants.MaxSendRetries" />
+    ///     times with increasing delay (0.1s, 0.2s, 0.4s) before being dropped.
     ///     Called once per frame in server/client Update after transport.Update().
     /// </summary>
     public sealed class ReliableSendQueue
     {
         private readonly ILogger _logger;
+
         private readonly List<PendingSend> _pending = new();
 
         public ReliableSendQueue(ILogger logger)
@@ -21,6 +22,7 @@ namespace Lithforge.Network.SendQueue
             _logger = logger;
         }
 
+        /// <summary>Number of entries currently waiting for retry.</summary>
         public int Count
         {
             get { return _pending.Count; }
@@ -29,11 +31,12 @@ namespace Lithforge.Network.SendQueue
         /// <summary>
         ///     Enqueues a failed send for retry. The data is copied into a new buffer
         ///     so the caller's buffer can be reused immediately.
+        ///     The first retry will be attempted on the next frame (NextRetryTime = 0).
         /// </summary>
         public void Enqueue(ConnectionId connectionId, int pipelineId, byte[] data, int offset, int length)
         {
             byte[] copy = new byte[length];
-            Array.Copy(data, offset, copy, 0, length);
+            System.Array.Copy(data, offset, copy, 0, length);
 
             _pending.Add(new PendingSend
             {
@@ -43,14 +46,16 @@ namespace Lithforge.Network.SendQueue
                 Offset = 0,
                 Length = length,
                 RetryCount = 0,
+                NextRetryTime = 0f,
             });
         }
 
         /// <summary>
-        ///     Retries all buffered sends. Removes entries that succeed or exceed MaxSendRetries.
+        ///     Retries all buffered sends whose backoff delay has elapsed.
+        ///     Removes entries that succeed or exceed <see cref="NetworkConstants.MaxSendRetries" />.
         ///     Returns the number of entries that were permanently dropped.
         /// </summary>
-        public int Flush(INetworkTransport transport)
+        public int Flush(INetworkTransport transport, float currentTime)
         {
             int dropped = 0;
             int i = 0;
@@ -58,6 +63,14 @@ namespace Lithforge.Network.SendQueue
             while (i < _pending.Count)
             {
                 PendingSend entry = _pending[i];
+
+                // Backoff: skip entries not yet due for retry
+                if (currentTime < entry.NextRetryTime)
+                {
+                    i++;
+                    continue;
+                }
+
                 bool success = transport.Send(
                     entry.ConnectionId, entry.PipelineId, entry.Data, entry.Offset, entry.Length);
 
@@ -79,6 +92,9 @@ namespace Lithforge.Network.SendQueue
                     continue;
                 }
 
+                // Exponential backoff: 0.1s, 0.2s, 0.4s for retries 1, 2, 3
+                entry.NextRetryTime = currentTime
+                    + NetworkConstants.RetryBackoffBaseSeconds * (1 << entry.RetryCount);
                 _pending[i] = entry;
                 i++;
             }
@@ -110,12 +126,30 @@ namespace Lithforge.Network.SendQueue
 
         private struct PendingSend
         {
+            /// <summary>Target connection for the retry.</summary>
             public ConnectionId ConnectionId;
+
+            /// <summary>UTP pipeline index for the send.</summary>
             public int PipelineId;
+
+            /// <summary>Copied payload bytes.</summary>
             public byte[] Data;
+
+            /// <summary>Offset into Data.</summary>
             public int Offset;
+
+            /// <summary>Payload length in bytes.</summary>
             public int Length;
+
+            /// <summary>Number of failed retry attempts so far.</summary>
             public int RetryCount;
+
+            /// <summary>
+            ///     Realtime timestamp after which this entry may be retried.
+            ///     Zero on initial enqueue (retry immediately next frame).
+            ///     Set to currentTime + backoff delay on each failure.
+            /// </summary>
+            public float NextRetryTime;
         }
     }
 }

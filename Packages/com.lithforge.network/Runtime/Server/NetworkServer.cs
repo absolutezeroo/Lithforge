@@ -107,7 +107,7 @@ namespace Lithforge.Network.Server
             Dispatcher.ProcessEvents(_transport);
             CheckTimeouts(currentTime);
             SchedulePings(currentTime);
-            _sendQueue.Flush(_transport);
+            _sendQueue.Flush(_transport, currentTime);
         }
 
         public void SendTo(ConnectionId connectionId, INetworkMessage message, int pipelineId)
