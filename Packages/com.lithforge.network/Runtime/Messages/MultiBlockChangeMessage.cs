@@ -25,7 +25,7 @@ namespace Lithforge.Network.Messages
 
         public int GetSerializedSize()
         {
-            return BatchData != null ? BatchData.Length : 0;
+            return BatchData?.Length ?? 0;
         }
 
         public int Serialize(byte[] buffer, int offset)

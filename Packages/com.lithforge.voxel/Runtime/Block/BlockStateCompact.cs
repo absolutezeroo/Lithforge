@@ -11,39 +11,63 @@ namespace Lithforge.Voxel.Block
     public struct BlockStateCompact
     {
         public ushort BlockId;
+
         public byte Flags;
+
         public byte RenderLayer;
+
         public byte LightEmission;
+
         public byte LightFilter;
+
         public byte CollisionShape;
+
         public byte TextureIndexBase;
+
         public uint MapColor;
 
         public ushort TexNorth;
+
         public ushort TexSouth;
+
         public ushort TexEast;
+
         public ushort TexWest;
+
         public ushort TexUp;
+
         public ushort TexDown;
 
         public bool IsOpaque
         {
-            get { return (Flags & 1) != 0; }
+            get
+            {
+                return (Flags & 1) != 0;
+            }
         }
 
         public bool IsFullCube
         {
-            get { return (Flags & 2) != 0; }
+            get
+            {
+                return (Flags & 2) != 0;
+            }
         }
 
         public bool IsAir
         {
-            get { return (Flags & 4) != 0; }
+            get
+            {
+                return (Flags & 4) != 0;
+            }
         }
 
         public bool EmitsLight
         {
-            get { return (Flags & 8) != 0; }
+            get
+            {
+                return (Flags & 8) != 0;
+            }
         }
 
         public const byte FlagOpaque = 1;
@@ -63,12 +87,18 @@ namespace Lithforge.Voxel.Block
 
         public bool IsFluid
         {
-            get { return (Flags & FlagFluid) != 0; }
+            get
+            {
+                return (Flags & FlagFluid) != 0;
+            }
         }
 
         public bool HasBlockEntity
         {
-            get { return (Flags & FlagHasBlockEntity) != 0; }
+            get
+            {
+                return (Flags & FlagHasBlockEntity) != 0;
+            }
         }
     }
 }

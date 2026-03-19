@@ -16,12 +16,19 @@ namespace Lithforge.Runtime.Audio
     public sealed class ScatterSoundPlayer
     {
         private readonly Func<float> _getTimeOfDay;
+
         private readonly float _maxDistance;
+
         private readonly float _maxInterval;
+
         private readonly float _minDistance;
+
         private readonly float _minInterval;
+
         private readonly Transform _playerTransform;
+
         private readonly SfxSourcePool _pool;
+
         private readonly Random _rng;
 
         private float _nextScatterTime;
@@ -87,8 +94,8 @@ namespace Lithforge.Runtime.Audio
 
             if (restriction != 0)
             {
-                float timeOfDay = _getTimeOfDay != null ? _getTimeOfDay() : 0f;
-                bool isDay = timeOfDay >= 0.0f && timeOfDay < 0.5f;
+                float timeOfDay = _getTimeOfDay?.Invoke() ?? 0f;
+                bool isDay = timeOfDay is >= 0.0f and < 0.5f;
 
                 if (restriction == 1 && !isDay)
                 {

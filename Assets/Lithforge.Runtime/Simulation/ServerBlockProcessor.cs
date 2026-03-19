@@ -22,11 +22,17 @@ namespace Lithforge.Runtime.Simulation
     public sealed class ServerBlockProcessor : IServerBlockProcessor
     {
         private const float MaxReachDistance = 6f;
+
         private const float PositionTolerance = 3f;
+
         private const float MaxTokens = 20f;
+
         private const float RefillRate = 20f;
+
         private const float CostPerOp = 1f;
+
         private const float BreakTimeTolerance = 0.5f;
+
         private const float TickDt = 1f / 30f;
 
         private readonly ChunkManager _chunkManager;
@@ -36,13 +42,17 @@ namespace Lithforge.Runtime.Simulation
 
         // Reusable list for SetBlock dirtied chunks (fill pattern)
         private readonly List<int3> _dirtiedChunksCache = new();
+
         private readonly float _handMiningMultiplier;
+
         private readonly ILogger _logger;
+
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         private readonly Dictionary<ushort, float> _rateLimitLastRefill = new();
 
         private readonly Dictionary<ushort, float> _rateLimitTokens = new();
+
         private readonly StateRegistry _stateRegistry;
 
         public ServerBlockProcessor(
@@ -197,7 +207,10 @@ namespace Lithforge.Runtime.Simulation
 
             StateRegistryEntry entry = _stateRegistry.GetEntryForState(currentState);
 
-            if (entry != null && entry.Hardness < 0f)
+            if (entry is
+                {
+                    Hardness: < 0f,
+                })
             {
                 return BlockProcessResult.Reject(CommandResult.NotBreakable, currentState);
             }

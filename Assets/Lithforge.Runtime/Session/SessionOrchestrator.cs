@@ -45,7 +45,6 @@ namespace Lithforge.Runtime.Session
             LoadingScreen loadingScreen = loadingObject.AddComponent<LoadingScreen>();
             loadingScreen.Initialize(panelSettings);
 
-            // ── Phase 1: Content pipeline ──
             ContentValidator validator = new();
             ContentPipeline pipeline = new(
                 app.Logger, validator, app.Settings.Rendering.AtlasTileSize);
@@ -76,7 +75,6 @@ namespace Lithforge.Runtime.Session
                 $"{content.LootTables.Count} loot tables, " +
                 $"{content.TagRegistry.TagCount} tags.");
 
-            // ── Phase 2: Initialize session ──
             try
             {
                 session = new GameSession();
@@ -105,7 +103,6 @@ namespace Lithforge.Runtime.Session
 
             UnityEngine.Debug.Log("[Lithforge] Session initialized.");
 
-            // ── Phase 3: Run until quit ──
             SessionBridge bridge = null;
 
             if (session.Context.TryGet(out SessionBridge b))
@@ -118,7 +115,6 @@ namespace Lithforge.Runtime.Session
                 yield return null;
             }
 
-            // ── Phase 4: Shutdown and save ──
             yield return SaveAndDispose(session, app, panelSettings);
 
             app.CurrentSession = null;

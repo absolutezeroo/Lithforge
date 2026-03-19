@@ -3,7 +3,6 @@ using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Voxel.Item;
 
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -31,6 +30,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
         };
 
         private ProgressBar _burnBar;
+
         private FurnaceBlockEntity _currentFurnace;
 
         private BlockEntityContainerAdapter _furnaceFuelAdapter;
@@ -200,7 +200,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                         {
                             // Transfer output to player inventory
                             ItemEntry def = ItemRegistryRef.Get(outputStack.ItemId);
-                            int maxStack = def != null ? def.MaxStackSize : 64;
+                            int maxStack = def?.MaxStackSize ?? 64;
                             int leftOver = Context.PlayerInventory.AddItem(
                                 outputStack.ItemId, outputStack.Count, maxStack);
 
@@ -230,7 +230,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                             {
                                 // Merge into held stack
                                 ItemEntry def = ItemRegistryRef.Get(outputStack.ItemId);
-                                int maxStack = def != null ? def.MaxStackSize : 64;
+                                int maxStack = def?.MaxStackSize ?? 64;
                                 int space = maxStack - Interaction.Held.Stack.Count;
                                 int toTake = outputStack.Count < space
                                     ? outputStack.Count : space;

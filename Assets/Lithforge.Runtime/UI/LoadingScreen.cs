@@ -20,12 +20,19 @@ namespace Lithforge.Runtime.UI
     public sealed class LoadingScreen : MonoBehaviour, IScreen
     {
         private const float FadeOutDuration = 0.4f;
+
         private const int BarWidth = 400;
+
         private const int BarHeight = 20;
+
         private static readonly Color s_backgroundColor = new(0.10f, 0.06f, 0.04f, 1.0f);
+
         private static readonly Color s_progressTrackColor = new(0.20f, 0.20f, 0.20f, 1.0f);
+
         private static readonly Color s_progressFillColor = new(0.55f, 0.45f, 0.25f, 1.0f);
+
         private static readonly Color s_logoColor = new(1.0f, 0.95f, 0.80f, 1.0f);
+
         private static readonly Color s_statusColor = new(0.70f, 0.70f, 0.65f, 1.0f);
 
         private VisualElement _background;
@@ -33,9 +40,13 @@ namespace Lithforge.Runtime.UI
         private UIDocument _document;
 
         private bool _fadingOut;
+
         private Action _onFadeComplete;
+
         private VisualElement _progressFill;
+
         private Func<SpawnProgress> _progressSource;
+
         private Label _statusLabel;
 
         private void Update()
@@ -63,9 +74,29 @@ namespace Lithforge.Runtime.UI
             }
         }
 
-        public string ScreenName { get { return ScreenNames.Loading; } }
-        public bool IsInputOpaque { get { return true; } }
-        public bool RequiresCursor { get { return false; } }
+        public string ScreenName
+        {
+            get
+            {
+                return ScreenNames.Loading;
+            }
+        }
+
+        public bool IsInputOpaque
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        public bool RequiresCursor
+        {
+            get
+            {
+                return false;
+            }
+        }
 
         public void OnShow(ScreenShowArgs args)
         {

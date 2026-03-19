@@ -12,6 +12,7 @@ namespace Lithforge.Runtime.Content.Models
     public sealed class ContentModelResolver
     {
         private const int MaxParentDepth = 16;
+
         private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache = new();
 
         public ResolvedFaceTextures2D Resolve(BlockModel model)
@@ -390,7 +391,10 @@ namespace Lithforge.Runtime.Content.Models
                     break;
                 }
 
-                if (current.FirstPersonRightHand != null && current.FirstPersonRightHand.HasValue)
+                if (current.FirstPersonRightHand is
+                    {
+                        HasValue: true,
+                    })
                 {
                     return current.FirstPersonRightHand;
                 }

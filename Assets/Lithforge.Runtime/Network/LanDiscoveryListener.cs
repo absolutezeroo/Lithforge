@@ -17,35 +17,18 @@ namespace Lithforge.Runtime.Network
     {
         /// <summary>Seconds after which a server is considered gone.</summary>
         private const float ExpirySeconds = 5f;
+
         private readonly Dictionary<string, LanServerEntry> _discovered = new();
 
         private readonly ConcurrentQueue<(byte[] data, string address, DateTime time)> _receiveQueue = new();
+
         private readonly List<LanServerEntry> _resultCache = new();
+
         private volatile bool _running;
+
         private Thread _thread;
+
         private UdpClient _udpClient;
-
-        /// <summary>
-        /// Stops the listener thread without blocking. The background thread will
-        /// exit on its next loop iteration. Use this from the main thread to avoid
-        /// the 2-second <see cref="Thread.Join"/> stall that <see cref="Dispose"/>
-        /// performs. The discovered entries are cleared.
-        /// </summary>
-        public void Stop()
-        {
-            _running = false;
-
-            try
-            {
-                _udpClient?.Close();
-            }
-            catch (Exception)
-            {
-                // Ignore close errors during shutdown
-            }
-
-            _discovered.Clear();
-        }
 
         public void Dispose()
         {
@@ -62,12 +45,37 @@ namespace Lithforge.Runtime.Network
 
             _udpClient = null;
 
-            if (_thread != null && _thread.IsAlive)
+            if (_thread is
+                {
+                    IsAlive: true,
+                })
             {
                 _thread.Join(2000);
             }
 
             _thread = null;
+        }
+
+        /// <summary>
+        ///     Stops the listener thread without blocking. The background thread will
+        ///     exit on its next loop iteration. Use this from the main thread to avoid
+        ///     the 2-second <see cref="Thread.Join" /> stall that <see cref="Dispose" />
+        ///     performs. The discovered entries are cleared.
+        /// </summary>
+        public void Stop()
+        {
+            _running = false;
+
+            try
+            {
+                _udpClient?.Close();
+            }
+            catch (Exception)
+            {
+                // Ignore close errors during shutdown
+            }
+
+            _discovered.Clear();
         }
 
         /// <summary>

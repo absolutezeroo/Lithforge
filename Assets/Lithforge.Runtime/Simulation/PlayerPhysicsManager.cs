@@ -20,6 +20,7 @@ namespace Lithforge.Runtime.Simulation
         private readonly Dictionary<ushort, PlayerPhysicsBody> _bodies = new();
 
         private readonly ChunkManager _chunkManager;
+
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         public PlayerPhysicsManager(
@@ -29,8 +30,6 @@ namespace Lithforge.Runtime.Simulation
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
         }
-
-        // ── IPlayerManager implementation ──
 
         public float3 GetPosition(ushort playerId)
         {

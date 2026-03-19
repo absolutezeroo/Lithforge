@@ -19,9 +19,13 @@ namespace Lithforge.Runtime.Network
         private const int BroadcastIntervalMs = 1500;
 
         private readonly LanServerInfo _info;
+
         private readonly byte[] _packetBuffer = new byte[LanDiscoveryPacket.MaxPacketSize];
+
         private volatile bool _running;
+
         private Thread _thread;
+
         private UdpClient _udpClient;
 
         public LanBroadcaster(LanServerInfo info)
@@ -44,7 +48,10 @@ namespace Lithforge.Runtime.Network
 
             _udpClient = null;
 
-            if (_thread != null && _thread.IsAlive)
+            if (_thread is
+                {
+                    IsAlive: true,
+                })
             {
                 _thread.Join(2000);
             }

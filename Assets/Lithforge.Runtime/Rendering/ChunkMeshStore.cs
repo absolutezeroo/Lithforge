@@ -182,7 +182,13 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Whether Hi-Z occlusion culling is active (pyramid generated successfully).</summary>
         public bool IsOcclusionCullingActive
         {
-            get { return _hiZPyramid != null && _hiZPyramid.IsValid; }
+            get
+            {
+                return _hiZPyramid is
+                {
+                    IsValid: true,
+                };
+            }
         }
 
         public void Dispose()

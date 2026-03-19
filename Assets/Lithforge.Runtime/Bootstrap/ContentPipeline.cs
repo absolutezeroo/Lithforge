@@ -28,7 +28,9 @@ namespace Lithforge.Runtime.Bootstrap
     public sealed class ContentPipeline
     {
         private readonly int _atlasTileSize;
+
         private readonly ILogger _logger;
+
         private readonly ContentValidator _validator;
 
         public ContentPipeline(ILogger logger, ContentValidator validator, int atlasTileSize = 16)
@@ -452,9 +454,15 @@ namespace Lithforge.Runtime.Bootstrap
                     // blocks like oak_leaves and water that use builtInParent with no
                     // model elements (Minecraft applies their tint via BlockColors.register()
                     // in code, not via model tintIndex).
-                    if (faceData.TintNorth == 0 && faceData.TintSouth == 0 &&
-                        faceData.TintEast == 0 && faceData.TintWest == 0 &&
-                        faceData.TintUp == 0 && faceData.TintDown == 0 &&
+                    if (faceData is
+                        {
+                            TintNorth: 0,
+                            TintSouth: 0,
+                            TintEast: 0,
+                            TintWest: 0,
+                            TintUp: 0,
+                            TintDown: 0,
+                        } &&
                         block.DefaultTintType > 0)
                     {
                         byte dt = (byte)block.DefaultTintType;

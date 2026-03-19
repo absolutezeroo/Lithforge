@@ -1,6 +1,6 @@
 using Lithforge.Core.Data;
-using Lithforge.Runtime.UI.Container;
 using Lithforge.Item;
+using Lithforge.Runtime.UI.Container;
 
 namespace Lithforge.Runtime.UI.Screens
 {
@@ -31,7 +31,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
 
             ItemEntry def = itemRegistry.Get(stack.ItemId);
-            int maxStack = def != null ? def.MaxStackSize : 64;
+            int maxStack = def?.MaxStackSize ?? 64;
             int remaining = stack.Count;
 
             remaining = TryFillContainer(stack, remaining, maxStack, primaryTarget);

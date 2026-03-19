@@ -3,11 +3,8 @@ using System;
 using Lithforge.Item;
 using Lithforge.Item.Crafting;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Navigation;
-using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
 
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -15,12 +12,85 @@ using UnityEngine.UIElements;
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
-    /// Player inventory screen with 36 inventory slots (9 hotbar + 27 main),
-    /// 2x2 crafting grid, and output slot. Opened with E key.
+    ///     Player inventory screen with 36 inventory slots (9 hotbar + 27 main),
+    ///     2x2 crafting grid, and output slot. Opened with E key.
     /// </summary>
     public sealed class PlayerInventoryScreen : ContainerScreen, IScreen
     {
+        private static readonly Key[] s_numberKeys =
+        {
+            Key.Digit1,
+            Key.Digit2,
+            Key.Digit3,
+            Key.Digit4,
+            Key.Digit5,
+            Key.Digit6,
+            Key.Digit7,
+            Key.Digit8,
+            Key.Digit9,
+        };
+        private CraftingGridContainerAdapter _craftAdapter;
         private CraftingGrid _craftingGrid;
+
+        private InventoryContainerAdapter _hotbarAdapter;
+        private InventoryContainerAdapter _mainAdapter;
+        private CraftingOutputContainerAdapter _outputAdapter;
+
+        private void Update()
+        {
+            if (Context == null)
+            {
+                return;
+            }
+
+            // Toggle with E key
+            if (Keyboard.current != null &&
+                Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                // If a block entity screen is open (or was just closed this frame
+                // by its own Update running first), consume E without opening inventory
+                if (Context.ScreenManager != null &&
+                    (Context.ScreenManager.HasActiveScreen ||
+                     Context.ScreenManager.WasClosedThisFrame))
+                {
+                    if (Context.ScreenManager.HasActiveScreen)
+                    {
+                        Context.ScreenManager.CloseActive();
+                    }
+
+                    return;
+                }
+
+                if (IsOpen)
+                {
+                    Close();
+                }
+                else
+                {
+                    Open();
+                }
+            }
+
+            if (!IsOpen)
+            {
+                return;
+            }
+
+            if (IsInGracePeriod())
+            {
+                RefreshAllSlots();
+                return;
+            }
+
+            // Handle number keys 1-9 for hotbar swap
+            if (Keyboard.current != null)
+            {
+                HandleNumberKeys(Keyboard.current);
+            }
+
+            RefreshAllSlots();
+            UpdateTooltipKeyRefresh();
+        }
 
         public string ScreenName { get { return ScreenNames.PlayerInventory; } }
         public bool IsInputOpaque { get { return true; } }
@@ -51,17 +121,6 @@ namespace Lithforge.Runtime.UI.Screens
 
             return false;
         }
-
-        private InventoryContainerAdapter _hotbarAdapter;
-        private InventoryContainerAdapter _mainAdapter;
-        private CraftingGridContainerAdapter _craftAdapter;
-        private CraftingOutputContainerAdapter _outputAdapter;
-
-        private static readonly Key[] s_numberKeys =
-        {
-            Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5,
-            Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9,
-        };
 
         public void Initialize(ScreenContext context)
         {
@@ -123,8 +182,8 @@ namespace Lithforge.Runtime.UI.Screens
                 if (evt.button == 0)
                 {
                     bool isShift = Keyboard.current != null &&
-                        (Keyboard.current.leftShiftKey.isPressed ||
-                         Keyboard.current.rightShiftKey.isPressed);
+                                   (Keyboard.current.leftShiftKey.isPressed ||
+                                    Keyboard.current.rightShiftKey.isPressed);
 
                     if (isShift)
                     {
@@ -183,7 +242,7 @@ namespace Lithforge.Runtime.UI.Screens
                     if (!gridStack.IsEmpty)
                     {
                         ItemEntry def = ItemRegistryRef.Get(gridStack.ItemId);
-                        int maxStack = def != null ? def.MaxStackSize : 64;
+                        int maxStack = def?.MaxStackSize ?? 64;
 
                         if (gridStack.Durability > 0)
                         {
@@ -216,62 +275,6 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
-        private void Update()
-        {
-            if (Context == null)
-            {
-                return;
-            }
-
-            // Toggle with E key
-            if (Keyboard.current != null &&
-                Keyboard.current.eKey.wasPressedThisFrame)
-            {
-                // If a block entity screen is open (or was just closed this frame
-                // by its own Update running first), consume E without opening inventory
-                if (Context.ScreenManager != null &&
-                    (Context.ScreenManager.HasActiveScreen ||
-                     Context.ScreenManager.WasClosedThisFrame))
-                {
-                    if (Context.ScreenManager.HasActiveScreen)
-                    {
-                        Context.ScreenManager.CloseActive();
-                    }
-
-                    return;
-                }
-
-                if (IsOpen)
-                {
-                    Close();
-                }
-                else
-                {
-                    Open();
-                }
-            }
-
-            if (!IsOpen)
-            {
-                return;
-            }
-
-            if (IsInGracePeriod())
-            {
-                RefreshAllSlots();
-                return;
-            }
-
-            // Handle number keys 1-9 for hotbar swap
-            if (Keyboard.current != null)
-            {
-                HandleNumberKeys(Keyboard.current);
-            }
-
-            RefreshAllSlots();
-            UpdateTooltipKeyRefresh();
-        }
-
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;
@@ -293,6 +296,5 @@ namespace Lithforge.Runtime.UI.Screens
                 return;
             }
         }
-
     }
 }

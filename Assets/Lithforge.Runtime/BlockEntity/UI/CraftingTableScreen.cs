@@ -3,8 +3,6 @@ using Lithforge.Item.Crafting;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
-using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
 
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -32,6 +30,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
         };
 
         private CraftingGridContainerAdapter _craftAdapter;
+
         private CraftingGrid _craftingGrid;
 
         private InventoryContainerAdapter _hotbarAdapter;
@@ -208,7 +207,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                     if (!gridStack.IsEmpty)
                     {
                         ItemEntry def = ItemRegistryRef.Get(gridStack.ItemId);
-                        int maxStack = def != null ? def.MaxStackSize : 64;
+                        int maxStack = def?.MaxStackSize ?? 64;
 
                         if (gridStack.Durability > 0)
                         {

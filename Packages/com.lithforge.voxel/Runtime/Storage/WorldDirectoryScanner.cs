@@ -89,13 +89,15 @@ namespace Lithforge.Voxel.Storage
 
             Directory.CreateDirectory(worldDir);
 
-            WorldMetadata meta = new();
-            meta.DisplayName = displayName;
-            meta.Seed = seed;
-            meta.GameMode = mode;
-            meta.CreationDate = DateTime.UtcNow;
-            meta.LastPlayed = DateTime.UtcNow;
-            meta.DataVersion = 2;
+            WorldMetadata meta = new()
+            {
+                DisplayName = displayName,
+                Seed = seed,
+                GameMode = mode,
+                CreationDate = DateTime.UtcNow,
+                LastPlayed = DateTime.UtcNow,
+                DataVersion = 2,
+            };
 
             meta.Save(Path.Combine(worldDir, "world.json"));
 

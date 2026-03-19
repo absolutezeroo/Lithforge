@@ -50,10 +50,15 @@ namespace Lithforge.Network.Chunk
         };
 
         [ThreadStatic] private static byte[] s_voxelBuffer;
+
         [ThreadStatic] private static byte[] s_lightBuffer;
+
         [ThreadStatic] private static MemoryStream s_stream;
+
         [ThreadStatic] private static Compressor s_compressor;
+
         [ThreadStatic] private static Decompressor s_decompressor;
+
         [ThreadStatic] private static ushort[] s_paletteBuffer;
 
         private static Compressor GetCompressor()
@@ -106,10 +111,6 @@ namespace Lithforge.Network.Chunk
             s_lightBuffer = null;
             s_paletteBuffer = null;
         }
-
-        // ─────────────────────────────────────────────────────────────
-        //  Full Chunk Serialization
-        // ─────────────────────────────────────────────────────────────
 
         /// <summary>
         ///     Serializes a full chunk for initial network transmission.
@@ -174,7 +175,11 @@ namespace Lithforge.Network.Chunk
             }
 
             // Write light data
-            if (lightData.IsCreated && lightData.Length > 0)
+            if (lightData is
+                {
+                    IsCreated: true,
+                    Length: > 0,
+                })
             {
                 if (s_lightBuffer == null || s_lightBuffer.Length < lightData.Length)
                 {
@@ -345,10 +350,6 @@ namespace Lithforge.Network.Chunk
             return true;
         }
 
-        // ─────────────────────────────────────────────────────────────
-        //  Block Change Batch Serialization
-        // ─────────────────────────────────────────────────────────────
-
         /// <summary>
         ///     Serializes a batch of block changes for a single chunk.
         ///     Format: header(1) + chunkCoord(12) + count(u16) + entries(N * 5 bytes).
@@ -501,10 +502,6 @@ namespace Lithforge.Network.Chunk
 
             return true;
         }
-
-        // ─────────────────────────────────────────────────────────────
-        //  Helpers
-        // ─────────────────────────────────────────────────────────────
 
         private static int3 WorldToLocal(int3 worldCoord, int3 chunkCoord)
         {

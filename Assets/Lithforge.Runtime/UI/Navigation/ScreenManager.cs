@@ -75,6 +75,16 @@ namespace Lithforge.Runtime.UI.Navigation
             }
         }
 
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus)
+            {
+                // Re-apply the cursor state based on current screen stack.
+                // If no UI screen is open, this will re-lock the cursor.
+                ApplyCursorState();
+            }
+        }
+
         /// <summary>
         ///     Registers a screen by name for later push-by-name operations.
         /// </summary>
@@ -275,22 +285,15 @@ namespace Lithforge.Runtime.UI.Navigation
             return null;
         }
 
-        private void OnApplicationFocus(bool hasFocus)
-        {
-            if (hasFocus)
-            {
-                // Re-apply the cursor state based on current screen stack.
-                // If no UI screen is open, this will re-lock the cursor.
-                ApplyCursorState();
-            }
-        }
-
         private void ApplyCursorState()
         {
             // Find the topmost opaque screen that wants cursor
             IScreen topmostOpaque = FindTopmostOpaque();
 
-            if (topmostOpaque != null && topmostOpaque.RequiresCursor)
+            if (topmostOpaque is
+                {
+                    RequiresCursor: true,
+                })
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;

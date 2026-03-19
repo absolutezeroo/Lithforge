@@ -14,6 +14,7 @@ namespace Lithforge.Runtime.World
     public sealed class SavedServerList
     {
         private readonly string _filePath;
+
         private SavedServerListData _data;
 
         public SavedServerList()
@@ -117,7 +118,10 @@ namespace Lithforge.Runtime.World
                 string json = File.ReadAllText(_filePath);
                 SavedServerListData loaded = JsonUtility.FromJson<SavedServerListData>(json);
 
-                if (loaded != null && loaded.servers != null)
+                if (loaded is
+                    {
+                        servers: not null,
+                    })
                 {
                     _data = loaded;
                 }

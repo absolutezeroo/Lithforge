@@ -211,8 +211,8 @@ namespace Lithforge.WorldGen.Tests
                         int nx = testX + dx;
                         int nz = testZ + dz;
 
-                        if (nx >= 0 && nx < ChunkConstants.Size &&
-                            nz >= 0 && nz < ChunkConstants.Size)
+                        if (nx is >= 0 and < ChunkConstants.Size &&
+                            nz is >= 0 and < ChunkConstants.Size)
                         {
                             int index = ChunkData.GetIndex(nx, y, nz);
                             _lightData[index] = LightUtils.Pack(15, 0);
@@ -425,9 +425,12 @@ namespace Lithforge.WorldGen.Tests
             {
                 NativeBorderLightEntry entry = borderOutput[i];
 
-                if (entry.LocalPosition.x == 0 &&
-                    entry.LocalPosition.y == 5 &&
-                    entry.LocalPosition.z == 5)
+                if (entry.LocalPosition is
+                    {
+                        x: 0,
+                        y: 5,
+                        z: 5,
+                    })
                 {
                     foundEntry = true;
                     byte entrySun = LightUtils.GetSunLight(entry.PackedLight);

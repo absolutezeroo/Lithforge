@@ -15,7 +15,9 @@ namespace Lithforge.Network.Messages
         public const int HeaderSize = 4 + 4 + 4 + 4; // 16 bytes
 
         public int ChunkX;
+
         public int ChunkY;
+
         public int ChunkZ;
 
         /// <summary>
@@ -30,7 +32,8 @@ namespace Lithforge.Network.Messages
 
         public int GetSerializedSize()
         {
-            int payloadLen = Payload != null ? Payload.Length : 0;
+            int payloadLen = Payload?.Length ?? 0;
+
             return HeaderSize + payloadLen;
         }
 
@@ -44,7 +47,7 @@ namespace Lithforge.Network.Messages
             MessageSerializer.WriteUInt(buffer, offset, (uint)ChunkZ);
             offset += 4;
 
-            int payloadLen = Payload != null ? Payload.Length : 0;
+            int payloadLen = Payload?.Length ?? 0;
             MessageSerializer.WriteUInt(buffer, offset, (uint)payloadLen);
             offset += 4;
 

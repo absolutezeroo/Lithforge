@@ -230,9 +230,10 @@ namespace Lithforge.Voxel.Storage
 
         public void SaveMetadata(long seed, string contentHash)
         {
-            WorldMetadata meta = new();
-            meta.Seed = seed;
-            meta.ContentHash = contentHash;
+            WorldMetadata meta = new()
+            {
+                Seed = seed, ContentHash = contentHash,
+            };
             meta.Save(Path.Combine(WorldDir, "world.json"));
         }
 

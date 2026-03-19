@@ -5,24 +5,6 @@ namespace Lithforge.Voxel.Storage
 {
     public sealed class SavedItemStack
     {
-        public int Slot { get; set; }
-        public string Ns { get; set; }
-        public string Name { get; set; }
-        public int Count { get; set; }
-        public int Durability { get; set; }
-
-        /// <summary>
-        /// Typed component entries (v2 JSON format).
-        /// Each entry is a type ID + Base64-encoded binary data.
-        /// </summary>
-        public List<SavedComponentEntry> Components { get; set; }
-
-        /// <summary>
-        /// Legacy Base64-encoded CustomData. Kept for backward compat reads.
-        /// </summary>
-        [Obsolete("Use Components instead. Retained for legacy save migration.")]
-        public string CustomDataBase64 { get; set; }
-
         public SavedItemStack()
         {
             Slot = 0;
@@ -58,7 +40,7 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        /// Legacy constructor for backward compat reads.
+        ///     Legacy constructor for backward compat reads.
         /// </summary>
         [Obsolete("Use the constructor with List<SavedComponentEntry> instead.")]
         public SavedItemStack(int slot, string ns, string name, int count, int durability,
@@ -72,16 +54,40 @@ namespace Lithforge.Voxel.Storage
             Components = null;
             CustomDataBase64 = customDataBase64;
         }
+        public int Slot { get; set; }
+
+        public string Ns { get; set; }
+
+        public string Name { get; set; }
+
+        public int Count { get; set; }
+
+        public int Durability { get; set; }
 
         /// <summary>
-        /// Returns true if this stack has component data (new format) or legacy custom data.
+        ///     Typed component entries (v2 JSON format).
+        ///     Each entry is a type ID + Base64-encoded binary data.
+        /// </summary>
+        public List<SavedComponentEntry> Components { get; set; }
+
+        /// <summary>
+        ///     Legacy Base64-encoded CustomData. Kept for backward compat reads.
+        /// </summary>
+        [Obsolete("Use Components instead. Retained for legacy save migration.")]
+        public string CustomDataBase64 { get; set; }
+
+        /// <summary>
+        ///     Returns true if this stack has component data (new format) or legacy custom data.
         /// </summary>
         public bool HasData
         {
             get
             {
-                return (Components != null && Components.Count > 0)
-                    || !string.IsNullOrEmpty(CustomDataBase64);
+                return Components is
+                       {
+                           Count: > 0,
+                       }
+                       || !string.IsNullOrEmpty(CustomDataBase64);
             }
         }
     }

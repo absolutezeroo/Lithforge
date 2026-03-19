@@ -4,6 +4,7 @@ using System.Text;
 
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Session;
 using Lithforge.Runtime.Tick;
 
 using Unity.Mathematics;
@@ -23,6 +24,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
     public sealed class BenchmarkRunner : MonoBehaviour
     {
         private const float StatusDuration = 3f;
+
         private const float SummaryDisplayDuration = 15f;
 
         // Colors
@@ -36,6 +38,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         // Pre-allocated StringBuilder for summary
         private readonly StringBuilder _summaryBuilder = new(2048);
+
         private Coroutine _activeCoroutine;
 
         // Scenario selection
@@ -139,6 +142,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
             if (_menuOpen)
             {
                 HandleMenuInput(keyboard);
+
                 return;
             }
 
@@ -150,7 +154,13 @@ namespace Lithforge.Runtime.Debug.Benchmark
             // F5 to open menu
             if (keyboard.f5Key.wasPressedThisFrame)
             {
-                if (_context != null && _context.GameLoopPoco != null && _context.GameLoopPoco.SpawnReady)
+                if (_context is
+                    {
+                        GameLoopPoco:
+                        {
+                            SpawnReady: true,
+                        },
+                    })
                 {
                     OpenMenu();
                 }
@@ -230,10 +240,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
         }
 
         /// <summary>
-        /// Sets the game loop reference on the BenchmarkContext after late initialization.
-        /// Called by SessionBridgeSubsystem after creating the GameLoopPoco.
+        ///     Sets the game loop reference on the BenchmarkContext after late initialization.
+        ///     Called by SessionBridgeSubsystem after creating the GameLoopPoco.
         /// </summary>
-        public void SetGameLoopPoco(Session.GameLoopPoco gameLoopPoco)
+        public void SetGameLoopPoco(GameLoopPoco gameLoopPoco)
         {
             if (_context != null)
             {
@@ -330,7 +340,10 @@ namespace Lithforge.Runtime.Debug.Benchmark
             _menuPanel.Add(sep);
 
             // Scenario rows
-            if (_allScenarios != null && _allScenarios.Length > 0)
+            if (_allScenarios is
+                {
+                    Length: > 0,
+                })
             {
                 _scenarioLabels = new Label[_allScenarios.Length];
 

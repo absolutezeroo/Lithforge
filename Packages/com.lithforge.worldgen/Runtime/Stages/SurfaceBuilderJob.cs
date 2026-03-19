@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Biome;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -13,8 +14,7 @@ namespace Lithforge.WorldGen.Stages
     public struct SurfaceBuilderJob : IJobParallelFor
     {
         // ChunkData is aliased across multiple chained jobs via linear JobHandle dependencies.
-        [NativeDisableContainerSafetyRestriction]
-        [NativeDisableParallelForRestriction]
+        [NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction]
         public NativeArray<StateId> ChunkData;
 
         [ReadOnly] public NativeArray<int> HeightMap;
@@ -33,7 +33,7 @@ namespace Lithforge.WorldGen.Stages
 
         public void Execute(int columnIndex)
         {
-            int x = columnIndex & (ChunkConstants.Size - 1);
+            int x = columnIndex & ChunkConstants.Size - 1;
             int z = columnIndex >> 5;
 
             int chunkWorldX = ChunkCoord.x * ChunkConstants.Size;
@@ -64,14 +64,14 @@ namespace Lithforge.WorldGen.Stages
             for (int y = ChunkConstants.Size - 1; y >= 0; y--)
             {
                 int worldY = chunkWorldY + y;
-                int index = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, y, z);
+                int index = Voxel.Chunk.ChunkData.GetIndex(x, y, z);
                 StateId current = ChunkData[index];
 
                 // Frozen ocean: replace surface water with ice (patchy)
                 if (isFrozen && current.Equals(WaterId) && worldY == SeaLevel)
                 {
                     uint iceHash = HashColumn(chunkWorldX + x, chunkWorldZ + z, Seed);
-                    bool placeIce = (iceHash % 10u) < 8u;
+                    bool placeIce = iceHash % 10u < 8u;
                     if (placeIce)
                     {
                         ChunkData[index] = IceId;
@@ -86,7 +86,7 @@ namespace Lithforge.WorldGen.Stages
 
                 int depth = surfaceY - worldY;
 
-                if (depth >= 0 && depth <= 1)
+                if (depth is >= 0 and <= 1)
                 {
                     if (surfaceY >= SeaLevel)
                     {
@@ -116,7 +116,7 @@ namespace Lithforge.WorldGen.Stages
             uint h = (uint)(seed & 0xFFFFFFFF);
             h ^= (uint)x * 374761393u;
             h ^= (uint)z * 668265263u;
-            h = (h ^ (h >> 13)) * 1274126177u;
+            h = (h ^ h >> 13) * 1274126177u;
             h ^= h >> 16;
             return h;
         }

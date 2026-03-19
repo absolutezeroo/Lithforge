@@ -20,13 +20,19 @@ namespace Lithforge.Physics
         public float3 Center
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (Min + Max) * 0.5f; }
+            get
+            {
+                return (Min + Max) * 0.5f;
+            }
         }
 
         public float3 Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Max - Min; }
+            get
+            {
+                return Max - Min;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -63,14 +69,32 @@ namespace Lithforge.Physics
             float3 newMin = Min;
             float3 newMax = Max;
 
-            if (velocity.x < 0) { newMin.x += velocity.x; }
-            else { newMax.x += velocity.x; }
+            if (velocity.x < 0)
+            {
+                newMin.x += velocity.x;
+            }
+            else
+            {
+                newMax.x += velocity.x;
+            }
 
-            if (velocity.y < 0) { newMin.y += velocity.y; }
-            else { newMax.y += velocity.y; }
+            if (velocity.y < 0)
+            {
+                newMin.y += velocity.y;
+            }
+            else
+            {
+                newMax.y += velocity.y;
+            }
 
-            if (velocity.z < 0) { newMin.z += velocity.z; }
-            else { newMax.z += velocity.z; }
+            if (velocity.z < 0)
+            {
+                newMin.z += velocity.z;
+            }
+            else
+            {
+                newMax.z += velocity.z;
+            }
 
             return new Aabb(newMin, newMax);
         }

@@ -76,7 +76,11 @@ namespace Lithforge.Voxel.Storage
 
             byte[] lightSnapshot = null;
 
-            if (lightData.IsCreated && lightData.Length > 0)
+            if (lightData is
+                {
+                    IsCreated: true,
+                    Length: > 0,
+                })
             {
                 lightSnapshot = RentLightBuffer();
                 lightData.CopyTo(lightSnapshot);
@@ -85,7 +89,10 @@ namespace Lithforge.Voxel.Storage
             // Shallow-copy to avoid concurrent mutation after caller returns
             Dictionary<int, IBlockEntity> entitiesCopy = null;
 
-            if (blockEntities != null && blockEntities.Count > 0)
+            if (blockEntities is
+                {
+                    Count: > 0,
+                })
             {
                 entitiesCopy = new Dictionary<int, IBlockEntity>(blockEntities);
             }

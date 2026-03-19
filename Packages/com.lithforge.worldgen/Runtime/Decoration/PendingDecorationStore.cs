@@ -11,6 +11,7 @@ namespace Lithforge.WorldGen.Decoration
     public sealed class PendingDecorationStore
     {
         private readonly object _lock = new();
+
         private readonly Dictionary<int3, List<PendingBlock>> _pending = new();
 
         public void Add(int3 chunkCoord, PendingBlock block)
@@ -53,9 +54,9 @@ namespace Lithforge.WorldGen.Decoration
                     PendingBlock pending = blocks[i];
                     int3 pos = pending.LocalPosition;
 
-                    if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
-                        pos.y >= 0 && pos.y < ChunkConstants.Size &&
-                        pos.z >= 0 && pos.z < ChunkConstants.Size)
+                    if (pos.x is >= 0 and < ChunkConstants.Size &&
+                        pos.y is >= 0 and < ChunkConstants.Size &&
+                        pos.z is >= 0 and < ChunkConstants.Size)
                     {
                         int index = ChunkData.GetIndex(pos.x, pos.y, pos.z);
                         StateId current = chunkData[index];

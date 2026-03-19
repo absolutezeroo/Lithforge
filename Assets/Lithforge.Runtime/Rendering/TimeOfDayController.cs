@@ -161,7 +161,10 @@ namespace Lithforge.Runtime.Rendering
         private float ComputeSunFactor(float time)
         {
             // Use AnimationCurve if provided
-            if (_dayNightCurve != null && _dayNightCurve.length > 0)
+            if (_dayNightCurve is
+                {
+                    length: > 0,
+                })
             {
                 return Mathf.Clamp(_dayNightCurve.Evaluate(time), 0f, 1f);
             }

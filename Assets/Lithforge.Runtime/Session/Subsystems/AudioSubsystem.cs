@@ -20,9 +20,16 @@ namespace Lithforge.Runtime.Session.Subsystems
     public sealed class AudioSubsystem : IGameSubsystem
     {
         private BiomeAmbientPlayer _biomeAmbientPlayer;
+
         private SfxSourcePool _sfxSourcePool;
 
-        public string Name { get { return "Audio"; } }
+        public string Name
+        {
+            get
+            {
+                return "Audio";
+            }
+        }
 
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
@@ -106,7 +113,10 @@ namespace Lithforge.Runtime.Session.Subsystems
                     audioSettings.SprintFootstepDistance,
                     () => pcForAudio.OnGround,
                     () => pcForAudio.IsFlying,
-                    () => pcForAudio.PhysicsBody != null && pcForAudio.PhysicsBody.IsSprinting);
+                    () => pcForAudio.PhysicsBody is
+                    {
+                        IsSprinting: true,
+                    });
             }
 
             // Fall sound detector

@@ -125,7 +125,10 @@ namespace Lithforge.Runtime.UI.Widgets
             if (tool != null)
             {
                 string matName = "";
-                if (tool.Parts != null && tool.Parts.Length > 0)
+                if (tool.Parts is
+                    {
+                        Length: > 0,
+                    })
                 {
                     matName = FormatFullName(tool.Parts[0].MaterialId.Name) + " ";
                 }
@@ -156,7 +159,10 @@ namespace Lithforge.Runtime.UI.Widgets
                 _typeLabel.text = "Tool Part";
                 _typeLabel.style.display = DisplayStyle.Flex;
             }
-            else if (entry != null && entry.IsBlockItem)
+            else if (entry is
+                     {
+                         IsBlockItem: true,
+                     })
             {
                 _typeLabel.text = "Block";
                 _typeLabel.style.display = DisplayStyle.Flex;
@@ -351,7 +357,7 @@ namespace Lithforge.Runtime.UI.Widgets
             }
 
             int free = tool.GetAvailableSlots();
-            int total = tool.Slots != null ? tool.Slots.Length : 0;
+            int total = tool.Slots?.Length ?? 0;
 
             if (total > 0)
             {

@@ -8,7 +8,6 @@ using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.UI.Sprites;
-using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 
 using UnityEngine;
@@ -485,13 +484,16 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 ToolPartDataComponent kitComp = stack.Components?.Get<ToolPartDataComponent>(
                     DataComponentTypes.ToolPartDataId);
 
-                if (kitComp != null &&
-                    kitComp.PartData.PartType == ToolPartType.RepairKit &&
+                if (kitComp is
+                    {
+                        PartData:
+                        {
+                            PartType: ToolPartType.RepairKit,
+                        },
+                    } &&
                     kitComp.PartData.MaterialId.Equals(headMaterial))
                 {
-                    ToolMaterialData matData = Context.ToolMaterialRegistry != null
-                        ? Context.ToolMaterialRegistry.Get(headMaterial)
-                        : null;
+                    ToolMaterialData matData = Context.ToolMaterialRegistry?.Get(headMaterial);
 
                     if (matData != null)
                     {

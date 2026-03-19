@@ -4,23 +4,29 @@ using UnityEngine.Audio;
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
-    /// Wraps a Unity AudioMixer, providing linear-to-dB volume conversion
-    /// and named group lookups. The mixer must expose parameters named
-    /// "MasterVolume", "SFXVolume", "MusicVolume", "AmbientVolume".
+    ///     Wraps a Unity AudioMixer, providing linear-to-dB volume conversion
+    ///     and named group lookups. The mixer must expose parameters named
+    ///     "MasterVolume", "SFXVolume", "MusicVolume", "AmbientVolume".
     /// </summary>
     public sealed class AudioMixerController
     {
-        private readonly AudioMixer _mixer;
-
         private const string MasterVolumeParam = "MasterVolume";
+
         private const string SfxVolumeParam = "SFXVolume";
+
         private const string MusicVolumeParam = "MusicVolume";
+
         private const string AmbientVolumeParam = "AmbientVolume";
 
         public AudioMixerController(AudioMixer mixer)
         {
-            _mixer = mixer;
+            Mixer = mixer;
         }
+
+        /// <summary>
+        ///     The underlying AudioMixer, for direct access if needed.
+        /// </summary>
+        public AudioMixer Mixer { get; }
 
         public void SetMasterVolume(float linear)
         {
@@ -43,18 +49,21 @@ namespace Lithforge.Runtime.Audio
         }
 
         /// <summary>
-        /// Returns the AudioMixerGroup with the given name, or null if not found.
+        ///     Returns the AudioMixerGroup with the given name, or null if not found.
         /// </summary>
         public AudioMixerGroup GetGroup(string name)
         {
-            if (_mixer == null)
+            if (Mixer == null)
             {
                 return null;
             }
 
-            AudioMixerGroup[] groups = _mixer.FindMatchingGroups(name);
+            AudioMixerGroup[] groups = Mixer.FindMatchingGroups(name);
 
-            if (groups != null && groups.Length > 0)
+            if (groups is
+                {
+                    Length: > 0,
+                })
             {
                 return groups[0];
             }
@@ -62,17 +71,9 @@ namespace Lithforge.Runtime.Audio
             return null;
         }
 
-        /// <summary>
-        /// The underlying AudioMixer, for direct access if needed.
-        /// </summary>
-        public AudioMixer Mixer
-        {
-            get { return _mixer; }
-        }
-
         private void SetVolume(string paramName, float linear)
         {
-            if (_mixer == null)
+            if (Mixer == null)
             {
                 return;
             }
@@ -83,7 +84,7 @@ namespace Lithforge.Runtime.Audio
                 : -80f;
 
             db = Mathf.Clamp(db, -80f, 0f);
-            _mixer.SetFloat(paramName, db);
+            Mixer.SetFloat(paramName, db);
         }
     }
 }

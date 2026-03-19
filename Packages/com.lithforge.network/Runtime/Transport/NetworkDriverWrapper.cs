@@ -17,14 +17,11 @@ namespace Lithforge.Network.Transport
     /// </summary>
     public sealed class NetworkDriverWrapper : INetworkTransport
     {
+        private readonly Dictionary<int, NetworkConnection> _connectionMap = new();
         // Internal event buffer drained during Update, consumed by PollEvent
         private readonly List<BufferedEvent> _eventBuffer = new();
         private readonly ILogger _logger;
         private readonly NetworkPipeline[] _pipelines;
-
-        // Sequential connection ID allocation (Fix 2 — avoids GetHashCode collision risk)
-        private int _nextConnectionId;
-        private readonly Dictionary<int, NetworkConnection> _connectionMap = new();
         private readonly Dictionary<NetworkConnection, int> _reverseMap = new();
 
         private NativeList<NetworkConnection> _connections;
@@ -32,6 +29,9 @@ namespace Lithforge.Network.Transport
         private NetworkDriver _driver;
         private int _eventIndex;
         private bool _isServer;
+
+        // Sequential connection ID allocation (Fix 2 — avoids GetHashCode collision risk)
+        private int _nextConnectionId;
 
         public NetworkDriverWrapper(ILogger logger)
         {
@@ -359,7 +359,11 @@ namespace Lithforge.Network.Transport
             {
                 BufferedEvent evt = _eventBuffer[i];
 
-                if (evt.Pooled && evt.Data != null)
+                if (evt is
+                    {
+                        Pooled: true,
+                        Data: not null,
+                    })
                 {
                     ArrayPool<byte>.Shared.Return(evt.Data);
                 }

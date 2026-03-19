@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 
 using Lithforge.Core.Data;
+using Lithforge.Item;
+using Lithforge.Item.Loot;
 using Lithforge.Physics;
 using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
@@ -12,8 +14,6 @@ using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
-using Lithforge.Item;
-using Lithforge.Item.Loot;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Loot;
 using Lithforge.Voxel.Tag;
@@ -404,7 +404,11 @@ namespace Lithforge.Runtime.Input
                 ItemStack heldItem = Inventory.GetSelectedItem();
                 ToolInstance tool = null;
 
-                if (!heldItem.IsEmpty && heldItem.HasComponents)
+                if (heldItem is
+                    {
+                        IsEmpty: false,
+                        HasComponents: true,
+                    })
                 {
                     ToolInstanceComponent toolComp = heldItem.Components.Get<ToolInstanceComponent>(
                         DataComponentTypes.ToolInstanceId);
@@ -416,7 +420,10 @@ namespace Lithforge.Runtime.Input
                 }
 
                 // Broken tools act as bare hand
-                if (tool != null && tool.IsBroken)
+                if (tool is
+                    {
+                        IsBroken: true,
+                    })
                 {
                     tool = null;
                 }
@@ -540,8 +547,7 @@ namespace Lithforge.Runtime.Input
                             if (!slot.IsEmpty)
                             {
                                 ItemEntry itemDef = _itemRegistry.Get(slot.ItemId);
-                                int maxStack = itemDef != null
-                                    ? itemDef.MaxStackSize : _defaultMaxStackSize;
+                                int maxStack = itemDef?.MaxStackSize ?? _defaultMaxStackSize;
                                 Inventory.AddItem(slot.ItemId, slot.Count, maxStack);
                             }
                         }
@@ -562,7 +568,7 @@ namespace Lithforge.Runtime.Input
                     {
                         LootDrop drop = drops[i];
                         ItemEntry itemDef = _itemRegistry.Get(drop.ItemId);
-                        int maxStack = itemDef != null ? itemDef.MaxStackSize : _defaultMaxStackSize;
+                        int maxStack = itemDef?.MaxStackSize ?? _defaultMaxStackSize;
 
                         Inventory.AddItem(drop.ItemId, drop.Count, maxStack);
                     }
@@ -572,7 +578,11 @@ namespace Lithforge.Runtime.Input
             // Consume durability of held tool
             ItemStack heldItem = Inventory.GetSelectedItem();
 
-            if (!heldItem.IsEmpty && heldItem.HasComponents)
+            if (heldItem is
+                {
+                    IsEmpty: false,
+                    HasComponents: true,
+                })
             {
                 // Modular tool: consume durability from ToolInstance
                 ToolInstanceComponent toolComp = heldItem.Components.Get<ToolInstanceComponent>(

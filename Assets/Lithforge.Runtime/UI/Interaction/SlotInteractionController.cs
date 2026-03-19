@@ -5,7 +5,6 @@ using Lithforge.Item;
 using Lithforge.Item.Crafting;
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.UI.Container;
-using Lithforge.Voxel.Crafting;
 using Lithforge.Voxel.Item;
 
 using UnityEngine;
@@ -25,19 +24,25 @@ namespace Lithforge.Runtime.UI.Interaction
     public sealed class SlotInteractionController
     {
         private readonly ItemRegistry _itemRegistry;
+
         private readonly HashSet<long> _paintedSlots = new();
+
         private readonly ToolMaterialRegistry _toolMaterialRegistry;
+
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
 
-        // Hover tracking
-
-        // Paint mode state
         private bool _isPainting;
+
         private DataComponentMap _paintComponents;
+
         private int _paintDurability;
+
         private ResourceId _paintItemId;
+
         private ISlotContainer _paintOriginContainer;
+
         private int _paintOriginSlot;
+
         private bool _paintPending;
 
         public SlotInteractionController(
@@ -58,14 +63,11 @@ namespace Lithforge.Runtime.UI.Interaction
 
         public ISlotContainer HoveredContainer { get; private set; }
 
-        // ────────────────────────────────────────────────────────────────────
-        // Hover tracking
-        // ────────────────────────────────────────────────────────────────────
-
         public void OnSlotEnter(ISlotContainer container, int slotIndex)
         {
             HoveredContainer = container;
             HoveredSlotIndex = slotIndex;
+
             HandlePaintHover(container, slotIndex);
         }
 
@@ -77,10 +79,6 @@ namespace Lithforge.Runtime.UI.Interaction
                 HoveredSlotIndex = -1;
             }
         }
-
-        // ────────────────────────────────────────────────────────────────────
-        // Left-click
-        // ────────────────────────────────────────────────────────────────────
 
         public void LeftClick(ISlotContainer container, int slotIndex)
         {
@@ -101,12 +99,14 @@ namespace Lithforge.Runtime.UI.Interaction
             {
                 // Pick up entire stack
                 Held.Set(slotItem);
+
                 container.SetSlot(slotIndex, ItemStack.Empty);
             }
             else if (slotItem.IsEmpty)
             {
                 // Place entire held stack
                 container.SetSlot(slotIndex, Held.Stack);
+
                 Held.Clear();
             }
             else if (ItemStack.CanStack(Held.Stack, slotItem))
@@ -118,6 +118,7 @@ namespace Lithforge.Runtime.UI.Interaction
                 {
                     // Slot full, swap
                     container.SetSlot(slotIndex, Held.Stack);
+
                     Held.Set(slotItem);
                 }
                 else
@@ -125,10 +126,12 @@ namespace Lithforge.Runtime.UI.Interaction
                     int toMove = Mathf.Min(Held.Stack.Count, space);
                     ItemStack newSlot = slotItem;
                     newSlot.Count += toMove;
+
                     container.SetSlot(slotIndex, newSlot);
 
                     ItemStack newHeld = Held.Stack;
                     newHeld.Count -= toMove;
+
                     Held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
                 }
             }
@@ -136,15 +139,12 @@ namespace Lithforge.Runtime.UI.Interaction
             {
                 // Swap different items
                 container.SetSlot(slotIndex, Held.Stack);
+
                 Held.Set(slotItem);
             }
 
             container.OnSlotChanged(slotIndex);
         }
-
-        // ────────────────────────────────────────────────────────────────────
-        // Right-click
-        // ────────────────────────────────────────────────────────────────────
 
         public void RightClick(ISlotContainer container, int slotIndex)
         {
@@ -162,7 +162,13 @@ namespace Lithforge.Runtime.UI.Interaction
                 ToolPartDataComponent kitComp = Held.Stack.Components?.Get<ToolPartDataComponent>(
                     DataComponentTypes.ToolPartDataId);
 
-                if (kitComp != null && kitComp.PartData.PartType == ToolPartType.RepairKit)
+                if (kitComp is
+                    {
+                        PartData:
+                        {
+                            PartType: ToolPartType.RepairKit,
+                        },
+                    })
                 {
                     ToolInstanceComponent toolComp = slotItem.Components?.Get<ToolInstanceComponent>(
                         DataComponentTypes.ToolInstanceId);
@@ -191,6 +197,7 @@ namespace Lithforge.Runtime.UI.Interaction
                             Held.Set(newHeld.IsEmpty ? ItemStack.Empty : newHeld);
 
                             container.OnSlotChanged(slotIndex);
+
                             return;
                         }
                     }
@@ -250,14 +257,10 @@ namespace Lithforge.Runtime.UI.Interaction
                     StartPaint(container, slotIndex);
                 }
             }
-            // Right click on different item = nothing (Minecraft behavior)
 
+            // Right click on different item = nothing
             container.OnSlotChanged(slotIndex);
         }
-
-        // ────────────────────────────────────────────────────────────────────
-        // Shift+click quick transfer
-        // ────────────────────────────────────────────────────────────────────
 
         /// <summary>
         ///     Quick-transfers a slot between hotbar and main inventory adapters.
@@ -307,10 +310,6 @@ namespace Lithforge.Runtime.UI.Interaction
             source.OnSlotChanged(slotIndex);
         }
 
-        // ────────────────────────────────────────────────────────────────────
-        // Number key swap
-        // ────────────────────────────────────────────────────────────────────
-
         /// <summary>
         ///     Swaps the hovered inventory slot with the given hotbar slot index.
         /// </summary>
@@ -339,10 +338,6 @@ namespace Lithforge.Runtime.UI.Interaction
             hotbarAdapter.OnSlotChanged(hotbarSlot);
             hoveredContainer.OnSlotChanged(hoveredIndex);
         }
-
-        // ────────────────────────────────────────────────────────────────────
-        // Output take (craft result)
-        // ────────────────────────────────────────────────────────────────────
 
         /// <summary>
         ///     Takes the crafting output. Adds result to held stack.
@@ -400,16 +395,14 @@ namespace Lithforge.Runtime.UI.Interaction
 
                 RecipeEntry match = output.CurrentMatch;
                 ItemEntry resultDef = _itemRegistry.Get(match.ResultItem);
-                int maxStack = resultDef != null ? resultDef.MaxStackSize : 64;
+                int maxStack = resultDef?.MaxStackSize ?? 64;
 
-                byte[] toolData = _toolTemplateRegistry != null
-                    ? _toolTemplateRegistry.GetTemplate(match.ResultItem)
-                    : null;
+                byte[] toolData = _toolTemplateRegistry?.GetTemplate(match.ResultItem);
 
                 if (toolData != null)
                 {
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(toolData);
-                    int durability = tool != null ? tool.MaxDurability : -1;
+                    int durability = tool?.MaxDurability ?? -1;
                     ItemStack resultStack = new(match.ResultItem, 1, durability);
                     DataComponentMap toolMap = new();
                     toolMap.Set(DataComponentTypes.ToolInstanceId,
@@ -436,10 +429,6 @@ namespace Lithforge.Runtime.UI.Interaction
             }
         }
 
-        // ────────────────────────────────────────────────────────────────────
-        // Paint mode
-        // ────────────────────────────────────────────────────────────────────
-
         public void OnPointerUp(int button)
         {
             if (button == 1)
@@ -462,7 +451,7 @@ namespace Lithforge.Runtime.UI.Interaction
 
             ItemStack heldStack = Held.Stack;
             ItemEntry def = _itemRegistry.Get(heldStack.ItemId);
-            int maxStack = def != null ? def.MaxStackSize : 64;
+            int maxStack = def?.MaxStackSize ?? 64;
 
             if (heldStack.HasComponents)
             {
@@ -502,10 +491,6 @@ namespace Lithforge.Runtime.UI.Interaction
             HoveredContainer = null;
             HoveredSlotIndex = -1;
         }
-
-        // ────────────────────────────────────────────────────────────────────
-        // Private helpers
-        // ────────────────────────────────────────────────────────────────────
 
         private void StartPaint(ISlotContainer container, int slotIndex)
         {
@@ -604,7 +589,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             ItemEntry def = _itemRegistry.Get(stack.ItemId);
-            return def != null ? def.MaxStackSize : 64;
+            return def?.MaxStackSize ?? 64;
         }
 
         private int TransferToContainer(ItemStack source, ISlotContainer target, int maxStack)

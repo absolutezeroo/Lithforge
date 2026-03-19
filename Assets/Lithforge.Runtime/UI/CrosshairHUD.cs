@@ -14,14 +14,36 @@ namespace Lithforge.Runtime.UI
     public sealed class CrosshairHUD : MonoBehaviour, IScreen
     {
         private const int CrosshairSize = 20;
+
         private const int CrosshairThickness = 2;
+
         private const int CrosshairGap = 3;
 
         private UIDocument _document;
 
-        public string ScreenName { get { return ScreenNames.Crosshair; } }
-        public bool IsInputOpaque { get { return false; } }
-        public bool RequiresCursor { get { return false; } }
+        public string ScreenName
+        {
+            get
+            {
+                return ScreenNames.Crosshair;
+            }
+        }
+
+        public bool IsInputOpaque
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public bool RequiresCursor
+        {
+            get
+            {
+                return false;
+            }
+        }
 
         public void OnShow(ScreenShowArgs args)
         {

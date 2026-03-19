@@ -67,8 +67,10 @@ namespace Lithforge.Runtime.Session
             {
                 // All modes: SpawnReady is set on the physics body
                 // by the GameReady handler in ClientChunkHandlerSubsystem
-                return _config.PlayerPhysicsBody != null
-                    && _config.PlayerPhysicsBody.SpawnReady;
+                return _config.PlayerPhysicsBody is
+                {
+                    SpawnReady: true,
+                };
             }
         }
 
@@ -112,7 +114,6 @@ namespace Lithforge.Runtime.Session
 
             profiler.Begin(FrameProfilerSections.UpdateTotal);
 
-            // ── Poll server-side generation completions ──
             if (_config.ServerLoop != null)
             {
                 profiler.Begin(FrameProfilerSections.PollGen);
@@ -120,7 +121,6 @@ namespace Lithforge.Runtime.Session
                 profiler.End(FrameProfilerSections.PollGen);
             }
 
-            // ── Pump network client (always present in SP/Host/Client) ──
             if (_config.NetworkClient != null)
             {
                 _config.NetworkClient.Update(Time.realtimeSinceStartup);
@@ -135,13 +135,11 @@ namespace Lithforge.Runtime.Session
                 }
             }
 
-            // ── Tick server game loop (SP + Host) ──
             if (_config.ServerGameLoop != null)
             {
                 _config.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
             }
 
-            // ── Fixed tick accumulator (skipped when fully paused) ──
             if (_config.WorldSimulation != null && _gameState != GameState.PausedFull)
             {
                 profiler.Begin(FrameProfilerSections.TickLoop);
@@ -169,13 +167,11 @@ namespace Lithforge.Runtime.Session
                 profiler.End(FrameProfilerSections.TickLoop);
             }
 
-            // ── Tick remote player timeouts ──
             if (_config.RemotePlayerManager != null)
             {
                 _config.RemotePlayerManager.Tick(Time.deltaTime);
             }
 
-            // ── Async pipeline poll (rendering-side schedulers) ──
             Profiler.BeginSample("GL.PollRelight");
             _config.RelightScheduler?.PollCompleted();
             Profiler.EndSample();
@@ -196,7 +192,6 @@ namespace Lithforge.Runtime.Session
             profiler.End(FrameProfilerSections.PollLOD);
             Profiler.EndSample();
 
-            // ── Frustum + load/unload ──
             int3 cameraChunkCoord = GetCameraChunkCoord();
 
             if (_gameState != GameState.PausedFull)
@@ -255,7 +250,6 @@ namespace Lithforge.Runtime.Session
                 Profiler.EndSample();
             }
 
-            // ── Schedule jobs ──
             if (_gameState != GameState.PausedFull)
             {
                 // Server-side generation scheduling (SP + Host)

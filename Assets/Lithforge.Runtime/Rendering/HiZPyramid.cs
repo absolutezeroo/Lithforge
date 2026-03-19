@@ -20,12 +20,19 @@ namespace Lithforge.Runtime.Rendering
     public sealed class HiZPyramid : IDisposable
     {
         private static readonly int s_depthSourceId = Shader.PropertyToID("_DepthSource");
+
         private static readonly int s_hiZMip0Id = Shader.PropertyToID("_HiZMip0");
+
         private static readonly int s_hiZPrevMipId = Shader.PropertyToID("_HiZPrevMip");
+
         private static readonly int s_hiZNextMipId = Shader.PropertyToID("_HiZNextMip");
+
         private static readonly int s_copySizeId = Shader.PropertyToID("_CopySize");
+
         private static readonly int s_downsampleSizeId = Shader.PropertyToID("_DownsampleSize");
+
         private readonly int _copyKernel;
+
         private readonly int _downsampleKernel;
 
         private readonly ComputeShader _hiZShader;
@@ -55,7 +62,13 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         public RenderTexture Mip0Texture
         {
-            get { return _mipTextures != null && _mipTextures.Length > 0 ? _mipTextures[0] : null; }
+            get
+            {
+                return _mipTextures is
+                {
+                    Length: > 0,
+                } ? _mipTextures[0] : null;
+            }
         }
 
         public int Width { get; private set; }

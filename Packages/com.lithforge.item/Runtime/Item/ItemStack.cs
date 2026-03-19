@@ -5,8 +5,8 @@ using Lithforge.Core.Data;
 namespace Lithforge.Item
 {
     /// <summary>
-    /// Represents a stack of items in an inventory slot.
-    /// Value type — default is empty (count 0).
+    ///     Represents a stack of items in an inventory slot.
+    ///     Value type — default is empty (count 0).
     /// </summary>
     public struct ItemStack : IEquatable<ItemStack>
     {
@@ -20,7 +20,13 @@ namespace Lithforge.Item
 
         public bool HasComponents
         {
-            get { return Components != null && !Components.IsEmpty; }
+            get
+            {
+                return Components is
+                {
+                    IsEmpty: false,
+                };
+            }
         }
 
         public static readonly ItemStack Empty = default;
@@ -47,8 +53,8 @@ namespace Lithforge.Item
         }
 
         /// <summary>
-        /// Returns true when two stacks can be merged (same item, neither has components).
-        /// This is the ONLY authority on stacking decisions.
+        ///     Returns true when two stacks can be merged (same item, neither has components).
+        ///     This is the ONLY authority on stacking decisions.
         /// </summary>
         public static bool CanStack(ItemStack a, ItemStack b)
         {
@@ -96,8 +102,8 @@ namespace Lithforge.Item
         public override int GetHashCode()
         {
             int hash = ItemId.GetHashCode();
-            hash = (hash * 397) ^ Count;
-            hash = (hash * 397) ^ Durability;
+            hash = hash * 397 ^ Count;
+            hash = hash * 397 ^ Durability;
             return hash;
         }
 

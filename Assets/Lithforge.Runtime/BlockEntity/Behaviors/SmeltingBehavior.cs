@@ -4,7 +4,6 @@ using System.IO;
 using Lithforge.Item;
 using Lithforge.Item.Crafting;
 using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.BlockEntity.Behaviors
 {
@@ -76,7 +75,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             // Check if output slot can accept the result
             ItemStack outputSlot = _inventory.GetSlot(OutputSlotIndex);
             ItemEntry resultItem = _itemRegistry.Get(recipe.ResultItem);
-            int maxStack = resultItem != null ? resultItem.MaxStackSize : 64;
+            int maxStack = resultItem?.MaxStackSize ?? 64;
 
             if (!outputSlot.IsEmpty)
             {

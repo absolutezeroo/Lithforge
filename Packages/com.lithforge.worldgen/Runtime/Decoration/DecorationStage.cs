@@ -10,8 +10,11 @@ namespace Lithforge.WorldGen.Decoration
     public sealed class DecorationStage
     {
         private readonly StateId _airId;
+
         private readonly NativeArray<NativeBiomeData> _biomeData;
+
         private readonly int _seaLevel;
+
         private readonly TreeBlock[][] _treeTemplates;
 
         public DecorationStage(
@@ -127,9 +130,9 @@ namespace Lithforge.WorldGen.Decoration
                 int localY = baseY + block.Offset.y;
                 int localZ = baseZ + block.Offset.z;
 
-                if (localX >= 0 && localX < ChunkConstants.Size &&
-                    localY >= 0 && localY < ChunkConstants.Size &&
-                    localZ >= 0 && localZ < ChunkConstants.Size)
+                if (localX is >= 0 and < ChunkConstants.Size &&
+                    localY is >= 0 and < ChunkConstants.Size &&
+                    localZ is >= 0 and < ChunkConstants.Size)
                 {
                     int index = ChunkData.GetIndex(localX, localY, localZ);
                     StateId current = chunkData[index];

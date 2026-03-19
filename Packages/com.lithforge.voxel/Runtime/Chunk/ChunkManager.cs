@@ -703,7 +703,14 @@ namespace Lithforge.Voxel.Chunk
             int3 chunkCoord = WorldToChunk(worldCoord);
             ManagedChunk chunk = GetChunk(chunkCoord);
 
-            return chunk != null && chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated;
+            return chunk is
+            {
+                State: >= ChunkState.RelightPending,
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
         }
 
         /// <summary>
@@ -796,7 +803,10 @@ namespace Lithforge.Voxel.Chunk
                 {
                     ManagedChunk neighbor = chunk.Neighbors[face];
 
-                    if (neighbor != null && neighbor.State == ChunkState.Meshing)
+                    if (neighbor is
+                        {
+                            State: ChunkState.Meshing,
+                        })
                     {
                         neighbor.ActiveJobHandle.Complete();
                     }
@@ -1167,10 +1177,12 @@ namespace Lithforge.Voxel.Chunk
             NativeArray<StateId> data = _pool.Checkout();
             NativeArray<StateId>.Copy(voxelData, data);
 
-            ManagedChunk chunk = new(coord, data);
-            // Owner: ManagedChunk. Disposed by ChunkManager.UnloadChunk or UnloadDistantChunks.
-            chunk.LightData = new NativeArray<byte>(
-                ChunkConstants.Volume, Allocator.Persistent);
+            ManagedChunk chunk = new(coord, data)
+            {
+                // Owner: ManagedChunk. Disposed by ChunkManager.UnloadChunk or UnloadDistantChunks.
+                LightData = new NativeArray<byte>(
+                    ChunkConstants.Volume, Allocator.Persistent),
+            };
             NativeArray<byte>.Copy(lightData, chunk.LightData);
 
             _chunks[coord] = chunk;

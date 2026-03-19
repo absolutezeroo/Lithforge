@@ -362,10 +362,15 @@ namespace Lithforge.Runtime.Scheduling
 
                 ManagedChunk neighbor = sourceChunk.Neighbors[f];
 
-                if (neighbor != null &&
-                    neighbor.State >= ChunkState.RelightPending &&
-                    neighbor.LightData.IsCreated &&
-                    neighbor.RenderedLODLevel >= 0)
+                if (neighbor is
+                    {
+                        State: >= ChunkState.RelightPending,
+                        LightData:
+                        {
+                            IsCreated: true,
+                        },
+                        RenderedLODLevel: >= 0,
+                    })
                 {
                     _chunkManager.MarkNeedsLightUpdate(neighbor.Coord);
                 }
@@ -603,7 +608,10 @@ namespace Lithforge.Runtime.Scheduling
                         chunk.ActiveJobHandle = default;
 
                         // Attach loaded block entities to the chunk
-                        if (loadedEntities != null && loadedEntities.Count > 0)
+                        if (loadedEntities is
+                            {
+                                Count: > 0,
+                            })
                         {
                             Dictionary<int, IBlockEntity> chunkEntities =
                                 chunk.GetOrCreateBlockEntities();

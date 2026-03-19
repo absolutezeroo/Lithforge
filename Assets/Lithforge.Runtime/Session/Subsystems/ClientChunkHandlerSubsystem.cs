@@ -15,11 +15,14 @@ using Lithforge.Voxel.Chunk;
 
 using Unity.Mathematics;
 
+using UnityEngine;
+
 namespace Lithforge.Runtime.Session.Subsystems
 {
     public sealed class ClientChunkHandlerSubsystem : IGameSubsystem
     {
         private ClientChunkHandler _handler;
+
         private ClientReadinessTracker _readinessTracker;
 
         public string Name
@@ -30,7 +33,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        public IReadOnlyList<Type> Dependencies { get; } = new Type[]
+        public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(NetworkClientSubsystem),
             typeof(ChunkManagerSubsystem),
@@ -65,22 +68,26 @@ namespace Lithforge.Runtime.Session.Subsystems
             {
                 ManagedChunk chunk = chunkManager.GetChunk(coord);
 
-                return chunk != null && chunk.State >= ChunkState.Generated;
-            });
-
-            // When all required chunks are available, send ClientReady to server
-            _readinessTracker.OnReadinessAchieved = () =>
-            {
-                ClientReadyMessage readyMsg = new()
+                return chunk is
                 {
-                    ReadyRadius = (byte)chunkSettings.ClientReadyRadius,
+                    State: >= ChunkState.Generated,
                 };
-                client.Send(readyMsg, PipelineId.ReliableSequenced);
+            })
+            {
+                // When all required chunks are available, send ClientReady to server
+                OnReadinessAchieved = () =>
+                {
+                    ClientReadyMessage readyMsg = new()
+                    {
+                        ReadyRadius = (byte)chunkSettings.ClientReadyRadius,
+                    };
+                    client.Send(readyMsg, PipelineId.ReliableSequenced);
+                },
             };
 
             // Register SpawnInit handler: server sends spawn position + ready radius
             // before streaming chunks, so the tracker can configure its required volume.
-            client.Dispatcher.RegisterHandler(MessageType.SpawnInit, (ConnectionId connId, byte[] data, int offset, int length) =>
+            client.Dispatcher.RegisterHandler(MessageType.SpawnInit, (connId, data, offset, length) =>
             {
                 SpawnInitMessage spawnInit = SpawnInitMessage.Deserialize(data, offset, length);
                 int3 spawnChunk = new(
@@ -105,7 +112,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                     // Teleport player to server-assigned spawn position
                     if (player != null)
                     {
-                        UnityEngine.Vector3 spawnPos = new(msg.SpawnX, msg.SpawnY, msg.SpawnZ);
+                        Vector3 spawnPos = new(msg.SpawnX, msg.SpawnY, msg.SpawnZ);
                         player.Transform.position = spawnPos;
 
                         if (player.PhysicsBody != null)
@@ -158,9 +165,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
                 return new SpawnProgress
                 {
-                    Phase = snapshot.IsComplete ? SpawnState.Done : SpawnState.Checking,
-                    ReadyChunks = snapshot.ReadyChunks,
-                    TotalChunks = snapshot.TotalChunks,
+                    Phase = snapshot.IsComplete ? SpawnState.Done : SpawnState.Checking, ReadyChunks = snapshot.ReadyChunks, TotalChunks = snapshot.TotalChunks,
                 };
             }, onFadeComplete);
         }

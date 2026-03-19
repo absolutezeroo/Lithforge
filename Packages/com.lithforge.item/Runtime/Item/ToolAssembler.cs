@@ -101,15 +101,17 @@ namespace Lithforge.Voxel.Item
                 maxDurability = 1;
             }
 
-            ToolInstance tool = new();
-            tool.ToolType = toolType;
-            tool.Parts = parts;
-            tool.Slots = new ModifierSlot[ToolInstance.MaxModifierSlots];
-            tool.CurrentDurability = maxDurability;
-            tool.MaxDurability = maxDurability;
-            tool.BaseSpeed = baseSpeed * speedMultiplier;
-            tool.BaseDamage = baseDamage;
-            tool.EffectiveToolLevel = toolLevel;
+            ToolInstance tool = new()
+            {
+                ToolType = toolType,
+                Parts = parts,
+                Slots = new ModifierSlot[ToolInstance.MaxModifierSlots],
+                CurrentDurability = maxDurability,
+                MaxDurability = maxDurability,
+                BaseSpeed = baseSpeed * speedMultiplier,
+                BaseDamage = baseDamage,
+                EffectiveToolLevel = toolLevel,
+            };
 
             return tool;
         }

@@ -13,6 +13,7 @@ namespace Lithforge.Voxel.Tag
         private static readonly ResourceId[] s_emptySet = System.Array.Empty<ResourceId>();
 
         private readonly Dictionary<ResourceId, HashSet<ResourceId>> _tagToMembers = new();
+
         private readonly Dictionary<ResourceId, HashSet<ResourceId>> _memberToTags = new();
 
         /// <summary>
@@ -96,7 +97,10 @@ namespace Lithforge.Voxel.Tag
         /// </summary>
         public int TagCount
         {
-            get { return _tagToMembers.Count; }
+            get
+            {
+                return _tagToMembers.Count;
+            }
         }
     }
 }

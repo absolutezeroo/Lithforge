@@ -52,7 +52,7 @@ namespace Lithforge.Network.Server
 
         public int PeerCount
         {
-            get { return _peerRegistry != null ? _peerRegistry.Count : 0; }
+            get { return _peerRegistry?.Count ?? 0; }
         }
 
         public ContentHash ServerContentHash { get; }
@@ -208,7 +208,7 @@ namespace Lithforge.Network.Server
         public ushort GetPlayerId(ConnectionId connectionId)
         {
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
-            return peer != null ? peer.AssignedPlayerId : (ushort)0;
+            return peer?.AssignedPlayerId ?? 0;
         }
 
         public void Shutdown()

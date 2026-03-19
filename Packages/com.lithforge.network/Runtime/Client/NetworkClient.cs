@@ -48,7 +48,7 @@ namespace Lithforge.Network.Client
         {
             get
             {
-                return _stateMachine != null ? _stateMachine.Current : ConnectionState.Disconnected;
+                return _stateMachine?.Current ?? ConnectionState.Disconnected;
             }
         }
 

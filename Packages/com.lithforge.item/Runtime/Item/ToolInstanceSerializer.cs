@@ -65,8 +65,10 @@ namespace Lithforge.Voxel.Item
             using (BinaryReader r = new(ms))
             {
                 ushort ver = r.ReadUInt16();
-                ToolInstance tool = new();
-                tool.ToolType = (ToolType)r.ReadByte();
+                ToolInstance tool = new()
+                {
+                    ToolType = (ToolType)r.ReadByte(),
+                };
                 int partCount = r.ReadByte();
                 tool.Parts = new ToolPart[partCount];
                 for (int i = 0; i < partCount; i++)

@@ -11,9 +11,11 @@ namespace Lithforge.Item
     public sealed class Inventory
     {
         public const int SlotCount = 36;
+
         public const int HotbarSize = 9;
 
         private readonly ItemStack[] _slots = new ItemStack[SlotCount];
+
         private int _selectedSlot;
 
         /// <summary>
@@ -31,7 +33,7 @@ namespace Lithforge.Item
             get { return _selectedSlot; }
             set
             {
-                if (value >= 0 && value < HotbarSize)
+                if (value is >= 0 and < HotbarSize)
                 {
                     _selectedSlot = value;
                 }
@@ -70,7 +72,7 @@ namespace Lithforge.Item
         /// </summary>
         public void SetSlot(int index, ItemStack stack)
         {
-            if (index >= 0 && index < SlotCount)
+            if (index is >= 0 and < SlotCount)
             {
                 _slots[index] = stack;
                 IncrementStateId();

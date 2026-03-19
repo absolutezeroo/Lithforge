@@ -713,29 +713,29 @@ namespace Lithforge.Meshing
                 return 0;
             }
 
-            if (x >= 0 && x < ChunkConstants.Size && z >= 0 && z < ChunkConstants.Size)
+            if (x is >= 0 and < ChunkConstants.Size && z is >= 0 and < ChunkConstants.Size)
             {
                 return LiquidData[y * ChunkConstants.SizeSquared + z * ChunkConstants.Size + x];
             }
 
             // Out of bounds on X
-            if (x < 0 && z >= 0 && z < ChunkConstants.Size)
+            if (x < 0 && z is >= 0 and < ChunkConstants.Size)
             {
                 return LiquidNeighborNegX[y * ChunkConstants.Size + z];
             }
 
-            if (x >= ChunkConstants.Size && z >= 0 && z < ChunkConstants.Size)
+            if (x >= ChunkConstants.Size && z is >= 0 and < ChunkConstants.Size)
             {
                 return LiquidNeighborPosX[y * ChunkConstants.Size + z];
             }
 
             // Out of bounds on Z
-            if (z < 0 && x >= 0 && x < ChunkConstants.Size)
+            if (z < 0 && x is >= 0 and < ChunkConstants.Size)
             {
                 return LiquidNeighborNegZ[y * ChunkConstants.Size + x];
             }
 
-            if (z >= ChunkConstants.Size && x >= 0 && x < ChunkConstants.Size)
+            if (z >= ChunkConstants.Size && x is >= 0 and < ChunkConstants.Size)
             {
                 return LiquidNeighborPosZ[y * ChunkConstants.Size + x];
             }
@@ -1066,9 +1066,9 @@ namespace Lithforge.Meshing
         private StateId SampleBlock(int3 pos)
         {
             // Inside chunk bounds
-            if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
-                pos.y >= 0 && pos.y < ChunkConstants.Size &&
-                pos.z >= 0 && pos.z < ChunkConstants.Size)
+            if (pos.x is >= 0 and < ChunkConstants.Size &&
+                pos.y is >= 0 and < ChunkConstants.Size &&
+                pos.z is >= 0 and < ChunkConstants.Size)
             {
                 return ChunkData[Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
             }
@@ -1143,9 +1143,9 @@ namespace Lithforge.Meshing
                 return 240;
             }
 
-            if (pos.x >= 0 && pos.x < ChunkConstants.Size &&
-                pos.y >= 0 && pos.y < ChunkConstants.Size &&
-                pos.z >= 0 && pos.z < ChunkConstants.Size)
+            if (pos.x is >= 0 and < ChunkConstants.Size &&
+                pos.y is >= 0 and < ChunkConstants.Size &&
+                pos.z is >= 0 and < ChunkConstants.Size)
             {
                 return LightData[Voxel.Chunk.ChunkData.GetIndex(pos.x, pos.y, pos.z)];
             }

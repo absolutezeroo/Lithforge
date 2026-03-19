@@ -192,7 +192,10 @@ namespace Lithforge.Runtime.World
                         : new ItemStack(itemId, saved.Count);
 
                     // New format: typed components
-                    if (saved.Components != null && saved.Components.Count > 0)
+                    if (saved.Components is
+                        {
+                            Count: > 0,
+                        })
                     {
                         DataComponentMap map = new();
 

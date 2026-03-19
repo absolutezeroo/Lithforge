@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 
+using Lithforge.Item;
 using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Interaction;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Runtime.UI.Widgets;
-using Lithforge.Item;
 
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -27,16 +27,16 @@ namespace Lithforge.Runtime.UI.Screens
         // Slot widgets organized by container name + index
         private readonly List<SlotWidgetBinding> _allBindings = new();
         private DragGhostWidget _dragGhost;
-
-        private VisualTreeAsset _screenTemplate;
-        private TooltipWidget _tooltip;
-        private int _openGraceFrames;
+        private bool _lastTooltipCtrl;
 
         // Tooltip key-change refresh state
         private bool _lastTooltipShift;
-        private bool _lastTooltipCtrl;
         private float _lastTooltipX;
         private float _lastTooltipY;
+        private int _openGraceFrames;
+
+        private VisualTreeAsset _screenTemplate;
+        private TooltipWidget _tooltip;
 
         protected UIDocument Document { get; private set; }
 
@@ -57,21 +57,6 @@ namespace Lithforge.Runtime.UI.Screens
         protected ScreenContext Context { get; private set; }
 
         public bool IsOpen { get; private set; }
-
-        /// <summary>
-        ///     Decrements grace frame counter. Call at the start of subclass Update().
-        ///     Returns true if inputs should be ignored this frame.
-        /// </summary>
-        protected bool IsInGracePeriod()
-        {
-            if (_openGraceFrames > 0)
-            {
-                _openGraceFrames--;
-                return true;
-            }
-
-            return false;
-        }
 
         public void Close()
         {
@@ -103,6 +88,21 @@ namespace Lithforge.Runtime.UI.Screens
                 Document.rootVisualElement.style.display =
                     visible ? DisplayStyle.Flex : DisplayStyle.None;
             }
+        }
+
+        /// <summary>
+        ///     Decrements grace frame counter. Call at the start of subclass Update().
+        ///     Returns true if inputs should be ignored this frame.
+        /// </summary>
+        protected bool IsInGracePeriod()
+        {
+            if (_openGraceFrames > 0)
+            {
+                _openGraceFrames--;
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -273,7 +273,10 @@ namespace Lithforge.Runtime.UI.Screens
                     // Pointer down (guarded by grace period)
                     widget.RegisterCallback<PointerDownEvent>(evt =>
                     {
-                        if (_openGraceFrames > 0) return;
+                        if (_openGraceFrames > 0)
+                        {
+                            return;
+                        }
                         OnSlotPointerDown(capturedContainer, capturedIndex, evt);
                     });
 
@@ -314,7 +317,10 @@ namespace Lithforge.Runtime.UI.Screens
 
             widget.RegisterCallback<PointerDownEvent>(evt =>
             {
-                if (_openGraceFrames > 0) return;
+                if (_openGraceFrames > 0)
+                {
+                    return;
+                }
                 OnSlotPointerDown(capturedContainer, capturedIndex, evt);
             });
 
@@ -348,8 +354,7 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         protected void RefreshAllSlots()
         {
-            ToolPartTextureDatabase toolTexDb = Context != null
-                ? Context.ToolPartTextures : null;
+            ToolPartTextureDatabase toolTexDb = Context?.ToolPartTextures;
 
             for (int i = 0; i < _allBindings.Count; i++)
             {
@@ -395,8 +400,7 @@ namespace Lithforge.Runtime.UI.Screens
                 if (!stack.IsEmpty && ItemRegistryRef != null)
                 {
                     ItemEntry entry = ItemRegistryRef.Get(stack.ItemId);
-                    ToolMaterialRegistry matReg = Context != null
-                        ? Context.ToolMaterialRegistry : null;
+                    ToolMaterialRegistry matReg = Context?.ToolMaterialRegistry;
                     _tooltip.Show(stack, entry, _lastTooltipX, _lastTooltipY,
                         shift, ctrl, matReg);
                 }
@@ -455,8 +459,7 @@ namespace Lithforge.Runtime.UI.Screens
                     _lastTooltipCtrl = isCtrl;
 
                     ItemEntry entry = ItemRegistryRef.Get(stack.ItemId);
-                    ToolMaterialRegistry matReg = Context != null
-                        ? Context.ToolMaterialRegistry : null;
+                    ToolMaterialRegistry matReg = Context?.ToolMaterialRegistry;
                     _tooltip.Show(stack, entry, evt.position.x, evt.position.y,
                         isShift, isCtrl, matReg);
                 }
@@ -474,15 +477,15 @@ namespace Lithforge.Runtime.UI.Screens
         private static bool IsShiftHeld()
         {
             return Keyboard.current != null &&
-                (Keyboard.current.leftShiftKey.isPressed ||
-                 Keyboard.current.rightShiftKey.isPressed);
+                   (Keyboard.current.leftShiftKey.isPressed ||
+                    Keyboard.current.rightShiftKey.isPressed);
         }
 
         private static bool IsCtrlHeld()
         {
             return Keyboard.current != null &&
-                (Keyboard.current.leftCtrlKey.isPressed ||
-                 Keyboard.current.rightCtrlKey.isPressed);
+                   (Keyboard.current.leftCtrlKey.isPressed ||
+                    Keyboard.current.rightCtrlKey.isPressed);
         }
 
         /// <summary>

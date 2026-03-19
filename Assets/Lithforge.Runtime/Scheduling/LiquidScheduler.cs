@@ -24,18 +24,29 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class LiquidScheduler : IDisposable
     {
         private readonly List<ManagedChunk> _candidateCache;
+
         private readonly ChunkManager _chunkManager;
+
         private readonly List<int3> _dirtiedChunksCache;
+
         private readonly Dictionary<int3, JobHandle> _evenHandles;
+
         private readonly HashSet<int3> _forceCompleteCache;
+
         private readonly List<int> _fullScanCache;
+
         private readonly HashSet<int3> _inFlightCoords;
 
         private readonly List<PendingLiquidJob> _inFlightJobs;
+
         private readonly LiquidPool _liquidPool;
+
         private readonly NativeStateRegistry _nativeStateRegistry;
+
         private readonly LiquidJobConfig _waterConfig;
+
         private bool _applyingLiquidResults;
+
         private bool _disposed;
 
         private MeshScheduler _meshScheduler;
@@ -693,7 +704,12 @@ namespace Lithforge.Runtime.Scheduling
 
                 int3 targetChunkCoord = pending.ChunkCoord + edit.ChunkOffset;
 
-                if (edit.ChunkOffset.x == 0 && edit.ChunkOffset.y == 0 && edit.ChunkOffset.z == 0)
+                if (edit.ChunkOffset is
+                    {
+                        x: 0,
+                        y: 0,
+                        z: 0,
+                    })
                 {
                     // Same chunk: already written to LiquidData by the job.
                     // Just update the block StateId.
@@ -873,7 +889,13 @@ namespace Lithforge.Runtime.Scheduling
         {
             ManagedChunk neighbor = _chunkManager.TryGetChunk(neighborCoord);
 
-            if (neighbor != null && neighbor.LiquidData.IsCreated)
+            if (neighbor is
+                {
+                    LiquidData:
+                    {
+                        IsCreated: true,
+                    },
+                })
             {
                 neighbor.LiquidActiveSet = null;
             }
@@ -904,7 +926,13 @@ namespace Lithforge.Runtime.Scheduling
             // Return liquid data to pool
             ManagedChunk chunk = _chunkManager.TryGetChunk(coord);
 
-            if (chunk != null && chunk.LiquidData.IsCreated)
+            if (chunk is
+                {
+                    LiquidData:
+                    {
+                        IsCreated: true,
+                    },
+                })
             {
                 _liquidPool.Return(chunk.LiquidData);
                 chunk.LiquidData = default;

@@ -51,10 +51,10 @@ namespace Lithforge.Network.Server
         /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
         private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
         private readonly Dictionary<ushort, int> _playerIdToIndex = new();
-        private readonly ClientReadinessWaiter _readinessWaiter;
 
         // Cached collections (fill pattern, reused every tick)
         private readonly List<PeerInfo> _playingPeersCache = new();
+        private readonly ClientReadinessWaiter _readinessWaiter;
 
         private readonly INetworkServer _server;
         private readonly NetworkServer _serverImpl;
@@ -215,8 +215,6 @@ namespace Lithforge.Network.Server
             CurrentTick++;
         }
 
-        // ── Phase 2: Process player inputs ──
-
         private void ProcessPlayerInputs()
         {
             for (int i = 0; i < _playingPeersCache.Count; i++)
@@ -334,8 +332,6 @@ namespace Lithforge.Network.Server
 
             interest.PendingPlaceCommands.Clear();
         }
-
-        // ── Phase 5: Broadcast updates ──
 
         private void BroadcastPlayerStates()
         {
@@ -505,7 +501,6 @@ namespace Lithforge.Network.Server
                 }
             }
 
-            // ── Host-local presence tracking ──
             // The host has all chunks loaded locally, so all playing peers are visible.
             if (OnHostSpawnPlayer != null || OnHostDespawnPlayer != null)
             {
@@ -759,8 +754,6 @@ namespace Lithforge.Network.Server
             OnPlayerCountChanged?.Invoke(CountPlayingPeers());
         }
 
-        // ── Message handlers ──
-
         private void OnClientReady(ConnectionId connId, byte[] data, int offset, int length)
         {
             PeerInfo peer = _serverImpl.GetPeer(connId);
@@ -871,8 +864,6 @@ namespace Lithforge.Network.Server
             peer.InterestState.PendingStartDiggingCommands.Add(cmd);
         }
 
-        // ── Player lifecycle ──
-
         private void OnPeerAcceptedInternal(PeerInfo peer)
         {
             int spawnX = 0;
@@ -911,10 +902,7 @@ namespace Lithforge.Network.Server
             // (DirectTransport for SP/Host delivers it in the same frame).
             SpawnInitMessage spawnInit = new()
             {
-                SpawnX = spawnPosition.x,
-                SpawnY = spawnPosition.y,
-                SpawnZ = spawnPosition.z,
-                ClientReadyRadius = (byte)math.min(_streamingManager.ReadyRadius, byte.MaxValue),
+                SpawnX = spawnPosition.x, SpawnY = spawnPosition.y, SpawnZ = spawnPosition.z, ClientReadyRadius = (byte)math.min(_streamingManager.ReadyRadius, byte.MaxValue),
             };
 
             _server.SendTo(peer.ConnectionId, spawnInit, PipelineId.ReliableSequenced);
@@ -969,8 +957,6 @@ namespace Lithforge.Network.Server
 
             OnPlayerCountChanged?.Invoke(CountPlayingPeers());
         }
-
-        // ── Spatial index (O(N) build, O(27*K) query) ──
 
         /// <summary>
         ///     Populates the spatial hash from <see cref="_playingPeersCache" />.
@@ -1071,8 +1057,6 @@ namespace Lithforge.Network.Server
 
             return (a - b + 1) / b;
         }
-
-        // ── Helpers ──
 
         private int CountPlayingPeers()
         {

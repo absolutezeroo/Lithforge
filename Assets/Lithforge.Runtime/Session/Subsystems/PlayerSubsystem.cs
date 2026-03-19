@@ -176,16 +176,14 @@ namespace Lithforge.Runtime.Session.Subsystems
                     StartingItemEntry entry = startingItems[i];
                     ResourceId itemId = new(entry.itemNamespace, entry.itemName);
                     ItemEntry itemDef = context.Content.ItemRegistry.Get(itemId);
-                    int maxStack = itemDef != null
-                        ? itemDef.MaxStackSize
-                        : physics.DefaultMaxStackSize;
+                    int maxStack = itemDef?.MaxStackSize ?? physics.DefaultMaxStackSize;
 
                     byte[] toolData = context.Content.ToolTemplateRegistry.GetTemplate(itemId);
 
                     if (toolData != null)
                     {
                         ToolInstance toolTemplate = ToolInstanceSerializer.Deserialize(toolData);
-                        int durability = toolTemplate != null ? toolTemplate.MaxDurability : -1;
+                        int durability = toolTemplate?.MaxDurability ?? -1;
                         ItemStack toolStack = new(itemId, 1, durability);
                         DataComponentMap toolMap = new();
                         toolMap.Set(DataComponentTypes.ToolInstanceId,
@@ -257,8 +255,10 @@ namespace Lithforge.Runtime.Session.Subsystems
             // Register everything
             PlayerTransformHolder holder = new(
                 playerObject.transform, mainCamera, playerController,
-                playerInventory, physicsBody, hasRestoredState, restoredTimeOfDay);
-            holder.Renderer = playerRenderer;
+                playerInventory, physicsBody, hasRestoredState, restoredTimeOfDay)
+            {
+                Renderer = playerRenderer,
+            };
 
             context.Register(holder);
             context.Register(playerInventory);

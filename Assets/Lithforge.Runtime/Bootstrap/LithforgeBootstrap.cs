@@ -39,8 +39,11 @@ namespace Lithforge.Runtime.Bootstrap
         private ComputeShader bufferCopyShader;
 
         private AppContext _appContext;
+
         private SessionConfig _pendingSession;
+
         private SavedServerList _savedServerList;
+
         private ScreenManager _screenManager;
 
         private void Awake()
@@ -59,12 +62,11 @@ namespace Lithforge.Runtime.Bootstrap
 
             _appContext = new AppContext(
                 settings, logger, frameProfiler, pipelineStats,
-                userPreferences, _screenManager, _savedServerList, this);
+                userPreferences, _screenManager, _savedServerList, this)
+            {
+                VoxelMaterial = voxelMaterial, FrustumCullShader = frustumCullShader, HiZGenerateShader = hiZGenerateShader, BufferCopyShader = bufferCopyShader,
+            };
 
-            _appContext.VoxelMaterial = voxelMaterial;
-            _appContext.FrustumCullShader = frustumCullShader;
-            _appContext.HiZGenerateShader = hiZGenerateShader;
-            _appContext.BufferCopyShader = bufferCopyShader;
         }
 
         private IEnumerator Start()

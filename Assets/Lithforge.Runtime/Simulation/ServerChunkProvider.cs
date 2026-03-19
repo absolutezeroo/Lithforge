@@ -29,7 +29,10 @@ namespace Lithforge.Runtime.Simulation
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-            return chunk != null && chunk.State == ChunkState.Ready;
+            return chunk is
+            {
+                State: ChunkState.Ready,
+            };
         }
 
         public byte[] SerializeChunk(int3 coord)
@@ -67,14 +70,25 @@ namespace Lithforge.Runtime.Simulation
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-            return chunk != null && chunk.State >= ChunkState.Generated && chunk.Data.IsCreated;
+            return chunk is
+            {
+                State: >= ChunkState.Generated,
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
         }
 
         public bool IsChunkAllAir(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-            return chunk != null && chunk.State >= ChunkState.Generated && chunk.IsAllAir;
+            return chunk is
+            {
+                State: >= ChunkState.Generated,
+                IsAllAir: true,
+            };
         }
     }
 }

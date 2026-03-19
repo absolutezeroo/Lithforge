@@ -23,10 +23,12 @@ namespace Lithforge.Runtime.Scheduling
     public sealed class MeshScheduler
     {
         private readonly ChunkManager _chunkManager;
+
         private readonly ChunkMeshStore _chunkMeshStore;
 
         /// <summary>Wall-clock millisecond budget for completion polling each frame.</summary>
         private readonly float _completionBudgetMs;
+
         private readonly ChunkCulling _culling;
 
         /// <summary>
@@ -34,7 +36,9 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: MeshScheduler. Lifetime: application.
         /// </summary>
         private readonly List<ManagedChunk> _meshCandidateCache = new();
+
         private readonly NativeAtlasLookup _nativeAtlasLookup;
+
         private readonly NativeStateRegistry _nativeStateRegistry;
 
         /// <summary>
@@ -42,8 +46,10 @@ namespace Lithforge.Runtime.Scheduling
         ///     at most 2 per frame to spread out the disposal cost.
         /// </summary>
         private readonly List<PendingMesh> _pendingDisposals = new();
+
         /// <summary>Mesh jobs currently running on worker threads.</summary>
         private readonly List<PendingMesh> _pendingMeshes = new();
+
         private readonly IPipelineStats _pipelineStats;
 
         /// <summary>
@@ -59,7 +65,9 @@ namespace Lithforge.Runtime.Scheduling
         ///     Owner: MeshScheduler. Lifetime: application. Allocator: Persistent.
         /// </summary>
         private NativeArray<byte> _dummyLiquid;
+
         private int _maxMeshCompletionsPerFrame;
+
         private int _maxMeshesPerFrame;
 
         /// <summary>
@@ -372,7 +380,6 @@ namespace Lithforge.Runtime.Scheduling
             Profiler.BeginSample("MS.ScheduleJobs");
             long freq = Stopwatch.Frequency;
 
-            // ── Fill candidates ──
             long t0 = Stopwatch.GetTimestamp();
             int candidateCount = applyFilters ? slotsAvailable * 2 : slotsAvailable;
             _chunkManager.FillChunksToMesh(
@@ -380,7 +387,6 @@ namespace Lithforge.Runtime.Scheduling
             long t1 = Stopwatch.GetTimestamp();
             _pipelineStats.SchedMeshFillMs = (float)((t1 - t0) * 1000.0 / freq);
 
-            // ── Filter + sort ──
             if (applyFilters)
             {
                 // Remove non-LOD0 chunks (LOD chunks are handled by LODScheduler)
@@ -417,7 +423,6 @@ namespace Lithforge.Runtime.Scheduling
                 ? _meshCandidateCache.Count
                 : slotsAvailable;
 
-            // ── Alloc + Schedule loop ──
             float allocAccum = 0f;
             float schedAccum = 0f;
 
@@ -521,7 +526,6 @@ namespace Lithforge.Runtime.Scheduling
             _pipelineStats.SchedMeshAllocMs = allocAccum;
             _pipelineStats.SchedMeshScheduleMs = schedAccum;
 
-            // ── Flush ──
             long tf0 = Stopwatch.GetTimestamp();
 
             if (scheduleCount > 0)
@@ -668,24 +672,60 @@ namespace Lithforge.Runtime.Scheduling
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-            ManagedChunk nPX = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[0] : null);
-            ManagedChunk nNX = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[1] : null);
-            ManagedChunk nPY = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[2] : null);
-            ManagedChunk nNY = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[3] : null);
-            ManagedChunk nPZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[4] : null);
-            ManagedChunk nNZ = ValidateMeshableNeighbor(chunk != null ? chunk.Neighbors[5] : null);
+            ManagedChunk nPX = ValidateMeshableNeighbor(chunk?.Neighbors[0]);
+            ManagedChunk nNX = ValidateMeshableNeighbor(chunk?.Neighbors[1]);
+            ManagedChunk nPY = ValidateMeshableNeighbor(chunk?.Neighbors[2]);
+            ManagedChunk nNY = ValidateMeshableNeighbor(chunk?.Neighbors[3]);
+            ManagedChunk nPZ = ValidateMeshableNeighbor(chunk?.Neighbors[4]);
+            ManagedChunk nNZ = ValidateMeshableNeighbor(chunk?.Neighbors[5]);
 
             // Secondary guard: re-verify Data.IsCreated right before capturing
             // the NativeArray struct. ExtractLiquidBorderSlabs (called before this
             // method) may trigger work-stealing via LiquidJobHandle.Complete() that
             // indirectly invalidates a neighbor's NativeArray between the
             // ValidateMeshableNeighbor check and job scheduling.
-            bool hasPX = nPX != null && nPX.Data.IsCreated;
-            bool hasNX = nNX != null && nNX.Data.IsCreated;
-            bool hasPY = nPY != null && nPY.Data.IsCreated;
-            bool hasNY = nNY != null && nNY.Data.IsCreated;
-            bool hasPZ = nPZ != null && nPZ.Data.IsCreated;
-            bool hasNZ = nNZ != null && nNZ.Data.IsCreated;
+            bool hasPX = nPX is
+            {
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
+            bool hasNX = nNX is
+            {
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
+            bool hasPY = nPY is
+            {
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
+            bool hasNY = nNY is
+            {
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
+            bool hasPZ = nPZ is
+            {
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
+            bool hasNZ = nNZ is
+            {
+                Data:
+                {
+                    IsCreated: true,
+                },
+            };
 
             NativeArray<StateId> pxData = hasPX ? nPX.Data : _dummyBorder;
             NativeArray<StateId> nxData = hasNX ? nNX.Data : _dummyBorder;

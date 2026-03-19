@@ -16,6 +16,7 @@ namespace Lithforge.Voxel.Storage
     public static class ChunkSerializer
     {
         private const byte Version = 3;
+
         private static readonly byte[] s_magic =
         {
             (byte)'L',
@@ -25,7 +26,9 @@ namespace Lithforge.Voxel.Storage
         };
 
         [ThreadStatic] private static byte[] s_voxelBuffer;
+
         [ThreadStatic] private static byte[] s_lightBuffer;
+
         [ThreadStatic] private static MemoryStream s_stream;
 
         public static byte[] Serialize(
@@ -88,7 +91,11 @@ namespace Lithforge.Voxel.Storage
             writer.Write(voxelCompressed);
 
             // Compress light data with LZ4
-            if (lightData.IsCreated && lightData.Length > 0)
+            if (lightData is
+                {
+                    IsCreated: true,
+                    Length: > 0,
+                })
             {
                 if (s_lightBuffer == null || s_lightBuffer.Length < lightData.Length)
                 {
@@ -188,7 +195,10 @@ namespace Lithforge.Voxel.Storage
             writer.Write(voxelCompressed);
 
             // Compress light data with LZ4
-            if (lightSnapshot != null && lightSnapshot.Length > 0)
+            if (lightSnapshot is
+                {
+                    Length: > 0,
+                })
             {
                 byte[] lightCompressed = LZ4Pickler.Pickle(lightSnapshot);
                 writer.Write(lightCompressed.Length);
@@ -217,7 +227,10 @@ namespace Lithforge.Voxel.Storage
 
         private static void WriteBlockEntities(BinaryWriter writer, Dictionary<int, IBlockEntity> blockEntities)
         {
-            if (blockEntities != null && blockEntities.Count > 0)
+            if (blockEntities is
+                {
+                    Count: > 0,
+                })
             {
                 writer.Write(blockEntities.Count);
 

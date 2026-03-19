@@ -1,6 +1,6 @@
-using Lithforge.Runtime.Content.Tools;
-using Lithforge.Item.Crafting;
 using Lithforge.Item;
+using Lithforge.Item.Crafting;
+using Lithforge.Runtime.Content.Tools;
 using Lithforge.Voxel.Item;
 
 namespace Lithforge.Runtime.UI.Container
@@ -13,7 +13,9 @@ namespace Lithforge.Runtime.UI.Container
     public sealed class CraftingOutputContainerAdapter : ISlotContainer
     {
         private readonly ItemRegistry _itemRegistry;
+
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
+
         private ItemStack _displayStack;
 
         public CraftingOutputContainerAdapter(ItemRegistry itemRegistry, ToolTemplateRegistry toolTemplateRegistry)
@@ -59,14 +61,12 @@ namespace Lithforge.Runtime.UI.Container
 
             if (match != null)
             {
-                byte[] toolData = _toolTemplateRegistry != null
-                    ? _toolTemplateRegistry.GetTemplate(match.ResultItem)
-                    : null;
+                byte[] toolData = _toolTemplateRegistry?.GetTemplate(match.ResultItem);
 
                 if (toolData != null)
                 {
                     ToolInstance tool = ToolInstanceSerializer.Deserialize(toolData);
-                    int durability = tool != null ? tool.MaxDurability : -1;
+                    int durability = tool?.MaxDurability ?? -1;
                     _displayStack = new ItemStack(match.ResultItem, match.ResultCount, durability);
                     DataComponentMap toolMap = new();
                     toolMap.Set(DataComponentTypes.ToolInstanceId,

@@ -8,7 +8,6 @@ using Lithforge.Runtime.UI.Container;
 using Lithforge.Runtime.UI.Layout;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Crafting;
-using Lithforge.Voxel.Item;
 
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -35,6 +34,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit8,
             Key.Digit9,
         };
+
         private readonly List<PartBuilderRecipe> _availableRecipes = new();
 
         private readonly List<Button> _patternButtons = new();
@@ -59,15 +59,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
         private BlockEntityContainerAdapter _patternAdapter;
 
-        // UI elements
         private VisualElement _patternButtonContainer;
 
-        // Material resolution (TiC-style)
         private MaterialInputData _resolvedInput;
 
         private ToolMaterialData _resolvedMaterial;
 
-        // Pattern selection state
         private int _selectedPatternIndex = -1;
 
         private PartBuilderRecipe _selectedRecipe;
@@ -358,7 +355,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             // Consume pattern (unless tagged "pattern_reusable")
             ItemEntry patternDef = ItemRegistryRef.Get(patternStack.ItemId);
-            bool isReusable = patternDef != null && patternDef.Tags != null &&
+            bool isReusable = patternDef is
+                              {
+                                  Tags: not null,
+                              } &&
                               patternDef.Tags.Contains("pattern_reusable");
 
             if (!isReusable)
@@ -412,7 +412,10 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
 
             ItemEntry patternDef = ItemRegistryRef.Get(patternStack.ItemId);
-            bool hasPatternTag = patternDef != null && patternDef.Tags != null &&
+            bool hasPatternTag = patternDef is
+                                 {
+                                     Tags: not null,
+                                 } &&
                                  patternDef.Tags.Contains("pattern");
 
             if (!hasPatternTag)
@@ -450,9 +453,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (!materialStack.IsEmpty)
             {
-                _resolvedInput = Context.MaterialInputRegistry != null
-                    ? Context.MaterialInputRegistry.Get(materialStack.ItemId)
-                    : null;
+                _resolvedInput = Context.MaterialInputRegistry?.Get(materialStack.ItemId);
 
                 if (_resolvedInput != null && Context.ToolMaterialRegistry != null)
                 {

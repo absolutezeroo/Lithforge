@@ -16,15 +16,23 @@ namespace Lithforge.Runtime.Spawn
     public sealed class SpawnManager
     {
         private readonly ChunkManager _chunkManager;
+
         private readonly int _fallbackY;
+
         private readonly NativeStateRegistry _nativeStateRegistry;
+
         private readonly Transform _playerTransform;
 
         private readonly int3 _spawnChunkCoord;
+
         private readonly int _spawnRadius;
+
         private readonly int _yMax;
+
         private readonly int _yMin;
+
         private SpawnProgress _progress;
+
         private bool _skipSpawnSearch;
 
         public SpawnManager(
@@ -65,7 +73,10 @@ namespace Lithforge.Runtime.Spawn
         /// </summary>
         public bool IsComplete
         {
-            get { return _progress.Phase == SpawnState.Done; }
+            get
+            {
+                return _progress.Phase == SpawnState.Done;
+            }
         }
 
         /// <summary>
@@ -129,7 +140,10 @@ namespace Lithforge.Runtime.Spawn
                             _spawnChunkCoord.z + z);
                         ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-                        if (chunk != null && chunk.State == ChunkState.Ready)
+                        if (chunk is
+                            {
+                                State: ChunkState.Ready,
+                            })
                         {
                             readyCount++;
                         }
