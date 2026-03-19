@@ -71,6 +71,15 @@ namespace Lithforge.Network.Bridge
         /// <summary>If the server thread throws, the exception is stored here for main thread to rethrow.</summary>
         public volatile Exception FaultException;
 
+        /// <summary>
+        /// Latest player chunk positions written by the server thread each tick,
+        /// read by the main thread each frame for chunk loading and LOD decisions.
+        /// The volatile keyword ensures the main thread sees the latest reference.
+        /// Reading a slightly stale snapshot is acceptable because chunk loading
+        /// is eventually consistent.
+        /// </summary>
+        private volatile PlayerChunkSnapshot _playerChunkSnapshot = PlayerChunkSnapshot.Empty;
+
         /// <summary>Time of day (0-1) written by main thread, read by server thread. Stored as raw int bits for atomic access.</summary>
         private int _cachedTimeOfDayBits;
 
@@ -87,6 +96,18 @@ namespace Lithforge.Network.Bridge
                 int bits = BitConverter.SingleToInt32Bits(value);
                 Volatile.Write(ref _cachedTimeOfDayBits, bits);
             }
+        }
+
+        /// <summary>Gets the latest player chunk snapshot written by the server thread.</summary>
+        public PlayerChunkSnapshot GetPlayerChunkSnapshot()
+        {
+            return _playerChunkSnapshot;
+        }
+
+        /// <summary>Replaces the player chunk snapshot. Called from the server thread each tick.</summary>
+        public void SetPlayerChunkSnapshot(PlayerChunkSnapshot snapshot)
+        {
+            _playerChunkSnapshot = snapshot;
         }
 
         /// <summary>Disposes all semaphores.</summary>

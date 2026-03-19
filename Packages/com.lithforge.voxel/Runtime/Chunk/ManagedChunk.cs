@@ -159,6 +159,23 @@ namespace Lithforge.Voxel.Chunk
         public bool IsAllAir { get; set; }
 
         /// <summary>
+        /// Number of players whose interest region covers this chunk.
+        /// Incremented by ChunkManager.AdjustRefCounts when a player enters range,
+        /// decremented when a player leaves range (triggering grace period).
+        /// A chunk with RefCount greater than 0 is never unloaded.
+        /// Owner: ChunkManager. Read-only for all other code.
+        /// </summary>
+        public int RefCount { get; set; }
+
+        /// <summary>
+        /// Real-time seconds at which this chunk becomes eligible for unloading
+        /// after its last interested player moved away. Set by ChunkManager.AdjustRefCounts
+        /// when RefCount drops to zero. Only meaningful when RefCount == 0.
+        /// Owner: ChunkManager. Read-only for all other code.
+        /// </summary>
+        public double GracePeriodExpiry { get; set; }
+
+        /// <summary>
         /// Sparse per-block entity storage, keyed by flat voxel index.
         /// Null until a block entity is first placed or loaded in this chunk.
         /// Owner: ManagedChunk. Populated by BlockEntityTickScheduler on placement

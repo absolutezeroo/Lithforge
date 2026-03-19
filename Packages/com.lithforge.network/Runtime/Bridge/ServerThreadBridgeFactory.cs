@@ -73,7 +73,8 @@ namespace Lithforge.Network.Bridge
 
             ServerGameLoop serverGameLoop = new(
                 bridgedServer, bridgedSimulation, bridgedBlockProcessor, chunkProvider,
-                bridgedDirtyTracker, streamingManager, networkStrategy, readinessWaiter, logger);
+                bridgedDirtyTracker, streamingManager, networkStrategy, readinessWaiter,
+                bridge, logger);
 
             MainThreadBridgePump pump = new(
                 bridge,

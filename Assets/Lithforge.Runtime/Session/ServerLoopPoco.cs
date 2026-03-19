@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+
+using Lithforge.Network.Bridge;
 
 using Unity.Mathematics;
 
@@ -55,16 +58,26 @@ namespace Lithforge.Runtime.Session
         {
             _unloadedCoords.Clear();
 
-            int3 center = _config.GetServerChunkCenter();
+            PlayerChunkSnapshot snapshot = _config.GetPlayerChunkSnapshot();
+            double realtime = _config.GetCurrentRealtime();
             float3 lookAhead = _config.GetServerLookAhead();
 
+            ReadOnlySpan<int3> playerCoords = snapshot.Count > 0
+                ? new ReadOnlySpan<int3>(snapshot.Coords, 0, snapshot.Count)
+                : ReadOnlySpan<int3>.Empty;
+
             Profiler.BeginSample("SL.LoadQueue");
-            _config.ChunkManager.UpdateLoadingQueue(center, lookAhead);
+            _config.ChunkManager.UpdateLoadingQueue(playerCoords, lookAhead);
+            Profiler.EndSample();
+
+            Profiler.BeginSample("SL.RefCounts");
+            _config.ChunkManager.AdjustRefCounts(
+                playerCoords, realtime, _config.GracePeriodSeconds);
             Profiler.EndSample();
 
             Profiler.BeginSample("SL.Unload");
             _config.ChunkManager.UnloadDistantChunks(
-                center, _unloadedCoords,
+                playerCoords, _unloadedCoords, realtime,
                 _config.WorldStorage, _config.UnloadBudgetMs);
             Profiler.EndSample();
         }

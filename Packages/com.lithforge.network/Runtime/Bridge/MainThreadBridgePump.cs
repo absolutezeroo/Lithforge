@@ -51,6 +51,12 @@ namespace Lithforge.Network.Bridge
             _timeOfDayProvider = timeOfDayProvider;
         }
 
+        /// <summary>Returns the latest player chunk snapshot written by the server thread.</summary>
+        public PlayerChunkSnapshot GetPlayerChunkSnapshot()
+        {
+            return _bridge.GetPlayerChunkSnapshot();
+        }
+
         /// <summary>
         ///     Enqueues an action to be executed on the main thread during the next Tick().
         ///     Thread-safe: can be called from the server thread.

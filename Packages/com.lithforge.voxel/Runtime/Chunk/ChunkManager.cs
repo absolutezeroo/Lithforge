@@ -103,8 +103,11 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>Whether this ChunkManager has been disposed.</summary>
         private bool _disposed;
 
-        /// <summary>Last camera chunk coordinate passed to UpdateLoadingQueue.</summary>
-        private int3 _lastCameraChunkCoord = new(int.MinValue, int.MinValue, int.MinValue);
+        /// <summary>Last per-player chunk coordinates used for rebuild-threshold tracking.</summary>
+        private readonly List<int3> _lastPlayerChunkCoords = new();
+
+        /// <summary>Deduplication set for the union load queue rebuild. Cleared after each use.</summary>
+        private readonly HashSet<int3> _loadQueueSet = new();
 
         /// <summary>
         ///     Cursor index into _loadQueue. Advanced instead of RemoveRange(0, count).
@@ -368,54 +371,87 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        ///     Rebuilds the loading queue with chunks sorted by forward-weighted distance
-        ///     from the camera. Only rebuilds if the camera moved far enough or the queue is empty.
+        ///     Rebuilds the loading queue as the union of all player interest regions,
+        ///     sorted by minimum forward-weighted distance to any player origin.
+        ///     Only rebuilds if any origin moved far enough or the queue is empty.
         /// </summary>
-        public void UpdateLoadingQueue(int3 cameraChunkCoord, float3 cameraForward)
+        public void UpdateLoadingQueue(ReadOnlySpan<int3> playerChunkCoords, float3 cameraForward)
         {
-            int3 diff = cameraChunkCoord - _lastCameraChunkCoord;
-            int movedDist = math.max(math.abs(diff.x), math.max(math.abs(diff.y), math.abs(diff.z)));
-
-            // Only rebuild if camera moved far enough OR the queue is empty.
-            // Prevents constant queue thrashing in fly mode.
-            bool queueHasWork = _loadQueue.Count - _loadQueueIndex > 0;
-            if (queueHasWork && movedDist < 2)
+            if (playerChunkCoords.Length == 0)
             {
                 return;
             }
 
-            _lastCameraChunkCoord = cameraChunkCoord;
+            // Detect if any player moved >= 2 chunks since last rebuild
+            bool anyMoved = playerChunkCoords.Length != _lastPlayerChunkCoords.Count;
+
+            if (!anyMoved)
+            {
+                for (int p = 0; p < playerChunkCoords.Length; p++)
+                {
+                    int3 diff = playerChunkCoords[p] - _lastPlayerChunkCoords[p];
+                    int moved = math.max(math.abs(diff.x), math.max(math.abs(diff.y), math.abs(diff.z)));
+
+                    if (moved >= 2)
+                    {
+                        anyMoved = true;
+                        break;
+                    }
+                }
+            }
+
+            bool queueHasWork = _loadQueue.Count - _loadQueueIndex > 0;
+
+            if (queueHasWork && !anyMoved)
+            {
+                return;
+            }
+
+            // Sync last-known positions
+            _lastPlayerChunkCoords.Clear();
+
+            for (int p = 0; p < playerChunkCoords.Length; p++)
+            {
+                _lastPlayerChunkCoords.Add(playerChunkCoords[p]);
+            }
+
             _loadQueue.Clear();
             _loadQueueIndex = 0;
 
-            // Spiral order from center
-            for (int d = 0; d <= RenderDistance; d++)
+            // Union of all player interest regions, deduplicated
+            for (int p = 0; p < playerChunkCoords.Length; p++)
             {
-                for (int x = -d; x <= d; x++)
+                int3 origin = playerChunkCoords[p];
+
+                for (int d = 0; d <= RenderDistance; d++)
                 {
-                    for (int z = -d; z <= d; z++)
+                    for (int x = -d; x <= d; x++)
                     {
-                        if (math.abs(x) != d && math.abs(z) != d)
+                        for (int z = -d; z <= d; z++)
                         {
-                            continue;
-                        }
-
-                        for (int y = _yLoadMin; y <= _yLoadMax; y++)
-                        {
-                            int3 coord = cameraChunkCoord + new int3(x, y, z);
-
-                            if (!_chunks.ContainsKey(coord))
+                            if (math.abs(x) != d && math.abs(z) != d)
                             {
-                                _loadQueue.Add(coord);
+                                continue;
+                            }
+
+                            for (int y = _yLoadMin; y <= _yLoadMax; y++)
+                            {
+                                int3 coord = origin + new int3(x, y, z);
+
+                                if (!_chunks.ContainsKey(coord) && _loadQueueSet.Add(coord))
+                                {
+                                    _loadQueue.Add(coord);
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Schwartzian transform: pre-compute sort scores to avoid
-            // repeated normalizesafe (rsqrt) inside O(n log n) comparisons.
-            // score = dist² * (2 - dot), so forward chunks score lower (higher priority).
+            _loadQueueSet.Clear();
+
+            // Schwartzian transform: score = min over all players of (dist² * (2 - dot)),
+            // so the closest chunk to any player in the forward direction scores lowest.
             int count = _loadQueue.Count;
 
             if (_sortScoreCache.Length < count)
@@ -431,12 +467,23 @@ namespace Lithforge.Voxel.Chunk
             {
                 int3 coord = _loadQueue[i];
                 _sortCoordCache[i] = coord;
+                float bestScore = float.MaxValue;
 
-                int3 d = coord - cameraChunkCoord;
-                float3 dirXZ = math.normalizesafe(new float3(d.x, 0, d.z));
-                float dot = math.dot(dirXZ, forwardXZ);
-                float distSq = math.lengthsq(d);
-                _sortScoreCache[i] = distSq * (2.0f - dot);
+                for (int p = 0; p < playerChunkCoords.Length; p++)
+                {
+                    int3 delta = coord - playerChunkCoords[p];
+                    float3 dirXZ = math.normalizesafe(new float3(delta.x, 0, delta.z));
+                    float dot = math.dot(dirXZ, forwardXZ);
+                    float distSq = math.lengthsq((float3)delta);
+                    float score = distSq * (2.0f - dot);
+
+                    if (score < bestScore)
+                    {
+                        bestScore = score;
+                    }
+                }
+
+                _sortScoreCache[i] = bestScore;
             }
 
             Array.Sort(_sortScoreCache, _sortCoordCache, 0, count);
@@ -446,6 +493,56 @@ namespace Lithforge.Voxel.Chunk
             for (int i = 0; i < count; i++)
             {
                 _loadQueue.Add(_sortCoordCache[i]);
+            }
+        }
+
+        /// <summary>
+        ///     Single-player backward-compatible wrapper for <see cref="UpdateLoadingQueue(ReadOnlySpan{int3}, float3)" />.
+        /// </summary>
+        public void UpdateLoadingQueue(int3 cameraChunkCoord, float3 cameraForward)
+        {
+            Span<int3> single = stackalloc int3[1];
+            single[0] = cameraChunkCoord;
+            UpdateLoadingQueue((ReadOnlySpan<int3>)single, cameraForward);
+        }
+
+        /// <summary>
+        ///     Recomputes per-chunk reference counts from the current set of player chunk origins.
+        ///     For each loaded chunk: counts how many players have it within their interest sphere.
+        ///     When RefCount drops from positive to zero, sets the grace period expiry timestamp.
+        ///     Called after UpdateLoadingQueue with the same player coordinates.
+        /// </summary>
+        public void AdjustRefCounts(
+            ReadOnlySpan<int3> playerChunkCoords,
+            double currentRealtime,
+            double gracePeriodSeconds)
+        {
+            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+            {
+                ManagedChunk chunk = kvp.Value;
+                int3 coord = kvp.Key;
+                int newCount = 0;
+
+                for (int p = 0; p < playerChunkCoords.Length; p++)
+                {
+                    int3 diff = coord - playerChunkCoords[p];
+                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+                    bool yInRange = diff.y >= _yLoadMin && diff.y <= _yLoadMax;
+
+                    if (xzDist <= RenderDistance && yInRange)
+                    {
+                        newCount++;
+                    }
+                }
+
+                int oldCount = chunk.RefCount;
+                chunk.RefCount = newCount;
+
+                if (oldCount > 0 && newCount == 0)
+                {
+                    // Player(s) left range: start grace period
+                    chunk.GracePeriodExpiry = currentRealtime + gracePeriodSeconds;
+                }
             }
         }
 
@@ -510,8 +607,27 @@ namespace Lithforge.Voxel.Chunk
                 bool neverMeshed = chunk.RenderedLODLevel < 0;
                 bool allNeighbors = (chunk.ReadyNeighborMask & 0x3F) == 0x3F;
 
-                int3 d = chunk.Coord - cameraChunkCoord;
-                int distScore = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
+                // Distance = min Manhattan distance to any known player origin
+                int distScore = int.MaxValue;
+
+                if (_lastPlayerChunkCoords.Count > 0)
+                {
+                    for (int p = 0; p < _lastPlayerChunkCoords.Count; p++)
+                    {
+                        int3 d = chunk.Coord - _lastPlayerChunkCoords[p];
+                        int dist = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
+
+                        if (dist < distScore)
+                        {
+                            distScore = dist;
+                        }
+                    }
+                }
+                else
+                {
+                    int3 d = chunk.Coord - cameraChunkCoord;
+                    distScore = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
+                }
 
                 if (_meshCandidateCache.Count < maxCount)
                 {
@@ -1053,23 +1169,80 @@ namespace Lithforge.Voxel.Chunk
         ///     Unloads chunks outside the render distance, saving dirty ones via AsyncChunkSaver.
         ///     Processes farthest-first within a time budget to avoid frame spikes.
         /// </summary>
+        /// <summary>
+        ///     Unloads chunks outside all player interest regions, respecting refcounts
+        ///     and grace periods. A chunk is eligible only when RefCount == 0 AND
+        ///     GracePeriodExpiry has passed. Processes farthest-first within a time budget.
+        /// </summary>
         public void UnloadDistantChunks(
-            int3 cameraChunkCoord,
+            ReadOnlySpan<int3> playerChunkCoords,
             List<int3> unloaded,
+            double currentRealtime,
             WorldStorage worldStorage = null,
             float budgetMs = 2.0f)
         {
             unloaded.Clear();
+
+            if (playerChunkCoords.Length == 0)
+            {
+                return;
+            }
+
             _toRemoveCache.Clear();
 
-            // Phase 1: Collect all out-of-range candidates (distance test only)
+            // Phase 1: Collect candidates — zero-refcount chunks past grace period
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                int3 diff = kvp.Key - cameraChunkCoord;
-                int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
-                bool yOutOfRange = diff.y < _yUnloadMin || diff.y > _yUnloadMax;
+                ManagedChunk chunk = kvp.Value;
 
-                if (xzDist > RenderDistance + 1 || yOutOfRange)
+                // Skip chunks still referenced by a player
+                if (chunk.RefCount > 0)
+                {
+                    continue;
+                }
+
+                // Skip chunks within grace period
+                if (currentRealtime < chunk.GracePeriodExpiry)
+                {
+                    continue;
+                }
+
+                // Check Y bounds against all player origins
+                bool yInRange = false;
+
+                for (int p = 0; p < playerChunkCoords.Length; p++)
+                {
+                    int3 diff = kvp.Key - playerChunkCoords[p];
+
+                    if (diff.y >= _yUnloadMin && diff.y <= _yUnloadMax)
+                    {
+                        yInRange = true;
+                        break;
+                    }
+                }
+
+                if (!yInRange)
+                {
+                    _toRemoveCache.Add(kvp.Key);
+                    continue;
+                }
+
+                // Check XZ distance against all player origins
+                bool anyNear = false;
+
+                for (int p = 0; p < playerChunkCoords.Length; p++)
+                {
+                    int3 diff = kvp.Key - playerChunkCoords[p];
+                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+
+                    if (xzDist <= RenderDistance + 1)
+                    {
+                        anyNear = true;
+                        break;
+                    }
+                }
+
+                if (!anyNear)
                 {
                     _toRemoveCache.Add(kvp.Key);
                 }
@@ -1082,7 +1255,7 @@ namespace Lithforge.Voxel.Chunk
                 return;
             }
 
-            // Phase 2: Schwartzian sort by Chebyshev XZ distance (ascending)
+            // Phase 2: Schwartzian sort by min Chebyshev XZ distance to nearest player (ascending)
             if (_unloadDistCache.Length < candidateCount)
             {
                 int newSize = math.max(candidateCount, _unloadDistCache.Length * 2);
@@ -1094,8 +1267,20 @@ namespace Lithforge.Voxel.Chunk
             {
                 int3 coord = _toRemoveCache[i];
                 _unloadCoordCache[i] = coord;
-                int3 diff = coord - cameraChunkCoord;
-                _unloadDistCache[i] = math.max(math.abs(diff.x), math.abs(diff.z));
+                int minDist = int.MaxValue;
+
+                for (int p = 0; p < playerChunkCoords.Length; p++)
+                {
+                    int3 diff = coord - playerChunkCoords[p];
+                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+
+                    if (xzDist < minDist)
+                    {
+                        minDist = xzDist;
+                    }
+                }
+
+                _unloadDistCache[i] = minDist;
             }
 
             Array.Sort(_unloadDistCache, _unloadCoordCache, 0, candidateCount);
@@ -1112,7 +1297,7 @@ namespace Lithforge.Voxel.Chunk
                 chunk.ActiveJobHandle.Complete();
 
                 // Notify block entities of unload
-                if (chunk.BlockEntities != null)
+                if (chunk.BlockEntities is not null)
                 {
                     foreach (KeyValuePair<int, IBlockEntity> bePair in chunk.BlockEntities)
                     {
@@ -1123,12 +1308,12 @@ namespace Lithforge.Voxel.Chunk
                 // Save modified chunks before unloading (enqueue must precede dispose)
                 if (chunk.IsDirty && chunk.Data.IsCreated)
                 {
-                    if (_asyncSaver != null)
+                    if (_asyncSaver is not null)
                     {
                         _asyncSaver.EnqueueSave(
                             chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
                     }
-                    else if (worldStorage != null)
+                    else if (worldStorage is not null)
                     {
                         worldStorage.SaveChunk(
                             chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
@@ -1196,6 +1381,22 @@ namespace Lithforge.Voxel.Chunk
                 _chunksNeedingLightUpdate.Remove(unloaded[i]);
                 _chunks.Remove(unloaded[i]);
             }
+        }
+
+        /// <summary>
+        ///     Single-player backward-compatible wrapper for
+        ///     <see cref="UnloadDistantChunks(ReadOnlySpan{int3}, List{int3}, double, WorldStorage, float)" />.
+        /// </summary>
+        public void UnloadDistantChunks(
+            int3 cameraChunkCoord,
+            List<int3> unloaded,
+            WorldStorage worldStorage = null,
+            float budgetMs = 2.0f)
+        {
+            Span<int3> single = stackalloc int3[1];
+            single[0] = cameraChunkCoord;
+            UnloadDistantChunks(
+                (ReadOnlySpan<int3>)single, unloaded, double.MaxValue, worldStorage, budgetMs);
         }
 
         /// <summary>
@@ -1517,11 +1718,18 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        ///     Returns the last camera chunk coordinate used by <see cref="UpdateLoadingQueue" />.
+        ///     Returns the first player chunk coordinate from the last UpdateLoadingQueue call.
+        ///     Used by LiquidScheduler for determining liquid simulation radius.
+        ///     Returns int3.zero if no player positions are available.
         /// </summary>
         public int3 GetCameraChunkCoord()
         {
-            return _lastCameraChunkCoord;
+            if (_lastPlayerChunkCoords.Count > 0)
+            {
+                return _lastPlayerChunkCoords[0];
+            }
+
+            return int3.zero;
         }
 
         /// <summary>

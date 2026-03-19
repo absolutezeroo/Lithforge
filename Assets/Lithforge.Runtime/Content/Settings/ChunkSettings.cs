@@ -83,8 +83,13 @@ namespace Lithforge.Runtime.Content.Settings
         [Tooltip("Maximum Y chunk offset from camera to load")]
         [SerializeField] private int yLoadMax = 3;
 
-        /// <summary>Wall-clock milliseconds the main thread may spend disposing out-of-range chunks each frame.</summary>
+        /// <summary>Seconds a zero-refcount chunk stays loaded before being eligible for unloading.</summary>
         [Header("Unloading")]
+        [Tooltip("Grace period in seconds before an out-of-range chunk is unloaded (0 = immediate)")]
+        [Range(0f, 120f)]
+        [SerializeField] private float gracePeriodSeconds = 30f;
+
+        /// <summary>Wall-clock milliseconds the main thread may spend disposing out-of-range chunks each frame.</summary>
         [Tooltip("Milliseconds of CPU budget for unloading chunks per frame")]
         [Range(0.5f, 10f)]
         [SerializeField] private float unloadBudgetMs = 2f;
@@ -214,6 +219,12 @@ namespace Lithforge.Runtime.Content.Settings
         public int InitialSpawnYOffset
         {
             get { return initialSpawnYOffset; }
+        }
+
+        /// <inheritdoc cref="gracePeriodSeconds"/>
+        public float GracePeriodSeconds
+        {
+            get { return gracePeriodSeconds; }
         }
 
         /// <inheritdoc cref="unloadBudgetMs"/>

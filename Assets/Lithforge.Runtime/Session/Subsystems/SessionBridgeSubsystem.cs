@@ -301,33 +301,47 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
 
             slConfig.UnloadBudgetMs = context.App.Settings.Chunk.UnloadBudgetMs;
+            slConfig.GracePeriodSeconds = context.App.Settings.Chunk.GracePeriodSeconds;
+            slConfig.GetCurrentRealtime = () => UnityEngine.Time.realtimeSinceStartupAsDouble;
 
-            // Server chunk center follows the camera/player position
-            Camera mainCamera = player?.MainCamera;
-
-            slConfig.GetServerChunkCenter = () =>
+            // Player chunk positions come from the bridge snapshot (per-player positions)
+            if (context.TryGet(out MainThreadBridgePump bridgePump))
             {
-                if (mainCamera == null)
+                slConfig.GetPlayerChunkSnapshot = () => bridgePump.GetPlayerChunkSnapshot();
+            }
+            else
+            {
+                // Fallback for modes without a bridge pump: read camera directly (single player)
+                Camera mainCamera = player?.MainCamera;
+
+                slConfig.GetPlayerChunkSnapshot = () =>
                 {
-                    return Unity.Mathematics.int3.zero;
-                }
+                    if (mainCamera == null)
+                    {
+                        return PlayerChunkSnapshot.Empty;
+                    }
 
-                Vector3 pos = mainCamera.transform.position;
+                    Vector3 pos = mainCamera.transform.position;
 
-                return new Unity.Mathematics.int3(
-                    (int)Unity.Mathematics.math.floor(pos.x / Lithforge.Voxel.Chunk.ChunkConstants.Size),
-                    (int)Unity.Mathematics.math.floor(pos.y / Lithforge.Voxel.Chunk.ChunkConstants.Size),
-                    (int)Unity.Mathematics.math.floor(pos.z / Lithforge.Voxel.Chunk.ChunkConstants.Size));
-            };
+                    Unity.Mathematics.int3 coord = new(
+                        (int)Unity.Mathematics.math.floor(pos.x / Lithforge.Voxel.Chunk.ChunkConstants.Size),
+                        (int)Unity.Mathematics.math.floor(pos.y / Lithforge.Voxel.Chunk.ChunkConstants.Size),
+                        (int)Unity.Mathematics.math.floor(pos.z / Lithforge.Voxel.Chunk.ChunkConstants.Size));
+
+                    return new PlayerChunkSnapshot(new[] { coord }, 1);
+                };
+            }
+
+            Camera lookCamera = player?.MainCamera;
 
             slConfig.GetServerLookAhead = () =>
             {
-                if (mainCamera == null)
+                if (lookCamera == null)
                 {
                     return Unity.Mathematics.float3.zero;
                 }
 
-                Vector3 fwd = mainCamera.transform.forward;
+                Vector3 fwd = lookCamera.transform.forward;
 
                 return new Unity.Mathematics.float3(fwd.x, fwd.y, fwd.z);
             };

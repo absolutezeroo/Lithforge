@@ -167,6 +167,12 @@ namespace Lithforge.Network.Server
         private float _lastCurrentTime;
 
         /// <summary>
+        ///     Cross-thread bridge for publishing player chunk positions to the main thread.
+        ///     Null when the server runs without a background thread (future extension point).
+        /// </summary>
+        private readonly ServerThreadBridge _bridge;
+
+        /// <summary>
         ///     Debug counter for stream operations (diagnostic only).
         /// </summary>
         private int _streamDebugCounter;
@@ -201,7 +207,7 @@ namespace Lithforge.Network.Server
         /// <summary>
         ///     Creates a new ServerGameLoop wiring together all server-side subsystems.
         /// </summary>
-        public ServerGameLoop(
+        internal ServerGameLoop(
             NetworkServer server,
             IServerSimulation simulation,
             IServerBlockProcessor blockProcessor,
@@ -210,6 +216,7 @@ namespace Lithforge.Network.Server
             ChunkStreamingManager streamingManager,
             IChunkStreamingStrategy defaultStrategy,
             ClientReadinessWaiter readinessWaiter,
+            ServerThreadBridge bridge,
             ILogger logger)
         {
             _server = server;
@@ -221,6 +228,7 @@ namespace Lithforge.Network.Server
             _streamingManager = streamingManager;
             _defaultStrategy = defaultStrategy;
             _readinessWaiter = readinessWaiter;
+            _bridge = bridge;
             _logger = logger;
 
             // Register gameplay message handlers
@@ -310,6 +318,9 @@ namespace Lithforge.Network.Server
             // Phase 2: Process player inputs
             GatherPeersByState(_playingPeersCache, ConnectionState.Playing);
             ProcessPlayerInputs();
+
+            // Publish player chunk snapshot for main thread consumption (after CurrentChunk is updated)
+            PublishPlayerChunkSnapshot();
 
             // Post-input hook: allows BridgedSimulation to synchronize physics results
             (_simulation as IPostInputHook)?.AfterProcessPlayerInputs();
@@ -822,6 +833,59 @@ namespace Lithforge.Network.Server
                     }
                 }
             }
+        }
+
+        /// <summary>
+        ///     Builds and publishes the per-player chunk coordinate snapshot to the bridge
+        ///     after player inputs have been processed and CurrentChunk values are up-to-date.
+        ///     Allocates a fresh array per tick to avoid torn reads on the main thread.
+        /// </summary>
+        private void PublishPlayerChunkSnapshot()
+        {
+            if (_bridge is null)
+            {
+                return;
+            }
+
+            int count = _playingPeersCache.Count;
+
+            // Also include Loading peers (they have a valid CurrentChunk from spawn init)
+            GatherPeersByState(_loadingPeersCache, ConnectionState.Loading);
+            int totalPeers = count + _loadingPeersCache.Count;
+
+            if (totalPeers == 0)
+            {
+                _bridge.SetPlayerChunkSnapshot(PlayerChunkSnapshot.Empty);
+                return;
+            }
+
+            // Allocate fresh array to avoid torn reads (small: ~12 bytes per player)
+            int3[] coords = new int3[totalPeers];
+            int filled = 0;
+
+            for (int i = 0; i < _playingPeersCache.Count; i++)
+            {
+                PlayerInterestState interest = _playingPeersCache[i].InterestState;
+
+                if (interest is not null)
+                {
+                    coords[filled] = interest.CurrentChunk;
+                    filled++;
+                }
+            }
+
+            for (int i = 0; i < _loadingPeersCache.Count; i++)
+            {
+                PlayerInterestState interest = _loadingPeersCache[i].InterestState;
+
+                if (interest is not null)
+                {
+                    coords[filled] = interest.CurrentChunk;
+                    filled++;
+                }
+            }
+
+            _bridge.SetPlayerChunkSnapshot(new PlayerChunkSnapshot(coords, filled));
         }
 
         /// <summary>

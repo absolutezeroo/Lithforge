@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 using Lithforge.Meshing;
@@ -189,14 +190,28 @@ namespace Lithforge.Runtime.Scheduling
         ///     Must be called before MeshScheduler.ScheduleJobs and LODScheduler.ScheduleJobs
         ///     so that chunks get their LOD level before the schedulers decide who to mesh.
         /// </summary>
-        public void UpdateLODLevels(int3 cameraChunkCoord)
+        /// <summary>
+        ///     Assigns LOD levels to Ready and Generated chunks using minimum distance
+        ///     over all player origins. A chunk within LOD0 range of any player gets LOD0.
+        /// </summary>
+        public void UpdateLODLevels(ReadOnlySpan<int3> playerChunkCoords)
         {
             // Always update Ready chunks every frame (LOD transitions on meshed chunks)
             _chunkManager.FillReadyChunks(_readyChunksCache);
-            AssignLODLevels(_readyChunksCache, cameraChunkCoord);
+            AssignLODLevels(_readyChunksCache, playerChunkCoords);
 
             _chunkManager.FillGeneratedChunks(_generatedChunksCache);
-            AssignLODLevels(_generatedChunksCache, cameraChunkCoord);
+            AssignLODLevels(_generatedChunksCache, playerChunkCoords);
+        }
+
+        /// <summary>
+        ///     Single-player backward-compatible wrapper for <see cref="UpdateLODLevels(ReadOnlySpan{int3})" />.
+        /// </summary>
+        public void UpdateLODLevels(int3 cameraChunkCoord)
+        {
+            Span<int3> single = stackalloc int3[1];
+            single[0] = cameraChunkCoord;
+            UpdateLODLevels((ReadOnlySpan<int3>)single);
         }
 
         /// <summary>
@@ -323,31 +338,52 @@ namespace Lithforge.Runtime.Scheduling
         }
 
         /// <summary>Assigns LOD levels to the given chunks based on Chebyshev XZ distance from the camera chunk.</summary>
-        private void AssignLODLevels(List<ManagedChunk> chunks, int3 cameraChunkCoord)
+        /// <summary>
+        ///     Assigns LOD levels to chunks using the minimum distance over all player origins.
+        ///     A chunk near any player gets the finest LOD level. Early-exits once LOD0 is found.
+        /// </summary>
+        private void AssignLODLevels(List<ManagedChunk> chunks, ReadOnlySpan<int3> playerChunkCoords)
         {
             for (int i = 0; i < chunks.Count; i++)
             {
                 ManagedChunk chunk = chunks[i];
-                int3 diff = chunk.Coord - cameraChunkCoord;
-                int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
 
-                int desiredLOD;
+                // Pick minimum (finest) LOD over all player origins
+                int desiredLOD = 3;
 
-                if (xzDist >= _lod3Distance)
+                for (int p = 0; p < playerChunkCoords.Length; p++)
                 {
-                    desiredLOD = 3;
-                }
-                else if (xzDist >= _lod2Distance)
-                {
-                    desiredLOD = 2;
-                }
-                else if (xzDist >= _lod1Distance)
-                {
-                    desiredLOD = 1;
-                }
-                else
-                {
-                    desiredLOD = 0;
+                    int3 diff = chunk.Coord - playerChunkCoords[p];
+                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
+
+                    int lodForPlayer;
+
+                    if (xzDist >= _lod3Distance)
+                    {
+                        lodForPlayer = 3;
+                    }
+                    else if (xzDist >= _lod2Distance)
+                    {
+                        lodForPlayer = 2;
+                    }
+                    else if (xzDist >= _lod1Distance)
+                    {
+                        lodForPlayer = 1;
+                    }
+                    else
+                    {
+                        lodForPlayer = 0;
+                    }
+
+                    if (lodForPlayer < desiredLOD)
+                    {
+                        desiredLOD = lodForPlayer;
+
+                        if (desiredLOD == 0)
+                        {
+                            break;
+                        }
+                    }
                 }
 
                 if (chunk.LODLevel != desiredLOD)

@@ -1,5 +1,6 @@
 using System;
 
+using Lithforge.Network.Bridge;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Spawn;
@@ -44,10 +45,19 @@ namespace Lithforge.Runtime.Session
         /// <summary>Time budget in milliseconds allowed for chunk unloading per frame.</summary>
         public float UnloadBudgetMs { get; set; }
 
-        /// <summary>Returns the chunk coordinate the server should center generation/loading around.</summary>
-        public Func<int3> GetServerChunkCenter { get; set; }
+        /// <summary>
+        /// Returns the current player chunk coordinates from the bridge snapshot.
+        /// Called on the main thread by ServerLoopPoco.UpdateLoadingAndUnloading.
+        /// </summary>
+        public Func<PlayerChunkSnapshot> GetPlayerChunkSnapshot { get; set; }
 
         /// <summary>Returns the forward look direction for generation prioritization.</summary>
         public Func<float3> GetServerLookAhead { get; set; }
+
+        /// <summary>Returns the current real-time seconds for grace period tracking.</summary>
+        public Func<double> GetCurrentRealtime { get; set; }
+
+        /// <summary>Grace period in seconds before a zero-refcount chunk is unloaded.</summary>
+        public double GracePeriodSeconds { get; set; }
     }
 }
