@@ -25,7 +25,7 @@ namespace Lithforge.Runtime.Simulation
         private const float ErrorThresholdIgnore = 0.001f;
 
         /// <summary>Position error below this threshold triggers visual smoothing instead of full reconciliation.</summary>
-        private const float ErrorThresholdSmooth = 0.15f;
+        private const float ErrorThresholdSmooth = 0.01f;
 
         /// <summary>Position error above this threshold triggers an immediate hard teleport.</summary>
         private const float ErrorThresholdTeleport = 4.0f;
