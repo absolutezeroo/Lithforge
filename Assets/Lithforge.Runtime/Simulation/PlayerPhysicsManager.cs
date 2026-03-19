@@ -20,18 +20,18 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Maps player IDs to their physics bodies.</summary>
         private readonly Dictionary<ushort, PlayerPhysicsBody> _bodies = new();
 
-        /// <summary>Chunk manager providing block data for collision queries.</summary>
-        private readonly ChunkManager _chunkManager;
+        /// <summary>Thread-safe chunk data reader for block collision queries.</summary>
+        private readonly IChunkDataReader _chunkDataReader;
 
         /// <summary>Burst-accessible state registry for block collision shape lookups.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
 
-        /// <summary>Creates a new player physics manager backed by the given chunk and state data.</summary>
+        /// <summary>Creates a new player physics manager backed by the given chunk reader and state data.</summary>
         public PlayerPhysicsManager(
-            ChunkManager chunkManager,
+            IChunkDataReader chunkDataReader,
             NativeStateRegistry nativeStateRegistry)
         {
-            _chunkManager = chunkManager;
+            _chunkDataReader = chunkDataReader;
             _nativeStateRegistry = nativeStateRegistry;
         }
 
@@ -87,7 +87,7 @@ namespace Lithforge.Runtime.Simulation
             ushort playerId, float3 spawnPosition, PhysicsSettings settings)
         {
             PlayerPhysicsBody body = new(
-                spawnPosition, _chunkManager, _nativeStateRegistry, settings);
+                spawnPosition, _chunkDataReader, _nativeStateRegistry, settings);
 
             _bodies[playerId] = body;
             return body;

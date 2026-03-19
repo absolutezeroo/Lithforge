@@ -138,9 +138,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             ChunkManager chunkManager = context.Get<ChunkManager>();
             TickRegistry tickRegistry = context.Get<TickRegistry>();
 
+            // Thread-safe chunk reader for server-side physics (runs on background server thread)
+            ThreadSafeChunkReader chunkDataReader = new(chunkManager);
+
             // Server-private physics manager (not registered in context — client creates its own)
             PlayerPhysicsManager physicsManager = new(
-                chunkManager, context.Content.NativeStateRegistry);
+                chunkDataReader, context.Content.NativeStateRegistry);
             PhysicsSettings physics = context.App.Settings.Physics;
             ChunkSettings chunkSettings = context.App.Settings.Chunk;
 

@@ -26,7 +26,7 @@ namespace Lithforge.Runtime.Tick
         private const float FlySpeedScrollFactor = 1.2f;
 
         // World access
-        private readonly ChunkManager _chunkManager;
+        private readonly IChunkDataReader _chunkDataReader;
         private readonly float _gravity;
         private readonly float _jumpSpeed;
         private readonly float _maxFallSpeed;
@@ -70,13 +70,13 @@ namespace Lithforge.Runtime.Tick
 
         public PlayerPhysicsBody(
             float3 startPosition,
-            ChunkManager chunkManager,
+            IChunkDataReader chunkDataReader,
             NativeStateRegistry nativeStateRegistry,
             PhysicsSettings physics)
         {
             _currentPosition = startPosition;
             PreviousPosition = startPosition;
-            _chunkManager = chunkManager;
+            _chunkDataReader = chunkDataReader;
             _nativeStateRegistry = nativeStateRegistry;
             _walkSpeed = physics.WalkSpeed;
             _sprintSpeed = physics.SprintSpeed;
@@ -312,7 +312,7 @@ namespace Lithforge.Runtime.Tick
 
             SolidBlockQuery query = SolidBlockHelper.Build(
                 _currentPosition, displacement, _playerHalfWidth, _playerHeight,
-                _chunkManager, _nativeStateRegistry, _collisionOverride);
+                _chunkDataReader, _nativeStateRegistry, _collisionOverride);
 
             CollisionResult result = VoxelCollider.Resolve(
                 ref _currentPosition, ref displacement,
@@ -356,7 +356,7 @@ namespace Lithforge.Runtime.Tick
             {
                 SolidBlockQuery query = SolidBlockHelper.Build(
                     _currentPosition, displacement, _playerHalfWidth, _playerHeight,
-                    _chunkManager, _nativeStateRegistry, _collisionOverride);
+                    _chunkDataReader, _nativeStateRegistry, _collisionOverride);
 
                 CollisionResult result = VoxelCollider.Resolve(
                     ref _currentPosition, ref displacement,
@@ -436,7 +436,7 @@ namespace Lithforge.Runtime.Tick
 
         private bool IsBlockFluid(int3 worldCoord)
         {
-            byte liquidCell = _chunkManager.GetFluidLevel(worldCoord);
+            byte liquidCell = _chunkDataReader.GetFluidLevel(worldCoord);
 
             if (liquidCell > 0)
             {
@@ -444,7 +444,7 @@ namespace Lithforge.Runtime.Tick
             }
 
             // Fallback: check block state for fluid flag (covers chunks without LiquidData yet)
-            StateId stateId = _chunkManager.GetBlock(worldCoord);
+            StateId stateId = _chunkDataReader.GetBlock(worldCoord);
 
             if (stateId.Value == 0)
             {
@@ -524,7 +524,7 @@ namespace Lithforge.Runtime.Tick
 
             SolidBlockQuery query = SolidBlockHelper.Build(
                 _currentPosition, displacement, _playerHalfWidth, _playerHeight,
-                _chunkManager, _nativeStateRegistry, _collisionOverride);
+                _chunkDataReader, _nativeStateRegistry, _collisionOverride);
 
             CollisionResult result = VoxelCollider.Resolve(
                 ref _currentPosition, ref displacement,

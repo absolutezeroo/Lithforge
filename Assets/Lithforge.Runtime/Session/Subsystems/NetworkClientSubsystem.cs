@@ -103,8 +103,9 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             // Create client-private physics manager (not shared with server)
             ChunkManager chunkManager = context.Get<ChunkManager>();
+            ThreadSafeChunkReader clientChunkReader = new(chunkManager);
             PlayerPhysicsManager clientPhysicsManager = new(
-                chunkManager, context.Content.NativeStateRegistry);
+                clientChunkReader, context.Content.NativeStateRegistry);
 
             PhysicsSettings physics = context.App.Settings.Physics;
 

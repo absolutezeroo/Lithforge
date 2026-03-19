@@ -31,7 +31,11 @@ namespace Lithforge.Network.Bridge
         /// <summary>Outbound sends from server thread, flushed to real transport on main thread.</summary>
         public readonly ConcurrentQueue<SendRequest> OutboundSends = new();
 
-        /// <summary>Physics requests from server thread, executed on main thread.</summary>
+        /// <summary>
+        ///     Physics lifecycle requests (AddPlayer, RemovePlayer) from server thread,
+        ///     executed on main thread. ApplyMove is dispatched directly on the server
+        ///     thread by <see cref="BridgedSimulation" /> and does not flow through this queue.
+        /// </summary>
         public readonly ConcurrentQueue<PhysicsTickRequest> PhysicsRequests = new();
 
         /// <summary>World tick requests from server thread, executed on main thread.</summary>

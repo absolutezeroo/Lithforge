@@ -140,8 +140,9 @@ namespace Lithforge.Network.Bridge
         }
 
         /// <summary>
-        ///     Non-blocking check for physics requests. If the server thread has signaled,
-        ///     drains and executes all physics requests, enqueues results, and signals back.
+        ///     Non-blocking check for physics lifecycle requests (AddPlayer, RemovePlayer).
+        ///     ApplyMoveInput is handled directly on the server thread by
+        ///     <see cref="BridgedSimulation" /> and never flows through this queue.
         /// </summary>
         private void ServicePhysicsRequests()
         {
@@ -156,12 +157,6 @@ namespace Lithforge.Network.Bridge
 
                 switch (request.Kind)
                 {
-                    case PhysicsRequestKind.ApplyMove:
-                        result.State = _realSimulation.ApplyMoveInput(
-                            request.PlayerId, request.Yaw, request.Pitch,
-                            request.Flags, request.TickDt);
-                        break;
-
                     case PhysicsRequestKind.AddPlayer:
                         result.State = _realSimulation.AddPlayer(
                             request.PlayerId, request.SpawnPosition);

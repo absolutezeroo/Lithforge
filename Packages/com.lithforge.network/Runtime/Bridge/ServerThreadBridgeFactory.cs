@@ -57,7 +57,7 @@ namespace Lithforge.Network.Bridge
             ServerThreadBridge bridge = new();
 
             BridgedTransport bridgedTransport = new(bridge);
-            BridgedSimulation bridgedSimulation = new(bridge);
+            BridgedSimulation bridgedSimulation = new(bridge, realSimulation);
             BridgedBlockProcessor bridgedBlockProcessor = new(bridge);
             BridgedDirtyTracker bridgedDirtyTracker = new(bridge);
 

@@ -9,21 +9,32 @@ namespace Lithforge.Network.Bridge
 {
     /// <summary>
     ///     <see cref="IServerSimulation" /> and <see cref="IPostInputHook" /> implementation
-    ///     consumed by <see cref="ServerGameLoop" /> on the server thread. Marshals all
-    ///     simulation calls to the main thread via the bridge queues and semaphores.
+    ///     consumed by <see cref="ServerGameLoop" /> on the server thread. ApplyMoveInput is
+    ///     dispatched directly to the real simulation on the server thread — no queue, no
+    ///     semaphore. AddPlayer and RemovePlayer use the bridge round-trip because they are
+    ///     infrequent lifecycle events that must synchronize with main-thread spawn systems.
+    ///     TickWorldSystems continues to use the bridge because it touches Unity job handles
+    ///     and managed state on the main thread.
     /// </summary>
     internal sealed class BridgedSimulation : IServerSimulation, IPostInputHook
     {
-        /// <summary>Shared cross-thread state.</summary>
+        /// <summary>Shared cross-thread state for lifecycle round-trips and world tick.</summary>
         private readonly ServerThreadBridge _bridge;
 
-        /// <summary>Cached physics results from the previous tick, keyed by player ID value.</summary>
+        /// <summary>
+        ///     Direct reference to the real server simulation. ApplyMoveInput is called on
+        ///     this directly from the server thread, bypassing the bridge semaphore entirely.
+        /// </summary>
+        private readonly IServerSimulation _directSimulation;
+
+        /// <summary>Cached physics results keyed by player ID value, updated by ApplyMoveInput.</summary>
         private readonly Dictionary<ushort, PlayerPhysicsState> _resultCache = new();
 
-        /// <summary>Creates a bridged simulation backed by the given shared bridge.</summary>
-        public BridgedSimulation(ServerThreadBridge bridge)
+        /// <summary>Creates a bridged simulation with direct physics dispatch.</summary>
+        internal BridgedSimulation(ServerThreadBridge bridge, IServerSimulation directSimulation)
         {
             _bridge = bridge;
+            _directSimulation = directSimulation;
         }
 
         /// <summary>
@@ -74,8 +85,9 @@ namespace Lithforge.Network.Bridge
         }
 
         /// <summary>
-        ///     Enqueues a move input for the given player. Returns the previous tick's cached state
-        ///     (optimistic). Actual results arrive in <see cref="AfterProcessPlayerInputs" />.
+        ///     Calls the real simulation directly on the server thread. No queue, no semaphore.
+        ///     Updates the result cache immediately so <see cref="GetPlayerState" /> returns
+        ///     current data.
         /// </summary>
         public PlayerPhysicsState ApplyMoveInput(
             NetworkEntityId playerId,
@@ -84,42 +96,20 @@ namespace Lithforge.Network.Bridge
             byte flags,
             float tickDt)
         {
-            _bridge.PhysicsRequests.Enqueue(new PhysicsTickRequest
-            {
-                Kind = PhysicsRequestKind.ApplyMove,
-                PlayerId = playerId,
-                Yaw = yaw,
-                Pitch = pitch,
-                Flags = flags,
-                TickDt = tickDt,
-            });
+            PlayerPhysicsState state = _directSimulation.ApplyMoveInput(
+                playerId, yaw, pitch, flags, tickDt);
 
-            // Return cached state from previous tick (optimistic)
-            if (_resultCache.TryGetValue(playerId.Value, out PlayerPhysicsState cached))
-            {
-                return cached;
-            }
+            _resultCache[playerId.Value] = state;
 
-            return default;
+            return state;
         }
 
         /// <summary>
-        ///     Called after all player inputs have been enqueued. Signals the main thread
-        ///     to execute the physics batch, then waits for results and updates the cache.
+        ///     No-op. ApplyMoveInput now runs synchronously on the server thread,
+        ///     so no batch signaling or semaphore wait is needed.
         /// </summary>
         public void AfterProcessPlayerInputs()
         {
-            // Signal main thread that the physics batch is ready
-            _bridge.PhysicsRequestsReady.Release();
-
-            // Wait for main thread to complete physics and return results
-            _bridge.PhysicsResultsReady.Wait();
-
-            // Drain all results into cache
-            while (_bridge.PhysicsResults.TryDequeue(out PhysicsTickResult result))
-            {
-                _resultCache[result.PlayerId.Value] = result.State;
-            }
         }
 
         /// <summary>
@@ -135,7 +125,8 @@ namespace Lithforge.Network.Bridge
         }
 
         /// <summary>
-        ///     Returns the cached physics state for the given player from the last completed tick.
+        ///     Returns the cached physics state for the given player from the most recent
+        ///     <see cref="ApplyMoveInput" /> call.
         /// </summary>
         public PlayerPhysicsState GetPlayerState(NetworkEntityId playerId)
         {

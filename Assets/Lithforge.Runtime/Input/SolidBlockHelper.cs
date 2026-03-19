@@ -137,5 +137,110 @@ namespace Lithforge.Runtime.Input
                 SolidMap = solidMap,
             };
         }
+
+        // ── IChunkDataReader overloads (thread-safe, used by server-thread physics) ──
+
+        /// <summary>Checks if the block at the given coordinate is solid via an <see cref="IChunkDataReader" />.</summary>
+        public static bool IsSolid(
+            int3 worldCoord,
+            IChunkDataReader chunkDataReader,
+            NativeStateRegistry nativeStateRegistry)
+        {
+            return IsSolid(worldCoord, chunkDataReader, nativeStateRegistry, null);
+        }
+
+        /// <summary>
+        ///     Checks if the block at the given coordinate is solid via an <see cref="IChunkDataReader" />,
+        ///     with an optional collision state override for unconfirmed block predictions.
+        /// </summary>
+        public static bool IsSolid(
+            int3 worldCoord,
+            IChunkDataReader chunkDataReader,
+            NativeStateRegistry nativeStateRegistry,
+            Func<int3, StateId?> collisionOverride)
+        {
+            if (!chunkDataReader.IsBlockLoaded(worldCoord))
+            {
+                return true;
+            }
+
+            StateId stateId;
+
+            if (collisionOverride is not null)
+            {
+                StateId? overrideState = collisionOverride(worldCoord);
+                stateId = overrideState ?? chunkDataReader.GetBlock(worldCoord);
+            }
+            else
+            {
+                stateId = chunkDataReader.GetBlock(worldCoord);
+            }
+
+            BlockStateCompact compact = nativeStateRegistry.States[stateId.Value];
+
+            return compact.CollisionShape != 0;
+        }
+
+        /// <summary>
+        ///     Builds a Burst-compatible <see cref="SolidBlockQuery" /> via an <see cref="IChunkDataReader" />.
+        ///     The returned SolidMap uses <see cref="Allocator.TempJob" /> (safe for background
+        ///     threads) and must be disposed by the caller.
+        /// </summary>
+        public static SolidBlockQuery Build(
+            float3 position,
+            float3 velocity,
+            float halfWidth,
+            float height,
+            IChunkDataReader chunkDataReader,
+            NativeStateRegistry nativeStateRegistry)
+        {
+            return Build(position, velocity, halfWidth, height,
+                chunkDataReader, nativeStateRegistry, null);
+        }
+
+        /// <summary>
+        ///     Builds a Burst-compatible <see cref="SolidBlockQuery" /> via an <see cref="IChunkDataReader" />
+        ///     with an optional collision state override for unconfirmed block predictions.
+        ///     The returned SolidMap uses <see cref="Allocator.TempJob" /> (safe for background
+        ///     threads) and must be disposed by the caller.
+        /// </summary>
+        public static SolidBlockQuery Build(
+            float3 position,
+            float3 velocity,
+            float halfWidth,
+            float height,
+            IChunkDataReader chunkDataReader,
+            NativeStateRegistry nativeStateRegistry,
+            Func<int3, StateId?> collisionOverride)
+        {
+            VoxelCollider.ComputeBroadPhaseBounds(
+                position, velocity, halfWidth, height,
+                out int3 bpMin, out int3 bpMax);
+
+            int sizeX = bpMax.x - bpMin.x + 1;
+            int sizeY = bpMax.y - bpMin.y + 1;
+            int sizeZ = bpMax.z - bpMin.z + 1;
+            int volume = sizeX * sizeY * sizeZ;
+
+            NativeHashMap<int3, bool> solidMap = new(volume, Allocator.TempJob);
+
+            for (int x = bpMin.x; x <= bpMax.x; x++)
+            {
+                for (int y = bpMin.y; y <= bpMax.y; y++)
+                {
+                    for (int z = bpMin.z; z <= bpMax.z; z++)
+                    {
+                        int3 coord = new(x, y, z);
+                        solidMap.TryAdd(coord,
+                            IsSolid(coord, chunkDataReader, nativeStateRegistry, collisionOverride));
+                    }
+                }
+            }
+
+            return new SolidBlockQuery
+            {
+                SolidMap = solidMap,
+            };
+        }
     }
 }

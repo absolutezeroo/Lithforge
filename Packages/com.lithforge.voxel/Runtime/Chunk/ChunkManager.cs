@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -52,8 +53,13 @@ namespace Lithforge.Voxel.Chunk
             5,
             4,
         };
-        /// <summary>Primary dictionary of all loaded chunks, keyed by chunk coordinate.</summary>
-        private readonly Dictionary<int3, ManagedChunk> _chunks = new();
+        /// <summary>
+        ///     Primary dictionary of all loaded chunks, keyed by chunk coordinate.
+        ///     Uses <see cref="ConcurrentDictionary{TKey,TValue}" /> to allow safe reads from
+        ///     the server background thread (via <see cref="IChunkDataReader" />) while the
+        ///     main thread adds and removes chunks.
+        /// </summary>
+        private readonly ConcurrentDictionary<int3, ManagedChunk> _chunks = new();
 
         /// <summary>Secondary index: coordinates of chunks with NeedsLightUpdate = true.</summary>
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new();
@@ -1380,7 +1386,7 @@ namespace Lithforge.Voxel.Chunk
                 }
 
                 _chunksNeedingLightUpdate.Remove(unloaded[i]);
-                _chunks.Remove(unloaded[i]);
+                _chunks.TryRemove(unloaded[i], out _);
             }
         }
 
@@ -1541,7 +1547,7 @@ namespace Lithforge.Voxel.Chunk
                 chunk.RiverFlags = default;
             }
 
-            _chunks.Remove(coord);
+            _chunks.TryRemove(coord, out _);
         }
 
         /// <summary>
