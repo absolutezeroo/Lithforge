@@ -298,6 +298,7 @@ namespace Lithforge.Network.Server
             Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
             Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
+            Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
         }
 
@@ -433,6 +434,19 @@ namespace Lithforge.Network.Server
                 $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName})");
 
             OnPeerAccepted?.Invoke(peer);
+        }
+
+        /// <summary>Handles a Pong response from a client, computing per-peer round-trip time.</summary>
+        private void OnPong(ConnectionId connectionId, byte[] data, int offset, int length)
+        {
+            TouchPeer(connectionId);
+            PongMessage pong = PongMessage.Deserialize(data, offset, length);
+            PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
+
+            if (peer is not null)
+            {
+                peer.RoundTripTime = _currentTime - pong.EchoTimestamp;
+            }
         }
 
         /// <summary>Handles a Ping message by echoing the timestamp back in a Pong response.</summary>
