@@ -50,7 +50,7 @@ namespace Lithforge.Runtime.Input
 
             StateId stateId;
 
-            if (collisionOverride != null)
+            if (collisionOverride is not null)
             {
                 StateId? overrideState = collisionOverride(worldCoord);
 

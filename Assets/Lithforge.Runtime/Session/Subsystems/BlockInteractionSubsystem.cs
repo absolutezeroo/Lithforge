@@ -17,10 +17,17 @@ using Unity.Mathematics;
 
 namespace Lithforge.Runtime.Session.Subsystems
 {
+    /// <summary>
+    ///     Subsystem that wires block placement, breaking, and mining interaction for the
+    ///     local player. In multiplayer, replaces the local command processor with a
+    ///     network-backed one that uses optimistic prediction via ClientBlockPredictor.
+    /// </summary>
     public sealed class BlockInteractionSubsystem : IGameSubsystem
     {
+        /// <summary>Processes inventory-side effects of block commands (consume items, receive drops).</summary>
         private LocalInventoryCommandProcessor _inventoryProcessor;
 
+        /// <summary>Display name of this subsystem used for diagnostics.</summary>
         public string Name
         {
             get
@@ -29,6 +36,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>Subsystems that must be initialized before this one.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(PlayerSubsystem),
@@ -36,11 +44,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(BlockEntitySubsystem),
         };
 
+        /// <summary>Returns true for sessions that require rendering (local player present).</summary>
         public bool ShouldCreate(SessionConfig config)
         {
             return config.RequiresRendering;
         }
 
+        /// <summary>Constructs and wires all block interaction components into the session context.</summary>
         public void Initialize(SessionContext context)
         {
             PlayerTransformHolder player = context.Get<PlayerTransformHolder>();
@@ -85,6 +95,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(blockInteraction);
         }
 
+        /// <summary>Wires network prediction, tick adapters, and collision override when available.</summary>
         public void PostInitialize(SessionContext context)
         {
             BlockInteraction blockInteraction = context.Get<BlockInteraction>();
@@ -125,10 +136,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
+        /// <summary>No resources to release on shutdown.</summary>
         public void Shutdown()
         {
         }
 
+        /// <summary>No unmanaged resources held by this subsystem.</summary>
         public void Dispose()
         {
         }

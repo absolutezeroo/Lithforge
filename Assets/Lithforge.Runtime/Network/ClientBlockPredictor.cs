@@ -34,6 +34,13 @@ namespace Lithforge.Runtime.Network
 
         private readonly Dictionary<ushort, PendingPrediction> _pending = new();
 
+        /// <summary>
+        ///     Secondary index: position → oldest OldState for O(1) collision override lookups.
+        ///     Tracks the original state before the first prediction at each coordinate.
+        ///     Removed when the last prediction at that position is acknowledged or expired.
+        /// </summary>
+        private readonly Dictionary<int3, OriginalStateEntry> _originalStateByPosition = new();
+
         private ushort _sequenceId;
 
         public ClientBlockPredictor(
@@ -63,18 +70,15 @@ namespace Lithforge.Runtime.Network
         ///     Returns true if the given world position has an unconfirmed prediction,
         ///     and outputs the original (pre-prediction) state. Used by the collision
         ///     system to resolve collisions against server-confirmed state, not
-        ///     optimistically-applied predictions.
+        ///     optimistically-applied predictions. O(1) via position-keyed secondary index.
         /// </summary>
         public bool TryGetOriginalState(int3 position, out StateId originalState)
         {
-            foreach (KeyValuePair<ushort, PendingPrediction> pair in _pending)
+            if (_originalStateByPosition.TryGetValue(position, out OriginalStateEntry entry))
             {
-                if (pair.Value.Position.Equals(position))
-                {
-                    originalState = pair.Value.OldState;
+                originalState = entry.OldState;
 
-                    return true;
-                }
+                return true;
             }
 
             originalState = default;
@@ -109,6 +113,7 @@ namespace Lithforge.Runtime.Network
                 ushort key = _expiredKeys[i];
                 PendingPrediction prediction = _pending[key];
                 _pending.Remove(key);
+                UntrackOriginalState(prediction.Position);
 
                 _dirtiedChunksCache.Clear();
                 _chunkManager.SetBlock(prediction.Position, prediction.OldState, _dirtiedChunksCache);
@@ -161,6 +166,9 @@ namespace Lithforge.Runtime.Network
                 Position = position, OldState = oldState, Timestamp = Time.realtimeSinceStartup,
             };
 
+            // Track original state for collision override (only first prediction at this position)
+            TrackOriginalState(position, oldState);
+
             // Send command to server
             PlaceBlockCmdMessage msg = new()
             {
@@ -198,6 +206,9 @@ namespace Lithforge.Runtime.Network
                 Position = position, OldState = oldState, Timestamp = Time.realtimeSinceStartup,
             };
 
+            // Track original state for collision override (only first prediction at this position)
+            TrackOriginalState(position, oldState);
+
             // Send command to server
             BreakBlockCmdMessage msg = new()
             {
@@ -218,6 +229,7 @@ namespace Lithforge.Runtime.Network
             }
 
             _pending.Remove(msg.SequenceId);
+            UntrackOriginalState(prediction.Position);
 
             if (msg.Accepted != 0)
             {
@@ -229,6 +241,62 @@ namespace Lithforge.Runtime.Network
             StateId correctedState = new(msg.CorrectedState);
             _dirtiedChunksCache.Clear();
             _chunkManager.SetBlock(prediction.Position, correctedState, _dirtiedChunksCache);
+        }
+
+        /// <summary>
+        ///     Records the original (pre-prediction) state for a position in the secondary index.
+        ///     Only the first prediction at a given coordinate stores its OldState; subsequent
+        ///     predictions at the same position increment the reference count without changing
+        ///     the stored state, ensuring collision always resolves against the server-confirmed state.
+        /// </summary>
+        private void TrackOriginalState(int3 position, StateId oldState)
+        {
+            if (_originalStateByPosition.TryGetValue(position, out OriginalStateEntry existing))
+            {
+                existing.RefCount++;
+                _originalStateByPosition[position] = existing;
+            }
+            else
+            {
+                _originalStateByPosition[position] = new OriginalStateEntry
+                {
+                    OldState = oldState,
+                    RefCount = 1,
+                };
+            }
+        }
+
+        /// <summary>
+        ///     Decrements the reference count for a position in the secondary index.
+        ///     Removes the entry when no more predictions reference that position.
+        /// </summary>
+        private void UntrackOriginalState(int3 position)
+        {
+            if (!_originalStateByPosition.TryGetValue(position, out OriginalStateEntry existing))
+            {
+                return;
+            }
+
+            existing.RefCount--;
+
+            if (existing.RefCount <= 0)
+            {
+                _originalStateByPosition.Remove(position);
+            }
+            else
+            {
+                _originalStateByPosition[position] = existing;
+            }
+        }
+
+        /// <summary>Tracks the original block state and prediction count at a world position.</summary>
+        private struct OriginalStateEntry
+        {
+            /// <summary>The block state before any predictions were applied at this position.</summary>
+            public StateId OldState;
+
+            /// <summary>Number of active predictions referencing this position.</summary>
+            public int RefCount;
         }
     }
 }

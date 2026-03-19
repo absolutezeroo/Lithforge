@@ -63,13 +63,16 @@ namespace Lithforge.Network.Connection
                 return false;
             }
 
-            _tokens.Remove(token.Value);
-
+            // Check expiry before consuming — expired tokens are cleaned up but not consumed
             if (currentTime - entry.IssuedAt > TokenLifetimeSeconds)
             {
+                _tokens.Remove(token.Value);
+
                 return false;
             }
 
+            // Consume on success (single-use)
+            _tokens.Remove(token.Value);
             playerId = entry.PlayerId;
 
             return true;

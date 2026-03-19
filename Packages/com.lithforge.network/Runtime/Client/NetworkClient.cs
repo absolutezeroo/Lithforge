@@ -105,7 +105,8 @@ namespace Lithforge.Network.Client
                     or ConnectionState.Authenticating
                     or ConnectionState.Configuring
                     or ConnectionState.Loading
-                    or ConnectionState.Playing;
+                    or ConnectionState.Playing
+                    or ConnectionState.Reconnecting;
             }
         }
 

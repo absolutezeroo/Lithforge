@@ -15,8 +15,10 @@ namespace Lithforge.Network.Connection
     /// </summary>
     public sealed class ConnectionStateMachine
     {
+        /// <summary>The current connection state.</summary>
         public ConnectionState Current { get; private set; } = ConnectionState.Disconnected;
 
+        /// <summary>The real-time value (seconds) at which the current state was entered.</summary>
         public float StateEntryTime { get; private set; }
 
         /// <summary>

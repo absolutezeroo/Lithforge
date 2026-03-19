@@ -86,12 +86,13 @@ namespace Lithforge.Network.Server
                 return;
             }
 
-            // Detect chunk boundary crossing
-            if (!interest.CurrentChunk.Equals(interest.PreviousChunk))
+            // Detect chunk boundary crossing (capture before updating PreviousChunk)
+            bool crossedBoundary = !interest.CurrentChunk.Equals(interest.PreviousChunk);
+
+            if (crossedBoundary)
             {
                 RebuildStreamingQueue(interest);
                 ProcessUnloads(peer, interest, strategy);
-
                 interest.PreviousChunk = interest.CurrentChunk;
             }
 
@@ -109,7 +110,7 @@ namespace Lithforge.Network.Server
             {
                 rate = InitialLoadRate;
             }
-            else if (!interest.CurrentChunk.Equals(interest.PreviousChunk))
+            else if (crossedBoundary)
             {
                 // Player crossed a chunk boundary this tick — moving
                 rate = MovingRate;
