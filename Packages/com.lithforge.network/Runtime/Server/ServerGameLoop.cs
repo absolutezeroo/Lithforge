@@ -721,12 +721,22 @@ namespace Lithforge.Network.Server
                         PositionX = change.Position.x, PositionY = change.Position.y, PositionZ = change.Position.z, NewState = change.NewState.Value,
                     };
 
-                    // Send to all players who have this chunk loaded.
+                    // Send to all peers (Playing + Loading) who have this chunk loaded.
+                    // Loading peers that already received the chunk need the delta too,
+                    // otherwise they miss edits that happen while they finish loading.
                     // Skip the local peer — it already applied the change optimistically
                     // via ClientBlockPredictor and does not need the echo.
-                    for (int i = 0; i < _playingPeersCache.Count; i++)
+                    IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
+
+                    for (int i = 0; i < allPeers.Count; i++)
                     {
-                        PeerInfo peer = _playingPeersCache[i];
+                        PeerInfo peer = allPeers[i];
+
+                        if (peer.StateMachine.Current != ConnectionState.Playing &&
+                            peer.StateMachine.Current != ConnectionState.Loading)
+                        {
+                            continue;
+                        }
 
                         if (peer.IsLocal)
                         {
@@ -748,9 +758,17 @@ namespace Lithforge.Network.Server
                         BatchData = batchData,
                     };
 
-                    for (int i = 0; i < _playingPeersCache.Count; i++)
+                    IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
+
+                    for (int i = 0; i < allPeers.Count; i++)
                     {
-                        PeerInfo peer = _playingPeersCache[i];
+                        PeerInfo peer = allPeers[i];
+
+                        if (peer.StateMachine.Current != ConnectionState.Playing &&
+                            peer.StateMachine.Current != ConnectionState.Loading)
+                        {
+                            continue;
+                        }
 
                         if (peer.IsLocal)
                         {

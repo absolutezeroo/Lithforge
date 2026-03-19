@@ -203,26 +203,42 @@ namespace Lithforge.Voxel.Chunk
 
             foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
             {
-                kvp.Value.ActiveJobHandle.Complete();
+                ManagedChunk chunk = kvp.Value;
 
-                if (kvp.Value.Data.IsCreated)
+                chunk.ActiveJobHandle.Complete();
+
+                if (chunk.Data.IsCreated)
                 {
-                    _pool.Return(kvp.Value.Data);
+                    _pool.Return(chunk.Data);
+
+                    chunk.Data = default;
                 }
 
-                if (kvp.Value.LightData.IsCreated)
+                if (chunk.LightData.IsCreated)
                 {
-                    kvp.Value.LightData.Dispose();
+                    NativeArray<byte> ld = chunk.LightData;
+
+                    ld.Dispose();
+
+                    chunk.LightData = default;
                 }
 
-                if (kvp.Value.HeightMap.IsCreated)
+                if (chunk.HeightMap.IsCreated)
                 {
-                    kvp.Value.HeightMap.Dispose();
+                    NativeArray<int> hm = chunk.HeightMap;
+
+                    hm.Dispose();
+
+                    chunk.HeightMap = default;
                 }
 
-                if (kvp.Value.RiverFlags.IsCreated)
+                if (chunk.RiverFlags.IsCreated)
                 {
-                    kvp.Value.RiverFlags.Dispose();
+                    NativeArray<byte> rf = chunk.RiverFlags;
+
+                    rf.Dispose();
+
+                    chunk.RiverFlags = default;
                 }
             }
 
@@ -1124,21 +1140,35 @@ namespace Lithforge.Voxel.Chunk
                 if (chunk.Data.IsCreated)
                 {
                     _pool.Return(chunk.Data);
+
+                    chunk.Data = default;
                 }
 
                 if (chunk.LightData.IsCreated)
                 {
-                    chunk.LightData.Dispose();
+                    NativeArray<byte> ld = chunk.LightData;
+
+                    ld.Dispose();
+
+                    chunk.LightData = default;
                 }
 
                 if (chunk.HeightMap.IsCreated)
                 {
-                    chunk.HeightMap.Dispose();
+                    NativeArray<int> hm = chunk.HeightMap;
+
+                    hm.Dispose();
+
+                    chunk.HeightMap = default;
                 }
 
                 if (chunk.RiverFlags.IsCreated)
                 {
-                    chunk.RiverFlags.Dispose();
+                    NativeArray<byte> rf = chunk.RiverFlags;
+
+                    rf.Dispose();
+
+                    chunk.RiverFlags = default;
                 }
 
                 unloaded.Add(coord);
@@ -1276,21 +1306,35 @@ namespace Lithforge.Voxel.Chunk
             if (chunk.Data.IsCreated)
             {
                 _pool.Return(chunk.Data);
+
+                chunk.Data = default;
             }
 
             if (chunk.LightData.IsCreated)
             {
-                chunk.LightData.Dispose();
+                NativeArray<byte> ld = chunk.LightData;
+
+                ld.Dispose();
+
+                chunk.LightData = default;
             }
 
             if (chunk.HeightMap.IsCreated)
             {
-                chunk.HeightMap.Dispose();
+                NativeArray<int> hm = chunk.HeightMap;
+
+                hm.Dispose();
+
+                chunk.HeightMap = default;
             }
 
             if (chunk.RiverFlags.IsCreated)
             {
-                chunk.RiverFlags.Dispose();
+                NativeArray<byte> rf = chunk.RiverFlags;
+
+                rf.Dispose();
+
+                chunk.RiverFlags = default;
             }
 
             _chunks.Remove(coord);

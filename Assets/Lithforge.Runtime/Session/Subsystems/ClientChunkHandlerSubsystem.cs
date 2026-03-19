@@ -105,11 +105,17 @@ namespace Lithforge.Runtime.Session.Subsystems
                     (int)math.floor(spawnInit.SpawnY / ChunkConstants.Size),
                     (int)math.floor(spawnInit.SpawnZ / ChunkConstants.Size));
 
+                // Narrow Y range to spawn chunk ± 1 so readiness doesn't wait for
+                // deep underground chunks that the server may not have generated yet.
+                int spawnY = spawnChunk.y;
+                int readyYMin = math.max(chunkSettings.YLoadMin, spawnY - 1);
+                int readyYMax = math.min(chunkSettings.YLoadMax, spawnY + 1);
+
                 _readinessTracker.Configure(
                     spawnChunk,
                     spawnInit.ClientReadyRadius,
-                    chunkSettings.YLoadMin,
-                    chunkSettings.YLoadMax);
+                    readyYMin,
+                    readyYMax);
 
                 // Create the client physics body now that we know the spawn position.
                 // The body factory was registered by NetworkClientSubsystem.PostInitialize.

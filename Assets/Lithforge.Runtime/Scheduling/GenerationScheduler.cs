@@ -411,6 +411,19 @@ namespace Lithforge.Runtime.Scheduling
                     entry.Handle.Complete();
                     ManagedChunk chunk = entry.Chunk;
 
+                    // Guard: chunk may have been unloaded while the light job was
+                    // in-flight. The unload path completes ActiveJobHandle and
+                    // disposes NativeArrays but does not clean up
+                    // _inFlightLightUpdates. Skip zombie chunks to avoid
+                    // re-adding them to _generatedChunks with freed LightData.
+                    if (_chunkManager.GetChunk(chunk.Coord) != chunk)
+                    {
+                        entry.SeedEntries.Dispose();
+                        _inFlightLightUpdates.RemoveAt(i);
+
+                        continue;
+                    }
+
                     if (chunk.State == ChunkState.Ready)
                     {
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
