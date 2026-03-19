@@ -63,6 +63,7 @@ namespace Lithforge.Runtime.Input
             get { return lookSensitivity; }
         }
 
+        /// <summary>Sets the mouse look sensitivity, clamped to [0.01, 2.0].</summary>
         public void SetLookSensitivity(float value)
         {
             lookSensitivity = Mathf.Clamp(value, 0.01f, 2.0f);
