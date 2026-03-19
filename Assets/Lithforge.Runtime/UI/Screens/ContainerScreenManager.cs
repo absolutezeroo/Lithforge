@@ -19,9 +19,13 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class ContainerScreenManager : MonoBehaviour
     {
+        /// <summary>List of registered screen bindings keyed by entity type ID.</summary>
         private readonly List<BlockEntityScreenBinding> _bindings = new();
 
+        /// <summary>The currently open block entity screen, or null if none is active.</summary>
         private ContainerScreen _activeScreen;
+
+        /// <summary>Frame number when the last screen was closed, for same-frame close detection.</summary>
         private int _lastCloseFrame = -1;
 
         /// <summary>
@@ -127,6 +131,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Finds the binding for the given entity type ID, or null if not registered.</summary>
         private BlockEntityScreenBinding FindBinding(string entityTypeId)
         {
             for (int i = 0; i < _bindings.Count; i++)
@@ -140,6 +145,7 @@ namespace Lithforge.Runtime.UI.Screens
             return null;
         }
 
+        /// <summary>Lazily creates the screen instance if it has not been instantiated yet.</summary>
         private ContainerScreen GetOrCreate(BlockEntityScreenBinding binding)
         {
             if (binding.Screen == null)

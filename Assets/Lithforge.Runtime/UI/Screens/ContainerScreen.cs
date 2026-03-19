@@ -24,30 +24,49 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public abstract class ContainerScreen : MonoBehaviour, IContainerScreen
     {
-        // Slot widgets organized by container name + index
+        /// <summary>All slot widget bindings across all groups for per-frame refresh.</summary>
         private readonly List<SlotWidgetBinding> _allBindings = new();
+
+        /// <summary>Ghost icon that follows the cursor when an item is held.</summary>
         private DragGhostWidget _dragGhost;
+
+        /// <summary>Whether Ctrl was held during the last tooltip update.</summary>
         private bool _lastTooltipCtrl;
 
-        // Tooltip key-change refresh state
+        /// <summary>Whether Shift was held during the last tooltip update.</summary>
         private bool _lastTooltipShift;
+
+        /// <summary>Last tooltip X position for key-change refresh.</summary>
         private float _lastTooltipX;
+
+        /// <summary>Last tooltip Y position for key-change refresh.</summary>
         private float _lastTooltipY;
+
+        /// <summary>Grace frames remaining after open to ignore stale pointer events.</summary>
         private int _openGraceFrames;
 
+        /// <summary>Optional UXML template for declarative layout, loaded from Resources.</summary>
         private VisualTreeAsset _screenTemplate;
+
+        /// <summary>Tooltip widget showing item info on hover.</summary>
         private TooltipWidget _tooltip;
 
+        /// <summary>The UI Toolkit document hosting this container screen.</summary>
         protected UIDocument Document { get; private set; }
 
+        /// <summary>Root visual element of the UI document.</summary>
         protected VisualElement Root { get; private set; }
 
+        /// <summary>Overlay panel containing all slot groups and UI content.</summary>
         protected VisualElement Panel { get; private set; }
 
+        /// <summary>Controller handling all slot interaction modes (click, drag, shift-click).</summary>
         protected SlotInteractionController Interaction { get; private set; }
 
+        /// <summary>Item sprite atlas for displaying item icons in slot widgets.</summary>
         protected ItemSpriteAtlas SpriteAtlas { get; private set; }
 
+        /// <summary>Item registry for looking up item definitions and max stack sizes.</summary>
         protected ItemRegistry ItemRegistryRef { get; private set; }
 
         /// <summary>
@@ -56,8 +75,10 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         protected ScreenContext Context { get; private set; }
 
+        /// <summary>True while this container screen is open and visible.</summary>
         public bool IsOpen { get; private set; }
 
+        /// <summary>Closes the screen, re-locks the cursor, resets interaction state, and invokes OnClose.</summary>
         public void Close()
         {
             IsOpen = false;
@@ -407,6 +428,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Opens the screen, unlocks the cursor, and invalidates all slot widgets.</summary>
         public void Open()
         {
             IsOpen = true;
@@ -430,11 +452,13 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         protected abstract void OnClose();
 
+        /// <summary>Handles pointer up on the panel to end paint-drag mode.</summary>
         private void OnPanelPointerUp(PointerUpEvent evt)
         {
             Interaction.OnPointerUp(evt.button);
         }
 
+        /// <summary>Updates drag ghost position and tooltip content on pointer movement.</summary>
         private void OnPanelPointerMove(PointerMoveEvent evt)
         {
             // Update drag ghost position
@@ -474,6 +498,7 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Returns true if either Shift key is currently pressed.</summary>
         private static bool IsShiftHeld()
         {
             return Keyboard.current != null &&
@@ -481,6 +506,7 @@ namespace Lithforge.Runtime.UI.Screens
                     Keyboard.current.rightShiftKey.isPressed);
         }
 
+        /// <summary>Returns true if either Ctrl key is currently pressed.</summary>
         private static bool IsCtrlHeld()
         {
             return Keyboard.current != null &&
@@ -493,10 +519,16 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         private struct SlotWidgetBinding
         {
+            /// <summary>The container this slot belongs to.</summary>
             public readonly ISlotContainer Container;
+
+            /// <summary>The index within the container.</summary>
             public readonly int SlotIndex;
+
+            /// <summary>The visual widget displaying this slot.</summary>
             public readonly SlotWidget Widget;
 
+            /// <summary>Creates a binding linking a container slot to its visual widget.</summary>
             public SlotWidgetBinding(ISlotContainer container, int slotIndex, SlotWidget widget)
             {
                 Container = container;

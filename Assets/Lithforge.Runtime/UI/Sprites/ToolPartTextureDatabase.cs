@@ -14,12 +14,22 @@ namespace Lithforge.Runtime.UI.Sprites
     /// </summary>
     public sealed class ToolPartTextureDatabase
     {
+        /// <summary>Base resource path for tool part texture folders.</summary>
         private const string BasePath = "Content/Textures/Items/Tool";
+
+        /// <summary>Material suffix used as fallback when an exact texture match is not found.</summary>
         private readonly string _fallbackSuffix;
+
+        /// <summary>Indexed texture layers keyed by (ToolType, subfolder, materialSuffix).</summary>
         private readonly Dictionary<(ToolType, string, string), Texture2D> _layers;
+
+        /// <summary>Pre-cached material suffixes keyed by materialId string.</summary>
         private readonly Dictionary<string, string> _materialSuffixes;
+
+        /// <summary>Tool definitions keyed by ToolType for layer resolution.</summary>
         private readonly Dictionary<ToolType, ToolDefinition> _toolDefs;
 
+        /// <summary>Builds the texture database from tool definitions and material definitions.</summary>
         public ToolPartTextureDatabase(
             ToolDefinition[] toolDefinitions,
             ToolMaterialDefinition[] materials)

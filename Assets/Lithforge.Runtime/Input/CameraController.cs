@@ -10,10 +10,13 @@ namespace Lithforge.Runtime.Input
     /// </summary>
     public sealed class CameraController : MonoBehaviour
     {
+        /// <summary>Mouse look sensitivity multiplier, configurable from settings.</summary>
         [FormerlySerializedAs("_lookSensitivity"),SerializeField] private float lookSensitivity = 0.1f;
 
+        /// <summary>Current pitch angle in degrees, clamped to [-89, 89].</summary>
         private float _pitch;
 
+        /// <summary>Locks the cursor and initializes the pitch from the current rotation.</summary>
         private void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -27,6 +30,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Reads mouse delta each frame to update pitch and yaw rotations.</summary>
         private void Update()
         {
             Mouse mouse = Mouse.current;
@@ -53,6 +57,7 @@ namespace Lithforge.Runtime.Input
             }
         }
 
+        /// <summary>Gets the current mouse look sensitivity multiplier.</summary>
         public float LookSensitivity
         {
             get { return lookSensitivity; }

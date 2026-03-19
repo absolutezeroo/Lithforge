@@ -16,6 +16,7 @@ namespace Lithforge.Runtime.UI.Sprites
     /// </summary>
     public static class ToolSpriteCompositor
     {
+        /// <summary>Resolution of each composited sprite in pixels.</summary>
         private const int SpriteSize = 32;
 
         /// <summary>

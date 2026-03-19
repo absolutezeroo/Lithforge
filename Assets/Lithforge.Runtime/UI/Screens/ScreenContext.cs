@@ -15,12 +15,16 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class ScreenContext
     {
+        /// <summary>The player's inventory with 36 item slots.</summary>
         public Inventory PlayerInventory { get; }
 
+        /// <summary>Registry mapping item ResourceIds to their definitions.</summary>
         public ItemRegistry ItemRegistry { get; }
 
+        /// <summary>Atlas providing item sprites for UI display.</summary>
         public ItemSpriteAtlas ItemSpriteAtlas { get; }
 
+        /// <summary>Shared panel settings for UI Toolkit documents.</summary>
         public PanelSettings PanelSettings { get; }
 
         /// <summary>
@@ -71,6 +75,7 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         public ContainerScreenManager ScreenManager { get; }
 
+        /// <summary>Creates a ScreenContext with all shared dependencies for container screens.</summary>
         public ScreenContext(
             Inventory playerInventory,
             ItemRegistry itemRegistry,

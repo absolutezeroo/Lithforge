@@ -18,6 +18,7 @@ namespace Lithforge.Runtime.UI.Sprites
     /// </summary>
     public static class ItemSpriteAtlasBuilder
     {
+        /// <summary>Resolution of each generated sprite in pixels.</summary>
         private const int SpriteSize = 32;
 
         /// <summary>
@@ -148,6 +149,7 @@ namespace Lithforge.Runtime.UI.Sprites
             return new ItemSpriteAtlas(sprites, fallback);
         }
 
+        /// <summary>Determines the tool part type from an item's tag list.</summary>
         private static ToolPartType ResolvePartTypeFromTags(List<string> tags)
         {
             for (int t = 0; t < tags.Count; t++)
@@ -174,6 +176,7 @@ namespace Lithforge.Runtime.UI.Sprites
             return ToolPartType.None;
         }
 
+        /// <summary>Creates a sprite from a texture via RenderTexture blit, handling non-readable textures.</summary>
         private static Sprite CreateSpriteFromTexture(Texture2D source)
         {
             if (source == null)
@@ -214,6 +217,7 @@ namespace Lithforge.Runtime.UI.Sprites
             return sprite;
         }
 
+        /// <summary>Creates a magenta-black checkerboard fallback sprite for missing item textures.</summary>
         private static Sprite CreateFallbackSprite()
         {
             Texture2D fallbackTex = new(SpriteSize, SpriteSize, TextureFormat.RGBA32, false)
