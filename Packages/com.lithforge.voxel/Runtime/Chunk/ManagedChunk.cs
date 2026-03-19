@@ -246,6 +246,7 @@ namespace Lithforge.Voxel.Chunk
             Data = data;
             LODLevel = 0;
             RenderedLODLevel = -1;
+            GracePeriodExpiry = double.MaxValue;
             BorderLightEntries = new List<BorderLightEntry>();
             PendingEditIndices = new List<int>();
             PendingBorderRemovals = new List<BorderLightEntry>();

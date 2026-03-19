@@ -538,9 +538,9 @@ namespace Lithforge.Voxel.Chunk
                 int oldCount = chunk.RefCount;
                 chunk.RefCount = newCount;
 
-                if (oldCount > 0 && newCount == 0)
+                if (newCount == 0 && (oldCount > 0 || chunk.GracePeriodExpiry == double.MaxValue))
                 {
-                    // Player(s) left range: start grace period
+                    // Player(s) left range, or chunk was never referenced: arm grace period
                     chunk.GracePeriodExpiry = currentRealtime + gracePeriodSeconds;
                 }
             }
@@ -1182,12 +1182,6 @@ namespace Lithforge.Voxel.Chunk
             float budgetMs = 2.0f)
         {
             unloaded.Clear();
-
-            if (playerChunkCoords.Length == 0)
-            {
-                return;
-            }
-
             _toRemoveCache.Clear();
 
             // Phase 1: Collect candidates — zero-refcount chunks past grace period
@@ -1204,6 +1198,13 @@ namespace Lithforge.Voxel.Chunk
                 // Skip chunks within grace period
                 if (currentRealtime < chunk.GracePeriodExpiry)
                 {
+                    continue;
+                }
+
+                // No players connected: all zero-refcount past-grace chunks are candidates
+                if (playerChunkCoords.Length == 0)
+                {
+                    _toRemoveCache.Add(kvp.Key);
                     continue;
                 }
 
@@ -1395,8 +1396,10 @@ namespace Lithforge.Voxel.Chunk
         {
             Span<int3> single = stackalloc int3[1];
             single[0] = cameraChunkCoord;
+            // Pass currentRealtime=0 so all grace periods are treated as expired,
+            // matching the legacy distance-only unload behavior.
             UnloadDistantChunks(
-                (ReadOnlySpan<int3>)single, unloaded, double.MaxValue, worldStorage, budgetMs);
+                (ReadOnlySpan<int3>)single, unloaded, 0.0, worldStorage, budgetMs);
         }
 
         /// <summary>
