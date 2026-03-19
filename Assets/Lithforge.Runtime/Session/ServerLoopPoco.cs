@@ -100,6 +100,15 @@ namespace Lithforge.Runtime.Session
         }
 
         /// <summary>
+        ///     Cleans up generation scheduler state for an unloaded chunk coordinate.
+        ///     Prevents zombie generation slots from blocking new chunk generation.
+        /// </summary>
+        public void CleanupGenerationCoord(int3 coord)
+        {
+            _config.GenerationScheduler?.CleanupCoord(coord);
+        }
+
+        /// <summary>
         ///     Completes all in-flight generation and liquid jobs before shutdown.
         /// </summary>
         public void Shutdown()

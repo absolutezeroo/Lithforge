@@ -250,6 +250,7 @@ namespace Lithforge.Runtime.Session
                 for (int i = 0; i < _unloadedCoords.Count; i++)
                 {
                     int3 coord = _unloadedCoords[i];
+                    _config.ServerLoop?.CleanupGenerationCoord(coord);
                     _config.MeshScheduler?.ForceCompleteNeighborDeps(coord);
                     _config.BlockEntityTickScheduler?.OnChunkUnloaded(coord);
                     _config.LiquidScheduler?.OnChunkUnloaded(coord);
