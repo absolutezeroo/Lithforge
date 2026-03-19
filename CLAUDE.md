@@ -45,39 +45,49 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 3. **Object initializers** — prefer `new Foo { Bar = 1, Baz = 2 }` when it produces cleaner code than sequential assignment.
 4. **Switch expressions** — prefer `x switch { ... }` over `switch` statements when the result is a direct assignment or return and the cases are simple.
 5. **Pattern matching in `if`/loops** — prefer `if (x is int i)`, `is not null`, `is > 0` when it improves readability.
-6. **Allman braces** — opening brace on new line, always.
-7. **One file per type** — each class, interface, enum, struct gets its own file.
-8. **Namespace = package path** — `namespace Lithforge.Voxel.Block;`
-9. **Private fields: `_camelCase`** — underscore prefix.
-10. **No expression-bodied methods** — block bodies only (switch expressions and pattern matching are not expression-bodied methods).
-11. **Interfaces: `I` prefix** — `IRegistry`, `ILogger`.
-12. **Accessibility always explicit** — `public`, `private`, `internal`.
+6. **Merge into pattern** — prefer pattern combinators (`and`, `or`, `not`) over `&&`/`||` chains. E.g. `if (x is > 0 and < 100)` not `if (x > 0 && x < 100)`; `if (obj is string { Length: > 0 } s)` not `if (obj is string s && s.Length > 0)`.
+7. **Auto-properties** — prefer `public int Count { get; set; }` over manual backing field + property. Use backing fields only when the getter/setter has real logic.
+8. **Allman braces** — opening brace on new line, always.
+9. **One file per type** — each class, interface, enum, struct gets its own file.
+10. **Namespace = package path** — `namespace Lithforge.Voxel.Block;`
+11. **Private fields: `_camelCase`** — underscore prefix.
+12. **No expression-bodied methods** — block bodies only (switch expressions and pattern matching are not expression-bodied methods).
+13. **Interfaces: `I` prefix** — `IRegistry`, `ILogger`.
+14. **Accessibility always explicit** — `public`, `private`, `internal`.
+15. **XML doc on everything** — every field, property, method, class, struct, enum, and constant must have a `/// <summary>` comment. Keep summaries on a single line. Separate each documented member with a blank line for readability:
+    ```csharp
+    /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
+    public int3 ChunkCoord;
+
+    /// <summary>Opaque vertex buffer for greedy mesh output.</summary>
+    public NativeList<PackedMeshVertex> OpaqueVertices;
+    ```
 
 ### Tier 1 Rules
 
-13. **Zero Unity references** — `Lithforge.Core.asmdef` must not reference any Unity assembly.
-14. **Standard .NET types only** — `Dictionary`, `List`, `string`, etc.
-15. **Unit-testable in isolation** — could compile against .NET Standard.
+16. **Zero Unity references** — `Lithforge.Core.asmdef` must not reference any Unity assembly.
+17. **Standard .NET types only** — `Dictionary`, `List`, `string`, etc.
+18. **Unit-testable in isolation** — could compile against .NET Standard.
 
 ### Tier 2 Rules (Burst/Jobs)
 
-16. **`[BurstCompile]` on all hot-path job structs.**
-17. **`Unity.Mathematics` types** — `float3`, `int3`, `math.sin()` not `System.Math`.
-18. **`NativeArray<T>`** not managed arrays for chunk data, mesh data, light data.
-19. **No heap allocation in Burst paths** — no `new`, no boxing, no string ops.
-20. **No try/catch in Burst paths.**
-21. **No interface dispatch in Burst paths** — no virtual calls.
-22. **No `class` references in Burst jobs** — only blittable structs.
-23. **`[ReadOnly]` attribute on job inputs** that are not modified.
-24. **`Allocator.TempJob`** for per-frame data, **`Allocator.Persistent`** for long-lived data.
-25. **Every NativeContainer has a documented owner and dispose point.**
-26. **ChunkPool** for NativeArray recycling — no per-chunk Persistent allocation.
+19. **`[BurstCompile]` on all hot-path job structs.**
+20. **`Unity.Mathematics` types** — `float3`, `int3`, `math.sin()` not `System.Math`.
+21. **`NativeArray<T>`** not managed arrays for chunk data, mesh data, light data.
+22. **No heap allocation in Burst paths** — no `new`, no boxing, no string ops.
+23. **No try/catch in Burst paths.**
+24. **No interface dispatch in Burst paths** — no virtual calls.
+25. **No `class` references in Burst jobs** — only blittable structs.
+26. **`[ReadOnly]` attribute on job inputs** that are not modified.
+27. **`Allocator.TempJob`** for per-frame data, **`Allocator.Persistent`** for long-lived data.
+28. **Every NativeContainer has a documented owner and dispose point.**
+29. **ChunkPool** for NativeArray recycling — no per-chunk Persistent allocation.
 
 ### Tier 3 Rules
 
-27. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
-28. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
-29. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
+30. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
+31. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
+32. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
 
 ## Key Types
 

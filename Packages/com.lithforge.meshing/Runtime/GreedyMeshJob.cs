@@ -23,15 +23,25 @@ namespace Lithforge.Meshing
     public struct GreedyMeshJob : IJob
     {
         [ReadOnly] public NativeArray<StateId> ChunkData;
+
         [ReadOnly] public NativeArray<StateId> NeighborPosX;
+
         [ReadOnly] public NativeArray<StateId> NeighborNegX;
+
         [ReadOnly] public NativeArray<StateId> NeighborPosY;
+
         [ReadOnly] public NativeArray<StateId> NeighborNegY;
+
         [ReadOnly] public NativeArray<StateId> NeighborPosZ;
+
         [ReadOnly] public NativeArray<StateId> NeighborNegZ;
+
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+
         [ReadOnly] public NativeArray<AtlasEntry> AtlasEntries;
+
         [ReadOnly] public NativeArray<byte> LightData;
+
         [ReadOnly] public NativeArray<byte> LiquidData;
 
         /// <summary>
@@ -47,18 +57,26 @@ namespace Lithforge.Meshing
         ///     When a neighbor has no liquid data, the slab is all zeros (empty).
         /// </summary>
         [ReadOnly] public NativeArray<byte> LiquidNeighborPosX;
+
         [ReadOnly] public NativeArray<byte> LiquidNeighborNegX;
+
         [ReadOnly] public NativeArray<byte> LiquidNeighborPosZ;
+
         [ReadOnly] public NativeArray<byte> LiquidNeighborNegZ;
 
         /// <summary>Chunk coordinate for world position encoding in packed vertex.</summary>
         public int3 ChunkCoord;
 
         public NativeList<PackedMeshVertex> OpaqueVertices;
+
         public NativeList<int> OpaqueIndices;
+
         public NativeList<PackedMeshVertex> CutoutVertices;
+
         public NativeList<int> CutoutIndices;
+
         public NativeList<PackedMeshVertex> TranslucentVertices;
+
         public NativeList<int> TranslucentIndices;
 
         public void Execute()
@@ -69,7 +87,7 @@ namespace Lithforge.Meshing
                 ProcessFaceDirection(face);
             }
 
-            // Per-block liquid pass (Luanti-style with corner levels)
+            // Per-block liquid pass
             if (HasLiquidData)
             {
                 ProcessLiquidBlocks();
@@ -506,10 +524,6 @@ namespace Lithforge.Meshing
                 targetIndices.Add(vertexStart + 2);
             }
         }
-
-        // =====================================================================
-        // Per-block liquid meshing pass (Luanti-style corner levels)
-        // =====================================================================
 
         private void ProcessLiquidBlocks()
         {
