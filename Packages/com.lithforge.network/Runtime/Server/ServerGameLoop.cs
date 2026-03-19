@@ -29,149 +29,149 @@ namespace Lithforge.Network.Server
     public sealed class ServerGameLoop : IDisposable
     {
         /// <summary>
-        /// Fixed delta time per server tick (1/30 second).
+        ///     Fixed delta time per server tick (1/30 second).
         /// </summary>
         private const float TickDt = 1f / 30f;
 
         /// <summary>
-        /// Maximum accumulated time to prevent spiral-of-death catch-up (5 ticks).
+        ///     Maximum accumulated time to prevent spiral-of-death catch-up (5 ticks).
         /// </summary>
         private const float MaxAccumulatedTime = TickDt * 5f;
 
         /// <summary>
-        /// Maximum block interaction reach distance in blocks.
+        ///     Maximum block interaction reach distance in blocks.
         /// </summary>
         private const float MaxReachDistance = 6f;
 
         /// <summary>
-        /// Default chunk view radius assigned to new players.
+        ///     Default chunk view radius assigned to new players.
         /// </summary>
         private const int DefaultViewRadius = 10;
 
         /// <summary>
-        /// Server-side block command processor for validating and executing block changes.
+        ///     Server-side block command processor for validating and executing block changes.
         /// </summary>
         private readonly IServerBlockProcessor _blockProcessor;
 
         /// <summary>
-        /// Pool of reusable int lists for the spatial hash cell entries.
+        ///     Pool of reusable int lists for the spatial hash cell entries.
         /// </summary>
         private readonly List<List<int>> _cellListPool = new();
 
         /// <summary>
-        /// Provider for querying chunk readiness and spawning.
+        ///     Provider for querying chunk readiness and spawning.
         /// </summary>
         private readonly IServerChunkProvider _chunkProvider;
 
         /// <summary>
-        /// Reusable cache for collecting player IDs to despawn during presence broadcasts.
+        ///     Reusable cache for collecting player IDs to despawn during presence broadcasts.
         /// </summary>
         private readonly List<ushort> _despawnCache = new();
 
         /// <summary>
-        /// Reusable cache for dirty chunk coordinates.
+        ///     Reusable cache for dirty chunk coordinates.
         /// </summary>
         private readonly List<int3> _dirtiedChunksCache = new();
 
         /// <summary>
-        /// Tracks per-chunk block changes for network delta batching.
+        ///     Tracks per-chunk block changes for network delta batching.
         /// </summary>
         private readonly ChunkDirtyTracker _dirtyTracker;
 
         /// <summary>
-        /// Reusable cache for host-side despawn notifications.
+        ///     Reusable cache for host-side despawn notifications.
         /// </summary>
         private readonly List<ushort> _hostDespawnCache = new();
 
         /// <summary>
-        /// Set of player IDs the host has spawned locally (mirrors SpawnedRemotePlayers on network peers).
+        ///     Set of player IDs the host has spawned locally (mirrors SpawnedRemotePlayers on network peers).
         /// </summary>
         private readonly HashSet<ushort> _hostSpawnedPlayers = new();
 
         /// <summary>
-        /// Reusable cache for peers in Loading state.
+        ///     Reusable cache for peers in Loading state.
         /// </summary>
         private readonly List<PeerInfo> _loadingPeersCache = new();
 
         /// <summary>
-        /// Logger instance for diagnostic messages.
+        ///     Logger instance for diagnostic messages.
         /// </summary>
         private readonly ILogger _logger;
 
         /// <summary>
-        /// Reusable cache for indices of nearby players from the spatial hash.
+        ///     Reusable cache for indices of nearby players from the spatial hash.
         /// </summary>
         private readonly List<int> _nearbyCache = new();
 
         /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
         private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
         /// <summary>
-        /// Reverse lookup from player ID to index in _playingPeersCache.
+        ///     Reverse lookup from player ID to index in _playingPeersCache.
         /// </summary>
         private readonly Dictionary<ushort, int> _playerIdToIndex = new();
 
         /// <summary>
-        /// Reusable cache for peers in Playing state, filled each tick.
+        ///     Reusable cache for peers in Playing state, filled each tick.
         /// </summary>
         private readonly List<PeerInfo> _playingPeersCache = new();
 
         /// <summary>
-        /// Tracks per-peer Loading-state timeouts for force-transitioning unresponsive clients.
+        ///     Tracks per-peer Loading-state timeouts for force-transitioning unresponsive clients.
         /// </summary>
         private readonly ClientReadinessWaiter _readinessWaiter;
 
         /// <summary>
-        /// The network server interface for sending messages and managing peers.
+        ///     The network server interface for sending messages and managing peers.
         /// </summary>
         private readonly INetworkServer _server;
 
         /// <summary>
-        /// Concrete NetworkServer reference for internal operations (peer lookup, etc.).
+        ///     Concrete NetworkServer reference for internal operations (peer lookup, etc.).
         /// </summary>
         private readonly NetworkServer _serverImpl;
 
         /// <summary>
-        /// Bridge to the gameplay simulation for player physics and world tick systems.
+        ///     Bridge to the gameplay simulation for player physics and world tick systems.
         /// </summary>
         private readonly IServerSimulation _simulation;
 
         /// <summary>
-        /// Spatial hash mapping coarse grid cells to player indices for O(K) proximity queries.
+        ///     Spatial hash mapping coarse grid cells to player indices for O(K) proximity queries.
         /// </summary>
         private readonly Dictionary<int3, List<int>> _spatialCells = new();
 
         /// <summary>
-        /// Manages per-player chunk streaming queues and rate limiting.
+        ///     Manages per-player chunk streaming queues and rate limiting.
         /// </summary>
         private readonly ChunkStreamingManager _streamingManager;
 
         /// <summary>
-        /// Current rental cursor into the cell list pool.
+        ///     Current rental cursor into the cell list pool.
         /// </summary>
         private int _cellPoolCursor;
 
         /// <summary>
-        /// Default chunk streaming strategy used for peers without a per-connection override.
+        ///     Default chunk streaming strategy used for peers without a per-connection override.
         /// </summary>
         private IChunkStreamingStrategy _defaultStrategy;
 
         /// <summary>
-        /// Whether this game loop has been disposed.
+        ///     Whether this game loop has been disposed.
         /// </summary>
         private bool _disposed;
 
         /// <summary>
-        /// The currentTime value from the most recent Update call, cached for use in callbacks.
+        ///     The currentTime value from the most recent Update call, cached for use in callbacks.
         /// </summary>
         private float _lastCurrentTime;
 
         /// <summary>
-        /// Debug counter for stream operations (diagnostic only).
+        ///     Debug counter for stream operations (diagnostic only).
         /// </summary>
         private int _streamDebugCounter;
 
         /// <summary>
-        /// Accumulated time for fixed-rate tick scheduling.
+        ///     Accumulated time for fixed-rate tick scheduling.
         /// </summary>
         private float _tickAccumulator;
 
@@ -198,7 +198,7 @@ namespace Lithforge.Network.Server
         public Action<int> OnPlayerCountChanged;
 
         /// <summary>
-        /// Creates a new ServerGameLoop wiring together all server-side subsystems.
+        ///     Creates a new ServerGameLoop wiring together all server-side subsystems.
         /// </summary>
         public ServerGameLoop(
             NetworkServer server,
@@ -235,12 +235,12 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        /// The current server tick number, starting at 1.
+        ///     The current server tick number, starting at 1.
         /// </summary>
         public uint CurrentTick { get; private set; } = 1;
 
         /// <summary>
-        /// Disposes this game loop, clearing all callbacks and host-local tracking.
+        ///     Disposes this game loop, clearing all callbacks and host-local tracking.
         /// </summary>
         public void Dispose()
         {
@@ -887,7 +887,6 @@ namespace Lithforge.Network.Server
             }
 
             MoveInputMessage msg = MoveInputMessage.Deserialize(data, offset, length);
-
             MoveCommand cmd = new()
             {
                 Tick = CurrentTick,

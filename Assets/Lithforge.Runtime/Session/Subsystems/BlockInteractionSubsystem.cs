@@ -12,8 +12,6 @@ using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Loot;
 
-using Unity.Mathematics;
-
 namespace Lithforge.Runtime.Session.Subsystems
 {
     /// <summary>
@@ -41,6 +39,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             typeof(PlayerSubsystem),
             typeof(ChunkManagerSubsystem),
             typeof(BlockEntitySubsystem),
+            typeof(ClientChunkHandlerSubsystem),
         };
 
         /// <summary>Returns true for sessions that require rendering (local player present).</summary>

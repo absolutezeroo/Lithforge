@@ -25,7 +25,7 @@ namespace Lithforge.Runtime.Simulation
         private const float ErrorThresholdIgnore = 0.001f;
 
         /// <summary>Position error below this threshold triggers visual smoothing instead of full reconciliation.</summary>
-        private const float ErrorThresholdSmooth = 0.04f;
+        private const float ErrorThresholdSmooth = 0.15f;
 
         /// <summary>Position error above this threshold triggers an immediate hard teleport.</summary>
         private const float ErrorThresholdTeleport = 4.0f;
@@ -42,13 +42,6 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Accumulates per-frame input into discrete per-tick snapshots.</summary>
         private readonly InputSnapshotBuilder _inputSnapshotBuilder;
 
-        /// <summary>
-        ///     When true, the server is in the same process (SP/Host via DirectTransport).
-        ///     Physics always runs on the client (separate body). TickRegistry is gated to
-        ///     avoid double-ticking world systems already driven by the server.
-        /// </summary>
-        private readonly bool _serverIsLocal;
-
         /// <summary>Network player ID assigned to this client by the server.</summary>
         private readonly ushort _localPlayerId;
 
@@ -60,6 +53,13 @@ namespace Lithforge.Runtime.Simulation
 
         /// <summary>Prediction buffer storing per-tick MoveCommands with predicted positions.</summary>
         private readonly CommandRingBuffer<MoveCommand> _predictionBuffer;
+
+        /// <summary>
+        ///     When true, the server is in the same process (SP/Host via DirectTransport).
+        ///     Physics always runs on the client (separate body). TickRegistry is gated to
+        ///     avoid double-ticking world systems already driven by the server.
+        /// </summary>
+        private readonly bool _serverIsLocal;
 
         /// <summary>Registry of all ITickable systems driven each simulation tick.</summary>
         private readonly TickRegistry _tickRegistry;
