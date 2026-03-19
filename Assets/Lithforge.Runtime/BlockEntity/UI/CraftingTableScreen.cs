@@ -16,6 +16,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class CraftingTableScreen : ContainerScreen
     {
+        /// <summary>Keyboard digit keys used for number-key slot swap shortcuts.</summary>
         private static readonly Key[] s_numberKeys =
         {
             Key.Digit1,
@@ -29,16 +30,22 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit9,
         };
 
+        /// <summary>Container adapter wrapping the 3x3 crafting grid slots.</summary>
         private CraftingGridContainerAdapter _craftAdapter;
 
+        /// <summary>Local 3x3 crafting grid holding transient slot state during the session.</summary>
         private CraftingGrid _craftingGrid;
 
+        /// <summary>Container adapter wrapping the player hotbar slots.</summary>
         private InventoryContainerAdapter _hotbarAdapter;
 
+        /// <summary>Container adapter wrapping the player main inventory slots.</summary>
         private InventoryContainerAdapter _mainAdapter;
 
+        /// <summary>Container adapter for the crafting output slot with recipe match display.</summary>
         private CraftingOutputContainerAdapter _outputAdapter;
 
+        /// <summary>Polls keyboard input for close keys and number-key shortcuts, refreshes slot display.</summary>
         private void Update()
         {
             if (Context == null)
@@ -74,6 +81,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateTooltipKeyRefresh();
         }
 
+        /// <summary>Creates the crafting grid and adapters, then loads the UXML template.</summary>
         public void Initialize(ScreenContext context)
         {
             _craftingGrid = new CraftingGrid(3, 3);
@@ -90,6 +98,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             InitializeBase(context, 255, "UI/Screens/CraftingTableScreen");
         }
 
+        /// <summary>Opens the crafting table screen with a fresh local grid, ignoring entity state.</summary>
         public void OpenForEntity(BlockEntity entity)
         {
             // The crafting table entity carries no persistent crafting state.
@@ -98,6 +107,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
+        /// <summary>Clones the UXML template and binds crafting grid, output, main inventory, and hotbar slots.</summary>
         private void RebuildUI()
         {
             if (!CloneTemplate())
@@ -127,6 +137,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
+        /// <summary>Handles pointer-down on slots: output take, shift-click transfers, and regular click interactions.</summary>
         protected override void OnSlotPointerDown(
             ISlotContainer container, int slotIndex, PointerDownEvent evt)
         {
@@ -193,6 +204,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Returns held items and remaining grid contents to the player inventory on close.</summary>
         protected override void OnClose()
         {
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);
@@ -240,6 +252,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Checks digit keys 1-9 and swaps the hovered slot with the corresponding hotbar slot.</summary>
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;
