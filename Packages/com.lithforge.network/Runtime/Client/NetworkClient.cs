@@ -102,7 +102,10 @@ namespace Lithforge.Network.Client
             get
             {
                 return _stateMachine?.Current is ConnectionState.Handshaking
-                    or ConnectionState.Loading or ConnectionState.Playing;
+                    or ConnectionState.Authenticating
+                    or ConnectionState.Configuring
+                    or ConnectionState.Loading
+                    or ConnectionState.Playing;
             }
         }
 
@@ -285,6 +288,10 @@ namespace Lithforge.Network.Client
             ServerTickAtHandshake = response.ServerTick;
             WorldSeed = response.WorldSeed;
 
+            // Auto-transition through Authenticating → Configuring → Loading.
+            // Mirrors the server-side auto-transition chain.
+            _stateMachine.Transition(ConnectionState.Authenticating, _lastUpdateTime);
+            _stateMachine.Transition(ConnectionState.Configuring, _lastUpdateTime);
             _stateMachine.Transition(ConnectionState.Loading, _lastUpdateTime);
             _logger.LogInfo(
                 $"Handshake accepted: playerId={response.PlayerId}, " +
@@ -326,7 +333,10 @@ namespace Lithforge.Network.Client
         {
             ConnectionState state = _stateMachine.Current;
 
-            if (state == ConnectionState.Connecting || state == ConnectionState.Handshaking)
+            if (state is ConnectionState.Connecting
+                or ConnectionState.Handshaking
+                or ConnectionState.Authenticating
+                or ConnectionState.Configuring)
             {
                 if (_stateMachine.IsTimedOut(currentTime, NetworkConstants.HandshakeTimeoutSeconds))
                 {

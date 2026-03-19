@@ -44,5 +44,12 @@ namespace Lithforge.Network.Connection
         ///     Allocated when the peer transitions to Loading state, null before that.
         /// </summary>
         public PlayerInterestState InterestState { get; internal set; }
+
+        /// <summary>
+        ///     Session token issued to this peer on acceptance. Enables reconnection
+        ///     without full re-handshake if the client disconnects and reconnects
+        ///     within <see cref="SessionTokenRegistry.TokenLifetimeSeconds" />.
+        /// </summary>
+        public SessionToken SessionToken { get; internal set; }
     }
 }

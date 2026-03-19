@@ -3,11 +3,14 @@ namespace Lithforge.Network.Connection
     /// <summary>
     ///     Per-connection finite state machine with validated transitions and timeout detection.
     ///     Valid transitions:
-    ///     Disconnected → Connecting
+    ///     Disconnected → Connecting | Reconnecting
     ///     Connecting → Handshaking
-    ///     Handshaking → Loading | Disconnecting
+    ///     Handshaking → Authenticating | Disconnecting
+    ///     Authenticating → Configuring | Disconnecting
+    ///     Configuring → Loading | Disconnecting
     ///     Loading → Playing
-    ///     Playing → Disconnecting
+    ///     Playing → Disconnecting | Configuring (hot-reload)
+    ///     Reconnecting → Connecting | Disconnected
     ///     Any → Disconnected
     /// </summary>
     public sealed class ConnectionStateMachine
@@ -61,13 +64,15 @@ namespace Lithforge.Network.Connection
 
             return from switch
             {
-                ConnectionState.Disconnected => to == ConnectionState.Connecting,
+                ConnectionState.Disconnected => to is ConnectionState.Connecting or ConnectionState.Reconnecting,
                 ConnectionState.Connecting => to == ConnectionState.Handshaking,
-                ConnectionState.Handshaking => to == ConnectionState.Loading || to == ConnectionState.Disconnecting,
+                ConnectionState.Handshaking => to is ConnectionState.Authenticating or ConnectionState.Disconnecting,
+                ConnectionState.Authenticating => to is ConnectionState.Configuring or ConnectionState.Disconnecting,
+                ConnectionState.Configuring => to is ConnectionState.Loading or ConnectionState.Disconnecting,
                 ConnectionState.Loading => to == ConnectionState.Playing,
-                ConnectionState.Playing => to == ConnectionState.Disconnecting,
-                ConnectionState.Disconnecting => false // Only Disconnected allowed, handled above
-                ,
+                ConnectionState.Playing => to is ConnectionState.Disconnecting or ConnectionState.Configuring,
+                ConnectionState.Reconnecting => to == ConnectionState.Connecting,
+                ConnectionState.Disconnecting => false, // Only Disconnected allowed, handled above
                 _ => false,
             };
         }

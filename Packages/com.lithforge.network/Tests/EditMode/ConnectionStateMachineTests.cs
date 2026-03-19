@@ -32,8 +32,10 @@ namespace Lithforge.Network.Tests
 
             Assert.IsTrue(sm.Transition(ConnectionState.Connecting, 0f));
             Assert.IsTrue(sm.Transition(ConnectionState.Handshaking, 1f));
-            Assert.IsTrue(sm.Transition(ConnectionState.Loading, 2f));
-            Assert.IsTrue(sm.Transition(ConnectionState.Playing, 3f));
+            Assert.IsTrue(sm.Transition(ConnectionState.Authenticating, 2f));
+            Assert.IsTrue(sm.Transition(ConnectionState.Configuring, 3f));
+            Assert.IsTrue(sm.Transition(ConnectionState.Loading, 4f));
+            Assert.IsTrue(sm.Transition(ConnectionState.Playing, 5f));
             Assert.AreEqual(ConnectionState.Playing, sm.Current);
         }
 
@@ -56,10 +58,12 @@ namespace Lithforge.Network.Tests
             ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
-            sm.Transition(ConnectionState.Loading, 2f);
-            sm.Transition(ConnectionState.Playing, 3f);
+            sm.Transition(ConnectionState.Authenticating, 2f);
+            sm.Transition(ConnectionState.Configuring, 2.5f);
+            sm.Transition(ConnectionState.Loading, 3f);
+            sm.Transition(ConnectionState.Playing, 4f);
 
-            bool result = sm.Transition(ConnectionState.Disconnecting, 4f);
+            bool result = sm.Transition(ConnectionState.Disconnecting, 5f);
 
             Assert.IsTrue(result);
             Assert.AreEqual(ConnectionState.Disconnecting, sm.Current);
@@ -71,7 +75,9 @@ namespace Lithforge.Network.Tests
             ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
-            sm.Transition(ConnectionState.Loading, 2f);
+            sm.Transition(ConnectionState.Authenticating, 1.5f);
+            sm.Transition(ConnectionState.Configuring, 2f);
+            sm.Transition(ConnectionState.Loading, 2.5f);
             sm.Transition(ConnectionState.Playing, 3f);
 
             bool result = sm.Transition(ConnectionState.Disconnected, 4f);
@@ -108,7 +114,9 @@ namespace Lithforge.Network.Tests
             ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
-            sm.Transition(ConnectionState.Loading, 2f);
+            sm.Transition(ConnectionState.Authenticating, 1.5f);
+            sm.Transition(ConnectionState.Configuring, 2f);
+            sm.Transition(ConnectionState.Loading, 2.5f);
 
             bool result = sm.Transition(ConnectionState.Disconnecting, 3f);
 
@@ -122,12 +130,53 @@ namespace Lithforge.Network.Tests
             ConnectionStateMachine sm = new();
             sm.Transition(ConnectionState.Connecting, 0f);
             sm.Transition(ConnectionState.Handshaking, 1f);
+            sm.Transition(ConnectionState.Authenticating, 1.5f);
             sm.Transition(ConnectionState.Disconnecting, 2f);
 
             bool result = sm.Transition(ConnectionState.Playing, 3f);
 
             Assert.IsFalse(result);
             Assert.AreEqual(ConnectionState.Disconnecting, sm.Current);
+        }
+
+        [Test]
+        public void ValidTransition_Playing_To_Configuring_HotReload()
+        {
+            ConnectionStateMachine sm = new();
+            sm.Transition(ConnectionState.Connecting, 0f);
+            sm.Transition(ConnectionState.Handshaking, 1f);
+            sm.Transition(ConnectionState.Authenticating, 2f);
+            sm.Transition(ConnectionState.Configuring, 2.5f);
+            sm.Transition(ConnectionState.Loading, 3f);
+            sm.Transition(ConnectionState.Playing, 4f);
+
+            bool result = sm.Transition(ConnectionState.Configuring, 5f);
+
+            Assert.IsTrue(result);
+            Assert.AreEqual(ConnectionState.Configuring, sm.Current);
+        }
+
+        [Test]
+        public void ValidTransition_Disconnected_To_Reconnecting()
+        {
+            ConnectionStateMachine sm = new();
+
+            bool result = sm.Transition(ConnectionState.Reconnecting, 0f);
+
+            Assert.IsTrue(result);
+            Assert.AreEqual(ConnectionState.Reconnecting, sm.Current);
+        }
+
+        [Test]
+        public void ValidTransition_Reconnecting_To_Connecting()
+        {
+            ConnectionStateMachine sm = new();
+            sm.Transition(ConnectionState.Reconnecting, 0f);
+
+            bool result = sm.Transition(ConnectionState.Connecting, 1f);
+
+            Assert.IsTrue(result);
+            Assert.AreEqual(ConnectionState.Connecting, sm.Current);
         }
 
         [Test]

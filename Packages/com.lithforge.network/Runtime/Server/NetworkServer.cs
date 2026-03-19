@@ -383,6 +383,12 @@ namespace Lithforge.Network.Server
             };
 
             SendTo(connectionId, response, PipelineId.ReliableSequenced);
+
+            // Auto-transition through Authenticating → Configuring → Loading.
+            // Future implementations can pause at Authenticating (external auth)
+            // or Configuring (registry sync, mod negotiation) before proceeding.
+            peer.StateMachine.Transition(ConnectionState.Authenticating, _currentTime);
+            peer.StateMachine.Transition(ConnectionState.Configuring, _currentTime);
             peer.StateMachine.Transition(ConnectionState.Loading, _currentTime);
 
             _logger.LogInfo(
@@ -441,7 +447,9 @@ namespace Lithforge.Network.Server
                 PeerInfo peer = peers[i];
                 ConnectionState state = peer.StateMachine.Current;
 
-                if (state == ConnectionState.Handshaking)
+                if (state is ConnectionState.Handshaking
+                    or ConnectionState.Authenticating
+                    or ConnectionState.Configuring)
                 {
                     if (peer.StateMachine.IsTimedOut(currentTime, NetworkConstants.HandshakeTimeoutSeconds))
                     {
