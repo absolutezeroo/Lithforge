@@ -81,7 +81,7 @@ namespace Lithforge.Network.Tests
             };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
-            int dropped = queue.Flush(transport);
+            int dropped = queue.Flush(transport, 0f);
 
             Assert.AreEqual(0, queue.Count);
             Assert.AreEqual(0, dropped);
@@ -105,7 +105,7 @@ namespace Lithforge.Network.Tests
             };
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
-            int dropped = queue.Flush(transport);
+            int dropped = queue.Flush(transport, 0f);
 
             Assert.AreEqual(1, queue.Count);
             Assert.AreEqual(0, dropped);
@@ -129,10 +129,15 @@ namespace Lithforge.Network.Tests
 
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
 
-            // Retry MaxSendRetries times (3)
+            // Advance time far enough past all backoff delays so each retry actually fires.
+            // Backoff delays: 0.2s, 0.4s, 0.8s (for retries 1, 2, 3 with base 0.1s).
+            // Using large time jumps to guarantee all entries are due.
+            float time = 0f;
+
             for (int i = 0; i < NetworkConstants.MaxSendRetries; i++)
             {
-                queue.Flush(transport);
+                time += 10f;
+                queue.Flush(transport, time);
             }
 
             Assert.AreEqual(0, queue.Count, "Entry should be dropped after max retries");
@@ -157,13 +162,46 @@ namespace Lithforge.Network.Tests
             queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
 
             int dropped = 0;
+            float time = 0f;
 
             for (int i = 0; i < NetworkConstants.MaxSendRetries; i++)
             {
-                dropped += queue.Flush(transport);
+                time += 10f;
+                dropped += queue.Flush(transport, time);
             }
 
             Assert.AreEqual(1, dropped);
+        }
+
+        [Test]
+        public void Flush_BackoffDelays_SkipsEntryBeforeRetryTime()
+        {
+            ReliableSendQueue queue = new(new TestLogger());
+            MockTransport transport = new()
+            {
+                SendSucceeds = false,
+            };
+            ConnectionId connId = new(1);
+            byte[] data =
+            {
+                1,
+                2,
+                3,
+            };
+
+            queue.Enqueue(connId, PipelineId.ReliableSequenced, data, 0, data.Length);
+
+            // First flush at t=0 — sends (fails), sets NextRetryTime = 0 + 0.1*2 = 0.2
+            queue.Flush(transport, 0f);
+            Assert.AreEqual(1, transport.SendCallCount);
+
+            // Second flush at t=0.1 — before backoff, should NOT attempt send
+            queue.Flush(transport, 0.1f);
+            Assert.AreEqual(1, transport.SendCallCount, "Should skip entry before backoff expires");
+
+            // Third flush at t=0.3 — after first backoff (0.2s), should attempt send
+            queue.Flush(transport, 0.3f);
+            Assert.AreEqual(2, transport.SendCallCount, "Should retry after backoff expires");
         }
 
         [Test]
@@ -225,7 +263,7 @@ namespace Lithforge.Network.Tests
             data[0] = 99;
 
             // Flush will send the original data, not the mutated version
-            queue.Flush(transport);
+            queue.Flush(transport, 0f);
             Assert.AreEqual(1, transport.SendCallCount);
         }
     }
