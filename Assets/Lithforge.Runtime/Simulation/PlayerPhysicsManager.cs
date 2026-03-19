@@ -11,11 +11,11 @@ using Unity.Mathematics;
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    ///     Manages per-player physics bodies. In singleplayer there is exactly one player (id=0).
-    ///     In multiplayer, the server creates a body per connected player and ticks them all.
-    ///     Implements <see cref="IPlayerManager" /> so command processors can query player state.
+    ///     Manages per-player physics bodies. Each side (server and client) owns its own
+    ///     instance. In singleplayer there is exactly one body per instance. In multiplayer,
+    ///     the server instance holds all connected players; each client holds only its own.
     /// </summary>
-    public sealed class PlayerPhysicsManager : IPlayerManager
+    public sealed class PlayerPhysicsManager
     {
         /// <summary>Maps player IDs to their physics bodies.</summary>
         private readonly Dictionary<ushort, PlayerPhysicsBody> _bodies = new();

@@ -1,5 +1,6 @@
 using System;
 
+using Lithforge.Network;
 using Lithforge.Network.Server;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Tick;
@@ -48,7 +49,7 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>Creates a physics body for a new player and returns their initial state.</summary>
-        public PlayerPhysicsState AddPlayer(ushort playerId, float3 spawnPosition)
+        public PlayerPhysicsState AddPlayer(NetworkEntityId playerId, float3 spawnPosition)
         {
             PlayerPhysicsBody body = _playerPhysicsManager.AddPlayer(
                 playerId, spawnPosition, _physicsSettings);
@@ -58,7 +59,7 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>Removes the physics body and block processor state for a disconnecting player.</summary>
-        public void RemovePlayer(ushort playerId)
+        public void RemovePlayer(NetworkEntityId playerId)
         {
             _blockProcessor?.RemovePlayer(playerId);
             _playerPhysicsManager.RemovePlayer(playerId);
@@ -66,7 +67,7 @@ namespace Lithforge.Runtime.Simulation
 
         /// <summary>Reconstructs an InputSnapshot from wire-format flags and ticks the player's physics.</summary>
         public PlayerPhysicsState ApplyMoveInput(
-            ushort playerId, float yaw, float pitch, byte flags, float tickDt)
+            NetworkEntityId playerId, float yaw, float pitch, byte flags, float tickDt)
         {
             // Reconstruct InputSnapshot from wire-format flags.
             // Bits 0-5 are held input, bits 6-7 are edge-triggered toggles.
@@ -96,7 +97,7 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>Returns the current physics state for the given player.</summary>
-        public PlayerPhysicsState GetPlayerState(ushort playerId)
+        public PlayerPhysicsState GetPlayerState(NetworkEntityId playerId)
         {
             return _playerPhysicsManager.GetState(playerId);
         }

@@ -16,19 +16,19 @@ namespace Lithforge.Network.Server
         /// Creates a physics body for the given player at the spawn position.
         /// Returns the initial <see cref="PlayerPhysicsState"/> after creation.
         /// </summary>
-        public PlayerPhysicsState AddPlayer(ushort playerId, float3 spawnPosition);
+        public PlayerPhysicsState AddPlayer(NetworkEntityId playerId, float3 spawnPosition);
 
         /// <summary>
         /// Removes the physics body for the given player (on disconnect).
         /// </summary>
-        public void RemovePlayer(ushort playerId);
+        public void RemovePlayer(NetworkEntityId playerId);
 
         /// <summary>
         /// Applies a move input to the given player's physics simulation.
         /// Reconstructs an InputSnapshot from the flags and look direction,
         /// then runs one tick of physics. Returns the resulting authoritative state.
         /// </summary>
-        public PlayerPhysicsState ApplyMoveInput(ushort playerId, float yaw, float pitch, byte flags, float tickDt);
+        public PlayerPhysicsState ApplyMoveInput(NetworkEntityId playerId, float yaw, float pitch, byte flags, float tickDt);
 
         /// <summary>
         /// Ticks all non-player simulation systems (block entities, time of day, liquids, etc.).
@@ -39,7 +39,7 @@ namespace Lithforge.Network.Server
         /// Returns the current physics state for the given player.
         /// Returns default if the player does not exist.
         /// </summary>
-        public PlayerPhysicsState GetPlayerState(ushort playerId);
+        public PlayerPhysicsState GetPlayerState(NetworkEntityId playerId);
 
         /// <summary>
         /// Returns the current time of day (0-1 range) for inclusion in GameReadyMessage.

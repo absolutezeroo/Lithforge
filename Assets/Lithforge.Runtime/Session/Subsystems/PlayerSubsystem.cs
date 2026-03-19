@@ -7,13 +7,10 @@ using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
-using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Item;
 using Lithforge.Voxel.Storage;
-
-using Unity.Mathematics;
 
 using UnityEngine;
 
@@ -98,11 +95,10 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        /// <summary>Depends on chunk manager and physics for collision setup.</summary>
+        /// <summary>Depends on chunk manager for world data access.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
-            typeof(PlayerPhysicsSubsystem),
         };
 
         /// <summary>Only created for sessions that render.</summary>
@@ -219,15 +215,6 @@ namespace Lithforge.Runtime.Session.Subsystems
                 }
             }
 
-            // Create physics body
-            PlayerPhysicsManager physicsManager = context.Get<PlayerPhysicsManager>();
-            float3 startPos = new(
-                playerObject.transform.position.x,
-                playerObject.transform.position.y,
-                playerObject.transform.position.z);
-            PlayerPhysicsBody physicsBody = physicsManager.AddPlayer(0, startPos, physics);
-            playerController.SetPhysicsBody(physicsBody);
-
             // Create InputSnapshotBuilder
             InputSnapshotBuilder inputBuilder = new(playerObject.transform, mainCamera.transform);
             context.Register(inputBuilder);
@@ -273,10 +260,10 @@ namespace Lithforge.Runtime.Session.Subsystems
             BlockHighlight blockHighlight = highlightObject.AddComponent<BlockHighlight>();
             blockHighlight.Initialize(rendering);
 
-            // Register everything
+            // Register everything (physics body is null — created later by ClientPlayerBodyFactory)
             PlayerTransformHolder holder = new(
                 playerObject.transform, mainCamera, playerController,
-                playerInventory, physicsBody, hasRestoredState, restoredTimeOfDay)
+                playerInventory, null, hasRestoredState, restoredTimeOfDay)
             {
                 Renderer = playerRenderer,
             };

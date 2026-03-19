@@ -7,6 +7,7 @@ using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Network;
+using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
 using Lithforge.Runtime.World;
@@ -109,6 +110,14 @@ namespace Lithforge.Runtime.Session.Subsystems
                     spawnInit.ClientReadyRadius,
                     chunkSettings.YLoadMin,
                     chunkSettings.YLoadMax);
+
+                // Create the client physics body now that we know the spawn position.
+                // The body factory was registered by NetworkClientSubsystem.PostInitialize.
+                if (context.TryGet(out ClientPlayerBodyFactory bodyFactory))
+                {
+                    float3 spawnPos = new(spawnInit.SpawnX, spawnInit.SpawnY, spawnInit.SpawnZ);
+                    bodyFactory.CreateBody(spawnPos);
+                }
             });
 
             _handler = new ClientChunkHandler(

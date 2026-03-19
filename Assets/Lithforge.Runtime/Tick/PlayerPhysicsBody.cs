@@ -209,7 +209,7 @@ namespace Lithforge.Runtime.Tick
                 return;
             }
 
-            // Cache look direction for GetState() / IPlayerManager queries
+            // Cache look direction for GetState() queries
             _yaw = snapshot.Yaw;
             _pitch = snapshot.Pitch;
 

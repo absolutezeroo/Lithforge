@@ -5,12 +5,19 @@ using Lithforge.Network;
 using Lithforge.Network.Client;
 using Lithforge.Network.Message;
 using Lithforge.Network.Transport;
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
+using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Player;
+using Lithforge.Runtime.Session;
 using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
+using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
+
+using Unity.Mathematics;
 
 using UnityEngine;
 
@@ -33,13 +40,13 @@ namespace Lithforge.Runtime.Session.Subsystems
             get { return "NetworkClient"; }
         }
 
-        /// <summary>Depends on physics, tick, player, and server subsystems for simulation wiring.</summary>
+        /// <summary>Depends on tick, player, server, and chunk manager subsystems for simulation wiring.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
-            typeof(PlayerPhysicsSubsystem),
             typeof(TickRegistrySubsystem),
             typeof(PlayerSubsystem),
             typeof(NetworkServerSubsystem),
+            typeof(ChunkManagerSubsystem),
         };
 
         /// <summary>Created for all rendering modes (SP, Host, Client).</summary>
@@ -84,7 +91,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register<INetworkClient>(_client);
         }
 
-        /// <summary>Wires network metrics and defers ClientWorldSimulation creation until handshake completes.</summary>
+        /// <summary>Wires network metrics, creates client-private physics manager, and defers simulation until handshake.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Wire network metrics for client-only mode (SP/Host use the server as source)
@@ -94,44 +101,76 @@ namespace Lithforge.Runtime.Session.Subsystems
                 metricsRegistry.SetNetworkMetrics(_client);
             }
 
+            // Create client-private physics manager (not shared with server)
+            ChunkManager chunkManager = context.Get<ChunkManager>();
+            PlayerPhysicsManager clientPhysicsManager = new(
+                chunkManager, context.Content.NativeStateRegistry);
+
+            PhysicsSettings physics = context.App.Settings.Physics;
+
             // Defer ClientWorldSimulation creation until handshake completes.
             // For DirectTransport (SP/Host), the handshake takes ~2 frames.
             // For UTP (Client), it takes a full network round-trip.
             // LocalPlayerId and ServerTickAtHandshake are only valid after handshake.
-            PlayerPhysicsManager physicsManager = context.Get<PlayerPhysicsManager>();
             TickRegistry tickRegistry = context.Get<TickRegistry>();
             InputSnapshotBuilder input = context.TryGet(out InputSnapshotBuilder b) ? b : null;
+
+            // Register body factory — invoked by ClientChunkHandlerSubsystem on SpawnInit
+            ClientPlayerBodyFactory bodyFactory = new(spawnPosition =>
+            {
+                ushort localId = _client.LocalPlayerId;
+
+                // Create the client-side physics body
+                PlayerPhysicsBody clientBody = clientPhysicsManager.AddPlayer(
+                    localId, spawnPosition, physics);
+
+                // Wire to PlayerTransformHolder, PlayerController, GameLoopPoco
+                if (context.TryGet(out PlayerTransformHolder playerHolder))
+                {
+                    playerHolder.PhysicsBody = clientBody;
+
+                    if (playerHolder.Controller != null)
+                    {
+                        playerHolder.Controller.SetPhysicsBody(clientBody);
+                    }
+                }
+
+                if (context.TryGet(out GameLoopPoco gameLoop))
+                {
+                    gameLoop.SetPlayerPhysicsBody(clientBody);
+                }
+
+                // Wire collision override from ClientBlockPredictor (if available)
+                if (context.TryGet(out ClientBlockPredictor predictor))
+                {
+                    clientBody.SetCollisionOverride(coord =>
+                    {
+                        if (predictor.TryGetOriginalState(coord, out StateId originalState))
+                        {
+                            return originalState;
+                        }
+
+                        return null;
+                    });
+                }
+            });
+
+            context.Register(bodyFactory);
 
             _client.OnHandshakeComplete = () =>
             {
                 ushort localId = _client.LocalPlayerId;
 
-                // The server created the authoritative physics body at localId
-                // during OnPlayerAccepted. Remove the placeholder body (ID 0)
-                // and point the renderer/controller to the server's body.
-                physicsManager.RemovePlayer(0);
-                PlayerPhysicsBody serverBody = physicsManager.GetBody(localId);
-
-                if (context.TryGet(out PlayerTransformHolder playerHolder) && serverBody != null)
-                {
-                    playerHolder.PhysicsBody = serverBody;
-
-                    if (playerHolder.Controller != null)
-                    {
-                        playerHolder.Controller.SetPhysicsBody(serverBody);
-                    }
-                }
-
-                // In SP/Host the server and client share the same PlayerPhysicsBody.
-                // The server ticks it authoritatively — the client must not double-tick.
-                bool isSharedBody = context.Config is SessionConfig.Singleplayer
+                // Server is local when using DirectTransport (SP/Host).
+                // Physics always runs on the client; TickRegistry is gated to avoid double-tick.
+                bool serverIsLocal = context.Config is SessionConfig.Singleplayer
                     or SessionConfig.Host;
 
                 ClientWorldSimulation clientSim = new(
-                    tickRegistry, physicsManager, input,
+                    tickRegistry, clientPhysicsManager, input,
                     _client, localId,
                     _client.ServerTickAtHandshake,
-                    isSharedBody);
+                    serverIsLocal);
 
                 // Register player state handler for reconciliation
                 _client.Dispatcher.RegisterHandler(
@@ -141,15 +180,9 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.Register<IWorldSimulation>(clientSim);
                 context.Register(clientSim);
 
-                // Wire into the running GameLoopPoco
+                // Wire into the running GameLoopPoco (body wiring deferred to body factory)
                 if (context.TryGet(out GameLoopPoco gameLoop))
                 {
-                    // Update physics body reference (was set to placeholder body during PostInitialize)
-                    if (serverBody != null)
-                    {
-                        gameLoop.SetPlayerPhysicsBody(serverBody);
-                    }
-
                     gameLoop.SetWorldSimulation(clientSim);
                 }
 

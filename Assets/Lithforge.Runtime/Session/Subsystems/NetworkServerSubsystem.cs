@@ -54,11 +54,10 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        /// <summary>Depends on chunk manager, physics, and tick registry for server simulation.</summary>
+        /// <summary>Depends on chunk manager and tick registry for server simulation.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
-            typeof(PlayerPhysicsSubsystem),
             typeof(TickRegistrySubsystem),
         };
 
@@ -127,8 +126,11 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             // Build server game loop
             ChunkManager chunkManager = context.Get<ChunkManager>();
-            PlayerPhysicsManager physicsManager = context.Get<PlayerPhysicsManager>();
             TickRegistry tickRegistry = context.Get<TickRegistry>();
+
+            // Server-private physics manager (not registered in context — client creates its own)
+            PlayerPhysicsManager physicsManager = new(
+                chunkManager, context.Content.NativeStateRegistry);
             PhysicsSettings physics = context.App.Settings.Physics;
             ChunkSettings chunkSettings = context.App.Settings.Chunk;
 

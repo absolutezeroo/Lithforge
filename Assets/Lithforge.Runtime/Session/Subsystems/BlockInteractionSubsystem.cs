@@ -9,7 +9,6 @@ using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
-using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Loot;
 
@@ -119,20 +118,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 // Wire prediction expiry sweep into the tick loop (reuses registry from above)
                 registry?.Register(new BlockPredictionTickAdapter(predictor));
 
-                // Wire collision override so physics resolves against server-confirmed state,
-                // not optimistically-applied predictions (prevents cascading mispredictions)
-                if (context.TryGet(out PlayerTransformHolder player))
-                {
-                    player.PhysicsBody.SetCollisionOverride(coord =>
-                    {
-                        if (predictor.TryGetOriginalState(coord, out StateId originalState))
-                        {
-                            return originalState;
-                        }
-
-                        return null;
-                    });
-                }
+                // Collision override wiring moved to ClientPlayerBodyFactory callback
+                // (body doesn't exist yet at PostInitialize time)
             }
         }
 

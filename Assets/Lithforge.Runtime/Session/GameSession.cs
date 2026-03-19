@@ -196,7 +196,6 @@ namespace Lithforge.Runtime.Session
 
             // Phase 5: Simulation
             list.Add(new Subsystems.InputSubsystem());
-            list.Add(new Subsystems.PlayerPhysicsSubsystem());
             list.Add(new Subsystems.TickRegistrySubsystem());
             list.Add(new Subsystems.WorldSimulationSubsystem());
 
