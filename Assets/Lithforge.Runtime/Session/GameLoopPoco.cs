@@ -151,10 +151,6 @@ namespace Lithforge.Runtime.Session
                 }
             }
 
-            // Pump the bridge for the background server thread (replaces ServerGameLoop.Update)
-            _config.TransportPump?.Tick();
-            _config.ServerThreadRunner?.ThrowIfFaulted();
-
             if (_config.WorldSimulation != null && _gameState != GameState.PausedFull)
             {
                 profiler.Begin(FrameProfilerSections.TickLoop);
@@ -181,6 +177,11 @@ namespace Lithforge.Runtime.Session
                 Profiler.EndSample();
                 profiler.End(FrameProfilerSections.TickLoop);
             }
+
+            // Pump the bridge AFTER tick loop so MoveInputMessages sent during client
+            // prediction are flushed to the server in the same frame (not 1 frame late).
+            _config.TransportPump?.Tick();
+            _config.ServerThreadRunner?.ThrowIfFaulted();
 
             if (_config.RemotePlayerManager != null)
             {
