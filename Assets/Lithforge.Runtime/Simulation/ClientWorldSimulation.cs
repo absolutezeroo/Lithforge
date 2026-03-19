@@ -22,7 +22,7 @@ namespace Lithforge.Runtime.Simulation
     public sealed class ClientWorldSimulation : IWorldSimulation
     {
         /// <summary>Position error below this threshold is treated as floating-point noise and ignored.</summary>
-        private const float ErrorThresholdIgnore = 0.001f;
+        private const float ErrorThresholdIgnore = 0.2f;
 
         /// <summary>Position error below this threshold triggers visual smoothing instead of full reconciliation.</summary>
         private const float ErrorThresholdSmooth = 0.3f;
