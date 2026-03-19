@@ -90,5 +90,12 @@ namespace Lithforge.Runtime.Simulation
                 IsAllAir: true,
             };
         }
+
+        public int GetChunkNetworkVersion(int3 coord)
+        {
+            ManagedChunk chunk = _chunkManager.GetChunk(coord);
+
+            return chunk?.NetworkVersion ?? -1;
+        }
     }
 }

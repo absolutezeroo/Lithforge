@@ -24,6 +24,7 @@ namespace Lithforge.Network.Message
         SlotClickCmd = 24,
         StartDiggingCmd = 25,
         ClientReady = 26,
+        ChunkBatchAck = 27,
 
         // Server→Client state updates
         PlayerState = 40,

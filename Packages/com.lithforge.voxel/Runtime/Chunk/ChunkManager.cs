@@ -760,6 +760,7 @@ namespace Lithforge.Voxel.Chunk
 
             chunk.IsDirty = true;
             chunk.HasPlayerEdit = true;
+            chunk.NetworkVersion++;
 
             if (state.Value != 0)
             {

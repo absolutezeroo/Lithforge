@@ -142,6 +142,14 @@ namespace Lithforge.Voxel.Chunk
         public bool IsDirty { get; set; }
 
         /// <summary>
+        /// Monotonically increasing version counter for network chunk cache invalidation.
+        /// Incremented by ChunkManager.SetBlock on each block edit. When the cached
+        /// serialized bytes were produced at version N and the chunk is now at version N+k,
+        /// the cache entry is stale and must be re-serialized.
+        /// </summary>
+        public int NetworkVersion { get; set; }
+
+        /// <summary>
         /// True if all voxels in this chunk are air (StateId == 0).
         /// Set by GenerationScheduler after generation completes via ChunkAirDetector.
         /// All-air chunks skip meshing and count as immediately ready for

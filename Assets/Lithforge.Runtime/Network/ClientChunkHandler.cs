@@ -22,10 +22,14 @@ namespace Lithforge.Runtime.Network
     ///     Chunk unloads are queued rather than applied immediately, because the full
     ///     cleanup chain (mesh store, schedulers, biome tint) lives in GameLoop.
     ///     Call <see cref="DrainPendingUnloads" /> from GameLoop each frame.
+    ///     Sends <see cref="ChunkBatchAckMessage" /> after every
+    ///     <see cref="NetworkConstants.ChunkAckBatchSize" /> chunks for flow control.
     /// </summary>
     public sealed class ClientChunkHandler : IDisposable
     {
         private readonly ChunkManager _chunkManager;
+
+        private readonly INetworkClient _client;
 
         // Cached list for multi-block change deserialization
         private readonly List<int3> _dirtiedChunksCache = new();
@@ -33,6 +37,9 @@ namespace Lithforge.Runtime.Network
 
         // Pending unloads — queued by network handler, drained by GameLoop
         private readonly List<int3> _pendingUnloads = new();
+
+        /// <summary>Chunks received since the last ACK was sent.</summary>
+        private int _unackedReceived;
 
         private NativeArray<byte> _deserializeLightBuffer;
 
@@ -45,6 +52,7 @@ namespace Lithforge.Runtime.Network
             Action<GameReadyMessage> onGameReady)
         {
             _chunkManager = chunkManager;
+            _client = networkClient;
             _onGameReady = onGameReady;
 
             _deserializeVoxelBuffer = new NativeArray<StateId>(
@@ -75,6 +83,24 @@ namespace Lithforge.Runtime.Network
                 {
                     _deserializeLightBuffer.Dispose();
                 }
+            }
+        }
+
+        /// <summary>
+        ///     Sends a <see cref="ChunkBatchAckMessage" /> for any remaining un-ACK'd chunks.
+        ///     Call when the client transitions from Loading to Playing to flush the window.
+        /// </summary>
+        public void FlushPendingAck()
+        {
+            if (_unackedReceived > 0)
+            {
+                ChunkBatchAckMessage ack = new()
+                {
+                    Count = (ushort)_unackedReceived,
+                };
+
+                _client.Send(ack, PipelineId.ReliableSequenced);
+                _unackedReceived = 0;
             }
         }
 
@@ -122,6 +148,20 @@ namespace Lithforge.Runtime.Network
             // The chunk skips generation/decoration and goes directly to Generated state
             // so the MeshScheduler can pick it up for meshing.
             _chunkManager.LoadFromNetwork(chunkCoord, _deserializeVoxelBuffer, _deserializeLightBuffer);
+
+            // Flow control: send batch ACK to release server-side streaming window
+            _unackedReceived++;
+
+            if (_unackedReceived >= NetworkConstants.ChunkAckBatchSize)
+            {
+                ChunkBatchAckMessage ack = new()
+                {
+                    Count = (ushort)_unackedReceived,
+                };
+
+                _client.Send(ack, PipelineId.ReliableSequenced);
+                _unackedReceived = 0;
+            }
         }
 
         private void OnChunkUnload(ConnectionId connId, byte[] data, int offset, int length)

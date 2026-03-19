@@ -16,8 +16,11 @@ namespace Lithforge.Network.Server
     /// </summary>
     public sealed class ChunkStreamingManager
     {
-        /// <summary>Chunks per tick during steady-state play.</summary>
-        private const int SteadyStateRate = 2;
+        /// <summary>Chunks per tick while queue is non-empty and player is stationary.</summary>
+        private const int TrickleRate = 1;
+
+        /// <summary>Chunks per tick while the player is moving through new chunks.</summary>
+        private const int MovingRate = 2;
 
         /// <summary>Chunks per tick during initial Loading phase.</summary>
         private const int InitialLoadRate = 4;
@@ -92,10 +95,40 @@ namespace Lithforge.Network.Server
                 interest.PreviousChunk = interest.CurrentChunk;
             }
 
-            // Stream chunks up to rate limit.
-            // MaxChecksPerTick prevents scanning the entire queue when most chunks
-            // aren't generated yet — the cursor stops and resumes next tick.
-            int rate = interest.IsInitialLoad ? InitialLoadRate : SteadyStateRate;
+            // Adaptive rate: initial load (4) → moving (2) → trickle (1) → idle (0).
+            // ACK window cap: pause entirely if too many chunks are in-flight.
+            int rate;
+
+            if (interest.UnackedChunks >= interest.MaxInFlightChunks)
+            {
+                // Flow control: client hasn't ACK'd enough chunks yet
+                return;
+            }
+
+            if (interest.IsInitialLoad)
+            {
+                rate = InitialLoadRate;
+            }
+            else if (!interest.CurrentChunk.Equals(interest.PreviousChunk))
+            {
+                // Player crossed a chunk boundary this tick — moving
+                rate = MovingRate;
+            }
+            else if (interest.StreamingQueueIndex < interest.StreamingQueue.Count)
+            {
+                // Stationary but queue has pending items — trickle
+                rate = TrickleRate;
+            }
+            else
+            {
+                // Stationary, all visible chunks loaded — idle
+                return;
+            }
+
+            // Clamp rate to remaining ACK window
+            int windowRemaining = interest.MaxInFlightChunks - interest.UnackedChunks;
+            rate = rate < windowRemaining ? rate : windowRemaining;
+
             int maxChecks = rate * 64;
             int sent = 0;
             int checked_ = 0;
@@ -137,6 +170,7 @@ namespace Lithforge.Network.Server
 
                 interest.LoadedChunks.Add(coord);
                 interest.StreamingQueueIndex++;
+                interest.UnackedChunks++;
                 sent++;
             }
 

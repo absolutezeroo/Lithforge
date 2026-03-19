@@ -28,5 +28,19 @@ namespace Lithforge.Network
         public const int ReliableWindowSize = 64;
         public const int FragmentationPayloadCapacity = 65536;
         public const int MaxPlayerNameLength = 32;
+
+        /// <summary>
+        /// Maximum chunks in-flight (sent but not ACK'd) per peer before the server
+        /// pauses streaming. Prevents overwhelming slow clients. Clients send
+        /// <see cref="Messages.ChunkBatchAckMessage"/> to release window slots.
+        /// </summary>
+        public const int MaxInFlightChunks = 32;
+
+        /// <summary>
+        /// Number of chunk receipts the client accumulates before sending
+        /// a <see cref="Messages.ChunkBatchAckMessage"/> back to the server.
+        /// Lower values give tighter flow control; higher values reduce ACK traffic.
+        /// </summary>
+        public const int ChunkAckBatchSize = 4;
     }
 }

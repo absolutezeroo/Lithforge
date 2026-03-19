@@ -121,6 +121,7 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.BreakBlockCmd, OnBreakBlockCmd);
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
             dispatcher.RegisterHandler(MessageType.ClientReady, OnClientReady);
+            dispatcher.RegisterHandler(MessageType.ChunkBatchAck, OnChunkBatchAck);
 
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
         }
@@ -710,6 +711,25 @@ namespace Lithforge.Network.Server
                 $"ClientReady from peer {connId} (radius={msg.ReadyRadius})");
             _readinessWaiter.OnPeerReady(connId);
             TransitionToPlaying(peer, _lastCurrentTime);
+        }
+
+        private void OnChunkBatchAck(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState == null)
+            {
+                return;
+            }
+
+            ChunkBatchAckMessage msg = ChunkBatchAckMessage.Deserialize(data, offset, length);
+            PlayerInterestState interest = peer.InterestState;
+            interest.UnackedChunks -= msg.Count;
+
+            if (interest.UnackedChunks < 0)
+            {
+                interest.UnackedChunks = 0;
+            }
         }
 
         private void OnMoveInput(ConnectionId connId, byte[] data, int offset, int length)

@@ -42,5 +42,12 @@ namespace Lithforge.Network.Server
         /// and count as immediately ready for the spawn-readiness gate.
         /// </summary>
         public bool IsChunkAllAir(int3 coord);
+
+        /// <summary>
+        /// Returns the network version counter for the chunk at the given coordinate.
+        /// The version increments on each block edit. Returns -1 if the chunk is not loaded.
+        /// Used by <see cref="CompressedChunkCache"/> to detect stale cache entries.
+        /// </summary>
+        public int GetChunkNetworkVersion(int3 coord);
     }
 }
