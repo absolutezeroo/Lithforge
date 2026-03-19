@@ -16,10 +16,15 @@ namespace Lithforge.Voxel.Storage
     public sealed class WorldStorage : IDisposable
     {
         private readonly List<RegionFile> _flushCache = new();
+
         private readonly ILogger _logger;
+
         private readonly string _regionDir;
+
         private readonly Dictionary<int3, RegionFile> _regionFiles = new();
+
         private readonly object _regionFilesLock = new();
+
         private bool _disposed;
 
         public WorldStorage(string worldDir, ILogger logger = null)

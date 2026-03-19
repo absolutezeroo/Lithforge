@@ -10,12 +10,19 @@ namespace Lithforge.Voxel.Storage
     public sealed class WorldMetadata
     {
         public string DisplayName { get; set; } = "New World";
+
         public long Seed { get; set; }
+
         public GameMode GameMode { get; set; } = GameMode.Survival;
+
         public DateTime CreationDate { get; set; } = DateTime.UtcNow;
+
         public DateTime LastPlayed { get; set; } = DateTime.UtcNow;
+
         public int DataVersion { get; set; } = 2;
+
         public string ContentHash { get; set; } = "";
+
         public WorldPlayerState PlayerState { get; set; }
 
         public void Save(string filePath)

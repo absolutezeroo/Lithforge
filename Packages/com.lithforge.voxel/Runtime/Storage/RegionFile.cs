@@ -7,12 +7,17 @@ namespace Lithforge.Voxel.Storage
     public sealed class RegionFile : IDisposable
     {
         public const int RegionSize = 32;
-        private const int HeaderSize = RegionSize * RegionSize * 8; // 8 bytes per column (offset + size)
+
+        private const int HeaderSize = RegionSize * RegionSize * 8;
+
         private const int SectorSize = 4096;
+
         private readonly Dictionary<int, byte[]> _cache = new();
+
         private readonly object _cacheLock = new();
 
         private readonly string _filePath;
+
         private bool _disposed;
 
         public RegionFile(string filePath)
@@ -27,6 +32,7 @@ namespace Lithforge.Voxel.Storage
             if (!_disposed)
             {
                 _disposed = true;
+
                 Flush();
             }
         }

@@ -816,7 +816,10 @@ namespace Lithforge.Runtime.Rendering
             /// <summary>Returns the dirty interval at the given position in the sorted list.</summary>
             public DirtyRange this[int index]
             {
-                get { return _ranges[index]; }
+                get
+                {
+                    return _ranges[index];
+                }
             }
 
             /// <summary>
