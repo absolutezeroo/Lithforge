@@ -55,6 +55,12 @@ namespace Lithforge.Network.Server
         private readonly IServerBlockProcessor _blockProcessor;
 
         /// <summary>
+        ///     Cross-thread bridge for publishing player chunk positions to the main thread.
+        ///     Null when the server runs without a background thread (future extension point).
+        /// </summary>
+        private readonly ServerThreadBridge _bridge;
+
+        /// <summary>
         ///     Pool of reusable int lists for the spatial hash cell entries.
         /// </summary>
         private readonly List<List<int>> _cellListPool = new();
@@ -165,12 +171,6 @@ namespace Lithforge.Network.Server
         ///     The currentTime value from the most recent Update call, cached for use in callbacks.
         /// </summary>
         private float _lastCurrentTime;
-
-        /// <summary>
-        ///     Cross-thread bridge for publishing player chunk positions to the main thread.
-        ///     Null when the server runs without a background thread (future extension point).
-        /// </summary>
-        private readonly ServerThreadBridge _bridge;
 
         /// <summary>
         ///     Debug counter for stream operations (diagnostic only).
@@ -504,8 +504,12 @@ namespace Lithforge.Network.Server
                     Flags = state.Flags,
                 };
 
-                // Send to the owning player (for prediction reconciliation)
-                _server.SendTo(peer.ConnectionId, msg, PipelineId.UnreliableSequenced);
+                // Send to the owning player (for prediction reconciliation).
+                // Skip for local peer — no bridge latency to reconcile against.
+                if (!peer.IsLocal)
+                {
+                    _server.SendTo(peer.ConnectionId, msg, PipelineId.UnreliableSequenced);
+                }
 
                 // Broadcast to spatially nearby playing peers (O(K) instead of O(N))
                 GatherNearbyPlayerIndices(interest.CurrentChunk);
