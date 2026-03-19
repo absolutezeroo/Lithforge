@@ -14,11 +14,12 @@ using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Simulation;
-using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Storage;
+
+using Unity.Mathematics;
 
 using UnityEngine;
 
@@ -302,35 +303,47 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             slConfig.UnloadBudgetMs = context.App.Settings.Chunk.UnloadBudgetMs;
             slConfig.GracePeriodSeconds = context.App.Settings.Chunk.GracePeriodSeconds;
-            slConfig.GetCurrentRealtime = () => UnityEngine.Time.realtimeSinceStartupAsDouble;
+            slConfig.GetCurrentRealtime = () => Time.realtimeSinceStartupAsDouble;
 
-            // Player chunk positions come from the bridge snapshot (per-player positions)
-            if (context.TryGet(out MainThreadBridgePump bridgePump))
-            {
-                slConfig.GetPlayerChunkSnapshot = () => bridgePump.GetPlayerChunkSnapshot();
-            }
-            else
-            {
-                // Fallback for modes without a bridge pump: read camera directly (single player)
-                Camera mainCamera = player?.MainCamera;
+            // Player chunk positions: prefer bridge snapshot (populated by server thread
+            // with all player positions), fall back to camera when bridge is empty or absent.
+            // The camera fallback is critical for SP/Host startup: the bridge starts empty
+            // until the server thread processes the local peer's handshake (~100ms).
+            Camera mainCamera = player?.MainCamera;
 
-                slConfig.GetPlayerChunkSnapshot = () =>
+            context.TryGet(out MainThreadBridgePump pump);
+
+            slConfig.GetPlayerChunkSnapshot = () =>
+            {
+                // Bridge snapshot includes all connected players (local + remote)
+                if (pump is not null)
                 {
-                    if (mainCamera == null)
+                    PlayerChunkSnapshot bridgeSnapshot = pump.GetPlayerChunkSnapshot();
+
+                    if (bridgeSnapshot.Count > 0)
                     {
-                        return PlayerChunkSnapshot.Empty;
+                        return bridgeSnapshot;
                     }
+                }
 
-                    Vector3 pos = mainCamera.transform.position;
+                // Fallback: read camera directly (startup + modes without a bridge)
+                if (mainCamera == null)
+                {
+                    return PlayerChunkSnapshot.Empty;
+                }
 
-                    Unity.Mathematics.int3 coord = new(
-                        (int)Unity.Mathematics.math.floor(pos.x / Lithforge.Voxel.Chunk.ChunkConstants.Size),
-                        (int)Unity.Mathematics.math.floor(pos.y / Lithforge.Voxel.Chunk.ChunkConstants.Size),
-                        (int)Unity.Mathematics.math.floor(pos.z / Lithforge.Voxel.Chunk.ChunkConstants.Size));
+                Vector3 pos = mainCamera.transform.position;
 
-                    return new PlayerChunkSnapshot(new[] { coord }, 1);
-                };
-            }
+                int3 coord = new(
+                    (int)math.floor(pos.x / ChunkConstants.Size),
+                    (int)math.floor(pos.y / ChunkConstants.Size),
+                    (int)math.floor(pos.z / ChunkConstants.Size));
+
+                return new PlayerChunkSnapshot(new[]
+                {
+                    coord,
+                }, 1);
+            };
 
             Camera lookCamera = player?.MainCamera;
 
@@ -338,12 +351,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             {
                 if (lookCamera == null)
                 {
-                    return Unity.Mathematics.float3.zero;
+                    return float3.zero;
                 }
 
                 Vector3 fwd = lookCamera.transform.forward;
 
-                return new Unity.Mathematics.float3(fwd.x, fwd.y, fwd.z);
+                return new float3(fwd.x, fwd.y, fwd.z);
             };
 
             return new ServerLoopPoco(slConfig);
