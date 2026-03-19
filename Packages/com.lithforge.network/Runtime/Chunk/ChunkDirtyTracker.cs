@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 
+using Lithforge.Network.Bridge;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 
@@ -13,7 +14,7 @@ namespace Lithforge.Network.Chunk
     ///     Uses double-buffering to avoid per-tick dictionary allocation: <see cref="FlushAll" />
     ///     swaps the active buffer and returns the previous tick's data without heap allocation.
     /// </summary>
-    public sealed class ChunkDirtyTracker
+    public sealed class ChunkDirtyTracker : IDirtyChangeSource
     {
         /// <summary>Accumulates changes during the current tick.</summary>
         private Dictionary<int3, List<BlockChangeEntry>> _current = new();

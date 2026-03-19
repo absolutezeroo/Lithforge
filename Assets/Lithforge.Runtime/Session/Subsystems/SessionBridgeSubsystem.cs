@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Network.Bridge;
 using Lithforge.Network.Client;
 using Lithforge.Network.Server;
 using Lithforge.Runtime.Audio;
@@ -143,6 +144,16 @@ namespace Lithforge.Runtime.Session.Subsystems
             if (context.TryGet(out ServerGameLoop serverGameLoop))
             {
                 config.ServerGameLoop = serverGameLoop;
+            }
+
+            if (context.TryGet(out MainThreadBridgePump transportPump))
+            {
+                config.TransportPump = transportPump;
+            }
+
+            if (context.TryGet(out ServerThreadRunner serverThreadRunner))
+            {
+                config.ServerThreadRunner = serverThreadRunner;
             }
 
             if (context.TryGet(out ClientChunkHandler clientChunkHandler))

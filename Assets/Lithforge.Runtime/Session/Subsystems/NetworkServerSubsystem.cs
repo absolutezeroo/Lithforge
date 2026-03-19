@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 
 using Lithforge.Network;
+using Lithforge.Network.Bridge;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
@@ -39,8 +40,14 @@ namespace Lithforge.Runtime.Session.Subsystems
         /// </summary>
         private PlayerTransformHolder _playerHolder;
 
+        /// <summary>Stored reference to the real transport for the bridge pump (DedicatedServer case).</summary>
+        private INetworkTransport _realTransport;
+
         /// <summary>The owned network server managing connections and message dispatch.</summary>
         private NetworkServer _server;
+
+        /// <summary>Background server thread runner (null until PostInitialize starts it).</summary>
+        private ServerThreadRunner _runner;
 
         /// <summary>The server-side game loop processing player commands and chunk streaming.</summary>
         private ServerGameLoop _serverGameLoop;
@@ -120,8 +127,11 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
             else if (context.Config is SessionConfig.DedicatedServer ds)
             {
-                // UTP only (no local player)
-                _server.Start(ds.ServerPort);
+                // UTP only (no local player) — create transport explicitly for bridge pump access
+                NetworkDriverWrapper utpTransport = new(logger);
+                utpTransport.Listen(ds.ServerPort);
+                _realTransport = utpTransport;
+                _server.StartWithTransport(utpTransport);
             }
 
             // Build server game loop
@@ -163,15 +173,36 @@ namespace Lithforge.Runtime.Session.Subsystems
                 chunkProvider,
                 logger);
 
-            // Default streaming strategy: network serialization
-            NetworkChunkStreamingStrategy networkStrategy = new(_server, chunkProvider);
-
             // Client readiness timeout: 900 ticks = 30 seconds at 30 TPS
             ClientReadinessWaiter readinessWaiter = new(900);
 
-            _serverGameLoop = new ServerGameLoop(
-                _server, serverSim, blockProcessor, chunkProvider,
-                dirtyTracker, streamingManager, networkStrategy, readinessWaiter, logger);
+            // Build the bridge infrastructure: creates bridged server, bridged
+            // simulation/block-processor/dirty-tracker, pump, and thread runner.
+            INetworkTransport pumpTransport = (INetworkTransport)_compositeTransport ?? _realTransport;
+            ulong seed = 0;
+
+            if (context.TryGet(out WorldMetadata meta))
+            {
+                seed = (ulong)meta.Seed;
+            }
+
+            ServerThreadBridgeFactory.BuildResult bridgeResult = ServerThreadBridgeFactory.Build(
+                pumpTransport,
+                serverSim,
+                blockProcessor,
+                dirtyTracker,
+                chunkProvider,
+                streamingManager,
+                readinessWaiter,
+                contentHash,
+                maxPlayers,
+                seed,
+                () => serverSim.GetTimeOfDay(),
+                logger);
+
+            _serverGameLoop = bridgeResult.ServerGameLoop;
+            MainThreadBridgePump pump = bridgeResult.Pump;
+            _runner = bridgeResult.Runner;
 
             // For SP/Host, set up local chunk streaming strategy for zero-copy chunk delivery.
             if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
@@ -187,22 +218,26 @@ namespace Lithforge.Runtime.Session.Subsystems
                 _serverGameLoop.SetPeerStrategy(new ConnectionId(1), localStrategy);
 
                 // ConnectionId(1) is the local peer (DirectTransport added first).
-                // Mark it as local and teleport to spawn when accepted.
+                // Mark it as local and defer the spawn teleport to the main thread
+                // since Transform access requires the main thread.
                 ConnectionId localConnectionId = new(1);
+                MainThreadBridgePump pumpRef = pump;
                 _serverGameLoop.OnPlayerAcceptedCallback = (peer, spawnPos) =>
                 {
                     if (peer.ConnectionId.Equals(localConnectionId))
                     {
                         peer.IsLocal = true;
 
-                        // Teleport player to spawn immediately so that
-                        // GetServerChunkCenter returns the spawn chunk and
-                        // generation centers on the correct position.
-                        if (_playerHolder != null)
+                        // Defer teleport to main thread — Transform.position requires main thread
+                        float3 pos = spawnPos;
+                        pumpRef.EnqueueMainThreadAction(() =>
                         {
-                            _playerHolder.Transform.position =
-                                new UnityEngine.Vector3(spawnPos.x, spawnPos.y, spawnPos.z);
-                        }
+                            if (_playerHolder != null)
+                            {
+                                _playerHolder.Transform.position =
+                                    new UnityEngine.Vector3(pos.x, pos.y, pos.z);
+                            }
+                        });
                     }
                 };
 
@@ -213,6 +248,8 @@ namespace Lithforge.Runtime.Session.Subsystems
             context.Register(_server);
             context.Register(_serverGameLoop);
             context.Register(dirtyTracker);
+            context.Register(pump);
+            context.Register(_runner);
 
             if (_compositeTransport != null)
             {
@@ -220,7 +257,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        /// <summary>Wires player transform, LAN broadcaster, and network metrics.</summary>
+        /// <summary>Wires player transform, LAN broadcaster, network metrics, and starts the server thread.</summary>
         public void PostInitialize(SessionContext context)
         {
             // Capture player transform for the accept callback's spawn teleport.
@@ -242,11 +279,16 @@ namespace Lithforge.Runtime.Session.Subsystems
             {
                 metricsRegistry.SetNetworkMetrics(_server);
             }
+
+            // Start the background server thread after all wiring is complete
+            _runner?.Start();
         }
 
-        /// <summary>No in-flight jobs to complete.</summary>
+        /// <summary>Stops the server thread before in-flight jobs are completed.</summary>
         public void Shutdown()
         {
+            _runner?.Dispose();
+            _runner = null;
         }
 
         /// <summary>Disposes the network server and all transport layers.</summary>
@@ -254,12 +296,14 @@ namespace Lithforge.Runtime.Session.Subsystems
         {
             if (_server != null)
             {
+                // NetworkServer.Dispose() internally disposes the transport it was started with.
+                // Null out our references first to avoid double-dispose.
+                _compositeTransport = null;
+                _realTransport = null;
+
                 _server.Dispose();
                 _server = null;
             }
-
-            _compositeTransport?.Dispose();
-            _compositeTransport = null;
 
             _directServer?.Dispose();
             _directServer = null;

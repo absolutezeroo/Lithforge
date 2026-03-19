@@ -151,10 +151,9 @@ namespace Lithforge.Runtime.Session
                 }
             }
 
-            if (_config.ServerGameLoop != null)
-            {
-                _config.ServerGameLoop.Update(Time.deltaTime, Time.realtimeSinceStartup);
-            }
+            // Pump the bridge for the background server thread (replaces ServerGameLoop.Update)
+            _config.TransportPump?.Tick();
+            _config.ServerThreadRunner?.ThrowIfFaulted();
 
             if (_config.WorldSimulation != null && _gameState != GameState.PausedFull)
             {
@@ -369,6 +368,9 @@ namespace Lithforge.Runtime.Session
         /// <summary>Completes all in-flight jobs and disposes player and remote player renderers.</summary>
         public void Shutdown()
         {
+            // Stop the server thread before completing jobs to prevent new work being enqueued
+            _config.ServerThreadRunner?.Dispose();
+
             _config.ServerLoop?.Shutdown();
             _config.RelightScheduler?.Shutdown();
             _config.MeshScheduler?.Shutdown();

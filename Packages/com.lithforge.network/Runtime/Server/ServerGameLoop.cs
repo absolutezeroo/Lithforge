@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Network.Bridge;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
@@ -74,9 +75,9 @@ namespace Lithforge.Network.Server
         private readonly List<int3> _dirtiedChunksCache = new();
 
         /// <summary>
-        ///     Tracks per-chunk block changes for network delta batching.
+        ///     Source of per-tick dirty block changes for network delta batching.
         /// </summary>
-        private readonly ChunkDirtyTracker _dirtyTracker;
+        private readonly IDirtyChangeSource _dirtyTracker;
 
         /// <summary>
         ///     Reusable cache for host-side despawn notifications.
@@ -205,7 +206,7 @@ namespace Lithforge.Network.Server
             IServerSimulation simulation,
             IServerBlockProcessor blockProcessor,
             IServerChunkProvider chunkProvider,
-            ChunkDirtyTracker dirtyTracker,
+            IDirtyChangeSource dirtyTracker,
             ChunkStreamingManager streamingManager,
             IChunkStreamingStrategy defaultStrategy,
             ClientReadinessWaiter readinessWaiter,
@@ -292,13 +293,13 @@ namespace Lithforge.Network.Server
 
             while (_tickAccumulator >= TickDt)
             {
-                ExecuteTick(currentTime);
+                ExecuteOneTick(currentTime);
                 _tickAccumulator -= TickDt;
             }
         }
 
         /// <summary>Runs one full 6-phase server tick at the fixed tick rate.</summary>
-        private void ExecuteTick(float currentTime)
+        internal void ExecuteOneTick(float currentTime)
         {
             _lastCurrentTime = currentTime;
 
@@ -309,6 +310,9 @@ namespace Lithforge.Network.Server
             // Phase 2: Process player inputs
             GatherPeersByState(_playingPeersCache, ConnectionState.Playing);
             ProcessPlayerInputs();
+
+            // Post-input hook: allows BridgedSimulation to synchronize physics results
+            (_simulation as IPostInputHook)?.AfterProcessPlayerInputs();
 
             // Build spatial index for Phase 5 broadcast (O(N) instead of O(N²) iteration)
             BuildSpatialIndex();

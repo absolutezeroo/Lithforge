@@ -1,3 +1,4 @@
+using Lithforge.Network.Bridge;
 using Lithforge.Network.Client;
 using Lithforge.Network.Server;
 using Lithforge.Runtime.Audio;
@@ -64,8 +65,14 @@ namespace Lithforge.Runtime.Session
         /// <summary>Network client for sending commands and receiving state updates.</summary>
         public INetworkClient NetworkClient { get; set; }
 
-        /// <summary>Server-side game loop for host/singleplayer network processing.</summary>
+        /// <summary>Server-side game loop for host/singleplayer network processing (unused when threaded).</summary>
         public ServerGameLoop ServerGameLoop { get; set; }
+
+        /// <summary>Main-thread bridge pump for servicing the background server thread.</summary>
+        public MainThreadBridgePump TransportPump { get; set; }
+
+        /// <summary>Background server thread runner for fault checking and shutdown.</summary>
+        public ServerThreadRunner ServerThreadRunner { get; set; }
 
         /// <summary>Handles chunk data received from the network for client-side loading.</summary>
         public ClientChunkHandler ClientChunkHandler { get; set; }
