@@ -33,7 +33,7 @@ namespace Lithforge.Network.Bridge
         private bool _disposed;
 
         /// <summary>Creates a new runner for the given game loop and bridge.</summary>
-        public ServerThreadRunner(ServerGameLoop serverGameLoop, ServerThreadBridge bridge)
+        internal ServerThreadRunner(ServerGameLoop serverGameLoop, ServerThreadBridge bridge)
         {
             _serverGameLoop = serverGameLoop;
             _bridge = bridge;
@@ -120,7 +120,7 @@ namespace Lithforge.Network.Bridge
                     if (now >= nextTickTime)
                     {
                         _serverGameLoop.ExecuteOneTick(
-                            (float)now / 1000f);
+                            now / 1000f);
 
                         nextTickTime += TickIntervalMs;
 

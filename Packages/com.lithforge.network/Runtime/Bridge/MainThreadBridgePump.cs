@@ -35,7 +35,7 @@ namespace Lithforge.Network.Bridge
         private readonly Func<float> _timeOfDayProvider;
 
         /// <summary>Creates a new pump wiring the bridge to the real main-thread implementations.</summary>
-        public MainThreadBridgePump(
+        internal MainThreadBridgePump(
             ServerThreadBridge bridge,
             INetworkTransport realTransport,
             IServerSimulation realSimulation,

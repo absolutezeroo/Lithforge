@@ -1,3 +1,5 @@
+using Lithforge.Network.Transport;
+
 namespace Lithforge.Network.Bridge
 {
     /// <summary>
