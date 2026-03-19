@@ -115,8 +115,16 @@ namespace Lithforge.Runtime.Content.Settings
         [HideInInspector]
         [SerializeField] private int maxLODMeshesPerFrame = 4;
 
-        /// <summary>World Y coordinate used when the safe-spawn column scan finds no solid ground.</summary>
+        /// <summary>
+        ///     Chunk radius around the spawn position that the client must receive before
+        ///     sending ClientReady to the server. 0 = spawn chunk only, 1 = 3x3 XZ footprint.
+        /// </summary>
         [Header("Spawn")]
+        [Tooltip("Chunk radius (XZ) around spawn the client must load before entering play")]
+        [Range(0, 4)]
+        [SerializeField] private int clientReadyRadius = 1;
+
+        /// <summary>World Y coordinate used when the safe-spawn column scan finds no solid ground.</summary>
         [Tooltip("Fallback world Y for player if no solid block is found during spawn scan")]
         [SerializeField] private int spawnFallbackY = 65;
 
@@ -188,6 +196,12 @@ namespace Lithforge.Runtime.Content.Settings
         public float LodCompletionBudgetMs
         {
             get { return lodCompletionBudgetMs; }
+        }
+
+        /// <inheritdoc cref="clientReadyRadius"/>
+        public int ClientReadyRadius
+        {
+            get { return clientReadyRadius; }
         }
 
         /// <inheritdoc cref="spawnFallbackY"/>

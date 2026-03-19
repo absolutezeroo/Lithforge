@@ -23,13 +23,6 @@ namespace Lithforge.Network.Server
         public byte[] SerializeChunk(int3 coord);
 
         /// <summary>
-        /// Returns true if all chunks in a horizontal square of the given radius
-        /// around center (XZ plane), across the specified Y range, are in Ready state.
-        /// Used to gate the Loading→Playing transition.
-        /// </summary>
-        public bool AreChunksReady(int3 center, int radius, int yMin, int yMax);
-
-        /// <summary>
         /// Finds a safe Y coordinate for spawning at the given world XZ position.
         /// Scans downward through the specified chunk Y range.
         /// Returns fallbackY if no solid ground is found.
@@ -49,15 +42,5 @@ namespace Lithforge.Network.Server
         /// and count as immediately ready for the spawn-readiness gate.
         /// </summary>
         public bool IsChunkAllAir(int3 coord);
-
-        /// <summary>
-        ///     Computes how many chunks in the spawn volume are ready.
-        ///     When <paramref name="requireMeshed" /> is true (SP/Host), a chunk must be at
-        ///     <c>ChunkState.Ready</c> or confirmed all-air.
-        ///     When false (remote client), <c>ChunkState.Generated</c> or better counts as ready
-        ///     because the remote client meshes locally after receiving the voxel data.
-        /// </summary>
-        public SpawnReadinessSnapshot GetSpawnReadiness(
-            int3 center, int readyRadius, int yMin, int yMax, bool requireMeshed);
     }
 }

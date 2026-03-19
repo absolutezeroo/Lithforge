@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Lithforge.Runtime::Lithforge.Runtime.Content.Settings.ChunkSettings
   poolSize: 512
   renderDistance: 4
-  spawnLoadRadius: 2
+  spawnLoadRadius: 1
   maxGenerationsPerFrame: 16
   maxMeshesPerFrame: 16
   maxGenCompletionsPerFrame: 8
@@ -33,5 +33,6 @@ MonoBehaviour:
   lod2Distance: 10
   lod3Distance: 16
   maxLODMeshesPerFrame: 8
+  clientReadyRadius: 1
   spawnFallbackY: 62
   initialSpawnYOffset: 32

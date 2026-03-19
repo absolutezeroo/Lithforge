@@ -51,6 +51,7 @@ namespace Lithforge.Network.Server
         /// <summary>Per-connection streaming strategy override. Falls back to _defaultStrategy.</summary>
         private readonly Dictionary<int, IChunkStreamingStrategy> _peerStrategies = new();
         private readonly Dictionary<ushort, int> _playerIdToIndex = new();
+        private readonly ClientReadinessWaiter _readinessWaiter;
 
         // Cached collections (fill pattern, reused every tick)
         private readonly List<PeerInfo> _playingPeersCache = new();
@@ -67,6 +68,7 @@ namespace Lithforge.Network.Server
         private IChunkStreamingStrategy _defaultStrategy;
 
         private bool _disposed;
+        private float _lastCurrentTime;
         private int _streamDebugCounter;
         private float _tickAccumulator;
 
@@ -82,7 +84,7 @@ namespace Lithforge.Network.Server
         /// <summary>
         ///     Fires after a player is accepted and initialized (physics body created,
         ///     streaming queue built). Parameters: PeerInfo, spawn position.
-        ///     Used by NetworkServerSubsystem to update SpawnLoadingTracker's spawn chunk.
+        ///     Used by NetworkServerSubsystem to teleport the local player to spawn.
         /// </summary>
         public Action<PeerInfo, float3> OnPlayerAcceptedCallback;
 
@@ -100,6 +102,7 @@ namespace Lithforge.Network.Server
             ChunkDirtyTracker dirtyTracker,
             ChunkStreamingManager streamingManager,
             IChunkStreamingStrategy defaultStrategy,
+            ClientReadinessWaiter readinessWaiter,
             ILogger logger)
         {
             _server = server;
@@ -110,6 +113,7 @@ namespace Lithforge.Network.Server
             _dirtyTracker = dirtyTracker;
             _streamingManager = streamingManager;
             _defaultStrategy = defaultStrategy;
+            _readinessWaiter = readinessWaiter;
             _logger = logger;
 
             // Register gameplay message handlers
@@ -118,6 +122,7 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.PlaceBlockCmd, OnPlaceBlockCmd);
             dispatcher.RegisterHandler(MessageType.BreakBlockCmd, OnBreakBlockCmd);
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
+            dispatcher.RegisterHandler(MessageType.ClientReady, OnClientReady);
 
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
         }
@@ -181,6 +186,8 @@ namespace Lithforge.Network.Server
 
         private void ExecuteTick(float currentTime)
         {
+            _lastCurrentTime = currentTime;
+
             // Phase 1: Drain network input
             _server.Update(currentTime);
             _server.CurrentTick = CurrentTick;
@@ -705,32 +712,16 @@ namespace Lithforge.Network.Server
                     IChunkStreamingStrategy strategy = GetStrategyForPeer(peer.ConnectionId);
                     _streamingManager.ProcessForPeer(peer, strategy, CurrentTick);
 
-                    // Check if Loading peer is ready to transition to Playing
+                    // Client-side readiness gating: the client sends ClientReady when it has
+                    // received enough chunks. Server only acts on timeout (30s fallback).
                     if (state == ConnectionState.Loading)
                     {
-                        if (peer.IsLocal)
+                        if (_readinessWaiter.IsTimedOut(peer.ConnectionId, CurrentTick))
                         {
+                            _logger.LogWarning(
+                                $"ClientReady timeout for peer {peer.ConnectionId}, forcing Playing");
+                            _readinessWaiter.OnPeerReady(peer.ConnectionId);
                             TransitionToPlaying(peer, currentTime);
-                        }
-                        else
-                        {
-                            SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
-
-                            if (snapshot.IsComplete)
-                            {
-                                TransitionToPlaying(peer, currentTime);
-                            }
-                            else if (!peer.IsLocal && CurrentTick % 10 == 0)
-                            {
-                                // Send progress to remote clients every ~333ms for loading screen
-                                LoadingProgressMessage progressMsg = new()
-                                {
-                                    ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue), TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
-                                };
-
-                                _server.SendTo(
-                                    peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
-                            }
                         }
                     }
                 }
@@ -769,6 +760,22 @@ namespace Lithforge.Network.Server
         }
 
         // ── Message handlers ──
+
+        private void OnClientReady(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer == null || peer.StateMachine.Current != ConnectionState.Loading)
+            {
+                return;
+            }
+
+            ClientReadyMessage msg = ClientReadyMessage.Deserialize(data, offset, length);
+            _logger.LogInfo(
+                $"ClientReady from peer {connId} (radius={msg.ReadyRadius})");
+            _readinessWaiter.OnPeerReady(connId);
+            TransitionToPlaying(peer, _lastCurrentTime);
+        }
 
         private void OnMoveInput(ConnectionId connId, byte[] data, int offset, int length)
         {
@@ -899,17 +906,21 @@ namespace Lithforge.Network.Server
             _logger.LogInfo(
                 $"Player {playerId} ({peer.PlayerName}) accepted, spawning at {spawnPosition}");
 
-            // Send initial loading progress immediately so remote clients don't show "0/0"
-            if (!peer.IsLocal)
+            // Send spawn position early so the client can configure its readiness tracker
+            // before any ChunkData messages arrive. Both local and remote peers receive this
+            // (DirectTransport for SP/Host delivers it in the same frame).
+            SpawnInitMessage spawnInit = new()
             {
-                SpawnReadinessSnapshot snapshot = _streamingManager.GetReadinessSnapshot(peer);
-                LoadingProgressMessage progressMsg = new()
-                {
-                    ReadyChunks = (ushort)math.min(snapshot.ReadyChunks, ushort.MaxValue), TotalChunks = (ushort)math.min(snapshot.TotalChunks, ushort.MaxValue),
-                };
+                SpawnX = spawnPosition.x,
+                SpawnY = spawnPosition.y,
+                SpawnZ = spawnPosition.z,
+                ClientReadyRadius = (byte)math.min(_streamingManager.ReadyRadius, byte.MaxValue),
+            };
 
-                _server.SendTo(peer.ConnectionId, progressMsg, PipelineId.UnreliableSequenced);
-            }
+            _server.SendTo(peer.ConnectionId, spawnInit, PipelineId.ReliableSequenced);
+
+            // Register with the readiness waiter for timeout enforcement
+            _readinessWaiter.OnPeerEnteredLoading(peer.ConnectionId, CurrentTick);
 
             OnPlayerAcceptedCallback?.Invoke(peer, spawnPosition);
         }

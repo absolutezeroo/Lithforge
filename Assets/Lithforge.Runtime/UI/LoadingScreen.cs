@@ -14,8 +14,8 @@ namespace Lithforge.Runtime.UI
     ///     Shows a dirt-brown background, game title, progress bar, and status text.
     ///     Fades out and self-destructs once spawn is complete.
     ///     Decoupled from SpawnManager — accepts a <see cref="Func{SpawnProgress}" />
-    ///     delegate that abstracts whether progress comes from SpawnLoadingTracker
-    ///     (SP/Host) or ClientChunkHandler (remote Client).
+    ///     delegate that abstracts the progress source. Both SP/Host and remote clients
+    ///     use a unified <see cref="ClientReadinessTracker" /> to poll chunk availability.
     /// </summary>
     public sealed class LoadingScreen : MonoBehaviour, IScreen
     {
@@ -119,8 +119,8 @@ namespace Lithforge.Runtime.UI
         /// <summary>
         ///     Sets the progress source delegate and fade-complete callback.
         ///     The delegate is polled each frame to drive the progress bar.
-        ///     In SP/Host mode, this is <see cref="SpawnLoadingTracker.GetProgress" />.
-        ///     In Client mode, this is <see cref="ClientChunkHandler.GetProgress" />.
+        ///     Both SP/Host and remote clients use the same progress source
+        ///     backed by <see cref="ClientReadinessTracker" />.
         /// </summary>
         public void SetProgressSource(Func<SpawnProgress> source, Action onFadeComplete)
         {

@@ -9,7 +9,6 @@ using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Scheduling;
 using Lithforge.Runtime.Simulation;
-using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
@@ -152,11 +151,14 @@ namespace Lithforge.Runtime.Session.Subsystems
             // Default streaming strategy: network serialization
             NetworkChunkStreamingStrategy networkStrategy = new(_server, chunkProvider);
 
+            // Client readiness timeout: 900 ticks = 30 seconds at 30 TPS
+            ClientReadinessWaiter readinessWaiter = new(900);
+
             _serverGameLoop = new ServerGameLoop(
                 _server, serverSim, blockProcessor, chunkProvider,
-                dirtyTracker, streamingManager, networkStrategy, logger);
+                dirtyTracker, streamingManager, networkStrategy, readinessWaiter, logger);
 
-            // For SP/Host, set up local chunk streaming strategy and spawn loading tracker.
+            // For SP/Host, set up local chunk streaming strategy for zero-copy chunk delivery.
             if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
             {
                 LocalChunkStreamingStrategy localStrategy = new(
@@ -169,17 +171,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 // and the first Connect event always gets composite ID 1.
                 _serverGameLoop.SetPeerStrategy(new ConnectionId(1), localStrategy);
 
-                // Create SpawnLoadingTracker so the LoadingScreen can poll meshing progress.
-                // Spawn chunk is updated when OnPlayerAccepted fires for the local peer.
-                SpawnLoadingTracker spawnTracker = new(
-                    chunkProvider,
-                    int3.zero,
-                    spawnRadius,
-                    chunkSettings.YLoadMin,
-                    chunkSettings.YLoadMax);
-
                 // ConnectionId(1) is the local peer (DirectTransport added first).
-                // Mark it as local and update the spawn tracker when accepted.
+                // Mark it as local and teleport to spawn when accepted.
                 ConnectionId localConnectionId = new(1);
                 _serverGameLoop.OnPlayerAcceptedCallback = (peer, spawnPos) =>
                 {
@@ -195,18 +188,11 @@ namespace Lithforge.Runtime.Session.Subsystems
                             _playerHolder.Transform.position =
                                 new UnityEngine.Vector3(spawnPos.x, spawnPos.y, spawnPos.z);
                         }
-
-                        int3 spawnChunk = new(
-                            (int)math.floor(spawnPos.x / ChunkConstants.Size),
-                            (int)math.floor(spawnPos.y / ChunkConstants.Size),
-                            (int)math.floor(spawnPos.z / ChunkConstants.Size));
-                        spawnTracker.UpdateSpawnChunk(spawnChunk);
                     }
                 };
 
                 context.Register(localStrategy);
                 context.Register(chunkProvider);
-                context.Register(spawnTracker);
             }
 
             context.Register(_server);

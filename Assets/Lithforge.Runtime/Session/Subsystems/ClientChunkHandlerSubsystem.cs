@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Network;
 using Lithforge.Network.Client;
+using Lithforge.Network.Message;
+using Lithforge.Network.Messages;
+using Lithforge.Network.Server;
+using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Spawn;
 using Lithforge.Runtime.UI;
@@ -15,6 +20,7 @@ namespace Lithforge.Runtime.Session.Subsystems
     public sealed class ClientChunkHandlerSubsystem : IGameSubsystem
     {
         private ClientChunkHandler _handler;
+        private ClientReadinessTracker _readinessTracker;
 
         public string Name
         {
@@ -24,7 +30,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        public IReadOnlyList<Type> Dependencies { get; } = new[]
+        public IReadOnlyList<Type> Dependencies { get; } = new Type[]
         {
             typeof(NetworkClientSubsystem),
             typeof(ChunkManagerSubsystem),
@@ -41,6 +47,7 @@ namespace Lithforge.Runtime.Session.Subsystems
         {
             ChunkManager chunkManager = context.Get<ChunkManager>();
             NetworkClient client = context.Get<NetworkClient>();
+            ChunkSettings chunkSettings = context.App.Settings.Chunk;
 
             // Capture player references for GameReady teleport
             PlayerTransformHolder player =
@@ -49,6 +56,44 @@ namespace Lithforge.Runtime.Session.Subsystems
             // Capture loading screen so the GameReady callback can dismiss it
             SessionInitArgs args = SessionInitArgsHolder.Current;
             LoadingScreen loadingScreen = args?.LoadingScreen;
+
+            // Create client-side readiness tracker. Uses poll-based design:
+            // works identically for SP/Host (chunks arrive via LocalChunkStreamingStrategy)
+            // and remote clients (chunks arrive via ChunkData messages) because both
+            // ultimately populate the same ChunkManager.
+            _readinessTracker = new ClientReadinessTracker(coord =>
+            {
+                ManagedChunk chunk = chunkManager.GetChunk(coord);
+
+                return chunk != null && chunk.State >= ChunkState.Generated;
+            });
+
+            // When all required chunks are available, send ClientReady to server
+            _readinessTracker.OnReadinessAchieved = () =>
+            {
+                ClientReadyMessage readyMsg = new()
+                {
+                    ReadyRadius = (byte)chunkSettings.ClientReadyRadius,
+                };
+                client.Send(readyMsg, PipelineId.ReliableSequenced);
+            };
+
+            // Register SpawnInit handler: server sends spawn position + ready radius
+            // before streaming chunks, so the tracker can configure its required volume.
+            client.Dispatcher.RegisterHandler(MessageType.SpawnInit, (ConnectionId connId, byte[] data, int offset, int length) =>
+            {
+                SpawnInitMessage spawnInit = SpawnInitMessage.Deserialize(data, offset, length);
+                int3 spawnChunk = new(
+                    (int)math.floor(spawnInit.SpawnX / ChunkConstants.Size),
+                    (int)math.floor(spawnInit.SpawnY / ChunkConstants.Size),
+                    (int)math.floor(spawnInit.SpawnZ / ChunkConstants.Size));
+
+                _readinessTracker.Configure(
+                    spawnChunk,
+                    spawnInit.ClientReadyRadius,
+                    chunkSettings.YLoadMin,
+                    chunkSettings.YLoadMax);
+            });
 
             _handler = new ClientChunkHandler(
                 chunkManager, client,
@@ -79,6 +124,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 });
 
             context.Register(_handler);
+            context.Register(_readinessTracker);
         }
 
         public void PostInitialize(SessionContext context)
@@ -90,7 +136,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             ClientBlockPredictor predictor = new(chunkManager, client);
             context.Register(predictor);
 
-            // Wire loading screen progress source
+            // Wire loading screen progress source (unified for SP/Host and remote)
             SessionInitArgs args = SessionInitArgsHolder.Current;
             LoadingScreen loadingScreen = args?.LoadingScreen;
 
@@ -106,16 +152,17 @@ namespace Lithforge.Runtime.Session.Subsystems
                 onFadeComplete = () => { hud.ShowGameplay(); };
             }
 
-            // SP/Host: use SpawnLoadingTracker (polls ChunkManager readiness directly)
-            if (context.TryGet(out SpawnLoadingTracker tracker))
+            loadingScreen.SetProgressSource(() =>
             {
-                loadingScreen.SetProgressSource(tracker.GetProgress, onFadeComplete);
-            }
-            else
-            {
-                // Remote client: use ClientChunkHandler progress (from LoadingProgressMessage)
-                loadingScreen.SetProgressSource(_handler.GetProgress, onFadeComplete);
-            }
+                SpawnReadinessSnapshot snapshot = _readinessTracker.GetSnapshot();
+
+                return new SpawnProgress
+                {
+                    Phase = snapshot.IsComplete ? SpawnState.Done : SpawnState.Checking,
+                    ReadyChunks = snapshot.ReadyChunks,
+                    TotalChunks = snapshot.TotalChunks,
+                };
+            }, onFadeComplete);
         }
 
         public void Shutdown()

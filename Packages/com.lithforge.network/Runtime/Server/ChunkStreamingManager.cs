@@ -64,6 +64,12 @@ namespace Lithforge.Network.Server
 
         public int YLoadMax { get; }
 
+        /// <summary>The spawn-ready radius used for readiness gating.</summary>
+        public int ReadyRadius
+        {
+            get { return _readyRadius; }
+        }
+
         /// <summary>
         ///     Processes chunk streaming for a single peer. Called each tick from ServerGameLoop Phase 5.
         ///     Handles streaming queue rebuild on chunk boundary crossing, chunk unloads, and
@@ -158,29 +164,6 @@ namespace Lithforge.Network.Server
                     interest.StreamingQueueIndex = 0;
                 }
             }
-        }
-
-        /// <summary>
-        ///     Computes a readiness snapshot for the spawn volume around the peer's current chunk.
-        ///     Local peers (SP/Host) require full meshing; remote peers only need
-        ///     <c>Generated</c> state since they mesh locally after chunk delivery.
-        ///     Used by ServerGameLoop to gate Loading→Playing and to send progress updates.
-        /// </summary>
-        public SpawnReadinessSnapshot GetReadinessSnapshot(PeerInfo peer)
-        {
-            PlayerInterestState interest = peer.InterestState;
-
-            if (interest == null)
-            {
-                return new SpawnReadinessSnapshot();
-            }
-
-            // Local peers require full meshing (Ready state); remote peers
-            // only need Generated — they mesh locally after receiving ChunkData.
-            bool requireMeshed = peer.IsLocal;
-
-            return _chunkProvider.GetSpawnReadiness(
-                interest.CurrentChunk, _readyRadius, YLoadMin, YLoadMax, requireMeshed);
         }
 
         /// <summary>

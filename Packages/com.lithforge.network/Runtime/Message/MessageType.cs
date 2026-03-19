@@ -23,6 +23,7 @@ namespace Lithforge.Network.Message
         InteractCmd = 23,
         SlotClickCmd = 24,
         StartDiggingCmd = 25,
+        ClientReady = 26,
 
         // Server→Client state updates
         PlayerState = 40,
@@ -35,5 +36,6 @@ namespace Lithforge.Network.Message
         SpawnPlayer = 47,
         DespawnPlayer = 48,
         LoadingProgress = 49,
+        SpawnInit = 50,
     }
 }

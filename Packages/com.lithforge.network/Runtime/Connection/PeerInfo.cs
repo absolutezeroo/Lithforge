@@ -35,7 +35,7 @@ namespace Lithforge.Network.Connection
 
         /// <summary>
         ///     True for the local peer in SP/Host mode (DirectTransport).
-        ///     Local peers skip LoadingProgressMessage sends since they share ChunkManager.
+        ///     Local peers use the same ClientReadinessTracker as remote clients.
         /// </summary>
         public bool IsLocal { get; set; }
 
