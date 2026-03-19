@@ -3,8 +3,10 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Noise
 {
+    /// <summary>Burst-compatible fractal noise sampling using Unity.Mathematics simplex and Perlin functions.</summary>
     public static class NativeNoise
     {
+        /// <summary>Samples 2D fractal simplex noise at (x, z) with the given config and world seed.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Sample2D(float x, float z, NativeNoiseConfig config, long seed)
         {
@@ -32,6 +34,7 @@ namespace Lithforge.WorldGen.Noise
             return (sum / maxAmplitude) * config.HeightScale;
         }
 
+        /// <summary>Samples 3D fractal simplex noise at (x, y, z) with the given config and world seed.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Sample3D(float x, float y, float z, NativeNoiseConfig config, long seed)
         {

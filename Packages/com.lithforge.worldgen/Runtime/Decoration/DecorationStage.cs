@@ -7,16 +7,25 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Decoration
 {
+    /// <summary>
+    /// Main-thread decoration pass that places trees after all Burst generation jobs complete.
+    /// Handles cross-chunk overflow via <see cref="PendingDecorationStore"/>.
+    /// </summary>
     public sealed class DecorationStage
     {
+        /// <summary>StateId for air, used to verify placement eligibility.</summary>
         private readonly StateId _airId;
 
+        /// <summary>Per-biome data array for tree density and template selection lookups.</summary>
         private readonly NativeArray<NativeBiomeData> _biomeData;
 
+        /// <summary>World-space sea level. Trees are suppressed below this height.</summary>
         private readonly int _seaLevel;
 
+        /// <summary>Pre-built tree templates indexed by <see cref="NativeBiomeData.TreeTemplateIndex"/>.</summary>
         private readonly TreeBlock[][] _treeTemplates;
 
+        /// <summary>Creates a decoration stage with pre-baked biome data and tree templates.</summary>
         public DecorationStage(
             NativeArray<NativeBiomeData> biomeData,
             StateId oakLogId,
@@ -36,8 +45,10 @@ namespace Lithforge.WorldGen.Decoration
             PendingStore = new PendingDecorationStore();
         }
 
+        /// <summary>Store for cross-chunk decoration blocks that overflow into ungenerated neighbors.</summary>
         public PendingDecorationStore PendingStore { get; }
 
+        /// <summary>Places trees on eligible surface columns, applying pending decorations from neighbors first.</summary>
         public void Decorate(
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
@@ -112,6 +123,7 @@ namespace Lithforge.WorldGen.Decoration
             }
         }
 
+        /// <summary>Places a single tree from the template, deferring overflow blocks to the pending store.</summary>
         private void PlaceTree(
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
@@ -168,6 +180,7 @@ namespace Lithforge.WorldGen.Decoration
             }
         }
 
+        /// <summary>Returns the biome data for the given ID via O(1) direct index lookup.</summary>
         private NativeBiomeData GetBiome(byte biomeId)
         {
             // O(1) direct access: BiomeId is a sequential index assigned in Bootstrap.
@@ -175,6 +188,7 @@ namespace Lithforge.WorldGen.Decoration
             return biomeId < _biomeData.Length ? _biomeData[biomeId] : _biomeData[0];
         }
 
+        /// <summary>Deterministic spatial hash for tree spawn probability at a given XZ column.</summary>
         private static uint Hash(int x, int z, long seed)
         {
             uint h = (uint)(seed & 0xFFFFFFFF);

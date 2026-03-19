@@ -17,27 +17,34 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         ///     v2: sentinel int.MinValue + 2, supports byte[] CustomData.
         ///     v3: sentinel int.MinValue + 3, supports typed DataComponentMap.
         /// </summary>
+        /// <summary>Sentinel value indicating v2 serialization format with byte[] CustomData.</summary>
         private const int V2Sentinel = int.MinValue + 2;
 
+        /// <summary>Sentinel value indicating v3 serialization format with typed DataComponentMap.</summary>
         private const int V3Sentinel = int.MinValue + 3;
 
+        /// <summary>Fixed-size array of item slots.</summary>
         private readonly ItemStack[] _slots;
 
+        /// <summary>Creates an inventory behavior with the specified number of slots.</summary>
         public InventoryBehavior(int slotCount)
         {
             _slots = new ItemStack[slotCount];
         }
 
+        /// <summary>Total number of item slots in this inventory.</summary>
         public int SlotCount
         {
             get { return _slots.Length; }
         }
 
+        /// <summary>Returns the item stack at the given slot index.</summary>
         public ItemStack GetSlot(int index)
         {
             return _slots[index];
         }
 
+        /// <summary>Sets the item stack at the given slot index.</summary>
         public void SetSlot(int index, ItemStack stack)
         {
             _slots[index] = stack;
@@ -96,6 +103,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             return false;
         }
 
+        /// <summary>Serializes all slots to the writer using v3 format with DataComponentMap support.</summary>
         public override void Serialize(BinaryWriter writer)
         {
             writer.Write(V3Sentinel);
@@ -120,6 +128,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Deserializes slots from the reader, auto-detecting v1/v2/v3 format.</summary>
         public override void Deserialize(BinaryReader reader)
         {
             int firstInt = reader.ReadInt32();

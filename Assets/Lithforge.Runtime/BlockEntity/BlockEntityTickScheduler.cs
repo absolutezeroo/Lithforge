@@ -17,24 +17,34 @@ namespace Lithforge.Runtime.BlockEntity
     /// </summary>
     public sealed class BlockEntityTickScheduler
     {
+        /// <summary>Number of round-robin tick buckets.</summary>
         private const int BucketCount = 20;
 
+        /// <summary>Pool of reusable EntityKey lists to reduce allocation pressure.</summary>
         private static readonly Stack<List<EntityKey>> s_listPool = new();
 
+        /// <summary>Array of entity key lists, one per round-robin bucket.</summary>
         private readonly List<EntityKey>[] _buckets;
 
+        /// <summary>Maps chunk coordinates to the list of entity keys in that chunk.</summary>
         private readonly Dictionary<int3, List<EntityKey>> _chunkIndex = new();
 
+        /// <summary>Chunk manager for accessing managed chunk data.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>All registered block entities keyed by their composite EntityKey.</summary>
         private readonly Dictionary<EntityKey, BlockEntity> _entities = new();
 
+        /// <summary>Factory registry for creating new block entity instances by type ID.</summary>
         private readonly BlockEntityRegistry _registry;
 
+        /// <summary>State registry for looking up block entity type IDs from state IDs.</summary>
         private readonly StateRegistry _stateRegistry;
 
+        /// <summary>Index of the bucket that will be ticked next frame.</summary>
         private int _currentBucket;
 
+        /// <summary>Creates a tick scheduler and wires block entity placement/removal events.</summary>
         public BlockEntityTickScheduler(
             ChunkManager chunkManager,
             BlockEntityRegistry registry,
@@ -56,6 +66,7 @@ namespace Lithforge.Runtime.BlockEntity
             _chunkManager.OnBlockEntityRemoved += OnBlockEntityRemoved;
         }
 
+        /// <summary>Total number of registered block entities across all buckets.</summary>
         public int EntityCount
         {
             get { return _entities.Count; }
@@ -147,6 +158,7 @@ namespace Lithforge.Runtime.BlockEntity
             ReturnList(chunkList);
         }
 
+        /// <summary>Handles block entity creation when a block with FlagHasBlockEntity is placed.</summary>
         private void OnBlockEntityPlaced(int3 chunkCoord, int flatIndex, StateId stateId)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(chunkCoord);
@@ -190,6 +202,7 @@ namespace Lithforge.Runtime.BlockEntity
             }
         }
 
+        /// <summary>Handles block entity removal when a block with an entity is broken or replaced.</summary>
         private void OnBlockEntityRemoved(int3 chunkCoord, int flatIndex, StateId oldStateId)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(chunkCoord);
@@ -232,6 +245,7 @@ namespace Lithforge.Runtime.BlockEntity
             return entity;
         }
 
+        /// <summary>Rents a reusable list from the pool, or creates a new one if empty.</summary>
         private static List<EntityKey> RentList()
         {
             if (s_listPool.Count > 0)
@@ -243,12 +257,14 @@ namespace Lithforge.Runtime.BlockEntity
             return new List<EntityKey>();
         }
 
+        /// <summary>Returns a list to the pool for reuse.</summary>
         private static void ReturnList(List<EntityKey> list)
         {
             list.Clear();
             s_listPool.Push(list);
         }
 
+        /// <summary>Computes the bucket index for an entity key using its hash code.</summary>
         private static int GetBucketIndex(EntityKey key)
         {
             int hash = key.GetHashCode();

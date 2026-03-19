@@ -8,8 +8,13 @@ namespace Lithforge.WorldGen.Lighting
     /// </summary>
     public struct NativeBorderLightEntry
     {
+        /// <summary>Chunk-local position of the border voxel that leaked light.</summary>
         public int3 LocalPosition;
+
+        /// <summary>Nibble-packed light value (sun << 4 | block) to propagate into the neighbor.</summary>
         public byte PackedLight;
+
+        /// <summary>Face index (0-5) indicating which chunk face the light crosses.</summary>
         public byte Face;
     }
 }

@@ -6,11 +6,22 @@ using Unity.Jobs;
 
 namespace Lithforge.WorldGen.Pipeline
 {
+    /// <summary>
+    /// Owns the NativeContainers allocated by <see cref="GenerationPipeline.Schedule"/> for a single chunk.
+    /// Dispose releases transient arrays; DisposeAll releases everything (for cancelled generation).
+    /// </summary>
     public struct GenerationHandle : IDisposable
     {
+        /// <summary>Combined job handle for the entire 9-stage generation pipeline.</summary>
         public JobHandle FinalHandle;
+
+        /// <summary>Per-column surface height map. Transferred to ManagedChunk on completion.</summary>
         public NativeArray<int> HeightMap;
+
+        /// <summary>Per-voxel nibble-packed light data. Transferred to ManagedChunk on completion.</summary>
         public NativeArray<byte> LightData;
+
+        /// <summary>Per-column dominant biome ID. Disposed after decoration consumes it.</summary>
         public NativeArray<byte> BiomeMap;
 
         /// <summary>
@@ -44,6 +55,7 @@ namespace Lithforge.WorldGen.Pipeline
         /// </summary>
         public NativeArray<float> RiverCarveDepth;
 
+        /// <summary>Disposes transient arrays (BiomeMap, ClimateMap, BorderLightOutput, RiverCarveDepth). HeightMap, LightData, and RiverFlags are transferred to ManagedChunk.</summary>
         public void Dispose()
         {
             // HeightMap is not disposed here — it is transferred to ManagedChunk
@@ -76,6 +88,7 @@ namespace Lithforge.WorldGen.Pipeline
             // when the generation completes. Only dispose if the generation was cancelled.
         }
 
+        /// <summary>Disposes all arrays including those normally transferred. Used for cancelled generation.</summary>
         public void DisposeAll()
         {
             if (HeightMap.IsCreated)

@@ -7,13 +7,16 @@ namespace Lithforge.Runtime.BlockEntity
     /// </summary>
     public sealed class CraftingTableBlockEntity : BlockEntity
     {
+        /// <summary>Unique type identifier for crafting table block entities.</summary>
         public const string TypeIdValue = "lithforge:crafting_table";
 
+        /// <summary>Returns the crafting table type identifier.</summary>
         public override string TypeId
         {
             get { return TypeIdValue; }
         }
 
+        /// <summary>Creates a crafting table entity with no behaviors (marker only).</summary>
         public CraftingTableBlockEntity()
         {
             Behaviors = System.Array.Empty<BlockEntityBehavior>();

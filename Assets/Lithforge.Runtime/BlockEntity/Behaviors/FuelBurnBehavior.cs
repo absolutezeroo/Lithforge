@@ -13,17 +13,25 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     /// </summary>
     public sealed class FuelBurnBehavior : BlockEntityBehavior
     {
+        /// <summary>Sentinel value for versioned serialization format.</summary>
         private const int VersionSentinel = int.MinValue + 10;
 
+        /// <summary>Index of the fuel slot in the parent inventory.</summary>
         private readonly int _fuelSlotIndex;
+
+        /// <summary>Reference to the parent inventory for fuel slot access.</summary>
         private readonly InventoryBehavior _inventory;
 
+        /// <summary>Item registry for looking up fuel burn times.</summary>
         private readonly ItemRegistry _itemRegistry;
 
+        /// <summary>Remaining burn time in seconds for the current fuel item.</summary>
         private float _burnTimeRemaining;
 
+        /// <summary>Maximum burn time of the current fuel item, used for progress calculation.</summary>
         private float _maxBurnTime;
 
+        /// <summary>Creates a fuel burn behavior reading from the specified fuel slot index.</summary>
         public FuelBurnBehavior(InventoryBehavior inventory, ItemRegistry itemRegistry, int fuelSlotIndex)
         {
             _inventory = inventory;
@@ -56,6 +64,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Decrements remaining burn time each tick.</summary>
         public override void Tick(float deltaTime)
         {
             if (_burnTimeRemaining > 0f)
@@ -114,6 +123,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             return true;
         }
 
+        /// <summary>Serializes burn state (remaining time and max burn time).</summary>
         public override void Serialize(BinaryWriter writer)
         {
             writer.Write(VersionSentinel);
@@ -121,6 +131,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             writer.Write(_maxBurnTime);
         }
 
+        /// <summary>Deserializes burn state, auto-detecting versioned vs legacy format.</summary>
         public override void Deserialize(BinaryReader reader)
         {
             int firstInt = reader.ReadInt32();
@@ -138,6 +149,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
         }
 
+        /// <summary>Reinterprets raw int bytes as a float for legacy format migration.</summary>
         private static float ReinterpretIntAsFloat(int value)
         {
             byte[] bytes = BitConverter.GetBytes(value);

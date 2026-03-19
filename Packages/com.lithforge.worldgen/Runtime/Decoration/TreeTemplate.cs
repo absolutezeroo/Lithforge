@@ -6,8 +6,10 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Decoration
 {
+    /// <summary>Factory methods that produce tree block templates for each tree variant.</summary>
     public static class TreeTemplate
     {
+        /// <summary>Builds an oak tree template: 5-block trunk, 5x5x3 leaf canopy, 3x3x1 top layer.</summary>
         public static TreeBlock[] OakTree(StateId logId, StateId leavesId)
         {
             // Oak tree: 5-block trunk + 5x5x3 leaf canopy + 3x3x1 leaf top

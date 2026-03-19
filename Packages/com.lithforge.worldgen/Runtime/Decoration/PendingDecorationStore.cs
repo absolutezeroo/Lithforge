@@ -8,12 +8,19 @@ using Unity.Mathematics;
 
 namespace Lithforge.WorldGen.Decoration
 {
+    /// <summary>
+    /// Thread-safe store for decoration blocks that overflow into ungenerated neighbor chunks.
+    /// Blocks are queued by the source chunk's decoration pass and consumed when the target chunk generates.
+    /// </summary>
     public sealed class PendingDecorationStore
     {
+        /// <summary>Synchronization lock for concurrent Add/TryConsume access.</summary>
         private readonly object _lock = new();
 
+        /// <summary>Pending blocks keyed by target chunk coordinate.</summary>
         private readonly Dictionary<int3, List<PendingBlock>> _pending = new();
 
+        /// <summary>Queues a pending block for the given target chunk coordinate.</summary>
         public void Add(int3 chunkCoord, PendingBlock block)
         {
             lock (_lock)
@@ -28,6 +35,7 @@ namespace Lithforge.WorldGen.Decoration
             }
         }
 
+        /// <summary>Atomically removes and returns all pending blocks for the given chunk, if any exist.</summary>
         public bool TryConsume(int3 chunkCoord, out List<PendingBlock> blocks)
         {
             lock (_lock)
@@ -45,6 +53,7 @@ namespace Lithforge.WorldGen.Decoration
             }
         }
 
+        /// <summary>Consumes and writes all pending blocks into the chunk data, replacing only air voxels.</summary>
         public void ApplyPending(int3 chunkCoord, NativeArray<StateId> chunkData)
         {
             if (TryConsume(chunkCoord, out List<PendingBlock> blocks))

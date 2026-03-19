@@ -103,6 +103,20 @@ namespace Lithforge.Network.Server
         /// </summary>
         public float3 SpawnPosition;
 
+        /// <summary>
+        /// Number of chunks sent to this client that have not yet been acknowledged.
+        /// Incremented by <see cref="ChunkStreamingManager" /> on each chunk send,
+        /// decremented when a <see cref="ChunkBatchAckMessage" /> arrives.
+        /// Streaming pauses when this exceeds <see cref="MaxInFlightChunks" />.
+        /// </summary>
+        public int UnackedChunks;
+
+        /// <summary>
+        /// Maximum number of chunks allowed in-flight before the server pauses streaming
+        /// for this peer. Prevents overwhelming slow clients. Default: 32.
+        /// </summary>
+        public int MaxInFlightChunks;
+
         public PlayerInterestState(int viewRadius)
         {
             ViewRadius = viewRadius;
@@ -122,6 +136,8 @@ namespace Lithforge.Network.Server
             LastKnownInputFlags = 0;
             LastKnownLookDir = float2.zero;
             SpawnPosition = float3.zero;
+            UnackedChunks = 0;
+            MaxInFlightChunks = NetworkConstants.MaxInFlightChunks;
         }
     }
 }
