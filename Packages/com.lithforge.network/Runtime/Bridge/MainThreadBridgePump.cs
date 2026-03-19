@@ -66,6 +66,12 @@ namespace Lithforge.Network.Bridge
         /// </summary>
         public void Tick()
         {
+            // Guard: bridge may already be disposed during shutdown
+            if (_bridge.ShutdownRequested)
+            {
+                return;
+            }
+
             // 1. Update cached time of day for server thread reads
             _bridge.CachedTimeOfDay = _timeOfDayProvider();
 
