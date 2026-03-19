@@ -16,37 +16,53 @@ namespace Lithforge.Voxel.Liquid
     /// </summary>
     public static class LiquidCell
     {
+        /// <summary>Bitmask for extracting the 4-bit flowing level.</summary>
         public const byte LevelMask = 0x0F;
+
+        /// <summary>Bit 4: marks this cell as a source (infinite supply).</summary>
         public const byte SourceFlag = 0x10;
+
+        /// <summary>Bit 5: marks this cell as settled (no pending changes).</summary>
         public const byte SettledFlag = 0x20;
+
+        /// <summary>Maximum flowing level (7). Source blocks have effective level 8.</summary>
         public const byte MaxFlowingLevel = 7;
+
+        /// <summary>Effective level assigned to source blocks.</summary>
         public const byte SourceLevel = 8;
+
+        /// <summary>All-zero byte representing an empty (no liquid) cell.</summary>
         public const byte Empty = 0;
 
+        /// <summary>Extracts the raw 4-bit flowing level from a packed cell byte.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte GetLevel(byte cell)
         {
             return (byte)(cell & LevelMask);
         }
 
+        /// <summary>Returns true if the cell is a source block (bit 4 set).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsSource(byte cell)
         {
             return (cell & SourceFlag) != 0;
         }
 
+        /// <summary>Returns true if the cell is settled (bit 5 set, no pending flow changes).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsSettled(byte cell)
         {
             return (cell & SettledFlag) != 0;
         }
 
+        /// <summary>Returns true if the cell has no liquid (level 0 and not a source).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsEmpty(byte cell)
         {
             return (cell & (LevelMask | SourceFlag)) == 0;
         }
 
+        /// <summary>Returns true if the cell contains any liquid (source or flowing).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool HasLiquid(byte cell)
         {
@@ -91,18 +107,21 @@ namespace Lithforge.Voxel.Liquid
             return (byte)(8 - level);
         }
 
+        /// <summary>Creates a flowing cell byte with the given level (1-7).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte MakeFlowing(byte level)
         {
             return (byte)(level & LevelMask);
         }
 
+        /// <summary>Creates a source cell byte (SourceFlag set, level bits ignored).</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte MakeSource()
         {
             return SourceFlag;
         }
 
+        /// <summary>Sets or clears the settled flag on a cell.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte SetSettled(byte cell, bool settled)
         {
@@ -114,6 +133,7 @@ namespace Lithforge.Voxel.Liquid
             return (byte)(cell & ~SettledFlag);
         }
 
+        /// <summary>Clears the settled flag, returning the cell with bit 5 unset.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte ClearSettled(byte cell)
         {

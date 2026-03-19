@@ -23,6 +23,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class ToolStationScreen : ContainerScreen
     {
+        /// <summary>Keyboard digit keys used for number-key slot swap shortcuts.</summary>
         private static readonly Key[] s_numberKeys =
         {
             Key.Digit1,
@@ -35,33 +36,68 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit8,
             Key.Digit9,
         };
+
+        /// <summary>Button for selecting the axe tool type.</summary>
         private Button _axeBtn;
+
+        /// <summary>Single-slot adapter wrapping the binding part slot (slot 2).</summary>
         private BlockEntityContainerAdapter _bindingAdapter;
+
+        /// <summary>Cached tool instance from the most recent assembly preview computation.</summary>
         private ToolInstance _cachedPreview;
+
+        /// <summary>The tool station block entity currently being displayed.</summary>
         private ToolStationBlockEntity _currentStation;
+
+        /// <summary>Single-slot adapter wrapping the handle part slot (slot 1).</summary>
         private BlockEntityContainerAdapter _handleAdapter;
 
+        /// <summary>Single-slot adapter wrapping the head part slot (slot 0).</summary>
         private BlockEntityContainerAdapter _headAdapter;
+
+        /// <summary>Container adapter wrapping the player hotbar slots.</summary>
         private InventoryContainerAdapter _hotbarAdapter;
+
+        /// <summary>Container adapter wrapping the player main inventory slots.</summary>
         private InventoryContainerAdapter _mainAdapter;
+
+        /// <summary>Label displaying the current mode (Assembly or Repair).</summary>
         private Label _modeLabel;
+
+        /// <summary>Single-slot read-only adapter wrapping the assembled tool output slot.</summary>
         private BlockEntityContainerAdapter _outputAdapter;
 
-        // Tool type buttons for styling
+        /// <summary>Button for selecting the pickaxe tool type.</summary>
         private Button _pickaxeBtn;
+
+        /// <summary>Flag indicating the assembly preview needs recomputation due to slot changes.</summary>
         private bool _previewDirty = true;
 
-        // Repair mode state
+        /// <summary>Per-slot count of repair material items consumed in the current repair preview.</summary>
         private int[] _repairItemsConsumed;
+
+        /// <summary>Total durability points restored by the current repair preview.</summary>
         private int _repairTotalRepair;
+
+        /// <summary>Label displaying the assembled or repaired tool name and level.</summary>
         private Label _resultLabel;
 
+        /// <summary>Currently selected tool type for assembly (defaults to Pickaxe).</summary>
         private ToolType _selectedToolType = ToolType.Pickaxe;
+
+        /// <summary>Button for selecting the shovel tool type.</summary>
         private Button _shovelBtn;
+
+        /// <summary>Label displaying computed tool stats (speed, durability, damage).</summary>
         private Label _statsLabel;
+
+        /// <summary>Button for selecting the sword tool type.</summary>
         private Button _swordBtn;
+
+        /// <summary>Registry for resolving tool trait descriptions in the UI.</summary>
         private ToolTraitRegistry _traitRegistry;
 
+        /// <summary>Polls keyboard for close keys and number-key shortcuts, updates assembly/repair preview, refreshes slots.</summary>
         private void Update()
         {
             if (Context == null)
@@ -136,6 +172,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateTooltipKeyRefresh();
         }
 
+        /// <summary>Stores the trait registry, creates player inventory adapters, and loads the UXML template.</summary>
         public void Initialize(ScreenContext context)
         {
             _traitRegistry = context.ToolTraitRegistry;
@@ -149,6 +186,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             InitializeBase(context, 260, "UI/Screens/ToolStationScreen");
         }
 
+        /// <summary>Opens the tool station screen for the given entity, creating single-slot adapters for each part slot.</summary>
         public void OpenForEntity(BlockEntity entity)
         {
 
@@ -174,6 +212,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
+        /// <summary>Clones the UXML template, wires tool type selector buttons, and binds all slot groups.</summary>
         private void RebuildUI()
         {
             _resultLabel = null;
@@ -254,6 +293,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
+        /// <summary>Applies the selected CSS class to the active tool type button and removes it from others.</summary>
         private void UpdateToolTypeButtonStyles()
         {
             SetButtonSelected(_pickaxeBtn, _selectedToolType == ToolType.Pickaxe);
@@ -262,6 +302,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             SetButtonSelected(_swordBtn, _selectedToolType == ToolType.Sword);
         }
 
+        /// <summary>Toggles the selected CSS class on a button based on the given state.</summary>
         private static void SetButtonSelected(Button btn, bool selected)
         {
             if (btn == null)
@@ -279,6 +320,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Handles pointer-down on slots: output take for assembly/repair, shift-click transfers, and regular clicks.</summary>
         protected override void OnSlotPointerDown(
             ISlotContainer container, int slotIndex, PointerDownEvent evt)
         {
@@ -344,6 +386,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Assembles a tool from the current parts, generates a composite sprite, and gives the result to the player.</summary>
         private void HandleOutputTake()
         {
             if (_currentStation == null)
@@ -405,6 +448,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Returns true if the head slot contains an existing tool (ToolInstance component), indicating repair mode.</summary>
         private bool IsRepairMode()
         {
             ItemStack headSlot = _headAdapter.GetSlot(0);
@@ -417,6 +461,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return headSlot.Components.Has(DataComponentTypes.ToolInstanceId);
         }
 
+        /// <summary>Computes the repair preview by checking handle/binding slots for matching materials and updating labels.</summary>
         private void UpdateRepairPreview()
         {
             ItemStack toolStack = _headAdapter.GetSlot(0);
@@ -569,6 +614,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Gives the repaired tool to the player, consumes repair materials, and clears the head slot.</summary>
         private void HandleRepairOutputTake()
         {
             if (_repairItemsConsumed == null || _repairTotalRepair <= 0)
@@ -631,6 +677,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _previewDirty = true;
         }
 
+        /// <summary>Builds the result item ResourceId from the tool type and head material using naming convention.</summary>
         private static ResourceId GetResultItemId(ToolInstance tool)
         {
             // Convention: result item is "lithforge:<material>_<tooltype>"
@@ -645,12 +692,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return new ResourceId("lithforge", "modular_" + toolName);
         }
 
+        /// <summary>Returns held items to the player inventory and clears the station reference on close.</summary>
         protected override void OnClose()
         {
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);
             _currentStation = null;
         }
 
+        /// <summary>Checks digit keys 1-9 and swaps the hovered slot with the corresponding hotbar slot.</summary>
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;

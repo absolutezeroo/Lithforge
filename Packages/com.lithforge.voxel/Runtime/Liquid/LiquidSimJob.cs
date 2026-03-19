@@ -27,32 +27,61 @@ namespace Lithforge.Voxel.Liquid
     [BurstCompile]
     public struct LiquidSimJob : IJob
     {
+        /// <summary>Per-voxel liquid cell data, read and written in-place.</summary>
         public NativeArray<byte> LiquidData;
 
+        /// <summary>Block state IDs for solid-block checks.</summary>
         [ReadOnly] public NativeArray<StateId> BlockData;
+
+        /// <summary>Block state compact table for collision shape lookups.</summary>
         [ReadOnly] public NativeArray<BlockStateCompact> StateTable;
+
+        /// <summary>Flat indices of voxels to process this tick.</summary>
         [ReadOnly] public NativeArray<int> InputActiveSet;
 
+        /// <summary>Neighbor liquid ghost slab for +X boundary reads.</summary>
         [ReadOnly] public NativeArray<byte> GhostPosX;
+
+        /// <summary>Neighbor liquid ghost slab for -X boundary reads.</summary>
         [ReadOnly] public NativeArray<byte> GhostNegX;
+
+        /// <summary>Neighbor liquid ghost slab for +Y boundary reads.</summary>
         [ReadOnly] public NativeArray<byte> GhostPosY;
+
+        /// <summary>Neighbor liquid ghost slab for -Y boundary reads.</summary>
         [ReadOnly] public NativeArray<byte> GhostNegY;
+
+        /// <summary>Neighbor liquid ghost slab for +Z boundary reads.</summary>
         [ReadOnly] public NativeArray<byte> GhostPosZ;
+
+        /// <summary>Neighbor liquid ghost slab for -Z boundary reads.</summary>
         [ReadOnly] public NativeArray<byte> GhostNegZ;
 
-        [ReadOnly] public NativeArray<byte> GhostBlockSolidPosX; // [y * Size + z], 1 = solid
+        /// <summary>Neighbor block solidity ghost slab for +X. Index: [y * Size + z], 1 = solid.</summary>
+        [ReadOnly] public NativeArray<byte> GhostBlockSolidPosX;
+
+        /// <summary>Neighbor block solidity ghost slab for -X.</summary>
         [ReadOnly] public NativeArray<byte> GhostBlockSolidNegX;
-        [ReadOnly] public NativeArray<byte> GhostBlockSolidPosZ; // [y * Size + x]
+
+        /// <summary>Neighbor block solidity ghost slab for +Z. Index: [y * Size + x].</summary>
+        [ReadOnly] public NativeArray<byte> GhostBlockSolidPosZ;
+
+        /// <summary>Neighbor block solidity ghost slab for -Z.</summary>
         [ReadOnly] public NativeArray<byte> GhostBlockSolidNegZ;
 
+        /// <summary>Per-fluid configuration (water or lava parameters).</summary>
         public LiquidJobConfig Config;
 
+        /// <summary>Output list of voxel edits to apply on the main thread.</summary>
         public NativeList<LiquidChunkEdit> OutputEdits;
+
+        /// <summary>Output list of flat indices remaining active for next tick.</summary>
         public NativeList<int> OutputActiveSet;
 
         private const int Size = ChunkConstants.Size;
         private const int SizeSq = ChunkConstants.SizeSquared;
 
+        /// <summary>Iterates over the active set and processes each voxel's liquid state.</summary>
         public void Execute()
         {
             for (int i = 0; i < InputActiveSet.Length; i++)
@@ -62,6 +91,7 @@ namespace Lithforge.Voxel.Liquid
             }
         }
 
+        /// <summary>Pulls the new liquid state for a single voxel from its neighbors and emits edits.</summary>
         private void ProcessVoxel(int flatIndex)
         {
             int y = flatIndex / SizeSq;
@@ -221,6 +251,7 @@ namespace Lithforge.Voxel.Liquid
             }
         }
 
+        /// <summary>Returns true if the block at the given flat index has collision and is not a fluid.</summary>
         private bool IsSolidBlock(int flatIndex)
         {
             StateId stateId = BlockData[flatIndex];
@@ -229,6 +260,7 @@ namespace Lithforge.Voxel.Liquid
             return compact.CollisionShape != 0 && !compact.IsFluid;
         }
 
+        /// <summary>Placeholder for ghost-slab block solidity check on -Y face. Currently always returns false.</summary>
         private bool IsSolidBlock_Ghost(NativeArray<byte> ghostSlab, int slabIndex)
         {
             // TODO: add -Y block solidity ghost for chunk-bottom source rule.
@@ -237,6 +269,7 @@ namespace Lithforge.Voxel.Liquid
             return false;
         }
 
+        /// <summary>Checks block solidity via horizontal ghost slabs for out-of-bounds neighbor coordinates.</summary>
         private bool IsSolidBlockGhost(int nx, int nz, int y)
         {
             if (nx < 0)
@@ -272,6 +305,7 @@ namespace Lithforge.Voxel.Liquid
             return false;
         }
 
+        /// <summary>Checks if a neighbor liquid cell is empty via ghost slabs for out-of-bounds coordinates.</summary>
         private bool IsLiquidEmptyGhost(int nx, int nz, int y)
         {
             if (nx < 0)
@@ -307,6 +341,7 @@ namespace Lithforge.Voxel.Liquid
             return false;
         }
 
+        /// <summary>Counts the number of horizontal neighbors that are source blocks (for infinite source rule).</summary>
         private int CountHorizontalSourceNeighbors(int x, int y, int z)
         {
             int count = 0;
@@ -378,6 +413,7 @@ namespace Lithforge.Voxel.Liquid
             return count;
         }
 
+        /// <summary>Returns the highest effective liquid level among the 4 horizontal neighbors.</summary>
         private byte GetMaxNeighborEffectiveLevel(int x, int y, int z)
         {
             byte maxLevel = 0;
@@ -465,6 +501,7 @@ namespace Lithforge.Voxel.Liquid
             return maxLevel;
         }
 
+        /// <summary>Writes the new liquid cell to LiquidData and emits a LiquidChunkEdit if changed.</summary>
         private void WriteLiquidAndEmitEdit(int x, int y, int z, int flatIndex, byte newCell,
             int chunkOffX, int chunkOffY, int chunkOffZ)
         {
@@ -503,6 +540,7 @@ namespace Lithforge.Voxel.Liquid
             });
         }
 
+        /// <summary>Emits a cross-chunk boundary edit for a neighbor chunk's voxel.</summary>
         private void EmitCrossBoundaryEdit(int targetFlatIndex, int chunkOffX, int chunkOffY, int chunkOffZ, byte newCell)
         {
             StateId newStateId;
@@ -530,6 +568,7 @@ namespace Lithforge.Voxel.Liquid
             });
         }
 
+        /// <summary>Clears the settled flag on all 6 neighbors to wake them for next tick.</summary>
         private void MarkNeighborsActive(int x, int y, int z)
         {
             // Mark the 6 neighbors of (x,y,z) as active for next tick
@@ -542,6 +581,7 @@ namespace Lithforge.Voxel.Liquid
             TryClearSettled(x, y, z - 1);
         }
 
+        /// <summary>Clears the settled flag on a neighbor voxel if in-bounds and adds it to the active set.</summary>
         private void TryClearSettled(int x, int y, int z)
         {
             if (x < 0 || x >= Size || y < 0 || y >= Size || z < 0 || z >= Size)
@@ -563,6 +603,7 @@ namespace Lithforge.Voxel.Liquid
             }
         }
 
+        /// <summary>Adds empty non-solid neighbors to the active set so they can pull flow.</summary>
         private void WakeEmptyNeighbors(int x, int y, int z)
         {
             TryWakeEmpty(x + 1, y, z);
@@ -573,6 +614,7 @@ namespace Lithforge.Voxel.Liquid
             TryWakeEmpty(x, y, z - 1);
         }
 
+        /// <summary>Adds a single neighbor to the active set if it is empty and not solid.</summary>
         private void TryWakeEmpty(int x, int y, int z)
         {
             if (x < 0 || x >= Size || y < 0 || y >= Size || z < 0 || z >= Size)

@@ -17,17 +17,31 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class HotbarDisplay : MonoBehaviour, IScreen
     {
+        /// <summary>UI Toolkit document hosting the hotbar panel.</summary>
         private UIDocument _document;
+
+        /// <summary>Reference to the player inventory for reading hotbar slot contents.</summary>
         private Inventory _inventory;
+
+        /// <summary>Item registry for looking up item definitions during display refresh.</summary>
         private ItemRegistry _itemRegistry;
 
+        /// <summary>Last selected hotbar slot index, used to detect selection changes.</summary>
         private int _lastSelectedSlot = -1;
+
+        /// <summary>Animated banner that shows the selected item name above the hotbar.</summary>
         private ItemNameBanner _nameBanner;
 
+        /// <summary>Array of slot widgets representing the 9 hotbar positions.</summary>
         private SlotWidget[] _slotWidgets;
+
+        /// <summary>Sprite atlas for resolving item icons in slot widgets.</summary>
         private ItemSpriteAtlas _spriteAtlas;
+
+        /// <summary>Tool part texture database for resolving modular tool part sprites.</summary>
         private ToolPartTextureDatabase _toolPartTexDb;
 
+        /// <summary>Updates slot selection highlight, fades the name banner, and refreshes item icons each frame.</summary>
         private void Update()
         {
             if (_inventory == null)
@@ -70,26 +84,35 @@ namespace Lithforge.Runtime.UI.Screens
             }
         }
 
+        /// <summary>Returns the screen name identifier for the hotbar.</summary>
         public string ScreenName { get { return ScreenNames.Hotbar; } }
+
+        /// <summary>Returns false because the hotbar does not consume input.</summary>
         public bool IsInputOpaque { get { return false; } }
+
+        /// <summary>Returns false because the hotbar does not require a visible cursor.</summary>
         public bool RequiresCursor { get { return false; } }
 
+        /// <summary>Shows the hotbar when the screen is pushed onto the navigation stack.</summary>
         public void OnShow(ScreenShowArgs args)
         {
             SetVisible(true);
         }
 
+        /// <summary>Hides the hotbar and invokes the completion callback.</summary>
         public void OnHide(Action onComplete)
         {
             SetVisible(false);
             onComplete();
         }
 
+        /// <summary>Returns false because the hotbar does not handle the Escape key.</summary>
         public bool HandleEscape()
         {
             return false;
         }
 
+        /// <summary>Initializes the hotbar with inventory, registry references, and builds the slot widget UI.</summary>
         public void Initialize(
             Inventory inventory,
             PanelSettings panelSettings,
@@ -126,6 +149,7 @@ namespace Lithforge.Runtime.UI.Screens
             BuildHotbar(root);
         }
 
+        /// <summary>Creates the hotbar container with 9 slot widgets and an item name banner.</summary>
         private void BuildHotbar(VisualElement root)
         {
             _slotWidgets = new SlotWidget[Inventory.HotbarSize];

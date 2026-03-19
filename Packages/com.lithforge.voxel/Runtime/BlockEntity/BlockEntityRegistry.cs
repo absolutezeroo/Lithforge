@@ -9,9 +9,13 @@ namespace Lithforge.Voxel.BlockEntity
     /// </summary>
     public sealed class BlockEntityRegistry
     {
+        /// <summary>Registered block entity types keyed by type ID string.</summary>
         private readonly Dictionary<string, BlockEntityType> _types = new();
+
+        /// <summary>Whether the registry has been frozen (no further registrations allowed).</summary>
         private bool _frozen;
 
+        /// <summary>Number of registered block entity types.</summary>
         public int Count
         {
             get { return _types.Count; }

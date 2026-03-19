@@ -23,28 +23,40 @@ namespace Lithforge.Runtime.UI.Interaction
     /// </summary>
     public sealed class SlotInteractionController
     {
+        /// <summary>Item registry for looking up max stack sizes during slot interactions.</summary>
         private readonly ItemRegistry _itemRegistry;
 
+        /// <summary>Set of composite keys (container hash + slot index) tracking slots already painted this drag.</summary>
         private readonly HashSet<long> _paintedSlots = new();
 
+        /// <summary>Tool material registry for calculating repair kit repair amounts.</summary>
         private readonly ToolMaterialRegistry _toolMaterialRegistry;
 
+        /// <summary>Tool template registry for resolving tool data during shift-click output crafting.</summary>
         private readonly ToolTemplateRegistry _toolTemplateRegistry;
 
+        /// <summary>True when the user is actively dragging to distribute one item per slot.</summary>
         private bool _isPainting;
 
+        /// <summary>Data components of the item being paint-distributed, captured at drag start.</summary>
         private DataComponentMap _paintComponents;
 
+        /// <summary>Durability of the item being paint-distributed, captured at drag start.</summary>
         private int _paintDurability;
 
+        /// <summary>Item ID being paint-distributed, captured at drag start.</summary>
         private ResourceId _paintItemId;
 
+        /// <summary>Container where the paint-drag originated.</summary>
         private ISlotContainer _paintOriginContainer;
 
+        /// <summary>Slot index where the paint-drag originated.</summary>
         private int _paintOriginSlot;
 
+        /// <summary>True between the initial right-click place and the first hover on a different slot.</summary>
         private bool _paintPending;
 
+        /// <summary>Creates a slot interaction controller with the required registries for item lookups and repair.</summary>
         public SlotInteractionController(
             HeldStack held,
             ItemRegistry itemRegistry,
@@ -57,12 +69,16 @@ namespace Lithforge.Runtime.UI.Interaction
             _toolMaterialRegistry = toolMaterialRegistry;
         }
 
+        /// <summary>The held stack currently attached to the cursor.</summary>
         public HeldStack Held { get; }
 
+        /// <summary>Index of the slot currently under the cursor, or -1 if none.</summary>
         public int HoveredSlotIndex { get; private set; } = -1;
 
+        /// <summary>Container of the slot currently under the cursor, or null if none.</summary>
         public ISlotContainer HoveredContainer { get; private set; }
 
+        /// <summary>Handles pointer entering a slot: updates hover state and continues paint-drag if active.</summary>
         public void OnSlotEnter(ISlotContainer container, int slotIndex)
         {
             HoveredContainer = container;
@@ -71,6 +87,7 @@ namespace Lithforge.Runtime.UI.Interaction
             HandlePaintHover(container, slotIndex);
         }
 
+        /// <summary>Handles pointer leaving a slot: clears hover state if it matches the departing slot.</summary>
         public void OnSlotLeave(ISlotContainer container, int slotIndex)
         {
             if (HoveredContainer == container && HoveredSlotIndex == slotIndex)
@@ -80,6 +97,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
         }
 
+        /// <summary>Handles left-click on a slot: pick up, place, merge, or swap items between held and slot.</summary>
         public void LeftClick(ISlotContainer container, int slotIndex)
         {
             if (container.IsReadOnly)
@@ -146,6 +164,7 @@ namespace Lithforge.Runtime.UI.Interaction
             container.OnSlotChanged(slotIndex);
         }
 
+        /// <summary>Handles right-click on a slot: repair-kit application, pick up half, place one, or start paint-drag.</summary>
         public void RightClick(ISlotContainer container, int slotIndex)
         {
             if (container.IsReadOnly)
@@ -429,6 +448,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
         }
 
+        /// <summary>Handles pointer-up: ends paint-drag mode when right mouse button is released.</summary>
         public void OnPointerUp(int button)
         {
             if (button == 1)
@@ -492,6 +512,7 @@ namespace Lithforge.Runtime.UI.Interaction
             HoveredSlotIndex = -1;
         }
 
+        /// <summary>Initializes paint-drag state: captures item data and records the origin slot.</summary>
         private void StartPaint(ISlotContainer container, int slotIndex)
         {
             _isPainting = false;
@@ -505,6 +526,7 @@ namespace Lithforge.Runtime.UI.Interaction
             _paintedSlots.Add(MakePaintKey(container, slotIndex));
         }
 
+        /// <summary>Places one item into the hovered slot during an active paint-drag, tracking visited slots.</summary>
         private void HandlePaintHover(ISlotContainer container, int slotIndex)
         {
             // Activate pending paint when pointer enters a different slot than origin
@@ -581,6 +603,7 @@ namespace Lithforge.Runtime.UI.Interaction
             container.OnSlotChanged(slotIndex);
         }
 
+        /// <summary>Returns the maximum stack size for the given item, defaulting to 64 if unknown.</summary>
         private int GetMaxStack(ItemStack stack)
         {
             if (stack.IsEmpty)
@@ -592,6 +615,7 @@ namespace Lithforge.Runtime.UI.Interaction
             return def?.MaxStackSize ?? 64;
         }
 
+        /// <summary>Transfers items from source stack into the target container, filling existing stacks then empty slots.</summary>
         private int TransferToContainer(ItemStack source, ISlotContainer target, int maxStack)
         {
             int remaining = source.Count;
@@ -640,6 +664,7 @@ namespace Lithforge.Runtime.UI.Interaction
             return remaining;
         }
 
+        /// <summary>Creates a single-count ItemStack probe for compatibility checks during paint-drag.</summary>
         private ItemStack BuildPaintProbe()
         {
             ItemStack probe = new(_paintItemId, 1, _paintDurability)
@@ -649,6 +674,7 @@ namespace Lithforge.Runtime.UI.Interaction
             return probe;
         }
 
+        /// <summary>Generates a unique 64-bit key from a container hash and slot index for paint-drag tracking.</summary>
         private static long MakePaintKey(ISlotContainer container, int slotIndex)
         {
             return (long)container.GetHashCode() << 32 | (uint)slotIndex;

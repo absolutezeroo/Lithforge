@@ -17,10 +17,16 @@ namespace Lithforge.Voxel.Liquid
     /// </summary>
     public sealed class LiquidPool : IDisposable
     {
+        /// <summary>Stack of pooled, zeroed-out NativeArrays available for checkout.</summary>
         private readonly Stack<NativeArray<byte>> _available;
+
+        /// <summary>Set of NativeArrays currently checked out, tracked for safe disposal.</summary>
         private readonly HashSet<NativeArray<byte>> _checkedOut;
+
+        /// <summary>Whether the pool has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Creates a pool with the specified number of pre-allocated arrays.</summary>
         public LiquidPool(int initialCapacity)
         {
             _available = new Stack<NativeArray<byte>>(initialCapacity);
@@ -37,18 +43,22 @@ namespace Lithforge.Voxel.Liquid
             TotalAllocated = initialCapacity;
         }
 
+        /// <summary>Number of arrays currently in the pool.</summary>
         public int AvailableCount
         {
             get { return _available.Count; }
         }
 
+        /// <summary>Number of arrays currently checked out.</summary>
         public int CheckedOutCount
         {
             get { return _checkedOut.Count; }
         }
 
+        /// <summary>Total number of arrays ever allocated (pooled + checked out).</summary>
         public int TotalAllocated { get; private set; }
 
+        /// <summary>Disposes all arrays (both pooled and checked out).</summary>
         public void Dispose()
         {
             if (_disposed)

@@ -22,6 +22,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class PartBuilderScreen : ContainerScreen
     {
+        /// <summary>Keyboard digit keys used for number-key slot swap shortcuts.</summary>
         private static readonly Key[] s_numberKeys =
         {
             Key.Digit1,
@@ -35,40 +36,58 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit9,
         };
 
+        /// <summary>Filtered list of recipes matching the current pattern tag, rebuilt on slot change.</summary>
         private readonly List<PartBuilderRecipe> _availableRecipes = new();
 
+        /// <summary>Cached list of pattern selection buttons for applying selected styles.</summary>
         private readonly List<Button> _patternButtons = new();
 
+        /// <summary>Label displaying the material cost of the selected recipe.</summary>
         private Label _costLabel;
 
+        /// <summary>The part builder block entity currently being displayed.</summary>
         private PartBuilderBlockEntity _currentBuilder;
 
+        /// <summary>Label displaying how much material the player currently has in the slot.</summary>
         private Label _haveLabel;
 
+        /// <summary>Container adapter wrapping the player hotbar slots.</summary>
         private InventoryContainerAdapter _hotbarAdapter;
 
+        /// <summary>Container adapter wrapping the player main inventory slots.</summary>
         private InventoryContainerAdapter _mainAdapter;
 
+        /// <summary>Single-slot adapter wrapping the material input slot (slot 0).</summary>
         private BlockEntityContainerAdapter _materialAdapter;
 
+        /// <summary>Label displaying the resolved material name and selected part type.</summary>
         private Label _materialLabel;
 
+        /// <summary>Flag indicating the pattern buttons and preview need refreshing due to slot changes.</summary>
         private bool _needsRefresh;
 
+        /// <summary>Single-slot read-only adapter wrapping the crafted output slot (slot 2).</summary>
         private BlockEntityContainerAdapter _outputAdapter;
 
+        /// <summary>Single-slot adapter wrapping the pattern input slot (slot 1).</summary>
         private BlockEntityContainerAdapter _patternAdapter;
 
+        /// <summary>Visual container holding the dynamically-generated pattern selection buttons.</summary>
         private VisualElement _patternButtonContainer;
 
+        /// <summary>Resolved material input data for the item in the material slot, or null if unresolved.</summary>
         private MaterialInputData _resolvedInput;
 
+        /// <summary>Resolved tool material data for crafting cost and stat lookups, or null if unresolved.</summary>
         private ToolMaterialData _resolvedMaterial;
 
+        /// <summary>Index of the currently selected pattern button, or -1 if none selected.</summary>
         private int _selectedPatternIndex = -1;
 
+        /// <summary>The currently selected part builder recipe, or null if none selected.</summary>
         private PartBuilderRecipe _selectedRecipe;
 
+        /// <summary>Polls keyboard for close keys and number-key shortcuts, refreshes pattern buttons and slots.</summary>
         private void Update()
         {
             if (Context == null)
@@ -113,6 +132,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateTooltipKeyRefresh();
         }
 
+        /// <summary>Checks digit keys 1-9 and swaps the hovered slot with the corresponding hotbar slot.</summary>
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;
@@ -136,6 +156,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Creates player inventory adapters and loads the UXML template for the part builder screen.</summary>
         public void Initialize(ScreenContext context)
         {
             _hotbarAdapter = new InventoryContainerAdapter(
@@ -147,6 +168,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             InitializeBase(context, 265, "UI/Screens/PartBuilderScreen");
         }
 
+        /// <summary>Opens the part builder screen for the given entity, creating single-slot adapters and resetting selection state.</summary>
         public void OpenForEntity(BlockEntity entity)
         {
 
@@ -176,6 +198,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
+        /// <summary>Clones the UXML template, queries info labels, and binds pattern, material, output, and player slot groups.</summary>
         private void RebuildUI()
         {
             _patternButtonContainer = null;
@@ -219,6 +242,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
+        /// <summary>Handles pointer-down on slots: output take for crafted parts, shift-click transfers, and regular clicks.</summary>
         protected override void OnSlotPointerDown(
             ISlotContainer container, int slotIndex, PointerDownEvent evt)
         {
@@ -276,6 +300,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Gives the crafted part to the player, consumes material and pattern items, and returns any leftovers.</summary>
         private void HandleOutputTake()
         {
             if (_currentBuilder == null || _selectedRecipe == null ||
@@ -377,6 +402,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _needsRefresh = true;
         }
 
+        /// <summary>Rebuilds the available recipe list from the pattern tag, resolves the material, and regenerates button UI.</summary>
         private void RefreshPatternButtons()
         {
             _availableRecipes.Clear();
@@ -474,6 +500,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateInfoLabels();
         }
 
+        /// <summary>Clears and recreates the pattern button visual elements from the available recipes list.</summary>
         private void RebuildPatternButtonsUI()
         {
             if (_patternButtonContainer == null)
@@ -528,6 +555,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdatePatternButtonStyles();
         }
 
+        /// <summary>Applies the selected CSS class to the active pattern button and removes it from others.</summary>
         private void UpdatePatternButtonStyles()
         {
             for (int i = 0; i < _patternButtons.Count; i++)
@@ -546,6 +574,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             }
         }
 
+        /// <summary>Computes and displays the crafted part preview in the output slot based on the selected recipe and material.</summary>
         private void UpdatePreview()
         {
             if (_currentBuilder == null)
@@ -632,6 +661,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                 PartBuilderBlockEntity.OutputSlot, previewResult);
         }
 
+        /// <summary>Updates the material name, cost, and available units info labels based on current selection and slot contents.</summary>
         private void UpdateInfoLabels()
         {
             if (_materialLabel == null || _costLabel == null || _haveLabel == null)
@@ -684,6 +714,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
                               materialStack.Count + " items)";
         }
 
+        /// <summary>Returns the material cost for the recipe, falling back to the resolved material's default cost.</summary>
         private int GetRecipeCost(PartBuilderRecipe recipe)
         {
             if (recipe.Cost > 0)
@@ -699,6 +730,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return 1;
         }
 
+        /// <summary>Calculates the number of material items consumed for the given recipe based on the resolved input data.</summary>
         private int GetItemsUsed(PartBuilderRecipe recipe)
         {
             if (_resolvedInput == null)
@@ -711,6 +743,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             return _resolvedInput.GetItemsUsed(cost);
         }
 
+        /// <summary>Returns held items and remaining pattern/material items to the player inventory, clears preview output.</summary>
         protected override void OnClose()
         {
             Interaction.ReturnHeldToInventory(Context.PlayerInventory);

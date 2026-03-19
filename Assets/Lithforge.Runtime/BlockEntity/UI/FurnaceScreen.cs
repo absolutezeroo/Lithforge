@@ -16,6 +16,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
     /// </summary>
     public sealed class FurnaceScreen : ContainerScreen
     {
+        /// <summary>Keyboard digit keys used for number-key slot swap shortcuts.</summary>
         private static readonly Key[] s_numberKeys =
         {
             Key.Digit1,
@@ -29,22 +30,31 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Key.Digit9,
         };
 
+        /// <summary>UI progress bar showing current fuel burn progress (0 to 100).</summary>
         private ProgressBar _burnBar;
 
+        /// <summary>The furnace block entity currently being displayed.</summary>
         private FurnaceBlockEntity _currentFurnace;
 
+        /// <summary>Single-slot adapter wrapping the furnace fuel slot (slot 1).</summary>
         private BlockEntityContainerAdapter _furnaceFuelAdapter;
 
+        /// <summary>Single-slot adapter wrapping the furnace input slot (slot 0).</summary>
         private BlockEntityContainerAdapter _furnaceInputAdapter;
 
+        /// <summary>Single-slot read-only adapter wrapping the furnace output slot (slot 2).</summary>
         private BlockEntityContainerAdapter _furnaceOutputAdapter;
 
+        /// <summary>Container adapter wrapping the player hotbar slots.</summary>
         private InventoryContainerAdapter _hotbarAdapter;
 
+        /// <summary>Container adapter wrapping the player main inventory slots.</summary>
         private InventoryContainerAdapter _mainAdapter;
 
+        /// <summary>UI progress bar showing current smelting progress (0 to 100).</summary>
         private ProgressBar _smeltBar;
 
+        /// <summary>Polls keyboard for close keys and number-key shortcuts, updates burn/smelt progress bars, refreshes slots.</summary>
         private void Update()
         {
             if (Context == null)
@@ -95,6 +105,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             UpdateTooltipKeyRefresh();
         }
 
+        /// <summary>Initializes adapters for the player hotbar and main inventory, then loads the UXML template.</summary>
         public void Initialize(ScreenContext context)
         {
             _hotbarAdapter = new InventoryContainerAdapter(
@@ -137,6 +148,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             Open();
         }
 
+        /// <summary>Clones the UXML template, queries progress bars, and binds furnace and player slot groups.</summary>
         private void RebuildUI()
         {
             _burnBar = null;
@@ -174,6 +186,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             BuildSlotGroup(hotbarGroupDef, _hotbarAdapter, hotbarSlots);
         }
 
+        /// <summary>Handles pointer-down on slots: output take with merge logic, shift-click transfers, and regular clicks.</summary>
         protected override void OnSlotPointerDown(
             ISlotContainer container, int slotIndex, PointerDownEvent evt)
         {
@@ -298,6 +311,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Returns held items to the player inventory and clears the furnace reference on close.</summary>
         protected override void OnClose()
         {
             // Return held items to player inventory
@@ -305,6 +319,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
             _currentFurnace = null;
         }
 
+        /// <summary>Checks digit keys 1-9 and swaps the hovered slot with the corresponding hotbar slot.</summary>
         private void HandleNumberKeys(Keyboard keyboard)
         {
             ISlotContainer hoveredContainer = Interaction.HoveredContainer;

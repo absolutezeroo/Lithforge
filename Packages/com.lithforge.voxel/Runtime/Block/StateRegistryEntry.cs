@@ -7,16 +7,37 @@ namespace Lithforge.Voxel.Block
     /// </summary>
     public sealed class StateRegistryEntry
     {
+        /// <summary>Namespaced block identifier (e.g. "lithforge:stone").</summary>
         public ResourceId Id { get; }
+
+        /// <summary>First StateId in this block's contiguous range.</summary>
         public ushort BaseStateId { get; }
+
+        /// <summary>Number of states in this block's range.</summary>
         public int StateCount { get; }
+
+        /// <summary>Sequential registration index of this block.</summary>
         public ushort BlockOrdinal { get; }
+
+        /// <summary>Loot table ResourceId string for block drops.</summary>
         public string LootTable { get; }
+
+        /// <summary>Mining hardness value. -1 = unbreakable.</summary>
         public float Hardness { get; }
+
+        /// <summary>Explosion resistance value.</summary>
         public float BlastResistance { get; }
+
+        /// <summary>Whether the correct tool is required to harvest.</summary>
         public bool RequiresTool { get; }
+
+        /// <summary>Physical material category for tool speed modifiers.</summary>
         public BlockMaterialType MaterialType { get; }
+
+        /// <summary>Minimum tool tier required to harvest.</summary>
         public int RequiredToolLevel { get; }
+
+        /// <summary>Sound group name for break/place/step sounds.</summary>
         public string SoundGroup { get; }
 
         /// <summary>
@@ -25,6 +46,7 @@ namespace Lithforge.Voxel.Block
         /// </summary>
         public string BlockEntityTypeId { get; internal set; }
 
+        /// <summary>Creates a state registry entry with all block properties. Internal to StateRegistry.</summary>
         internal StateRegistryEntry(
             ResourceId id,
             ushort baseStateId,
