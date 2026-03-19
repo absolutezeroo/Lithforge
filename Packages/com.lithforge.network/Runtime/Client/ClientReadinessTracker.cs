@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-using Lithforge.Network.Server;
-
 using Unity.Mathematics;
 
 namespace Lithforge.Network.Client
 {
     /// <summary>
     ///     Tracks whether enough chunks within the spawn-ready volume have been loaded
-    ///     by the client. Uses a poll-based design: a <see cref="Func{int3, bool}" />
+    ///     by the client. Uses a poll-based design: a <see cref="System.Func{int3,}(int3)" />
     ///     delegate is called to check if each required chunk is available. This works
     ///     identically for SP/Host (chunks arrive via LocalChunkStreamingStrategy)
     ///     and remote clients (chunks arrive via ChunkData messages) because both
@@ -29,6 +27,13 @@ namespace Lithforge.Network.Client
         private bool _configured;
 
         /// <summary>
+        ///     Fired exactly once when all required chunks become available.
+        ///     This fires during a <see cref="GetSnapshot" /> call (which runs on the
+        ///     main thread via LoadingScreen polling).
+        /// </summary>
+        public Action OnReadinessAchieved;
+
+        /// <summary>
         ///     Creates a new tracker with the given chunk availability delegate.
         ///     The delegate should return true when the chunk at the given coordinate
         ///     has been loaded (e.g. ChunkManager.GetChunk(coord)?.State >= Generated).
@@ -37,13 +42,6 @@ namespace Lithforge.Network.Client
         {
             _isChunkAvailable = isChunkAvailable;
         }
-
-        /// <summary>
-        ///     Fired exactly once when all required chunks become available.
-        ///     This fires during a <see cref="GetSnapshot" /> call (which runs on the
-        ///     main thread via LoadingScreen polling).
-        /// </summary>
-        public Action OnReadinessAchieved;
 
         /// <summary>True when all required chunks are available.</summary>
         public bool IsComplete { get; private set; }
@@ -89,9 +87,7 @@ namespace Lithforge.Network.Client
             {
                 return new SpawnReadinessSnapshot
                 {
-                    TotalChunks = _requiredChunks.Count,
-                    ReadyChunks = _requiredChunks.Count,
-                    IsComplete = true,
+                    TotalChunks = _requiredChunks.Count, ReadyChunks = _requiredChunks.Count, IsComplete = true,
                 };
             }
 
@@ -113,9 +109,7 @@ namespace Lithforge.Network.Client
 
             return new SpawnReadinessSnapshot
             {
-                TotalChunks = _requiredChunks.Count,
-                ReadyChunks = ready,
-                IsComplete = IsComplete,
+                TotalChunks = _requiredChunks.Count, ReadyChunks = ready, IsComplete = IsComplete,
             };
         }
     }

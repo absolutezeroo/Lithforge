@@ -1,9 +1,9 @@
 namespace Lithforge.Network.Message
 {
     /// <summary>
-    /// Byte-sized message type identifiers. Grouped by category:
-    /// 1-9: Connection lifecycle, 10-19: Keepalive, 20-39: Client→Server commands,
-    /// 40-59: Server→Client state updates.
+    ///     Byte-sized message type identifiers. Grouped by category:
+    ///     1-9: Connection lifecycle, 10-19: Keepalive, 20-39: Client→Server commands,
+    ///     40-59: Server→Client state updates.
     /// </summary>
     public enum MessageType : byte
     {
@@ -35,7 +35,6 @@ namespace Lithforge.Network.Message
         AcknowledgeBlockChange = 46,
         SpawnPlayer = 47,
         DespawnPlayer = 48,
-        LoadingProgress = 49,
-        SpawnInit = 50,
+        SpawnInit = 49,
     }
 }
