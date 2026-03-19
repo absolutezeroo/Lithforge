@@ -72,29 +72,29 @@ Tier 3 — Unity Runtime (UnityEngine, URP, InputSystem, UI Toolkit)
 
 ### Tier 1 Rules
 
-17. **Zero Unity references** — `Lithforge.Core.asmdef` must not reference any Unity assembly.
-18. **Standard .NET types only** — `Dictionary`, `List`, `string`, etc.
-19. **Unit-testable in isolation** — could compile against .NET Standard.
+18. **Zero Unity references** — `Lithforge.Core.asmdef` must not reference any Unity assembly.
+19. **Standard .NET types only** — `Dictionary`, `List`, `string`, etc.
+20. **Unit-testable in isolation** — could compile against .NET Standard.
 
 ### Tier 2 Rules (Burst/Jobs)
 
-20. **`[BurstCompile]` on all hot-path job structs.**
-21. **`Unity.Mathematics` types** — `float3`, `int3`, `math.sin()` not `System.Math`.
-22. **`NativeArray<T>`** not managed arrays for chunk data, mesh data, light data.
-23. **No heap allocation in Burst paths** — no `new`, no boxing, no string ops.
-24. **No try/catch in Burst paths.**
-25. **No interface dispatch in Burst paths** — no virtual calls.
-26. **No `class` references in Burst jobs** — only blittable structs.
-27. **`[ReadOnly]` attribute on job inputs** that are not modified.
-28. **`Allocator.TempJob`** for per-frame data, **`Allocator.Persistent`** for long-lived data.
-29. **Every NativeContainer has a documented owner and dispose point.**
-30. **ChunkPool** for NativeArray recycling — no per-chunk Persistent allocation.
+21. **`[BurstCompile]` on all hot-path job structs.**
+22. **`Unity.Mathematics` types** — `float3`, `int3`, `math.sin()` not `System.Math`.
+23. **`NativeArray<T>`** not managed arrays for chunk data, mesh data, light data.
+24. **No heap allocation in Burst paths** — no `new`, no boxing, no string ops.
+25. **No try/catch in Burst paths.**
+26. **No interface dispatch in Burst paths** — no virtual calls.
+27. **No `class` references in Burst jobs** — only blittable structs.
+28. **`[ReadOnly]` attribute on job inputs** that are not modified.
+29. **`Allocator.TempJob`** for per-frame data, **`Allocator.Persistent`** for long-lived data.
+30. **Every NativeContainer has a documented owner and dispose point.**
+31. **ChunkPool** for NativeArray recycling — no per-chunk Persistent allocation.
 
 ### Tier 3 Rules
 
-31. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
-32. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
-33. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
+32. **GPU buffer upload on main thread only** — `MegaMeshBuffer.FlushDirtyToGpu()` writes vertex/index data to persistent `GraphicsBuffer`s. Drawing via `Graphics.RenderPrimitivesIndexedIndirect()`.
+33. **No Burst code** in Tier 3 — Tier 3 consumes job results, does not produce them.
+34. **Shaders are hand-written HLSL** (URP-compatible), not Shader Graph.
 
 ## Key Types
 
