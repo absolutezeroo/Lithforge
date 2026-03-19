@@ -25,7 +25,7 @@ namespace Lithforge.Runtime.Simulation
         private const float ErrorThresholdIgnore = 0.001f;
 
         /// <summary>Position error below this threshold triggers visual smoothing instead of full reconciliation.</summary>
-        private const float ErrorThresholdSmooth = 0.15f;
+        private const float ErrorThresholdSmooth = 0.3f;
 
         /// <summary>Position error above this threshold triggers an immediate hard teleport.</summary>
         private const float ErrorThresholdTeleport = 4.0f;
@@ -224,6 +224,11 @@ namespace Lithforge.Runtime.Simulation
             }
 
             float error = math.distance(serverPos, predictedPos);
+
+            if (error > ErrorThresholdIgnore)
+            {
+                UnityEngine.Debug.Log($"[RECON] error={error:F4} serverPos=({serverPos.x:F2},{serverPos.y:F2},{serverPos.z:F2}) predictedPos=({predictedPos.x:F2},{predictedPos.y:F2},{predictedPos.z:F2}) ackedSeq={ackedSeqId} ackedTick={ackedTick}");
+            }
 
             if (error < ErrorThresholdIgnore)
             {
