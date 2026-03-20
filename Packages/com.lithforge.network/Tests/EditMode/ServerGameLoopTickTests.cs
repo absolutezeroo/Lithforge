@@ -6,6 +6,8 @@ using Lithforge.Network.Transport;
 
 using NUnit.Framework;
 
+using NullLogger = Lithforge.Network.Tests.Mocks.NullLogger;
+
 namespace Lithforge.Network.Tests
 {
     /// <summary>Tests for <see cref="ServerGameLoop"/> tick accumulation and phase execution.</summary>
