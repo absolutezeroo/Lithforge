@@ -70,10 +70,10 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>Whether this ChunkManager has been disposed.</summary>
         private bool _disposed;
 
-        /// <summary>Maximum chunk Y coordinate (inclusive) for loading.</summary>
+        /// <summary>Minimum chunk Y coordinate (inclusive) for loading.</summary>
         private readonly int _yLoadMin;
 
-        /// <summary>Minimum chunk Y coordinate (inclusive) for loading.</summary>
+        /// <summary>Maximum chunk Y coordinate (inclusive) for loading.</summary>
         private readonly int _yLoadMax;
 
         /// <summary>Internal helper for block editing operations.</summary>
@@ -519,7 +519,11 @@ namespace Lithforge.Voxel.Chunk
             for (int i = candidateCount - 1; i >= 0; i--)
             {
                 int3 coord = _unloadCandidateCache[i];
-                ManagedChunk chunk = _chunks[coord];
+
+                if (!_chunks.TryGetValue(coord, out ManagedChunk chunk))
+                {
+                    continue;
+                }
 
                 chunk.ActiveJobHandle.Complete();
 
