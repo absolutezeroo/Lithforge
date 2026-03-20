@@ -9,6 +9,7 @@ using Lithforge.Network.Messages;
 using Lithforge.Voxel.Block;
 using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
+using Lithforge.Voxel.Storage;
 
 using Unity.Mathematics;
 
@@ -245,6 +246,7 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.SlotClickCmd, OnSlotClickCmd);
 
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
+            _serverImpl.OnPeerRemoved += OnPeerRemovedInternal;
         }
 
         /// <summary>
@@ -331,6 +333,9 @@ namespace Lithforge.Network.Server
 
             // Publish player chunk snapshot for main thread consumption (after CurrentChunk is updated)
             PublishPlayerChunkSnapshot();
+
+            // Publish physics state snapshot for main thread save captures
+            PublishPlayerPhysicsSnapshot();
 
             // Post-input hook: allows BridgedSimulation to synchronize physics results
             (_simulation as IPostInputHook)?.AfterProcessPlayerInputs();
@@ -903,6 +908,20 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
+        ///     Publishes a snapshot of all player physics states to the bridge for
+        ///     main-thread consumption (periodic save, disconnect save).
+        /// </summary>
+        private void PublishPlayerPhysicsSnapshot()
+        {
+            if (_bridge is null)
+            {
+                return;
+            }
+
+            _bridge.SetPlayerPhysicsSnapshot(_simulation.GetAllPlayerStates());
+        }
+
+        /// <summary>
         ///     Transitions a Loading peer to Playing state, clears initial load mode,
         ///     sends the GameReady message, and fires the player count changed event.
         /// </summary>
@@ -1103,14 +1122,29 @@ namespace Lithforge.Network.Server
         /// </summary>
         private void OnPeerAcceptedInternal(PeerInfo peer)
         {
-            int spawnX = 0;
-            int spawnZ = 0;
-            int safeY = _chunkProvider.FindSafeSpawnY(
-                spawnX, spawnZ,
-                _streamingManager.YLoadMin, _streamingManager.YLoadMax,
-                65);
+            float3 spawnPosition;
 
-            float3 spawnPosition = new(spawnX + 0.5f, safeY, spawnZ + 0.5f);
+            if (peer.PlayerData is not null)
+            {
+                // Restore to the player's last saved position
+                spawnPosition = new float3(
+                    peer.PlayerData.PosX,
+                    peer.PlayerData.PosY,
+                    peer.PlayerData.PosZ);
+            }
+            else
+            {
+                // No saved data — use world spawn
+                int spawnX = 0;
+                int spawnZ = 0;
+                int safeY = _chunkProvider.FindSafeSpawnY(
+                    spawnX, spawnZ,
+                    _streamingManager.YLoadMin, _streamingManager.YLoadMax,
+                    65);
+
+                spawnPosition = new float3(spawnX + 0.5f, safeY, spawnZ + 0.5f);
+            }
+
             OnPlayerAccepted(peer, spawnPosition);
         }
 
@@ -1166,6 +1200,64 @@ namespace Lithforge.Network.Server
             _readinessWaiter.OnPeerEnteredLoading(peer.ConnectionId, CurrentTick);
 
             OnPlayerAcceptedCallback?.Invoke(peer, spawnPosition);
+        }
+
+        /// <summary>
+        ///     Internal callback wired to NetworkServer.OnPeerRemoved. Captures player state
+        ///     for persistence before cleaning up the physics body and broadcasting despawn.
+        /// </summary>
+        private void OnPeerRemovedInternal(PeerInfo peer)
+        {
+            ushort playerId = peer.AssignedPlayerId;
+
+            if (playerId == 0)
+            {
+                return;
+            }
+
+            // Capture live state before cleanup destroys the physics body
+            WorldPlayerState captured = CapturePlayerState(peer);
+
+            if (captured is not null)
+            {
+                peer.PlayerData = captured;
+            }
+
+            OnPlayerDisconnected(playerId);
+        }
+
+        /// <summary>
+        ///     Captures the current state of a connected player for persistence.
+        ///     Reads position/rotation from the simulation and inventory from the processor.
+        ///     Returns null if the player has no UUID or no physics state.
+        /// </summary>
+        public WorldPlayerState CapturePlayerState(PeerInfo peer)
+        {
+            if (string.IsNullOrEmpty(peer.PlayerUuid))
+            {
+                return null;
+            }
+
+            PlayerPhysicsState physState = _simulation.GetPlayerState(peer.AssignedPlayerId);
+            float timeOfDay = _simulation.GetTimeOfDay();
+
+            WorldPlayerState state = new()
+            {
+                PosX = physState.Position.x,
+                PosY = physState.Position.y,
+                PosZ = physState.Position.z,
+                RotX = physState.Pitch,
+                RotY = physState.Yaw,
+                TimeOfDay = timeOfDay,
+            };
+
+            // Serialize inventory if available
+            if (_inventoryProcessor is not null)
+            {
+                _inventoryProcessor.SerializeInventoryInto(peer.AssignedPlayerId, state);
+            }
+
+            return state;
         }
 
         /// <summary>

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
+using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
 
@@ -55,6 +56,12 @@ namespace Lithforge.Network.Bridge
         public PlayerChunkSnapshot GetPlayerChunkSnapshot()
         {
             return _bridge.GetPlayerChunkSnapshot();
+        }
+
+        /// <summary>Returns the latest player physics state snapshot written by the server thread.</summary>
+        public Dictionary<ushort, PlayerPhysicsState> GetPlayerPhysicsSnapshot()
+        {
+            return _bridge.GetPlayerPhysicsSnapshot();
         }
 
         /// <summary>

@@ -15,6 +15,7 @@ using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Storage;
 
 using Unity.Mathematics;
@@ -300,13 +301,39 @@ namespace Lithforge.Runtime.Session.Subsystems
                 && context.TryGet(out PlayerDataStore pds)
                 && context.TryGet(out MainThreadBridgePump bridgePump))
             {
+                MainThreadBridgePump pumpForSave = bridgePump;
                 _multiPlayerSaveManager = new MultiPlayerSaveManager(
                     pds,
                     _server,
                     peer =>
                     {
-                        // Capture peer state: position from simulation, inventory from PlayerData
-                        // For now return existing PlayerData (updated by ServerInventoryProcessor later)
+                        // For disconnect saves, OnPeerRemovedInternal already captured live state
+                        // into peer.PlayerData on the server thread. For periodic saves, read
+                        // the latest physics snapshot published by the server thread each tick.
+                        Dictionary<ushort, PlayerPhysicsState> snapshot =
+                            pumpForSave.GetPlayerPhysicsSnapshot();
+
+                        if (snapshot.TryGetValue(peer.AssignedPlayerId, out PlayerPhysicsState physState))
+                        {
+                            WorldPlayerState state = new()
+                            {
+                                PosX = physState.Position.x,
+                                PosY = physState.Position.y,
+                                PosZ = physState.Position.z,
+                                RotX = physState.Pitch,
+                                RotY = physState.Yaw,
+                            };
+
+                            // Preserve existing inventory from peer.PlayerData if available
+                            if (peer.PlayerData is not null)
+                            {
+                                state.SelectedSlot = peer.PlayerData.SelectedSlot;
+                                state.Slots = peer.PlayerData.Slots;
+                            }
+
+                            return state;
+                        }
+
                         return peer.PlayerData;
                     });
 

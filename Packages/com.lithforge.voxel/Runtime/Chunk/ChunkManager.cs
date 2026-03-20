@@ -177,6 +177,25 @@ namespace Lithforge.Voxel.Chunk
             get { return _stateIndex.GeneratedChunkCount; }
         }
 
+        /// <summary>Number of loaded chunks with RefCount == 0 (grace-period or orphaned).</summary>
+        public int RefZeroCount
+        {
+            get
+            {
+                int count = 0;
+
+                foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+                {
+                    if (kvp.Value.RefCount == 0)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+        }
+
         /// <summary>Number of remaining entries in the load queue.</summary>
         public int PendingLoadCount
         {

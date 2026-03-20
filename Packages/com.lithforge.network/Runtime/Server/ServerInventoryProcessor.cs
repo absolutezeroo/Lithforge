@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Lithforge.Item;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Messages;
+using Lithforge.Voxel.Storage;
 
 namespace Lithforge.Network.Server
 {
@@ -115,6 +116,41 @@ namespace Lithforge.Network.Server
             }
 
             return BuildFullSync(inventory);
+        }
+
+        /// <summary>
+        ///     Serializes a player's server-side inventory into a <see cref="WorldPlayerState" />
+        ///     for persistence. Populates the Slots and SelectedSlot fields.
+        /// </summary>
+        public void SerializeInventoryInto(ushort playerId, WorldPlayerState state)
+        {
+            if (!_inventories.TryGetValue(playerId, out Inventory inventory))
+            {
+                return;
+            }
+
+            state.SelectedSlot = inventory.SelectedSlot;
+            ItemStack[] snapshot = inventory.GetFullSnapshot();
+            List<SavedItemStack> saved = new();
+
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                ItemStack stack = snapshot[i];
+
+                if (stack.IsEmpty)
+                {
+                    continue;
+                }
+
+                saved.Add(new SavedItemStack(
+                    i,
+                    stack.ItemId.Namespace,
+                    stack.ItemId.Name,
+                    stack.Count,
+                    stack.Durability));
+            }
+
+            state.Slots = saved.ToArray();
         }
     }
 }

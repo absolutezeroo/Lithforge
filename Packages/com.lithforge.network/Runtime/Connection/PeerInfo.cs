@@ -1,3 +1,5 @@
+using System;
+
 using Lithforge.Network.Server;
 using Lithforge.Voxel.Storage;
 
@@ -68,5 +70,11 @@ namespace Lithforge.Network.Connection
 
         /// <summary>Loaded player save data, or null if no save exists.</summary>
         public WorldPlayerState PlayerData { get; internal set; }
+
+        /// <summary>The client's public key (SubjectPublicKeyInfo DER) sent during handshake.</summary>
+        public byte[] PublicKey { get; internal set; } = Array.Empty<byte>();
+
+        /// <summary>Temporary challenge nonce stored during authentication. Cleared after verification.</summary>
+        public byte[] ChallengeNonce { get; internal set; }
     }
 }

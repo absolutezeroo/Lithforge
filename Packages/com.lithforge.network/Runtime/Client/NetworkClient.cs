@@ -7,6 +7,8 @@ using Lithforge.Network.Messages;
 using Lithforge.Network.SendQueue;
 using Lithforge.Network.Transport;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Network.Client
 {
     /// <summary>
@@ -26,6 +28,15 @@ namespace Lithforge.Network.Client
 
         /// <summary>Whether this client has been disposed.</summary>
         private bool _disposed;
+
+        /// <summary>Player UUID derived from the public key (set via <see cref="SetIdentity"/>).</summary>
+        private string _playerUuid = "";
+
+        /// <summary>Public key bytes (SubjectPublicKeyInfo DER) for identity verification.</summary>
+        private byte[] _publicKey = Array.Empty<byte>();
+
+        /// <summary>Delegate that signs a challenge nonce with the private key.</summary>
+        private Func<byte[], byte[]> _signChallenge;
 
         /// <summary>Wall-clock time of the last ping sent, for scheduling periodic pings.</summary>
         private float _lastPingTime;
@@ -66,6 +77,17 @@ namespace Lithforge.Network.Client
             _logger = logger;
             _contentHash = contentHash;
             _playerName = playerName ?? "";
+        }
+
+        /// <summary>
+        ///     Sets the player identity for challenge-response authentication.
+        ///     Must be called before <see cref="Connect"/> or <see cref="ConnectDirect"/>.
+        /// </summary>
+        public void SetIdentity(string uuid, byte[] publicKey, Func<byte[], byte[]> signChallenge)
+        {
+            _playerUuid = uuid ?? "";
+            _publicKey = publicKey ?? Array.Empty<byte>();
+            _signChallenge = signChallenge;
         }
 
         /// <summary>The current connection state of this client.</summary>
@@ -152,6 +174,7 @@ namespace Lithforge.Network.Client
             Dispatcher.OnDisconnect(OnDisconnected);
             Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
+            Dispatcher.RegisterHandler(MessageType.HandshakeChallenge, OnHandshakeChallenge);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Ping, OnServerPing);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
@@ -183,6 +206,7 @@ namespace Lithforge.Network.Client
             Dispatcher.OnDisconnect(OnDisconnected);
             Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeResponse, OnHandshakeResponse);
+            Dispatcher.RegisterHandler(MessageType.HandshakeChallenge, OnHandshakeChallenge);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Ping, OnServerPing);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
@@ -277,7 +301,11 @@ namespace Lithforge.Network.Client
             // Send handshake request immediately
             HandshakeRequestMessage request = new()
             {
-                ProtocolVersion = NetworkConstants.ProtocolVersion, ContentHash = _contentHash, PlayerName = _playerName,
+                ProtocolVersion = NetworkConstants.ProtocolVersion,
+                ContentHash = _contentHash,
+                PlayerName = _playerName,
+                PlayerUuid = _playerUuid,
+                PublicKey = _publicKey,
             };
 
             Send(request, PipelineId.ReliableSequenced);
@@ -293,6 +321,35 @@ namespace Lithforge.Network.Client
             _stateMachine.Transition(ConnectionState.Disconnected, _lastUpdateTime);
 
             CleanUp();
+        }
+
+        /// <summary>
+        ///     Handles a challenge message from the server during the handshake.
+        ///     Signs the nonce with the private key and sends back a ChallengeResponseMessage.
+        /// </summary>
+        private void OnHandshakeChallenge(ConnectionId connectionId, byte[] data, int offset, int length)
+        {
+            if (_stateMachine.Current != ConnectionState.Handshaking)
+            {
+                _logger.LogWarning("Received handshake challenge in unexpected state");
+                return;
+            }
+
+            HandshakeChallengeMessage challenge = HandshakeChallengeMessage.Deserialize(
+                data, offset, length);
+
+            if (challenge.Nonce is null || challenge.Nonce.Length == 0)
+            {
+                _logger.LogWarning("Received empty challenge nonce from server");
+                return;
+            }
+
+            byte[] signature = _signChallenge?.Invoke(challenge.Nonce) ?? Array.Empty<byte>();
+
+            ChallengeResponseMessage response = new() { Signature = signature };
+            Send(response, PipelineId.ReliableSequenced);
+
+            _logger.LogInfo("Signed and sent challenge response");
         }
 
         /// <summary>

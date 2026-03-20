@@ -24,5 +24,10 @@ namespace Lithforge.Network.Messages
         /// The server is shutting down.
         /// </summary>
         ServerShutdown = 3,
+
+        /// <summary>
+        /// A protocol violation was detected (e.g., unexpected message in current state).
+        /// </summary>
+        ProtocolError = 4,
     }
 }

@@ -151,5 +151,21 @@ namespace Lithforge.Runtime.Simulation
             _bodies.TryGetValue(playerId, out PlayerPhysicsBody body);
             return body;
         }
+
+        /// <summary>
+        ///     Returns a snapshot of all current player physics states keyed by player ID.
+        ///     Used by the save system to capture positions for all connected players.
+        /// </summary>
+        public Dictionary<ushort, PlayerPhysicsState> GetAllStates()
+        {
+            Dictionary<ushort, PlayerPhysicsState> result = new(_bodies.Count);
+
+            foreach (KeyValuePair<ushort, PlayerPhysicsBody> kvp in _bodies)
+            {
+                result[kvp.Key] = kvp.Value.GetState();
+            }
+
+            return result;
+        }
     }
 }

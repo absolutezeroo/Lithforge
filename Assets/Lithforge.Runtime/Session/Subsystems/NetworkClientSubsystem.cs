@@ -8,6 +8,7 @@ using Lithforge.Network.Transport;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Identity;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Player;
 using Lithforge.Runtime.Session;
@@ -71,6 +72,22 @@ namespace Lithforge.Runtime.Session.Subsystems
             };
 
             _client = new NetworkClient(logger, contentHash, playerName);
+
+            // Wire player identity for challenge-response authentication.
+            // SP/Host uses a blank identity (DirectTransport skips challenge).
+            // Remote clients load or generate their persistent ECDSA keypair.
+            if (context.Config is SessionConfig.Client)
+            {
+                PlayerIdentity identity = new();
+                identity.LoadOrGenerate(logger);
+
+                if (identity.IsValid)
+                {
+                    _client.SetIdentity(identity.Uuid, identity.PublicKeyBytes, identity.Sign);
+                }
+
+                context.Register(identity);
+            }
 
             if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
             {

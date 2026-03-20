@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 using Lithforge.Voxel.Command;
 using Unity.Mathematics;
 
@@ -45,5 +47,11 @@ namespace Lithforge.Network.Server
         /// Returns the current time of day (0-1 range) for inclusion in GameReadyMessage.
         /// </summary>
         public float GetTimeOfDay();
+
+        /// <summary>
+        /// Returns a snapshot of all current player physics states keyed by player ID.
+        /// Used by the save system to capture positions for all connected players.
+        /// </summary>
+        public Dictionary<ushort, PlayerPhysicsState> GetAllPlayerStates();
     }
 }

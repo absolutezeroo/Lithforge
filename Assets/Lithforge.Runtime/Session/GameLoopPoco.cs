@@ -34,6 +34,9 @@ namespace Lithforge.Runtime.Session
         /// <summary>Whether the client disconnect callback has already been invoked.</summary>
         private bool _clientDisconnectNotified;
 
+        /// <summary>TEMP: next real-time for chunk diagnostics log.</summary>
+        private float _nextChunkLogTime;
+
         /// <summary>Current game state controlling pause behavior.</summary>
         private GameState _gameState = GameState.Playing;
 
@@ -314,6 +317,17 @@ namespace Lithforge.Runtime.Session
             _config.ServerLoop?.TickGameplay(Time.realtimeSinceStartup);
 
             profiler.End(FrameProfilerSections.UpdateTotal);
+
+            // TEMP: chunk diagnostics — once per second
+            if (Time.realtimeSinceStartup >= _nextChunkLogTime)
+            {
+                _nextChunkLogTime = Time.realtimeSinceStartup + 1f;
+                int loaded = _config.ChunkManager?.LoadedCount ?? 0;
+                int generated = _config.ChunkManager?.GeneratedChunkCount ?? 0;
+                int refZero = _config.ChunkManager?.RefZeroCount ?? 0;
+                UnityEngine.Debug.Log(
+                    $"[CHUNKS] loaded={loaded} generated={generated} refZero={refZero}");
+            }
 
             // CommitFrame AFTER all systems have run
             _config.MetricsRegistry?.CommitFrame();

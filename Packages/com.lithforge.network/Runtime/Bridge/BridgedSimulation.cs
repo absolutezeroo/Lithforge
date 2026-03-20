@@ -145,5 +145,21 @@ namespace Lithforge.Network.Bridge
         {
             return _bridge.CachedTimeOfDay;
         }
+
+        /// <summary>
+        ///     Returns a copy of the result cache containing all current player physics states.
+        ///     Called from the server thread; the cache is populated by <see cref="ApplyMoveInput" />.
+        /// </summary>
+        public Dictionary<ushort, PlayerPhysicsState> GetAllPlayerStates()
+        {
+            Dictionary<ushort, PlayerPhysicsState> snapshot = new(_resultCache.Count);
+
+            foreach (KeyValuePair<ushort, PlayerPhysicsState> kvp in _resultCache)
+            {
+                snapshot[kvp.Key] = kvp.Value;
+            }
+
+            return snapshot;
+        }
     }
 }

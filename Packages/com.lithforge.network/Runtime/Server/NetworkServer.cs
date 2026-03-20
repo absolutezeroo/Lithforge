@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 using Lithforge.Core.Logging;
 using Lithforge.Network.Connection;
@@ -325,6 +326,7 @@ namespace Lithforge.Network.Server
             Dispatcher.OnDisconnect(OnPeerDisconnected);
             Dispatcher.OnDataReceived(OnDataReceivedMetrics);
             Dispatcher.RegisterHandler(MessageType.HandshakeRequest, OnHandshakeRequest);
+            Dispatcher.RegisterHandler(MessageType.ChallengeResponse, OnChallengeResponse);
             Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
@@ -440,6 +442,8 @@ namespace Lithforge.Network.Server
             // Extract UUID and public key
             string playerUuid = request.PlayerUuid ?? "";
             peer.PlayerUuid = playerUuid;
+            peer.PublicKey = request.PublicKey ?? Array.Empty<byte>();
+            peer.PlayerName = request.PlayerName ?? "";
 
             // Check bans
             if (_adminStore is not null && !string.IsNullOrEmpty(playerUuid))
@@ -468,11 +472,109 @@ namespace Lithforge.Network.Server
                 peer.PlayerData = _playerDataStore.Load(playerUuid);
             }
 
-            // Accept
-            ushort playerId = _peerRegistry.AllocatePlayerId(connectionId);
-            peer.PlayerName = request.PlayerName ?? "";
+            // Allocate player ID early (needed for accept after challenge)
+            _peerRegistry.AllocatePlayerId(connectionId);
 
-            HandshakeResponseMessage response = new()
+            // Transition to Authenticating and issue challenge if client sent a public key
+            peer.StateMachine.Transition(ConnectionState.Authenticating, _currentTime);
+
+            if (peer.PublicKey.Length > 0)
+            {
+                // Generate cryptographic challenge nonce
+                byte[] nonce = new byte[HandshakeChallengeMessage.NonceSize];
+
+                using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(nonce);
+                }
+
+                peer.ChallengeNonce = nonce;
+
+                HandshakeChallengeMessage challenge = new() { Nonce = nonce };
+                SendTo(connectionId, challenge, PipelineId.ReliableSequenced);
+
+                _logger.LogInfo(
+                    $"Sent challenge to {connectionId} ({peer.PlayerName}, uuid={playerUuid})");
+            }
+            else
+            {
+                // No public key (local peer or legacy client) — skip authentication
+                AcceptPeerAfterAuth(connectionId, peer);
+            }
+        }
+
+        /// <summary>
+        ///     Handles the client's challenge response. Verifies the ECDSA-SHA256 signature
+        ///     against the stored public key and challenge nonce. Accepts or rejects the peer.
+        /// </summary>
+        private void OnChallengeResponse(ConnectionId connectionId, byte[] data, int offset, int length)
+        {
+            TouchPeer(connectionId);
+            PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
+
+            if (peer is null || peer.StateMachine.Current != ConnectionState.Authenticating)
+            {
+                _logger.LogWarning(
+                    $"Received challenge response from {connectionId} in unexpected state");
+                return;
+            }
+
+            ChallengeResponseMessage response = ChallengeResponseMessage.Deserialize(data, offset, length);
+
+            if (peer.ChallengeNonce is null || peer.PublicKey.Length == 0)
+            {
+                _logger.LogWarning(
+                    $"Received challenge response from {connectionId} without pending challenge");
+                DisconnectPeer(connectionId, DisconnectReason.ProtocolError);
+                return;
+            }
+
+            // Verify the signature using ECDSA P-256
+            bool verified = false;
+
+            try
+            {
+                using (ECDsa ecdsa = ECDsa.Create())
+                {
+                    ecdsa.ImportSubjectPublicKeyInfo(peer.PublicKey, out int _);
+                    verified = ecdsa.VerifyData(
+                        peer.ChallengeNonce,
+                        response.Signature ?? Array.Empty<byte>(),
+                        HashAlgorithmName.SHA256);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    $"Challenge verification failed for {connectionId}: {ex.Message}");
+            }
+
+            // Clear the nonce regardless of outcome
+            peer.ChallengeNonce = null;
+
+            if (!verified)
+            {
+                SendHandshakeReject(connectionId, HandshakeRejectReason.AuthenticationFailed);
+                _logger.LogWarning(
+                    $"Rejected {connectionId}: challenge-response authentication failed");
+                return;
+            }
+
+            _logger.LogInfo(
+                $"Challenge verified for {connectionId} ({peer.PlayerName}, uuid={peer.PlayerUuid})");
+
+            AcceptPeerAfterAuth(connectionId, peer);
+        }
+
+        /// <summary>
+        ///     Completes peer acceptance after authentication (or when auth is skipped).
+        ///     Sends the HandshakeResponseMessage and transitions to Loading state.
+        /// </summary>
+        private void AcceptPeerAfterAuth(ConnectionId connectionId, PeerInfo peer)
+        {
+            ushort playerId = peer.AssignedPlayerId;
+
+            HandshakeResponseMessage handshakeResponse = new()
             {
                 Accepted = true,
                 RejectReason = HandshakeRejectReason.None,
@@ -481,17 +583,14 @@ namespace Lithforge.Network.Server
                 WorldSeed = WorldSeed,
             };
 
-            SendTo(connectionId, response, PipelineId.ReliableSequenced);
+            SendTo(connectionId, handshakeResponse, PipelineId.ReliableSequenced);
 
-            // Auto-transition through Authenticating → Configuring → Loading.
-            // Future implementations can pause at Authenticating (external auth)
-            // or Configuring (registry sync, mod negotiation) before proceeding.
-            peer.StateMachine.Transition(ConnectionState.Authenticating, _currentTime);
+            // Transition through Configuring → Loading
             peer.StateMachine.Transition(ConnectionState.Configuring, _currentTime);
             peer.StateMachine.Transition(ConnectionState.Loading, _currentTime);
 
             _logger.LogInfo(
-                $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName}, uuid={playerUuid})");
+                $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName}, uuid={peer.PlayerUuid})");
 
             OnPeerAccepted?.Invoke(peer);
         }

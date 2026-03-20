@@ -18,6 +18,12 @@ namespace Lithforge.Network.Message
         /// <summary>Either side notifies graceful disconnection with a reason code.</summary>
         Disconnect = 3,
 
+        /// <summary>Server sends a challenge nonce for client identity verification.</summary>
+        HandshakeChallenge = 4,
+
+        /// <summary>Client responds with a signature proving ownership of the public key.</summary>
+        ChallengeResponse = 5,
+
         // Keepalive
 
         /// <summary>Client or server sends a ping for RTT measurement.</summary>

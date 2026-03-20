@@ -29,5 +29,10 @@ namespace Lithforge.Network.Messages
         /// The client is banned from this server.
         /// </summary>
         Banned = 4,
+
+        /// <summary>
+        /// The client failed the challenge-response authentication (invalid signature).
+        /// </summary>
+        AuthenticationFailed = 5,
     }
 }

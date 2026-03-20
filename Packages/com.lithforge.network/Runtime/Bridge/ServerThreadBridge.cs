@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 
 using Lithforge.Network.Chunk;
+using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
 
@@ -84,6 +85,13 @@ namespace Lithforge.Network.Bridge
         /// </summary>
         private volatile PlayerChunkSnapshot _playerChunkSnapshot = PlayerChunkSnapshot.Empty;
 
+        /// <summary>
+        ///     Latest player physics state snapshot written by the server thread each tick.
+        ///     Read by the main thread for periodic save and disconnect save captures.
+        ///     Volatile reference swap ensures thread-safe reads without locking.
+        /// </summary>
+        private volatile Dictionary<ushort, PlayerPhysicsState> _playerPhysicsSnapshot = new();
+
         /// <summary>Time of day (0-1) written by main thread, read by server thread. Stored as raw int bits for atomic access.</summary>
         private int _cachedTimeOfDayBits;
 
@@ -112,6 +120,18 @@ namespace Lithforge.Network.Bridge
         public void SetPlayerChunkSnapshot(PlayerChunkSnapshot snapshot)
         {
             _playerChunkSnapshot = snapshot;
+        }
+
+        /// <summary>Gets the latest player physics snapshot written by the server thread.</summary>
+        public Dictionary<ushort, PlayerPhysicsState> GetPlayerPhysicsSnapshot()
+        {
+            return _playerPhysicsSnapshot;
+        }
+
+        /// <summary>Replaces the player physics snapshot. Called from the server thread each tick.</summary>
+        public void SetPlayerPhysicsSnapshot(Dictionary<ushort, PlayerPhysicsState> snapshot)
+        {
+            _playerPhysicsSnapshot = snapshot;
         }
 
         /// <summary>Disposes all semaphores.</summary>
