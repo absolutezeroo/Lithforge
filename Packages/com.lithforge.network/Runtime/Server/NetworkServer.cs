@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 using Lithforge.Core.Logging;
@@ -163,8 +164,8 @@ namespace Lithforge.Network.Server
         {
             int totalBytes = MessageSerializer.WriteMessage(message, out byte[] buffer);
 
-            // Copy to dedicated buffer since Send may be async
-            byte[] sendData = new byte[totalBytes];
+            // Rent from pool — send loop is synchronous, safe to return after
+            byte[] sendData = ArrayPool<byte>.Shared.Rent(totalBytes);
             Array.Copy(buffer, 0, sendData, 0, totalBytes);
 
             IReadOnlyList<PeerInfo> peers = _peerRegistry.AllPeers;
@@ -185,6 +186,8 @@ namespace Lithforge.Network.Server
                     _sendQueue.Enqueue(peer.ConnectionId, pipelineId, sendData, 0, totalBytes);
                 }
             }
+
+            ArrayPool<byte>.Shared.Return(sendData);
         }
 
         /// <summary>Broadcasts a message to all Playing peers except the specified connection.</summary>
@@ -192,7 +195,8 @@ namespace Lithforge.Network.Server
         {
             int totalBytes = MessageSerializer.WriteMessage(message, out byte[] buffer);
 
-            byte[] sendData = new byte[totalBytes];
+            // Rent from pool — send loop is synchronous, safe to return after
+            byte[] sendData = ArrayPool<byte>.Shared.Rent(totalBytes);
             Array.Copy(buffer, 0, sendData, 0, totalBytes);
 
             IReadOnlyList<PeerInfo> peers = _peerRegistry.AllPeers;
@@ -218,6 +222,8 @@ namespace Lithforge.Network.Server
                     _sendQueue.Enqueue(peer.ConnectionId, pipelineId, sendData, 0, totalBytes);
                 }
             }
+
+            ArrayPool<byte>.Shared.Return(sendData);
         }
 
         /// <summary>Sends a disconnect message to the peer, removes it from the registry, and closes the connection.</summary>

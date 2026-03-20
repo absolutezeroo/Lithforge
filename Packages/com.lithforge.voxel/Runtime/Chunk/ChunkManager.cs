@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -55,11 +54,10 @@ namespace Lithforge.Voxel.Chunk
         };
         /// <summary>
         ///     Primary dictionary of all loaded chunks, keyed by chunk coordinate.
-        ///     Uses <see cref="ConcurrentDictionary{TKey,TValue}" /> to allow safe reads from
-        ///     the server background thread (via <see cref="IChunkDataReader" />) while the
-        ///     main thread adds and removes chunks.
+        ///     Copy-on-write: the main thread replaces the entire reference on mutation;
+        ///     the server background thread reads a consistent snapshot via volatile read.
         /// </summary>
-        private readonly ConcurrentDictionary<int3, ManagedChunk> _chunks = new();
+        private volatile Dictionary<int3, ManagedChunk> _chunks = new();
 
         /// <summary>Secondary index: coordinates of chunks with NeedsLightUpdate = true.</summary>
         private readonly HashSet<int3> _chunksNeedingLightUpdate = new();
@@ -177,6 +175,31 @@ namespace Lithforge.Voxel.Chunk
             _yLoadMax = yLoadMax;
             _yUnloadMin = yUnloadMin;
             _yUnloadMax = yUnloadMax;
+        }
+
+        /// <summary>Adds a chunk via copy-on-write. Main thread only.</summary>
+        private void AddChunk(int3 coord, ManagedChunk chunk)
+        {
+            Dictionary<int3, ManagedChunk> copy = new(_chunks);
+            copy[coord] = chunk;
+            _chunks = copy;
+        }
+
+        /// <summary>Removes a chunk via copy-on-write. Main thread only.</summary>
+        private bool RemoveChunk(int3 coord, out ManagedChunk removed)
+        {
+            Dictionary<int3, ManagedChunk> snapshot = _chunks;
+
+            if (!snapshot.TryGetValue(coord, out removed))
+            {
+                return false;
+            }
+
+            Dictionary<int3, ManagedChunk> copy = new(snapshot);
+            copy.Remove(coord);
+            _chunks = copy;
+
+            return true;
         }
 
         /// <summary>Total number of currently loaded chunks.</summary>
@@ -574,7 +597,7 @@ namespace Lithforge.Voxel.Chunk
 
                 NativeArray<StateId> data = _pool.Checkout();
                 ManagedChunk chunk = new(coord, data);
-                _chunks[coord] = chunk;
+                AddChunk(coord, chunk);
                 RegisterChunk(chunk);
                 SetChunkState(chunk, ChunkState.Generating);
                 result.Add(chunk);
@@ -1386,7 +1409,7 @@ namespace Lithforge.Voxel.Chunk
                 }
 
                 _chunksNeedingLightUpdate.Remove(unloaded[i]);
-                _chunks.TryRemove(unloaded[i], out _);
+                RemoveChunk(unloaded[i], out _);
             }
         }
 
@@ -1487,7 +1510,7 @@ namespace Lithforge.Voxel.Chunk
             };
             NativeArray<byte>.Copy(lightData, chunk.LightData);
 
-            _chunks[coord] = chunk;
+            AddChunk(coord, chunk);
             RegisterChunk(chunk);
             SetChunkState(chunk, ChunkState.Generated);
         }
@@ -1547,7 +1570,7 @@ namespace Lithforge.Voxel.Chunk
                 chunk.RiverFlags = default;
             }
 
-            _chunks.TryRemove(coord, out _);
+            RemoveChunk(coord, out _);
         }
 
         /// <summary>

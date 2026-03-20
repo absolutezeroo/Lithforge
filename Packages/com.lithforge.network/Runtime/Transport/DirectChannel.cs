@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace Lithforge.Network.Transport
@@ -21,20 +22,34 @@ namespace Lithforge.Network.Transport
 
         /// <summary>
         /// Enqueues a copy of the data segment as a packet for the receiving side.
+        /// Uses ArrayPool to avoid per-packet heap allocation.
         /// </summary>
         public void Enqueue(byte[] data, int offset, int length)
         {
-            byte[] copy = new byte[length];
+            byte[] copy = ArrayPool<byte>.Shared.Rent(length);
             Buffer.BlockCopy(data, offset, copy, 0, length);
-            _dataQueue.Enqueue(new DirectPacket(copy, 0, length));
+            _dataQueue.Enqueue(new DirectPacket(copy, 0, length, true));
         }
 
         /// <summary>
         /// Attempts to dequeue the next data packet. Returns false if the queue is empty.
+        /// Caller must call <see cref="ReturnPacket"/> after processing.
         /// </summary>
         public bool TryDequeue(out DirectPacket packet)
         {
             return _dataQueue.TryDequeue(out packet);
+        }
+
+        /// <summary>
+        /// Returns a pooled packet's buffer to the ArrayPool.
+        /// Call after processing a dequeued packet.
+        /// </summary>
+        public static void ReturnPacket(DirectPacket packet)
+        {
+            if (packet.Pooled)
+            {
+                ArrayPool<byte>.Shared.Return(packet.Data);
+            }
         }
 
         /// <summary>
@@ -55,7 +70,7 @@ namespace Lithforge.Network.Transport
     }
 
     /// <summary>
-    /// A single in-memory packet containing a copied byte array segment.
+    /// A single in-memory packet containing a byte array segment.
     /// </summary>
     internal readonly struct DirectPacket
     {
@@ -75,13 +90,19 @@ namespace Lithforge.Network.Transport
         public readonly int Length;
 
         /// <summary>
+        /// Whether the Data buffer was rented from ArrayPool and must be returned.
+        /// </summary>
+        public readonly bool Pooled;
+
+        /// <summary>
         /// Creates a new DirectPacket wrapping the given data segment.
         /// </summary>
-        public DirectPacket(byte[] data, int offset, int length)
+        public DirectPacket(byte[] data, int offset, int length, bool pooled = false)
         {
             Data = data;
             Offset = offset;
             Length = length;
+            Pooled = pooled;
         }
     }
 }

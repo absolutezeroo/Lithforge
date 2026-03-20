@@ -87,6 +87,21 @@ namespace Lithforge.Network.Chunk
         [ThreadStatic] private static ushort[] s_paletteBuffer;
 
         /// <summary>
+        /// Thread-local reusable buffer for zstd compressed output.
+        /// </summary>
+        [ThreadStatic] private static byte[] s_compressOutputBuffer;
+
+        /// <summary>
+        /// Thread-local reusable buffer for zstd decompressed output.
+        /// </summary>
+        [ThreadStatic] private static byte[] s_decompressOutputBuffer;
+
+        /// <summary>
+        /// Thread-local reusable buffer for batch entry serialization.
+        /// </summary>
+        [ThreadStatic] private static byte[] s_batchEntryBuffer;
+
+        /// <summary>
         /// Returns the thread-local zstd compressor, creating it if needed.
         /// </summary>
         private static Compressor GetCompressor()
@@ -129,6 +144,30 @@ namespace Lithforge.Network.Chunk
         }
 
         /// <summary>
+        ///     Ensures the compress output buffer is large enough for the given source size.
+        /// </summary>
+        private static void EnsureCompressOutputBuffer(int srcSize)
+        {
+            int bound = Compressor.GetCompressBound(srcSize);
+
+            if (s_compressOutputBuffer == null || s_compressOutputBuffer.Length < bound)
+            {
+                s_compressOutputBuffer = new byte[bound];
+            }
+        }
+
+        /// <summary>
+        ///     Ensures the decompress output buffer is large enough for the given size.
+        /// </summary>
+        private static void EnsureDecompressOutputBuffer(int size)
+        {
+            if (s_decompressOutputBuffer == null || s_decompressOutputBuffer.Length < size)
+            {
+                s_decompressOutputBuffer = new byte[size];
+            }
+        }
+
+        /// <summary>
         ///     Disposes thread-local compressor/decompressor and stream resources.
         ///     Call from test teardown or thread shutdown when explicit cleanup is needed.
         ///     Not required in production (thread-pool threads live for the process lifetime).
@@ -144,6 +183,9 @@ namespace Lithforge.Network.Chunk
             s_voxelBuffer = null;
             s_lightBuffer = null;
             s_paletteBuffer = null;
+            s_compressOutputBuffer = null;
+            s_decompressOutputBuffer = null;
+            s_batchEntryBuffer = null;
         }
 
         /// <summary>
@@ -231,15 +273,20 @@ namespace Lithforge.Network.Chunk
 
             writer.Flush();
 
-            // Wrap entire payload in zstd compression with magic+version header
-            byte[] uncompressedPayload = stream.ToArray();
-            Compressor compressor = GetCompressor();
-            byte[] compressedPayload = compressor.Wrap(uncompressedPayload).ToArray();
+            // Compress payload via zstd Span API (zero-copy from stream internal buffer)
+            byte[] streamBuf = stream.GetBuffer();
+            int uncompLen = (int)stream.Position;
+            ReadOnlySpan<byte> srcSpan = new(streamBuf, 0, uncompLen);
 
-            byte[] result = new byte[s_fullChunkMagic.Length + 1 + compressedPayload.Length];
+            Compressor compressor = GetCompressor();
+            EnsureCompressOutputBuffer(uncompLen);
+            int compLen = compressor.Wrap(srcSpan, new Span<byte>(s_compressOutputBuffer));
+
+            // Build final result: magic + version + compressed payload
+            byte[] result = new byte[s_fullChunkMagic.Length + 1 + compLen];
             Buffer.BlockCopy(s_fullChunkMagic, 0, result, 0, s_fullChunkMagic.Length);
             result[s_fullChunkMagic.Length] = FullChunkVersion;
-            Buffer.BlockCopy(compressedPayload, 0, result, s_fullChunkMagic.Length + 1, compressedPayload.Length);
+            Buffer.BlockCopy(s_compressOutputBuffer, 0, result, s_fullChunkMagic.Length + 1, compLen);
 
             writer.Dispose();
             return result;
@@ -272,14 +319,23 @@ namespace Lithforge.Network.Chunk
                 return false;
             }
 
-            // Decompress zstd payload
+            // Decompress zstd payload via Span API
             int compressedOffset = s_fullChunkMagic.Length + 1;
             int compressedLength = data.Length - compressedOffset;
             Decompressor decompressor = GetDecompressor();
-            byte[] decompressed = decompressor.Unwrap(
-                new ReadOnlySpan<byte>(data, compressedOffset, compressedLength)).ToArray();
 
-            using (MemoryStream ms = new(decompressed))
+            ReadOnlySpan<byte> compSpan = new(data, compressedOffset, compressedLength);
+            ulong decompSize = Decompressor.GetDecompressedSize(compSpan);
+
+            // Fallback: if decompressed size unknown, use generous estimate
+            int estimatedDecompSize = decompSize > 0
+                ? (int)decompSize
+                : ChunkConstants.Volume * 3;
+
+            EnsureDecompressOutputBuffer(estimatedDecompSize);
+            int decompLen = decompressor.Unwrap(compSpan, new Span<byte>(s_decompressOutputBuffer));
+
+            using (MemoryStream ms = new(s_decompressOutputBuffer, 0, decompLen, false))
             using (BinaryReader reader = new(ms))
             {
                 // Read palette (reuse ThreadStatic buffer)
@@ -414,44 +470,53 @@ namespace Lithforge.Network.Chunk
                 return result;
             }
 
-            // Multi-change path
+            // Multi-change path — use ThreadStatic buffer for entry data
             int entryDataSize = changes.Count * BytesPerBatchEntry;
-            byte[] entryData = new byte[entryDataSize];
+
+            if (s_batchEntryBuffer == null || s_batchEntryBuffer.Length < entryDataSize)
+            {
+                s_batchEntryBuffer = new byte[Math.Max(entryDataSize, 1024)];
+            }
 
             for (int i = 0; i < changes.Count; i++)
             {
                 BlockChangeEntry change = changes[i];
                 int3 local = WorldToLocal(change.Position, chunkCoord);
                 int offset = i * BytesPerBatchEntry;
-                entryData[offset] = (byte)local.x;
-                entryData[offset + 1] = (byte)local.y;
-                entryData[offset + 2] = (byte)local.z;
-                entryData[offset + 3] = (byte)(change.NewState.Value & 0xFF);
-                entryData[offset + 4] = (byte)(change.NewState.Value >> 8);
+                s_batchEntryBuffer[offset] = (byte)local.x;
+                s_batchEntryBuffer[offset + 1] = (byte)local.y;
+                s_batchEntryBuffer[offset + 2] = (byte)local.z;
+                s_batchEntryBuffer[offset + 3] = (byte)(change.NewState.Value & 0xFF);
+                s_batchEntryBuffer[offset + 4] = (byte)(change.NewState.Value >> 8);
             }
 
             bool compress = changes.Count >= BatchCompressionThreshold;
             byte header = compress ? BatchFlagCompressed : (byte)0;
 
-            byte[] payload;
+            int payloadLen;
+            byte[] payloadSrc;
 
             if (compress)
             {
                 Compressor compressor = GetCompressor();
-                payload = compressor.Wrap(entryData).ToArray();
+                EnsureCompressOutputBuffer(entryDataSize);
+                ReadOnlySpan<byte> srcSpan = new(s_batchEntryBuffer, 0, entryDataSize);
+                payloadLen = compressor.Wrap(srcSpan, new Span<byte>(s_compressOutputBuffer));
+                payloadSrc = s_compressOutputBuffer;
             }
             else
             {
-                payload = entryData;
+                payloadLen = entryDataSize;
+                payloadSrc = s_batchEntryBuffer;
             }
 
             // header(1) + chunkCoord(12) + count(2) + payload
-            byte[] batchResult = new byte[1 + 12 + 2 + payload.Length];
+            byte[] batchResult = new byte[1 + 12 + 2 + payloadLen];
             batchResult[0] = header;
             WriteInt3(batchResult, 1, chunkCoord);
             batchResult[13] = (byte)(changes.Count & 0xFF);
             batchResult[14] = (byte)(changes.Count >> 8 & 0xFF);
-            Buffer.BlockCopy(payload, 0, batchResult, 15, payload.Length);
+            Buffer.BlockCopy(payloadSrc, 0, batchResult, 15, payloadLen);
             return batchResult;
         }
 
@@ -498,25 +563,32 @@ namespace Lithforge.Network.Chunk
             ushort count = (ushort)(data[13] | data[14] << 8);
             bool compressed = (header & BatchFlagCompressed) != 0;
 
-            byte[] entryData;
+            int entryDataLen;
+            byte[] entryDataSrc;
 
             if (compressed)
             {
                 int compressedLength = data.Length - 15;
                 Decompressor decompressor = GetDecompressor();
-                entryData = decompressor.Unwrap(
-                    new ReadOnlySpan<byte>(data, 15, compressedLength)).ToArray();
+                ReadOnlySpan<byte> compSpan = new(data, 15, compressedLength);
+
+                int expectedSize = count * BytesPerBatchEntry;
+                EnsureDecompressOutputBuffer(expectedSize);
+                entryDataLen = decompressor.Unwrap(compSpan, new Span<byte>(s_decompressOutputBuffer));
+                entryDataSrc = s_decompressOutputBuffer;
             }
             else
             {
                 int rawLength = data.Length - 15;
-                entryData = new byte[rawLength];
-                Buffer.BlockCopy(data, 15, entryData, 0, rawLength);
+                EnsureDecompressOutputBuffer(rawLength);
+                Buffer.BlockCopy(data, 15, s_decompressOutputBuffer, 0, rawLength);
+                entryDataLen = rawLength;
+                entryDataSrc = s_decompressOutputBuffer;
             }
 
-            int expectedSize = count * BytesPerBatchEntry;
+            int expectedEntrySize = count * BytesPerBatchEntry;
 
-            if (entryData.Length < expectedSize)
+            if (entryDataLen < expectedEntrySize)
             {
                 return false;
             }
@@ -526,8 +598,8 @@ namespace Lithforge.Network.Chunk
             for (int i = 0; i < count; i++)
             {
                 int offset = i * BytesPerBatchEntry;
-                int3 local = new(entryData[offset], entryData[offset + 1], entryData[offset + 2]);
-                ushort stateVal = (ushort)(entryData[offset + 3] | entryData[offset + 4] << 8);
+                int3 local = new(entryDataSrc[offset], entryDataSrc[offset + 1], entryDataSrc[offset + 2]);
+                ushort stateVal = (ushort)(entryDataSrc[offset + 3] | entryDataSrc[offset + 4] << 8);
                 changes.Add(new BlockChangeEntry
                 {
                     Position = LocalToWorld(local, chunkCoord), NewState = new StateId(stateVal),

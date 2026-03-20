@@ -40,6 +40,16 @@ namespace Lithforge.Network.Transport
         private bool _disposed;
 
         /// <summary>
+        /// Packet from the previous PollEvent call, pending return to ArrayPool.
+        /// </summary>
+        private DirectPacket _pendingReturn;
+
+        /// <summary>
+        /// Whether _pendingReturn has a pooled buffer to return.
+        /// </summary>
+        private bool _hasPendingReturn;
+
+        /// <summary>
         /// Creates a new DirectTransportServer with the given inbound and outbound channels.
         /// </summary>
         internal DirectTransportServer(DirectChannel inbound, DirectChannel outbound)
@@ -92,6 +102,8 @@ namespace Lithforge.Network.Transport
 
         /// <summary>
         /// Polls the next event: synthesized Connect first, then events, then data packets.
+        /// Returns pooled buffers from the previous data packet one cycle late (deferred return)
+        /// to ensure the caller has consumed the data before it is recycled.
         /// </summary>
         public NetworkEventType PollEvent(
             out ConnectionId connectionId,
@@ -99,6 +111,13 @@ namespace Lithforge.Network.Transport
             out int offset,
             out int length)
         {
+            // Deferred return: return the previous packet's buffer now that the caller has consumed it
+            if (_hasPendingReturn)
+            {
+                DirectChannel.ReturnPacket(_pendingReturn);
+                _hasPendingReturn = false;
+            }
+
             connectionId = LocalConnectionId;
             data = null;
             offset = 0;
@@ -131,6 +150,10 @@ namespace Lithforge.Network.Transport
                 offset = packet.Offset;
                 length = packet.Length;
 
+                // Defer return to next PollEvent call so caller can read data safely
+                _pendingReturn = packet;
+                _hasPendingReturn = true;
+
                 return NetworkEventType.Data;
             }
 
@@ -153,7 +176,7 @@ namespace Lithforge.Network.Transport
         }
 
         /// <summary>
-        /// Disposes this transport, marking it as disconnected.
+        /// Disposes this transport, marking it as disconnected and returning any pending buffer.
         /// </summary>
         public void Dispose()
         {
@@ -164,6 +187,12 @@ namespace Lithforge.Network.Transport
 
             _disposed = true;
             _connected = false;
+
+            if (_hasPendingReturn)
+            {
+                DirectChannel.ReturnPacket(_pendingReturn);
+                _hasPendingReturn = false;
+            }
         }
     }
 }

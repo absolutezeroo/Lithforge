@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 
+using Lithforge.Core.Logging;
 using Lithforge.Network.Server;
 
 namespace Lithforge.Network.Bridge
@@ -23,6 +24,9 @@ namespace Lithforge.Network.Bridge
         /// <summary>Shared cross-thread state.</summary>
         private readonly ServerThreadBridge _bridge;
 
+        /// <summary>Logger for diagnostic messages.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>The server game loop whose ExecuteOneTick we call each tick.</summary>
         private readonly ServerGameLoop _serverGameLoop;
 
@@ -32,11 +36,12 @@ namespace Lithforge.Network.Bridge
         /// <summary>Whether Dispose has been called.</summary>
         private bool _disposed;
 
-        /// <summary>Creates a new runner for the given game loop and bridge.</summary>
-        internal ServerThreadRunner(ServerGameLoop serverGameLoop, ServerThreadBridge bridge)
+        /// <summary>Creates a new runner for the given game loop, bridge, and logger.</summary>
+        internal ServerThreadRunner(ServerGameLoop serverGameLoop, ServerThreadBridge bridge, ILogger logger)
         {
             _serverGameLoop = serverGameLoop;
             _bridge = bridge;
+            _logger = logger;
         }
 
         /// <summary>
@@ -94,7 +99,7 @@ namespace Lithforge.Network.Bridge
             {
                 if (!_thread.Join(JoinTimeoutMs))
                 {
-                    UnityEngine.Debug.LogWarning(
+                    _logger?.LogWarning(
                         "[Lithforge] Server thread did not stop within " + JoinTimeoutMs + "ms.");
                 }
             }

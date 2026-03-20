@@ -1087,7 +1087,13 @@ namespace Lithforge.Network.Server
             ushort playerId = peer.AssignedPlayerId;
 
             // Create interest state
-            peer.InterestState = new PlayerInterestState(DefaultViewRadius);
+            peer.InterestState = new PlayerInterestState(DefaultViewRadius)
+            {
+                CurrentChunk = new int3(
+                    (int)math.floor(spawnPosition.x / ChunkConstants.Size),
+                    (int)math.floor(spawnPosition.y / ChunkConstants.Size),
+                    (int)math.floor(spawnPosition.z / ChunkConstants.Size)),
+            };
 
             // Create physics body on the server
             _simulation.AddPlayer(playerId, spawnPosition);

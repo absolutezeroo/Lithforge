@@ -84,7 +84,7 @@ namespace Lithforge.Network.Bridge
                 realDirtyTracker,
                 timeOfDayProvider);
 
-            ServerThreadRunner runner = new(serverGameLoop, bridge);
+            ServerThreadRunner runner = new(serverGameLoop, bridge, logger);
 
             return new BuildResult
             {
