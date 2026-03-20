@@ -256,6 +256,10 @@ namespace Lithforge.Runtime.Rendering
             int growSize = newCapacity - oldCapacity;
             Capacity = newCapacity;
 
+            // Find the last physical block BEFORE creating the new one,
+            // otherwise FindLastPhysicalBlock may find the new (unlinked) block
+            int lastIdx = FindLastPhysicalBlock();
+
             // Create a free block for the new range
             int newBlockIdx = AllocBlockHeader();
             _blocks[newBlockIdx] = new BlockHeader
@@ -270,9 +274,6 @@ namespace Lithforge.Runtime.Rendering
             };
 
             _offsetToBlock[oldCapacity] = newBlockIdx;
-
-            // Find the last physical block and link it
-            int lastIdx = FindLastPhysicalBlock();
 
             if (lastIdx != NullIndex)
             {

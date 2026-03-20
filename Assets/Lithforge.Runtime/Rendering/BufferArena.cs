@@ -455,9 +455,7 @@ namespace Lithforge.Runtime.Rendering
                     new(newVertCap, Allocator.Persistent,
                         NativeArrayOptions.UninitializedMemory);
 
-                int usedVerts = _vertexAllocator.UsedElements;
-
-                if (usedVerts > 0)
+                if (oldVertCap > 0)
                 {
                     unsafe
                     {

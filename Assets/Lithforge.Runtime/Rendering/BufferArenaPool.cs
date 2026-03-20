@@ -257,8 +257,9 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         ///     Updates the per-chunk indirect args entry for the given cull slot and chunk coord.
-        ///     Writes the draw args to the arena that owns this chunk's geometry. All other
-        ///     arenas' args at this cull slot remain zero (producing zero GPU work).
+        ///     Zeroes ALL arenas' args at this cull slot first to clear any stale data from a
+        ///     previous arena (a chunk may have migrated between arenas during AllocateOrUpdate),
+        ///     then writes the live draw args to the arena that currently owns the chunk.
         ///     Called by ChunkMeshStore after AllocateOrUpdate.
         /// </summary>
         public void UpdatePerChunkArgs(int cullSlotId, int3 coord)
@@ -267,6 +268,9 @@ namespace Lithforge.Runtime.Rendering
             {
                 return;
             }
+
+            // Zero all arenas first — prevents stale draw data when a chunk migrates
+            ZeroPerChunkArgs(cullSlotId);
 
             if (_coordToArenaIndex.TryGetValue(coord, out int arenaIdx))
             {
@@ -283,12 +287,8 @@ namespace Lithforge.Runtime.Rendering
                         startInstance = 0,
                     };
                     _perArenaArgsBuffers[arenaIdx].SetData(_slotArgsUpload, 0, cullSlotId, 1);
-                    return;
                 }
             }
-
-            // No slot for this coord — zero all arenas' args at this cull slot
-            ZeroPerChunkArgs(cullSlotId);
         }
 
         /// <summary>
