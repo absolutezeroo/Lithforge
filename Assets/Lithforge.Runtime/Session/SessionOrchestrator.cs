@@ -295,7 +295,6 @@ namespace Lithforge.Runtime.Session
                 "CraftingTableScreen",
                 "PartBuilderScreen",
                 "SavingScreen",
-                "ChatPanel",
                 "SfxSourcePool",
                 "SessionBridge",
                 "LoadingScreen",

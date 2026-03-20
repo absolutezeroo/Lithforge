@@ -52,9 +52,6 @@ namespace Lithforge.Network.Message
         /// <summary>Client acknowledges receipt of a batch of chunk data messages.</summary>
         ChunkBatchAck = 27,
 
-        /// <summary>Client sends a chat message or admin command to the server.</summary>
-        ChatCmd = 28,
-
         // Server-to-Client state updates
 
         /// <summary>Server sends authoritative player position and physics state.</summary>
@@ -86,9 +83,6 @@ namespace Lithforge.Network.Message
 
         /// <summary>Server sends initial spawn data before GameReady (player ID, spawn position).</summary>
         SpawnInit = 49,
-
-        /// <summary>Server broadcasts a chat message to clients.</summary>
-        Chat = 50,
 
         /// <summary>Server sends a full inventory snapshot to a client.</summary>
         InventorySync = 51,

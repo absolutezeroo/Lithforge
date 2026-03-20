@@ -57,9 +57,6 @@ namespace Lithforge.Network.Server
         /// <summary>Optional admin store for ban/op/whitelist checks during handshake.</summary>
         private AdminStore _adminStore;
 
-        /// <summary>Optional chat command processor for handling chat messages and admin commands.</summary>
-        private ChatCommandProcessor _chatProcessor;
-
         /// <summary>Optional player data store for loading saved state during handshake.</summary>
         private PlayerDataStore _playerDataStore;
 
@@ -112,12 +109,6 @@ namespace Lithforge.Network.Server
         {
             _playerDataStore = playerDataStore;
             _adminStore = adminStore;
-        }
-
-        /// <summary>Injects the chat command processor for handling chat messages.</summary>
-        public void SetChatProcessor(ChatCommandProcessor chatProcessor)
-        {
-            _chatProcessor = chatProcessor;
         }
 
         /// <summary>Starts the server on the given UDP port using a NetworkDriverWrapper transport.</summary>
@@ -337,7 +328,6 @@ namespace Lithforge.Network.Server
             Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
-            Dispatcher.RegisterHandler(MessageType.ChatCmd, OnChatCmd);
         }
 
         /// <summary>
@@ -548,26 +538,6 @@ namespace Lithforge.Network.Server
             _sendQueue.RemoveForConnection(connectionId);
             _transport.Disconnect(connectionId);
             _peerRegistry.Remove(connectionId);
-        }
-
-        /// <summary>Handles a chat command message from a client, delegating to the chat processor.</summary>
-        private void OnChatCmd(ConnectionId connectionId, byte[] data, int offset, int length)
-        {
-            TouchPeer(connectionId);
-            PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
-
-            if (peer == null || peer.StateMachine.Current != ConnectionState.Playing)
-            {
-                return;
-            }
-
-            if (_chatProcessor == null)
-            {
-                return;
-            }
-
-            ChatCmdMessage msg = ChatCmdMessage.Deserialize(data, offset, length);
-            _chatProcessor.ProcessChat(peer, msg.Content);
         }
 
         /// <summary>Sends a rejection response and immediately disconnects the peer.</summary>
