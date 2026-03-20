@@ -230,23 +230,23 @@ namespace Lithforge.Runtime.Debug
             if (_chunkMeshStore != null)
             {
                 _current.VramTotalBytes =
-                    (long)_chunkMeshStore.OpaqueBuffer.VertexCapacity * 16
-                    + (long)_chunkMeshStore.CutoutBuffer.VertexCapacity * 16
-                    + (long)_chunkMeshStore.TranslucentBuffer.VertexCapacity * 16
-                    + (long)_chunkMeshStore.OpaqueBuffer.IndexCapacity * 4
-                    + (long)_chunkMeshStore.CutoutBuffer.IndexCapacity * 4
-                    + (long)_chunkMeshStore.TranslucentBuffer.IndexCapacity * 4;
+                    (long)_chunkMeshStore.OpaquePool.VertexCapacity * 16
+                    + (long)_chunkMeshStore.CutoutPool.VertexCapacity * 16
+                    + (long)_chunkMeshStore.TranslucentPool.VertexCapacity * 16
+                    + (long)_chunkMeshStore.OpaquePool.IndexCapacity * 4
+                    + (long)_chunkMeshStore.CutoutPool.IndexCapacity * 4
+                    + (long)_chunkMeshStore.TranslucentPool.IndexCapacity * 4;
 
-                _current.OpaqueUsedVerts = _chunkMeshStore.OpaqueBuffer.UsedVertices;
-                _current.OpaqueCapacityVerts = _chunkMeshStore.OpaqueBuffer.VertexCapacity;
-                _current.CutoutUsedVerts = _chunkMeshStore.CutoutBuffer.UsedVertices;
-                _current.CutoutCapacityVerts = _chunkMeshStore.CutoutBuffer.VertexCapacity;
-                _current.TranslucentUsedVerts = _chunkMeshStore.TranslucentBuffer.UsedVertices;
-                _current.TranslucentCapacityVerts = _chunkMeshStore.TranslucentBuffer.VertexCapacity;
+                _current.OpaqueUsedVerts = _chunkMeshStore.OpaquePool.UsedVertices;
+                _current.OpaqueCapacityVerts = _chunkMeshStore.OpaquePool.VertexCapacity;
+                _current.CutoutUsedVerts = _chunkMeshStore.CutoutPool.UsedVertices;
+                _current.CutoutCapacityVerts = _chunkMeshStore.CutoutPool.VertexCapacity;
+                _current.TranslucentUsedVerts = _chunkMeshStore.TranslucentPool.UsedVertices;
+                _current.TranslucentCapacityVerts = _chunkMeshStore.TranslucentPool.VertexCapacity;
 
                 _current.RendererCount = _chunkMeshStore.RendererCount;
                 _current.OcclusionCullingActive = _chunkMeshStore.IsOcclusionCullingActive;
-                _current.FreeListSize = _chunkMeshStore.OpaqueBuffer.FreeRegionCount;
+                _current.FreeListSize = _chunkMeshStore.OpaquePool.ArenaCount;
             }
 
             // Player / world position

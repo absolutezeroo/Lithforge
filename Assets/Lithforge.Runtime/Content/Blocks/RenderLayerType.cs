@@ -1,7 +1,7 @@
 namespace Lithforge.Runtime.Content.Blocks
 {
     /// <summary>
-    /// Rendering pass for a block, mapped to submesh indices in <see cref="Lithforge.Runtime.Rendering.MegaMeshBuffer"/>.
+    /// Rendering pass for a block, mapped to submesh indices in <see cref="Lithforge.Runtime.Rendering.BufferArenaPool"/>.
     /// Controls transparency sorting and shader selection.
     /// </summary>
     public enum RenderLayerType

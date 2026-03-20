@@ -2,9 +2,9 @@ namespace Lithforge.Runtime.Debug
 {
     /// <summary>
     ///     Per-session pipeline statistics collector. Counters are incremented by
-    ///     schedulers and MegaMeshBuffer at the appropriate points. Per-frame counters
+    ///     schedulers and BufferArena at the appropriate points. Per-frame counters
     ///     are reset at the start of each frame by BeginFrame().
-    ///     Owner: LithforgeBootstrap. Injected into GameLoop, schedulers, MegaMeshBuffer,
+    ///     Owner: LithforgeBootstrap. Injected into GameLoop, schedulers, BufferArena,
     ///     MetricsRegistry, F3DebugOverlay, and BenchmarkRunner.
     /// </summary>
     public interface IPipelineStats
@@ -42,7 +42,7 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Number of GPU upload operations this frame.</summary>
         public int GpuUploadCount { get; }
 
-        /// <summary>Number of MegaMeshBuffer grow (reallocation) events this frame.</summary>
+        /// <summary>Number of BufferArena grow (reallocation) events this frame.</summary>
         public int GrowEvents { get; }
 
         /// <summary>Number of chunk mesh invalidations this frame.</summary>
@@ -129,7 +129,7 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Increments the per-frame LOD-completed counter and cumulative total.</summary>
         public void IncrLODCompleted();
 
-        /// <summary>Increments the per-frame MegaMeshBuffer grow event counter.</summary>
+        /// <summary>Increments the per-frame BufferArena grow event counter.</summary>
         public void IncrGrow();
 
         /// <summary>Increments the per-frame chunk mesh invalidation counter.</summary>

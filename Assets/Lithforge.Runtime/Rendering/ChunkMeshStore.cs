@@ -18,8 +18,10 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
-    ///     Stores chunk meshes in three persistent GPU buffers (opaque, cutout, translucent)
+    ///     Stores chunk meshes in three multi-arena GPU buffer pools (opaque, cutout, translucent)
     ///     and draws them via GPU-driven per-chunk indirect draw with compute frustum culling.
+    ///     Each pool manages 1-N BufferArena instances to stay within the per-buffer GraphicsBuffer
+    ///     size limit (SystemInfo.maxGraphicsBufferSize / 4, capped at 512 MB per arena).
     ///     Each chunk gets its own DrawIndexedIndirectArgs entry. A compute shader tests AABBs
     ///     against the camera frustum and sets instanceCount=0 for culled chunks.
     ///     No GameObjects, MeshFilters, MeshRenderers, or Mesh objects are created.
@@ -61,8 +63,8 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Single-element array for uploading one chunk's AABB to the bounds buffer.</summary>
         private readonly ChunkBoundsGPU[] _boundsUpload = new ChunkBoundsGPU[1];
 
-        /// <summary>Maps chunk coordinate to its shared slot ID across all three render layers.</summary>
-        private readonly Dictionary<int3, int> _coordToSlotId = new();
+        /// <summary>Maps chunk coordinate to its cull slot ID (dense 0-based index for compute dispatch).</summary>
+        private readonly Dictionary<int3, int> _coordToCullSlot = new();
 
         /// <summary>Render parameters for the cutout (alpha-test) indirect draw call.</summary>
         private readonly RenderParams _cutoutParams;
@@ -99,23 +101,24 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>
         ///     Shared bounds buffer: same AABB regardless of render layer.
-        ///     Slot IDs are keyed to the opaque buffer's coordToSlotId.
+        ///     Cull slot IDs index into this buffer.
         /// </summary>
         private GraphicsBuffer _chunkBoundsBuffer;
 
-        /// <summary>Maximum number of concurrent chunk draw slots, grown by doubling when exceeded.</summary>
+        /// <summary>Maximum number of concurrent chunk cull slots, grown by doubling when exceeded.</summary>
         private int _maxChunkSlots;
 
         /// <summary>Logger for mesh store diagnostics.</summary>
         private readonly ILogger _logger;
 
-        /// <summary>Reverse mapping from slot ID to chunk coordinate, used for swap-and-pop on destroy.</summary>
+        /// <summary>Reverse mapping from cull slot ID to chunk coordinate, used for swap-and-pop on destroy.</summary>
         private int3[] _slotToCoord;
 
         /// <summary>
-        ///     Creates a ChunkMeshStore with three MegaMeshBuffers (opaque, cutout, translucent),
+        ///     Creates a ChunkMeshStore with three BufferArenaPools (opaque, cutout, translucent),
         ///     a shared per-chunk bounds buffer, and configures GPU frustum and occlusion culling.
-        ///     Buffer capacities are estimated from render distance and Y load range.
+        ///     Buffer capacities are estimated from render distance and Y load range. Each pool
+        ///     starts with one arena and creates additional arenas on demand when capacity is exceeded.
         /// </summary>
         public ChunkMeshStore(
             Material opaqueMaterial, Material cutoutMaterial, Material translucentMaterial,
@@ -155,7 +158,6 @@ namespace Lithforge.Runtime.Rendering
             }
 
             // Build RenderParams with MaterialPropertyBlock for buffer binding.
-            // The vertex buffer is bound per-frame in RenderAll via matProps.
             _opaqueParams = new RenderParams(opaqueMaterial)
             {
                 shadowCastingMode = ShadowCastingMode.Off,
@@ -193,12 +195,11 @@ namespace Lithforge.Runtime.Rendering
             int smallVerts = maxChunks * 300 * 3 / 2;
             int smallIdx = maxChunks * 450 * 3 / 2;
 
-            OpaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats, _logger);
-            CutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats, _logger);
-            TranslucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats, _logger);
+            OpaquePool = new BufferArenaPool("Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats);
+            CutoutPool = new BufferArenaPool("Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
+            TranslucentPool = new BufferArenaPool("Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
 
             // Shared chunk bounds buffer — same AABB regardless of render layer.
-            // Slot IDs are sourced from the opaque buffer.
             _chunkBoundsBuffer = new GraphicsBuffer(
                 GraphicsBuffer.Target.Structured | GraphicsBuffer.Target.Raw,
                 maxChunkSlots,
@@ -211,17 +212,17 @@ namespace Lithforge.Runtime.Rendering
             _slotToCoord = new int3[maxChunkSlots];
         }
 
-        /// <summary>Number of active chunk draw slots (contiguous in 0..RendererCount-1).</summary>
+        /// <summary>Number of active chunk cull slots (contiguous in 0..RendererCount-1).</summary>
         public int RendererCount { get; private set; }
 
-        /// <summary>Persistent GPU buffer for opaque chunk mesh data.</summary>
-        public MegaMeshBuffer OpaqueBuffer { get; }
+        /// <summary>Multi-arena buffer pool for opaque chunk mesh data.</summary>
+        public BufferArenaPool OpaquePool { get; }
 
-        /// <summary>Persistent GPU buffer for cutout (alpha-test) chunk mesh data.</summary>
-        public MegaMeshBuffer CutoutBuffer { get; }
+        /// <summary>Multi-arena buffer pool for cutout (alpha-test) chunk mesh data.</summary>
+        public BufferArenaPool CutoutPool { get; }
 
-        /// <summary>Persistent GPU buffer for translucent (water) chunk mesh data.</summary>
-        public MegaMeshBuffer TranslucentBuffer { get; }
+        /// <summary>Multi-arena buffer pool for translucent (water) chunk mesh data.</summary>
+        public BufferArenaPool TranslucentPool { get; }
 
         /// <summary>Material used for opaque voxel rendering.</summary>
         public Material OpaqueMaterial { get; }
@@ -248,12 +249,12 @@ namespace Lithforge.Runtime.Rendering
         public void Dispose()
         {
             _hiZPyramid?.Dispose();
-            _coordToSlotId.Clear();
+            _coordToCullSlot.Clear();
             _slotToCoord = null;
             RendererCount = 0;
-            OpaqueBuffer.Dispose();
-            CutoutBuffer.Dispose();
-            TranslucentBuffer.Dispose();
+            OpaquePool.Dispose();
+            CutoutPool.Dispose();
+            TranslucentPool.Dispose();
             _chunkBoundsBuffer?.Dispose();
         }
 
@@ -267,15 +268,15 @@ namespace Lithforge.Runtime.Rendering
             NativeList<PackedMeshVertex> cutoutVerts, NativeList<int> cutoutIndices,
             NativeList<PackedMeshVertex> translucentVerts, NativeList<int> translucentIndices)
         {
-            OpaqueBuffer.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
-            CutoutBuffer.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
-            TranslucentBuffer.AllocateOrUpdate(coord, translucentVerts, translucentIndices);
+            OpaquePool.AllocateOrUpdate(coord, opaqueVerts, opaqueIndices);
+            CutoutPool.AllocateOrUpdate(coord, cutoutVerts, cutoutIndices);
+            TranslucentPool.AllocateOrUpdate(coord, translucentVerts, translucentIndices);
 
-            int slotId = EnsureSlotId(coord);
-            OpaqueBuffer.UpdatePerChunkArgs(slotId, coord);
-            CutoutBuffer.UpdatePerChunkArgs(slotId, coord);
-            TranslucentBuffer.UpdatePerChunkArgs(slotId, coord);
-            UpdateChunkBounds(coord, slotId);
+            int cullSlotId = EnsureCullSlotId(coord);
+            OpaquePool.UpdatePerChunkArgs(cullSlotId, coord);
+            CutoutPool.UpdatePerChunkArgs(cullSlotId, coord);
+            TranslucentPool.UpdatePerChunkArgs(cullSlotId, coord);
+            UpdateChunkBounds(coord, cullSlotId);
         }
 
         /// <summary>
@@ -286,25 +287,25 @@ namespace Lithforge.Runtime.Rendering
             int3 coord,
             NativeList<PackedMeshVertex> vertices, NativeList<int> indices)
         {
-            OpaqueBuffer.AllocateOrUpdate(coord, vertices, indices);
-            CutoutBuffer.Free(coord);
-            TranslucentBuffer.Free(coord);
+            OpaquePool.AllocateOrUpdate(coord, vertices, indices);
+            CutoutPool.Free(coord);
+            TranslucentPool.Free(coord);
 
-            int slotId = EnsureSlotId(coord);
-            OpaqueBuffer.UpdatePerChunkArgs(slotId, coord);
-            CutoutBuffer.ZeroPerChunkArgs(slotId);
-            TranslucentBuffer.ZeroPerChunkArgs(slotId);
-            UpdateChunkBounds(coord, slotId);
+            int cullSlotId = EnsureCullSlotId(coord);
+            OpaquePool.UpdatePerChunkArgs(cullSlotId, coord);
+            CutoutPool.ZeroPerChunkArgs(cullSlotId);
+            TranslucentPool.ZeroPerChunkArgs(cullSlotId);
+            UpdateChunkBounds(coord, cullSlotId);
         }
 
         /// <summary>
-        ///     Ensures a shared slot ID exists for the given chunk coordinate.
-        ///     New chunks are appended at _activeCount (contiguous packing).
+        ///     Ensures a cull slot ID exists for the given chunk coordinate.
+        ///     New chunks are appended at RendererCount (contiguous packing).
         ///     Grows the slot infrastructure if capacity is exceeded.
         /// </summary>
-        private int EnsureSlotId(int3 coord)
+        private int EnsureCullSlotId(int3 coord)
         {
-            if (_coordToSlotId.TryGetValue(coord, out int slotId))
+            if (_coordToCullSlot.TryGetValue(coord, out int slotId))
             {
                 return slotId;
             }
@@ -317,26 +318,25 @@ namespace Lithforge.Runtime.Rendering
             slotId = RendererCount;
             _slotToCoord[RendererCount] = coord;
             RendererCount++;
-            _coordToSlotId[coord] = slotId;
+            _coordToCullSlot[coord] = slotId;
             return slotId;
         }
 
         /// <summary>
         ///     Doubles the slot capacity for per-chunk indirect draw. Grows the shared
-        ///     bounds buffer and per-chunk args in all three MegaMeshBuffers via GPU
+        ///     bounds buffer and per-chunk args in all three BufferArenaPools via GPU
         ///     compute copy (no blocking GetData readback). Old buffers are retired for
-        ///     deferred disposal. Called when render distance increases at runtime and the
-        ///     original slot count is exceeded.
+        ///     deferred disposal.
         /// </summary>
         private void GrowSlotCapacity()
         {
             int oldMax = _maxChunkSlots;
             int newMax = (oldMax * 2 + 63) / 64 * 64;
 
-            // Grow per-chunk args in all 3 MegaMeshBuffers (each delegates to _resizer)
-            OpaqueBuffer.GrowSlots(newMax);
-            CutoutBuffer.GrowSlots(newMax);
-            TranslucentBuffer.GrowSlots(newMax);
+            // Grow per-chunk args in all 3 pools (each arena's args buffer is resized)
+            OpaquePool.GrowSlots(newMax);
+            CutoutPool.GrowSlots(newMax);
+            TranslucentPool.GrowSlots(newMax);
 
             // Grow chunk bounds buffer via compute copy (no GetData blocking readback)
             _chunkBoundsBuffer = _resizer.Resize(
@@ -357,11 +357,11 @@ namespace Lithforge.Runtime.Rendering
         }
 
         /// <summary>
-        ///     Updates the shared chunk bounds buffer for GPU culling at the given slot.
+        ///     Updates the shared chunk bounds buffer for GPU culling at the given cull slot.
         /// </summary>
-        private void UpdateChunkBounds(int3 coord, int slotId)
+        private void UpdateChunkBounds(int3 coord, int cullSlotId)
         {
-            if (slotId < 0)
+            if (cullSlotId < 0)
             {
                 return;
             }
@@ -376,32 +376,26 @@ namespace Lithforge.Runtime.Rendering
             {
                 WorldMin = worldMin, WorldMax = worldMax,
             };
-            _chunkBoundsBuffer.SetData(_boundsUpload, 0, slotId, 1);
+            _chunkBoundsBuffer.SetData(_boundsUpload, 0, cullSlotId, 1);
         }
 
         /// <summary>
-        ///     Submits 3 procedural indexed draw calls (opaque, cutout, translucent) using
-        ///     per-chunk indirect args with GPU frustum culling. Each chunk has its own
-        ///     DrawIndexedIndirectArgs entry. A compute shader tests AABB vs frustum and
-        ///     sets instanceCount=0 for culled chunks. Chunks with instanceCount=0 produce
-        ///     zero GPU work. Must be called from LateUpdate.
+        ///     Submits procedural indexed draw calls for all render layers using per-chunk
+        ///     indirect args with GPU frustum culling. Each arena in each pool gets its own
+        ///     draw call. A compute shader tests AABB vs frustum and sets instanceCount=0
+        ///     for culled chunks. Must be called from LateUpdate.
         /// </summary>
         public void RenderAll(Camera camera)
         {
-            // Batch-upload all dirty ranges (one Lock/Unlock per buffer, not per chunk)
+            // Batch-upload all dirty ranges across all arenas
             Profiler.BeginSample("CMS.Flush");
-            OpaqueBuffer.FlushDirtyToGpu();
-            CutoutBuffer.FlushDirtyToGpu();
-            TranslucentBuffer.FlushDirtyToGpu();
-
-            OpaqueBuffer.FlushArgs();
-            CutoutBuffer.FlushArgs();
-            TranslucentBuffer.FlushArgs();
+            OpaquePool.FlushDirtyToGpu();
+            CutoutPool.FlushDirtyToGpu();
+            TranslucentPool.FlushDirtyToGpu();
             Profiler.EndSample();
 
             // GPU culling: frustum + optional Hi-Z occlusion
-            // Swap-and-pop keeps active slots contiguous in 0.._activeCount-1,
-            // so commandCount is always exact — no wasted GPU work on empty gaps.
+            // Swap-and-pop keeps active cull slots contiguous in 0..RendererCount-1
             int activeSlotCount = RendererCount;
 
             if (_frustumCullShader != null && activeSlotCount > 0)
@@ -435,7 +429,6 @@ namespace Lithforge.Runtime.Rendering
 
                 if (useOcclusion)
                 {
-                    // Set occlusion uniforms (global to compute shader)
                     Matrix4x4 vpMatrix =
                         GL.GetGPUProjectionMatrix(camera.projectionMatrix, true)
                         * camera.worldToCameraMatrix;
@@ -447,115 +440,124 @@ namespace Lithforge.Runtime.Rendering
                     _frustumCullShader.SetTexture(
                         _occlusionCullKernel, s_hiZTextureId, _hiZPyramid.CombinedTexture);
 
-                    DispatchResetAndOcclusionCull(OpaqueBuffer, threadGroups);
-                    DispatchResetAndOcclusionCull(CutoutBuffer, threadGroups);
-                    DispatchResetAndOcclusionCull(TranslucentBuffer, threadGroups);
+                    DispatchCullForPool(OpaquePool, threadGroups, useOcclusion: true);
+                    DispatchCullForPool(CutoutPool, threadGroups, useOcclusion: true);
+                    DispatchCullForPool(TranslucentPool, threadGroups, useOcclusion: true);
                 }
                 else
                 {
                     _frustumCullShader.SetBuffer(
                         _frustumCullKernel, s_chunkBoundsBufferId, _chunkBoundsBuffer);
 
-                    DispatchResetAndCull(OpaqueBuffer, threadGroups);
-                    DispatchResetAndCull(CutoutBuffer, threadGroups);
-                    DispatchResetAndCull(TranslucentBuffer, threadGroups);
+                    DispatchCullForPool(OpaquePool, threadGroups, useOcclusion: false);
+                    DispatchCullForPool(CutoutPool, threadGroups, useOcclusion: false);
+                    DispatchCullForPool(TranslucentPool, threadGroups, useOcclusion: false);
                 }
             }
 
             Profiler.BeginSample("CMS.Draw");
-            DrawLayer(OpaqueBuffer, _opaqueParams, activeSlotCount);
-            DrawLayer(CutoutBuffer, _cutoutParams, activeSlotCount);
-            DrawLayer(TranslucentBuffer, _translucentParams, activeSlotCount);
+            DrawPool(OpaquePool, _opaqueParams, activeSlotCount);
+            DrawPool(CutoutPool, _cutoutParams, activeSlotCount);
+            DrawPool(TranslucentPool, _translucentParams, activeSlotCount);
             Profiler.EndSample();
         }
 
         /// <summary>
-        ///     Dispatches the reset-cull and frustum-cull compute kernels for one render layer.
+        ///     Dispatches reset-cull and frustum/occlusion-cull compute kernels for all arenas
+        ///     in one render layer pool.
         /// </summary>
-        private void DispatchResetAndCull(MegaMeshBuffer buffer, int threadGroups)
+        private void DispatchCullForPool(BufferArenaPool pool, int threadGroups, bool useOcclusion)
         {
-            if (!buffer.HasGeometry)
+            for (int a = 0; a < pool.ArenaCount; a++)
+            {
+                ArenaDrawBatch batch = pool.GetDrawBatch(a, RendererCount);
+
+                if (!batch.HasGeometry)
+                {
+                    continue;
+                }
+
+                // Reset: restore instanceCount=1 for all slots with indexCount > 0
+                _frustumCullShader.SetBuffer(_resetCullKernel, s_perChunkArgsBufferId, batch.PerChunkArgsBuffer);
+                _frustumCullShader.Dispatch(_resetCullKernel, threadGroups, 1, 1);
+
+                if (useOcclusion)
+                {
+                    _frustumCullShader.SetBuffer(_occlusionCullKernel, s_perChunkArgsBufferId, batch.PerChunkArgsBuffer);
+                    _frustumCullShader.Dispatch(_occlusionCullKernel, threadGroups, 1, 1);
+                }
+                else
+                {
+                    _frustumCullShader.SetBuffer(_frustumCullKernel, s_perChunkArgsBufferId, batch.PerChunkArgsBuffer);
+                    _frustumCullShader.Dispatch(_frustumCullKernel, threadGroups, 1, 1);
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Issues one RenderPrimitivesIndexedIndirect draw per arena in the pool.
+        /// </summary>
+        private void DrawPool(BufferArenaPool pool, RenderParams rp, int commandCount)
+        {
+            if (commandCount <= 0)
             {
                 return;
             }
 
-            // Reset: restore instanceCount=1 for all slots with indexCount > 0
-            _frustumCullShader.SetBuffer(_resetCullKernel, s_perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
-            _frustumCullShader.Dispatch(_resetCullKernel, threadGroups, 1, 1);
-
-            // Frustum cull: set instanceCount=0 for chunks outside frustum
-            _frustumCullShader.SetBuffer(_frustumCullKernel, s_perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
-            _frustumCullShader.Dispatch(_frustumCullKernel, threadGroups, 1, 1);
-        }
-
-        /// <summary>
-        ///     Dispatches the reset-cull and combined frustum+occlusion compute kernels for one layer.
-        /// </summary>
-        private void DispatchResetAndOcclusionCull(MegaMeshBuffer buffer, int threadGroups)
-        {
-            if (!buffer.HasGeometry)
+            for (int a = 0; a < pool.ArenaCount; a++)
             {
-                return;
+                ArenaDrawBatch batch = pool.GetDrawBatch(a, commandCount);
+
+                if (!batch.HasGeometry)
+                {
+                    continue;
+                }
+
+                rp.matProps.SetBuffer(s_vertexBufferId, batch.VertexBuffer);
+                Graphics.RenderPrimitivesIndexedIndirect(
+                    rp,
+                    MeshTopology.Triangles,
+                    batch.IndexBuffer,
+                    batch.PerChunkArgsBuffer,
+                    commandCount);
             }
-
-            // Reset: restore instanceCount=1 for all slots with indexCount > 0
-            _frustumCullShader.SetBuffer(_resetCullKernel, s_perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
-            _frustumCullShader.Dispatch(_resetCullKernel, threadGroups, 1, 1);
-
-            // Occlusion cull: combined frustum + Hi-Z test
-            _frustumCullShader.SetBuffer(_occlusionCullKernel, s_perChunkArgsBufferId, buffer.PerChunkArgsBuffer);
-            _frustumCullShader.Dispatch(_occlusionCullKernel, threadGroups, 1, 1);
         }
 
         /// <summary>
-        ///     Issues one RenderPrimitivesIndexedIndirect draw with per-chunk multi-draw.
-        /// </summary>
-        private void DrawLayer(MegaMeshBuffer buffer, RenderParams rp, int commandCount)
-        {
-            if (!buffer.HasGeometry || commandCount <= 0)
-            {
-                return;
-            }
-
-            rp.matProps.SetBuffer(s_vertexBufferId, buffer.VertexBuffer);
-            Graphics.RenderPrimitivesIndexedIndirect(
-                rp,
-                MeshTopology.Triangles,
-                buffer.IndexBuffer,
-                buffer.PerChunkArgsBuffer,
-                commandCount);
-        }
-
-        /// <summary>
-        ///     Frees all mesh data for the given chunk and reclaims its slot via swap-and-pop,
+        ///     Frees all mesh data for the given chunk and reclaims its cull slot via swap-and-pop,
         ///     keeping active slots contiguous for efficient compute dispatch.
         /// </summary>
         public void DestroyRenderer(int3 coord)
         {
-            OpaqueBuffer.Free(coord);
-            CutoutBuffer.Free(coord);
-            TranslucentBuffer.Free(coord);
+            OpaquePool.Free(coord);
+            CutoutPool.Free(coord);
+            TranslucentPool.Free(coord);
 
-            if (_coordToSlotId.TryGetValue(coord, out int slotId))
+            if (_coordToCullSlot.TryGetValue(coord, out int cullSlotId))
             {
                 int lastSlot = RendererCount - 1;
 
-                if (slotId != lastSlot)
+                if (cullSlotId != lastSlot)
                 {
                     // Swap: move the last active chunk's draw data into the freed slot
                     int3 lastCoord = _slotToCoord[lastSlot];
 
-                    OpaqueBuffer.UpdatePerChunkArgs(slotId, lastCoord);
-                    CutoutBuffer.UpdatePerChunkArgs(slotId, lastCoord);
-                    TranslucentBuffer.UpdatePerChunkArgs(slotId, lastCoord);
-                    UpdateChunkBounds(lastCoord, slotId);
+                    OpaquePool.UpdatePerChunkArgs(cullSlotId, lastCoord);
+                    CutoutPool.UpdatePerChunkArgs(cullSlotId, lastCoord);
+                    TranslucentPool.UpdatePerChunkArgs(cullSlotId, lastCoord);
+                    UpdateChunkBounds(lastCoord, cullSlotId);
 
-                    _coordToSlotId[lastCoord] = slotId;
-                    _slotToCoord[slotId] = lastCoord;
+                    _coordToCullSlot[lastCoord] = cullSlotId;
+                    _slotToCoord[cullSlotId] = lastCoord;
                 }
 
+                // Zero the removed slot's args in all arenas
+                OpaquePool.ZeroPerChunkArgs(lastSlot);
+                CutoutPool.ZeroPerChunkArgs(lastSlot);
+                TranslucentPool.ZeroPerChunkArgs(lastSlot);
+
                 RendererCount--;
-                _coordToSlotId.Remove(coord);
+                _coordToCullSlot.Remove(coord);
             }
         }
     }
