@@ -1,4 +1,5 @@
 using System.IO;
+
 using Lithforge.Voxel.BlockEntity;
 
 namespace Lithforge.Runtime.BlockEntity
@@ -10,6 +11,9 @@ namespace Lithforge.Runtime.BlockEntity
     /// </summary>
     public abstract class BlockEntity : IBlockEntity
     {
+        /// <summary>Host callback for marking the owning chunk dirty on state changes.</summary>
+        private IBlockEntityHost _host;
+
         /// <summary>Unique type identifier used for factory dispatch and serialization.</summary>
         public abstract string TypeId { get; }
 
@@ -18,6 +22,34 @@ namespace Lithforge.Runtime.BlockEntity
         /// Set by the concrete subclass constructor.
         /// </summary>
         protected BlockEntityBehavior[] Behaviors { get; set; }
+
+        /// <summary>
+        ///     Injects the host callback so this entity can notify its chunk of state changes.
+        ///     Wires the dirty notification to each behavior via the virtual SetOnChanged method.
+        /// </summary>
+        public void SetHost(IBlockEntityHost host)
+        {
+            _host = host;
+
+            if (Behaviors is null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < Behaviors.Length; i++)
+            {
+                Behaviors[i].SetOnChanged(NotifyDirty);
+            }
+        }
+
+        /// <summary>
+        ///     Marks the owning chunk dirty. Called by behavior callbacks when persistent state changes.
+        ///     No-op if no host has been injected (e.g. during deserialization before placement).
+        /// </summary>
+        protected void NotifyDirty()
+        {
+            _host?.NotifyDirty();
+        }
 
         /// <summary>Serializes all behaviors to the writer in order.</summary>
         public virtual void Serialize(BinaryWriter writer)

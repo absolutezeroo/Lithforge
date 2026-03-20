@@ -31,5 +31,11 @@ namespace Lithforge.Voxel.BlockEntity
         /// Use for cleanup of non-persistent state.
         /// </summary>
         public void OnChunkUnload();
+
+        /// <summary>
+        /// Injects the host callback so the entity can notify its chunk of state changes.
+        /// Called immediately after the entity is placed or loaded into a chunk.
+        /// </summary>
+        public void SetHost(IBlockEntityHost host);
     }
 }

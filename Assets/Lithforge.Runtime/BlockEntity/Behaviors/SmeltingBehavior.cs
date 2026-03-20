@@ -14,6 +14,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     /// </summary>
     public sealed class SmeltingBehavior : BlockEntityBehavior
     {
+        /// <summary>Optional callback invoked when smelt progress advances. Wired by BlockEntity.SetHost.</summary>
+        private Action _onChanged;
+
         /// <summary>Duration in seconds to complete one smelting operation.</summary>
         private const float SmeltDuration = 10f;
 
@@ -52,6 +55,12 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             _fuelBurn = fuelBurn;
             _recipeRegistry = recipeRegistry;
             _itemRegistry = itemRegistry;
+        }
+
+        /// <summary>Injects the change notification callback. Called by BlockEntity.SetHost.</summary>
+        public override void SetOnChanged(Action onChanged)
+        {
+            _onChanged = onChanged;
         }
 
         /// <summary>
@@ -106,6 +115,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             }
 
             _smeltProgress += deltaTime;
+            _onChanged?.Invoke();
 
             if (_smeltProgress >= SmeltDuration)
             {

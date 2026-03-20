@@ -105,12 +105,12 @@ namespace Lithforge.Runtime.World
 
             if (realtimeSinceStartup >= _lastChunkFlushTime + ChunkFlushInterval)
             {
-                if (_asyncSaver != null)
+                if (_asyncSaver is not null)
                 {
                     _asyncSaver.Flush();
                 }
 
-                _worldStorage.FlushAll(true);
+                _worldStorage.FlushAllIncremental();
                 _lastChunkFlushTime = realtimeSinceStartup;
             }
         }

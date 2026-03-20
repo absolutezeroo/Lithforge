@@ -78,7 +78,8 @@ namespace Lithforge.Runtime.Session
             Profiler.BeginSample("SL.Unload");
             _config.ChunkManager.UnloadDistantChunks(
                 playerCoords, _unloadedCoords, realtime,
-                _config.WorldStorage, _config.UnloadBudgetMs);
+                _config.WorldStorage, _config.UnloadBudgetMs,
+                _config.GeneratedChunkCache);
             Profiler.EndSample();
         }
 

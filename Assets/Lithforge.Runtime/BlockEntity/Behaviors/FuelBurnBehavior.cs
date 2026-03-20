@@ -25,6 +25,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         /// <summary>Item registry for looking up fuel burn times.</summary>
         private readonly ItemRegistry _itemRegistry;
 
+        /// <summary>Optional callback invoked when burn state changes. Wired by BlockEntity.SetHost.</summary>
+        private Action _onChanged;
+
         /// <summary>Remaining burn time in seconds for the current fuel item.</summary>
         private float _burnTimeRemaining;
 
@@ -37,6 +40,12 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             _inventory = inventory;
             _itemRegistry = itemRegistry;
             _fuelSlotIndex = fuelSlotIndex;
+        }
+
+        /// <summary>Injects the change notification callback. Called by BlockEntity.SetHost.</summary>
+        public override void SetOnChanged(Action onChanged)
+        {
+            _onChanged = onChanged;
         }
 
         /// <summary>
@@ -106,6 +115,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
             _maxBurnTime = fuelItem.FuelTime;
             _burnTimeRemaining = _maxBurnTime;
+            _onChanged?.Invoke();
 
             // Consume one fuel item
             ItemStack updated = fuelSlot;

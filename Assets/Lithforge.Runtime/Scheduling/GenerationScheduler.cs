@@ -132,6 +132,12 @@ namespace Lithforge.Runtime.Scheduling
         private BlockEntityRegistry _blockEntityRegistry;
 
         /// <summary>
+        ///     Optional in-memory LRU cache of serialized clean chunks. Checked before disk
+        ///     and worldgen in ScheduleJobs. Set via SetGeneratedChunkCache after construction.
+        /// </summary>
+        private GeneratedChunkCache _generatedChunkCache;
+
+        /// <summary>
         ///     Optional liquid scheduler for initializing liquid data on newly generated chunks.
         ///     Set via SetLiquidScheduler after construction.
         /// </summary>
@@ -198,6 +204,12 @@ namespace Lithforge.Runtime.Scheduling
         public void SetLiquidScheduler(LiquidScheduler liquidScheduler)
         {
             _liquidScheduler = liquidScheduler;
+        }
+
+        /// <summary>Injects the in-memory LRU generation cache for fast clean-chunk reload.</summary>
+        public void SetGeneratedChunkCache(GeneratedChunkCache cache)
+        {
+            _generatedChunkCache = cache;
         }
 
         /// <summary>
@@ -622,8 +634,48 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                // Try loading from storage first
-                if (_worldStorage != null && _worldStorage.HasChunk(chunk.Coord))
+                // Try loading from in-memory generation cache first (fastest: no I/O)
+                if (_generatedChunkCache is not null
+                    && _generatedChunkCache.TryGet(chunk.Coord, out byte[] cachedBytes))
+                {
+                    NativeArray<byte> cachedLightData = new(
+                        ChunkConstants.Volume,
+                        Allocator.Persistent);
+
+                    if (ChunkSerializer.Deserialize(cachedBytes, chunk.Data, cachedLightData,
+                            out Dictionary<int, IBlockEntity> cachedEntities, _blockEntityRegistry))
+                    {
+                        chunk.LightData = cachedLightData;
+                        _chunkManager.SetChunkState(chunk, ChunkState.Generated);
+                        chunk.ActiveJobHandle = default;
+                        _generatedChunkCache.Remove(chunk.Coord);
+
+                        if (cachedEntities is { Count: > 0 })
+                        {
+                            Dictionary<int, IBlockEntity> chunkEntities =
+                                chunk.GetOrCreateBlockEntities();
+
+                            foreach (KeyValuePair<int, IBlockEntity> kvp in cachedEntities)
+                            {
+                                chunkEntities[kvp.Key] = kvp.Value;
+                            }
+
+                            OnChunkEntitiesLoaded?.Invoke(chunk.Coord, chunk);
+                        }
+
+                        _pipelineStats.IncrGenCompleted();
+                        _chunkManager.InvalidateReadyNeighbors(chunk.Coord);
+                        _pipelineStats.IncrInvalidate();
+
+                        continue;
+                    }
+
+                    cachedLightData.Dispose();
+                    _generatedChunkCache.Remove(chunk.Coord);
+                }
+
+                // Try loading from storage (disk)
+                if (_worldStorage is not null && _worldStorage.HasChunk(chunk.Coord))
                 {
                     NativeArray<byte> lightData = new(
                         ChunkConstants.Volume,

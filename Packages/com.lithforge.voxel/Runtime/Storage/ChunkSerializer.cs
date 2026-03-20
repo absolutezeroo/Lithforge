@@ -11,17 +11,22 @@ using Lithforge.Voxel.Chunk;
 
 using Unity.Collections;
 
+using ZstdSharp;
+
 namespace Lithforge.Voxel.Storage
 {
     /// <summary>
     ///     Serializes and deserializes chunk data using a binary format with palette compression,
-    ///     LZ4 block compression, and CRC-32 integrity checking. Format version 4
-    ///     (backward-compatible with v3 for deserialization). Thread-safe via ThreadStatic scratch buffers.
+    ///     Zstd compression, and CRC-32 integrity checking. Format version 5
+    ///     (backward-compatible with v3 and v4 for deserialization). Thread-safe via ThreadStatic scratch buffers.
     /// </summary>
     public static class ChunkSerializer
     {
-        /// <summary>Current binary format version.</summary>
-        private const byte Version = 4;
+        /// <summary>Current binary format version (5 = Zstd compression).</summary>
+        private const byte Version = 5;
+
+        /// <summary>Zstd compression level (1 = fastest, best for real-time saves).</summary>
+        private const int ZstdCompressionLevel = 1;
 
         /// <summary>Magic bytes identifying the file as a Lithforge chunk ("LFCH").</summary>
         private static readonly byte[] s_magic =
@@ -41,19 +46,43 @@ namespace Lithforge.Voxel.Storage
         /// <summary>Per-thread reusable MemoryStream to avoid allocation per serialize call.</summary>
         [ThreadStatic] private static MemoryStream s_stream;
 
-        /// <summary>Per-thread scratch buffer for LZ4 compressed output.</summary>
+        /// <summary>Per-thread scratch buffer for compressed/decompressed I/O.</summary>
         [ThreadStatic] private static byte[] s_compressBuffer;
 
-        /// <summary>
-        ///     Ensures the compress buffer is large enough for the given uncompressed size.
-        /// </summary>
-        private static void EnsureCompressBuffer(int uncompressedSize)
-        {
-            int maxOutput = LZ4Codec.MaximumOutputSize(uncompressedSize);
+        /// <summary>Per-thread Zstd compressor context, lazily initialized.</summary>
+        [ThreadStatic] private static Compressor s_compressor;
 
-            if (s_compressBuffer == null || s_compressBuffer.Length < maxOutput)
+        /// <summary>Per-thread Zstd decompressor context, lazily initialized.</summary>
+        [ThreadStatic] private static Decompressor s_decompressor;
+
+        /// <summary>Returns the thread-local Zstd compressor, creating it if needed.</summary>
+        private static Compressor GetCompressor()
+        {
+            if (s_compressor == null)
             {
-                s_compressBuffer = new byte[maxOutput];
+                s_compressor = new Compressor(ZstdCompressionLevel);
+            }
+
+            return s_compressor;
+        }
+
+        /// <summary>Returns the thread-local Zstd decompressor, creating it if needed.</summary>
+        private static Decompressor GetDecompressor()
+        {
+            if (s_decompressor == null)
+            {
+                s_decompressor = new Decompressor();
+            }
+
+            return s_decompressor;
+        }
+
+        /// <summary>Ensures the compress buffer is large enough for the given size.</summary>
+        private static void EnsureCompressBuffer(int requiredSize)
+        {
+            if (s_compressBuffer == null || s_compressBuffer.Length < requiredSize)
+            {
+                s_compressBuffer = new byte[Math.Max(requiredSize, ChunkConstants.Volume * 2)];
             }
         }
 
@@ -104,7 +133,7 @@ namespace Lithforge.Voxel.Storage
                 writer.Write(paletteList[i]);
             }
 
-            // Compress voxel data (palette indices) with LZ4Codec
+            // Compress voxel data (palette indices) with Zstd
             int voxelByteCount = chunkData.Length * 2;
 
             if (s_voxelBuffer == null || s_voxelBuffer.Length < voxelByteCount)
@@ -119,15 +148,17 @@ namespace Lithforge.Voxel.Storage
                 s_voxelBuffer[i * 2 + 1] = (byte)(idx >> 8);
             }
 
-            EnsureCompressBuffer(voxelByteCount);
-            int voxelCompLen = LZ4Codec.Encode(
-                s_voxelBuffer, 0, voxelByteCount,
-                s_compressBuffer, 0, s_compressBuffer.Length);
+            Compressor compressor = GetCompressor();
+            int voxelBound = Compressor.GetCompressBound(voxelByteCount);
+            EnsureCompressBuffer(voxelBound);
+            int voxelCompLen = compressor.Wrap(
+                new ReadOnlySpan<byte>(s_voxelBuffer, 0, voxelByteCount),
+                new Span<byte>(s_compressBuffer, 0, s_compressBuffer.Length));
             writer.Write(voxelByteCount);
             writer.Write(voxelCompLen);
             writer.Write(s_compressBuffer, 0, voxelCompLen);
 
-            // Compress light data with LZ4Codec
+            // Compress light data with Zstd
             if (lightData is
                 {
                     IsCreated: true,
@@ -143,10 +174,11 @@ namespace Lithforge.Voxel.Storage
 
                 lightData.CopyTo(s_lightBuffer);
 
-                EnsureCompressBuffer(lightByteCount);
-                int lightCompLen = LZ4Codec.Encode(
-                    s_lightBuffer, 0, lightByteCount,
-                    s_compressBuffer, 0, s_compressBuffer.Length);
+                int lightBound = Compressor.GetCompressBound(lightByteCount);
+                EnsureCompressBuffer(lightBound);
+                int lightCompLen = compressor.Wrap(
+                    new ReadOnlySpan<byte>(s_lightBuffer, 0, lightByteCount),
+                    new Span<byte>(s_compressBuffer, 0, s_compressBuffer.Length));
                 writer.Write(lightByteCount);
                 writer.Write(lightCompLen);
                 writer.Write(s_compressBuffer, 0, lightCompLen);
@@ -223,7 +255,7 @@ namespace Lithforge.Voxel.Storage
                 writer.Write(paletteList[i]);
             }
 
-            // Compress voxel data (palette indices) with LZ4Codec
+            // Compress voxel data (palette indices) with Zstd
             int voxelByteCount = voxelCount * 2;
 
             if (s_voxelBuffer == null || s_voxelBuffer.Length < voxelByteCount)
@@ -239,25 +271,29 @@ namespace Lithforge.Voxel.Storage
                 s_voxelBuffer[i * 2 + 1] = (byte)(idx >> 8);
             }
 
-            EnsureCompressBuffer(voxelByteCount);
-            int voxelCompLen = LZ4Codec.Encode(
-                s_voxelBuffer, 0, voxelByteCount,
-                s_compressBuffer, 0, s_compressBuffer.Length);
+            Compressor compressor = GetCompressor();
+            int voxelBound = Compressor.GetCompressBound(voxelByteCount);
+            EnsureCompressBuffer(voxelBound);
+            int voxelCompLen = compressor.Wrap(
+                new ReadOnlySpan<byte>(s_voxelBuffer, 0, voxelByteCount),
+                new Span<byte>(s_compressBuffer, 0, s_compressBuffer.Length));
             writer.Write(voxelByteCount);
             writer.Write(voxelCompLen);
             writer.Write(s_compressBuffer, 0, voxelCompLen);
 
-            // Compress light data with LZ4Codec
+            // Compress light data with Zstd
             if (lightSnapshot is
                 {
                     Length: > 0,
                 })
             {
                 int lightByteCount = lightSnapshot.Length;
-                EnsureCompressBuffer(lightByteCount);
-                int lightCompLen = LZ4Codec.Encode(
-                    lightSnapshot, 0, lightByteCount,
-                    s_compressBuffer, 0, s_compressBuffer.Length);
+                int lightBound = Compressor.GetCompressBound(lightByteCount);
+                EnsureCompressBuffer(lightBound);
+                Compressor lightCompressor = GetCompressor();
+                int lightCompLen = lightCompressor.Wrap(
+                    new ReadOnlySpan<byte>(lightSnapshot, 0, lightByteCount),
+                    new Span<byte>(s_compressBuffer, 0, s_compressBuffer.Length));
                 writer.Write(lightByteCount);
                 writer.Write(lightCompLen);
                 writer.Write(s_compressBuffer, 0, lightCompLen);
@@ -323,7 +359,7 @@ namespace Lithforge.Voxel.Storage
         /// <summary>
         ///     Deserializes chunk data from a byte array into pre-allocated NativeArrays.
         ///     Verifies CRC-32 checksum, magic bytes, and version before reading data.
-        ///     Supports format versions 3 and 4.
+        ///     Supports format versions 3 (LZ4Pickler), 4 (LZ4Codec), and 5 (Zstd).
         ///     Returns false if the data is corrupted, truncated, or version-mismatched.
         /// </summary>
         public static bool Deserialize(byte[] data,
@@ -377,95 +413,202 @@ namespace Lithforge.Voxel.Storage
                     return DeserializeV3(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry);
                 }
 
-                if (version != 4)
+                if (version == 4)
+                {
+                    return DeserializeV4(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry);
+                }
+
+                if (version != 5)
                 {
                     return false;
                 }
 
-                // Version 4 path
-                // Read palette
-                ushort paletteCount = reader.ReadUInt16();
-                ushort[] palette = new ushort[paletteCount];
+                // Version 5 path (Zstd compression)
+                return DeserializeV5(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry);
+            }
+        }
 
-                for (int i = 0; i < paletteCount; i++)
+        /// <summary>
+        ///     Deserializes version 4 format (LZ4Codec). Kept for backward compatibility
+        ///     with existing save files created before the Zstd migration.
+        /// </summary>
+        private static bool DeserializeV4(
+            BinaryReader reader,
+            MemoryStream ms,
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            out Dictionary<int, IBlockEntity> blockEntities,
+            BlockEntityRegistry blockEntityRegistry)
+        {
+            blockEntities = null;
+
+            // Read palette
+            ushort paletteCount = reader.ReadUInt16();
+            ushort[] palette = new ushort[paletteCount];
+
+            for (int i = 0; i < paletteCount; i++)
+            {
+                palette[i] = reader.ReadUInt16();
+            }
+
+            // Decompress voxel data with LZ4Codec
+            int uncompVoxelLen = reader.ReadInt32();
+            int compVoxelLen = reader.ReadInt32();
+
+            EnsureCompressBuffer(compVoxelLen);
+            reader.Read(s_compressBuffer, 0, compVoxelLen);
+
+            if (s_voxelBuffer == null || s_voxelBuffer.Length < uncompVoxelLen)
+            {
+                s_voxelBuffer = new byte[Math.Max(uncompVoxelLen, ChunkConstants.Volume * 2)];
+            }
+
+            LZ4Codec.Decode(
+                s_compressBuffer, 0, compVoxelLen,
+                s_voxelBuffer, 0, uncompVoxelLen);
+
+            int expectedVoxelBytes = chunkData.Length * 2;
+
+            if (uncompVoxelLen < expectedVoxelBytes)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < chunkData.Length; i++)
+            {
+                ushort paletteIdx = (ushort)(s_voxelBuffer[i * 2] | s_voxelBuffer[i * 2 + 1] << 8);
+
+                if (paletteIdx >= paletteCount)
                 {
-                    palette[i] = reader.ReadUInt16();
+                    return false;
                 }
 
-                // Decompress voxel data with LZ4Codec
-                int uncompVoxelLen = reader.ReadInt32();
-                int compVoxelLen = reader.ReadInt32();
+                chunkData[i] = new StateId(palette[paletteIdx]);
+            }
 
-                if (s_compressBuffer == null || s_compressBuffer.Length < compVoxelLen)
+            // Decompress light data with LZ4Codec
+            int uncompLightLen = reader.ReadInt32();
+            int compLightLen = reader.ReadInt32();
+
+            if (uncompLightLen > 0 && compLightLen > 0 && lightData.IsCreated)
+            {
+                EnsureCompressBuffer(compLightLen);
+                reader.Read(s_compressBuffer, 0, compLightLen);
+
+                if (s_lightBuffer == null || s_lightBuffer.Length < uncompLightLen)
                 {
-                    s_compressBuffer = new byte[Math.Max(compVoxelLen, ChunkConstants.Volume * 2)];
-                }
-
-                reader.Read(s_compressBuffer, 0, compVoxelLen);
-
-                if (s_voxelBuffer == null || s_voxelBuffer.Length < uncompVoxelLen)
-                {
-                    s_voxelBuffer = new byte[Math.Max(uncompVoxelLen, ChunkConstants.Volume * 2)];
+                    s_lightBuffer = new byte[Math.Max(uncompLightLen, ChunkConstants.Volume)];
                 }
 
                 LZ4Codec.Decode(
-                    s_compressBuffer, 0, compVoxelLen,
-                    s_voxelBuffer, 0, uncompVoxelLen);
+                    s_compressBuffer, 0, compLightLen,
+                    s_lightBuffer, 0, uncompLightLen);
 
-                int expectedVoxelBytes = chunkData.Length * 2;
-
-                if (uncompVoxelLen < expectedVoxelBytes)
+                if (uncompLightLen < lightData.Length)
                 {
                     return false;
                 }
 
-                for (int i = 0; i < chunkData.Length; i++)
-                {
-                    ushort paletteIdx = (ushort)(s_voxelBuffer[i * 2] | s_voxelBuffer[i * 2 + 1] << 8);
-
-                    if (paletteIdx >= paletteCount)
-                    {
-                        return false;
-                    }
-
-                    chunkData[i] = new StateId(palette[paletteIdx]);
-                }
-
-                // Decompress light data with LZ4Codec
-                int uncompLightLen = reader.ReadInt32();
-                int compLightLen = reader.ReadInt32();
-
-                if (uncompLightLen > 0 && compLightLen > 0 && lightData.IsCreated)
-                {
-                    if (s_compressBuffer.Length < compLightLen)
-                    {
-                        s_compressBuffer = new byte[compLightLen];
-                    }
-
-                    reader.Read(s_compressBuffer, 0, compLightLen);
-
-                    if (s_lightBuffer == null || s_lightBuffer.Length < uncompLightLen)
-                    {
-                        s_lightBuffer = new byte[Math.Max(uncompLightLen, ChunkConstants.Volume)];
-                    }
-
-                    LZ4Codec.Decode(
-                        s_compressBuffer, 0, compLightLen,
-                        s_lightBuffer, 0, uncompLightLen);
-
-                    if (uncompLightLen < lightData.Length)
-                    {
-                        return false;
-                    }
-
-                    lightData.CopyFrom(s_lightBuffer);
-                }
-
-                // Block entity section
-                ReadBlockEntities(reader, ms, out blockEntities, blockEntityRegistry);
-
-                return true;
+                lightData.CopyFrom(s_lightBuffer);
             }
+
+            // Block entity section
+            ReadBlockEntities(reader, ms, out blockEntities, blockEntityRegistry);
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Deserializes version 5 format (Zstd compression). Current format.
+        ///     Wire format is identical to v4 except Zstd replaces LZ4 for the
+        ///     voxel and light compressed blocks.
+        /// </summary>
+        private static bool DeserializeV5(
+            BinaryReader reader,
+            MemoryStream ms,
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            out Dictionary<int, IBlockEntity> blockEntities,
+            BlockEntityRegistry blockEntityRegistry)
+        {
+            blockEntities = null;
+
+            // Read palette
+            ushort paletteCount = reader.ReadUInt16();
+            ushort[] palette = new ushort[paletteCount];
+
+            for (int i = 0; i < paletteCount; i++)
+            {
+                palette[i] = reader.ReadUInt16();
+            }
+
+            Decompressor decompressor = GetDecompressor();
+
+            // Decompress voxel data with Zstd
+            int uncompVoxelLen = reader.ReadInt32();
+            int compVoxelLen = reader.ReadInt32();
+
+            EnsureCompressBuffer(compVoxelLen);
+            reader.Read(s_compressBuffer, 0, compVoxelLen);
+
+            if (s_voxelBuffer == null || s_voxelBuffer.Length < uncompVoxelLen)
+            {
+                s_voxelBuffer = new byte[Math.Max(uncompVoxelLen, ChunkConstants.Volume * 2)];
+            }
+
+            decompressor.Unwrap(
+                new ReadOnlySpan<byte>(s_compressBuffer, 0, compVoxelLen),
+                new Span<byte>(s_voxelBuffer, 0, uncompVoxelLen));
+
+            int expectedVoxelBytes = chunkData.Length * 2;
+
+            if (uncompVoxelLen < expectedVoxelBytes)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < chunkData.Length; i++)
+            {
+                ushort paletteIdx = (ushort)(s_voxelBuffer[i * 2] | s_voxelBuffer[i * 2 + 1] << 8);
+
+                if (paletteIdx >= paletteCount)
+                {
+                    return false;
+                }
+
+                chunkData[i] = new StateId(palette[paletteIdx]);
+            }
+
+            // Decompress light data with Zstd
+            int uncompLightLen = reader.ReadInt32();
+            int compLightLen = reader.ReadInt32();
+
+            if (uncompLightLen > 0 && compLightLen > 0 && lightData.IsCreated)
+            {
+                EnsureCompressBuffer(compLightLen);
+                reader.Read(s_compressBuffer, 0, compLightLen);
+
+                if (s_lightBuffer == null || s_lightBuffer.Length < uncompLightLen)
+                {
+                    s_lightBuffer = new byte[Math.Max(uncompLightLen, ChunkConstants.Volume)];
+                }
+
+                decompressor.Unwrap(
+                    new ReadOnlySpan<byte>(s_compressBuffer, 0, compLightLen),
+                    new Span<byte>(s_lightBuffer, 0, uncompLightLen));
+
+                if (uncompLightLen < lightData.Length)
+                {
+                    return false;
+                }
+
+                lightData.CopyFrom(s_lightBuffer);
+            }
+
+            // Block entity section
+            ReadBlockEntities(reader, ms, out blockEntities, blockEntityRegistry);
+
+            return true;
         }
 
         /// <summary>

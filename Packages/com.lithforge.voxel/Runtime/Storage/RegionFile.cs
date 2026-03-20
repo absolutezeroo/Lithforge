@@ -23,7 +23,10 @@ namespace Lithforge.Voxel.Storage
         /// <summary>In-memory cache of serialized chunk data, keyed by local index (z*32+x).</summary>
         private readonly Dictionary<int, byte[]> _cache = new();
 
-        /// <summary>Lock protecting _cache for thread-safe access from AsyncChunkSaver.</summary>
+        /// <summary>Keys that have been modified via SaveChunk and need flushing to disk.</summary>
+        private readonly HashSet<int> _dirtyKeys = new();
+
+        /// <summary>Lock protecting _cache and _dirtyKeys for thread-safe access from AsyncChunkSaver.</summary>
         private readonly object _cacheLock = new();
 
         /// <summary>Full filesystem path to this region file (.lfrg).</summary>
@@ -32,6 +35,9 @@ namespace Lithforge.Voxel.Storage
         /// <summary>Whether this region file has been disposed.</summary>
         private bool _disposed;
 
+        /// <summary>Volatile backing field for IsDirty to ensure cross-thread visibility.</summary>
+        private volatile bool _isDirty;
+
         /// <summary>Creates a region file handle for the given file path (file need not exist yet).</summary>
         public RegionFile(string filePath)
         {
@@ -39,7 +45,11 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>True if the cache contains data that has not been flushed to disk.</summary>
-        public bool IsDirty { get; private set; }
+        public bool IsDirty
+        {
+            get { return _isDirty; }
+            private set { _isDirty = value; }
+        }
 
         /// <summary>Flushes cached data to disk and marks the region as disposed.</summary>
         public void Dispose()
@@ -144,6 +154,7 @@ namespace Lithforge.Voxel.Storage
             lock (_cacheLock)
             {
                 _cache[key] = data;
+                _dirtyKeys.Add(key);
                 IsDirty = true;
             }
         }
@@ -238,7 +249,7 @@ namespace Lithforge.Voxel.Storage
                         writer.Write(sizes[i]);
                     }
 
-                    fs.Flush();
+                    fs.Flush(true);
                 }
 
                 // Backup rotation: keep the previous version as .bak
@@ -269,9 +280,11 @@ namespace Lithforge.Voxel.Storage
                         {
                             _cache.Remove(kvp.Key);
                         }
+
+                        _dirtyKeys.Remove(kvp.Key);
                     }
 
-                    IsDirty = _cache.Count > 0;
+                    IsDirty = _dirtyKeys.Count > 0;
                 }
             }
             catch
@@ -292,6 +305,129 @@ namespace Lithforge.Voxel.Storage
                 throw;
             }
 
+        }
+
+        /// <summary>
+        ///     Incrementally flushes only dirty entries to disk. Appends new chunk data at the
+        ///     end of the existing file and updates only the affected header entries. Avoids
+        ///     the full read-merge-rewrite cycle of <see cref="Flush" />, producing dead sectors
+        ///     that can be reclaimed by a periodic <see cref="Flush" /> compaction.
+        ///     Falls back to <see cref="Flush" /> when the file does not yet exist.
+        /// </summary>
+        public void FlushIncremental()
+        {
+            Dictionary<int, byte[]> dirtySnapshot;
+
+            lock (_cacheLock)
+            {
+                if (_dirtyKeys.Count == 0)
+                {
+                    return;
+                }
+
+                dirtySnapshot = new Dictionary<int, byte[]>(_dirtyKeys.Count);
+
+                foreach (int key in _dirtyKeys)
+                {
+                    if (_cache.TryGetValue(key, out byte[] data))
+                    {
+                        dirtySnapshot[key] = data;
+                    }
+                }
+            }
+
+            if (dirtySnapshot.Count == 0)
+            {
+                return;
+            }
+
+            // If the file doesn't exist yet, fall back to full Flush to create it with a proper header.
+            if (!File.Exists(_filePath))
+            {
+                Flush();
+
+                return;
+            }
+
+            string dir = Path.GetDirectoryName(_filePath);
+
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            try
+            {
+                using (FileStream fs = new(_filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
+                {
+                    // Ensure the file has at least a header
+                    if (fs.Length < HeaderSize)
+                    {
+                        fs.SetLength(HeaderSize);
+                    }
+
+                    // Phase 1: Append all dirty chunk data at the end and record offsets.
+                    // If a crash occurs here, no header entries have been updated yet,
+                    // so the file remains consistent with the old data.
+                    int[] recordedOffsets = new int[dirtySnapshot.Count];
+                    int[] recordedSizes = new int[dirtySnapshot.Count];
+                    int[] recordedKeys = new int[dirtySnapshot.Count];
+                    int idx = 0;
+
+                    foreach (KeyValuePair<int, byte[]> kvp in dirtySnapshot)
+                    {
+                        fs.Seek(0, SeekOrigin.End);
+                        recordedOffsets[idx] = (int)fs.Position;
+                        recordedSizes[idx] = kvp.Value.Length;
+                        recordedKeys[idx] = kvp.Key;
+                        fs.Write(kvp.Value, 0, kvp.Value.Length);
+                        idx++;
+                    }
+
+                    // Flush data to disk before updating headers. This ensures appended
+                    // bytes are durable before header entries point to them.
+                    fs.Flush(true);
+
+                    // Phase 2: Update header entries for all dirty chunks.
+                    // Each entry is an atomic 8-byte aligned write.
+                    byte[] headerEntry = new byte[8];
+
+                    for (int i = 0; i < recordedKeys.Length; i++)
+                    {
+                        int headerOffset = recordedKeys[i] * 8;
+                        fs.Seek(headerOffset, SeekOrigin.Begin);
+                        BitConverter.TryWriteBytes(new Span<byte>(headerEntry, 0, 4), recordedOffsets[i]);
+                        BitConverter.TryWriteBytes(new Span<byte>(headerEntry, 4, 4), recordedSizes[i]);
+                        fs.Write(headerEntry, 0, 8);
+                    }
+
+                    fs.Flush(true);
+                }
+
+                // Clear flushed entries from cache and dirty set
+                lock (_cacheLock)
+                {
+                    foreach (KeyValuePair<int, byte[]> kvp in dirtySnapshot)
+                    {
+                        if (_cache.TryGetValue(kvp.Key, out byte[] current)
+                            && ReferenceEquals(current, kvp.Value))
+                        {
+                            _cache.Remove(kvp.Key);
+                        }
+
+                        _dirtyKeys.Remove(kvp.Key);
+                    }
+
+                    IsDirty = _dirtyKeys.Count > 0;
+                }
+            }
+            catch (Exception)
+            {
+                // Incremental write failed — data remains in cache for next attempt.
+                // The file may have dangling appended data but the header entries
+                // that were NOT updated still point to valid old data.
+                throw;
+            }
         }
 
         /// <summary>Computes the flat cache key from local XZ coordinates (z * RegionSize + x).</summary>

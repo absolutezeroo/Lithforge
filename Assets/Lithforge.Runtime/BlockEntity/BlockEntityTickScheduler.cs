@@ -17,6 +17,32 @@ namespace Lithforge.Runtime.BlockEntity
     /// </summary>
     public sealed class BlockEntityTickScheduler
     {
+        /// <summary>
+        ///     Host implementation that routes dirty notifications from block entities
+        ///     to ChunkManager.MarkChunkDirty for the owning chunk coordinate.
+        /// </summary>
+        private sealed class ChunkDirtyHost : IBlockEntityHost
+        {
+            /// <summary>Chunk manager for marking the chunk dirty.</summary>
+            private readonly ChunkManager _chunkManager;
+
+            /// <summary>Chunk coordinate of the owning chunk.</summary>
+            private readonly int3 _chunkCoord;
+
+            /// <summary>Creates a dirty host for the given chunk coordinate.</summary>
+            public ChunkDirtyHost(ChunkManager chunkManager, int3 chunkCoord)
+            {
+                _chunkManager = chunkManager;
+                _chunkCoord = chunkCoord;
+            }
+
+            /// <summary>Marks the owning chunk dirty because block entity state has changed.</summary>
+            public void NotifyDirty()
+            {
+                _chunkManager.MarkChunkDirty(_chunkCoord);
+            }
+        }
+
         /// <summary>Number of round-robin tick buckets.</summary>
         private const int BucketCount = 20;
 
@@ -117,6 +143,8 @@ namespace Lithforge.Runtime.BlockEntity
             {
                 if (kvp.Value is BlockEntity runtimeEntity)
                 {
+                    runtimeEntity.SetHost(new ChunkDirtyHost(_chunkManager, chunkCoord));
+
                     EntityKey key = new(chunkCoord, kvp.Key);
 
                     if (!_entities.ContainsKey(key))
@@ -188,6 +216,8 @@ namespace Lithforge.Runtime.BlockEntity
 
             if (entity is BlockEntity runtimeEntity)
             {
+                runtimeEntity.SetHost(new ChunkDirtyHost(_chunkManager, chunkCoord));
+
                 EntityKey key = new(chunkCoord, flatIndex);
                 _entities[key] = runtimeEntity;
                 int bucketIndex = GetBucketIndex(key);

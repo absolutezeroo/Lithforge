@@ -431,6 +431,21 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
+        ///     Marks the chunk at the given coordinate dirty for save-on-unload.
+        ///     Called by block entity state changes (furnace progress, chest edits, fuel burn).
+        ///     No-op if the chunk is not loaded. Main-thread only.
+        /// </summary>
+        public void MarkChunkDirty(int3 chunkCoord)
+        {
+            ManagedChunk chunk = GetChunk(chunkCoord);
+
+            if (chunk is not null)
+            {
+                chunk.IsDirty = true;
+            }
+        }
+
+        /// <summary>
         ///     Returns true if the block at the given world coordinate is in a loaded,
         ///     sufficiently-generated chunk. Returns false if the chunk is missing,
         ///     still generating, or has no data.
@@ -498,7 +513,8 @@ namespace Lithforge.Voxel.Chunk
             List<int3> unloaded,
             double currentRealtime,
             WorldStorage worldStorage = null,
-            float budgetMs = 2.0f)
+            float budgetMs = 2.0f,
+            GeneratedChunkCache generatedChunkCache = null)
         {
             unloaded.Clear();
 
@@ -551,6 +567,16 @@ namespace Lithforge.Voxel.Chunk
                     }
 
                     chunk.IsDirty = false;
+                }
+                else if (!chunk.IsDirty && chunk.Data.IsCreated
+                         && chunk.State >= ChunkState.Generated
+                         && generatedChunkCache is not null)
+                {
+                    // Cache clean chunks for fast reload without worldgen.
+                    // Serialize on main thread before NativeArray is returned to pool.
+                    byte[] serialized = ChunkSerializer.Serialize(
+                        chunk.Data, chunk.LightData, chunk.BlockEntities);
+                    generatedChunkCache.Put(coord, serialized);
                 }
 
                 if (chunk.Data.IsCreated)

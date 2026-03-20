@@ -248,6 +248,41 @@ namespace Lithforge.Voxel.Storage
             _flushCache.Clear();
         }
 
+        /// <summary>
+        ///     Incrementally flushes dirty region files by appending new sectors rather than
+        ///     rewriting entire files. Faster than <see cref="FlushAll" /> but accumulates dead
+        ///     sectors. Periodic <see cref="FlushAll" /> compaction is recommended.
+        /// </summary>
+        public void FlushAllIncremental()
+        {
+            _flushCache.Clear();
+
+            lock (_regionFilesLock)
+            {
+                foreach (KeyValuePair<int3, RegionFile> kvp in _regionFiles)
+                {
+                    if (kvp.Value.IsDirty)
+                    {
+                        _flushCache.Add(kvp.Value);
+                    }
+                }
+            }
+
+            for (int i = 0; i < _flushCache.Count; i++)
+            {
+                try
+                {
+                    _flushCache[i].FlushIncremental();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError($"[WorldStorage] FlushIncremental failed: {ex.Message}");
+                }
+            }
+
+            _flushCache.Clear();
+        }
+
         /// <summary>Saves a minimal world.json with seed and content hash.</summary>
         public void SaveMetadata(long seed, string contentHash)
         {

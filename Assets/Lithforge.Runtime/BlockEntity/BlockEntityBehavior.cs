@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 
 namespace Lithforge.Runtime.BlockEntity
@@ -9,6 +10,15 @@ namespace Lithforge.Runtime.BlockEntity
     /// </summary>
     public abstract class BlockEntityBehavior
     {
+        /// <summary>
+        ///     Injects a callback invoked when this behavior mutates persistent state.
+        ///     Override in subclasses that hold mutable state requiring chunk dirty tracking.
+        ///     Default implementation is a no-op.
+        /// </summary>
+        public virtual void SetOnChanged(Action onChanged)
+        {
+        }
+
         /// <summary>
         /// Called each tick cycle. deltaTime includes the bucket multiplier
         /// (e.g., 20x for 20-bucket round-robin).

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 
 using Lithforge.Core.Data;
@@ -12,6 +13,9 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     /// </summary>
     public sealed class InventoryBehavior : BlockEntityBehavior
     {
+        /// <summary>Optional callback invoked when any slot changes. Wired by BlockEntity.SetHost.</summary>
+        private Action _onChanged;
+
         /// <summary>
         ///     v1: small positive slotCount as first int (no sentinel).
         ///     v2: sentinel int.MinValue + 2, supports byte[] CustomData.
@@ -32,6 +36,12 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
             _slots = new ItemStack[slotCount];
         }
 
+        /// <summary>Injects the change notification callback. Called by BlockEntity.SetHost.</summary>
+        public override void SetOnChanged(Action onChanged)
+        {
+            _onChanged = onChanged;
+        }
+
         /// <summary>Total number of item slots in this inventory.</summary>
         public int SlotCount
         {
@@ -48,6 +58,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         public void SetSlot(int index, ItemStack stack)
         {
             _slots[index] = stack;
+            _onChanged?.Invoke();
         }
 
         /// <summary>
@@ -82,6 +93,12 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     _slots[i] = new ItemStack(itemId, toAdd);
                     remaining -= toAdd;
                 }
+            }
+
+            // Notify dirty if any items were actually added
+            if (remaining < count)
+            {
+                _onChanged?.Invoke();
             }
 
             return remaining;
