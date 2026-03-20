@@ -64,9 +64,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 rendering);
 
             // Restore time of day from saved state
-            PlayerTransformHolder player = context.Get<PlayerTransformHolder>();
-
-            if (player.HasRestoredState)
+            if (context.TryGet(out PlayerTransformHolder player) && player.HasRestoredState)
             {
                 _timeOfDay.SetTimeOfDay(player.RestoredTimeOfDay);
             }
