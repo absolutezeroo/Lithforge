@@ -298,25 +298,19 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        ///     Adds or replaces serialized bytes in the write coalescing dictionary and
-        ///     enqueues the coordinate for the I/O thread. If the coord is already pending,
-        ///     the bytes are replaced without adding a duplicate queue entry.
+        ///     Stores serialized bytes in the write coalescing dictionary and enqueues the
+        ///     coordinate for the I/O thread. Always overwrites and always enqueues to avoid
+        ///     a race where the I/O thread's TryRemove runs between the TryAdd check and the
+        ///     replacement, orphaning data in the dictionary with no queue entry.
+        ///     Duplicate queue entries are harmless: DrainQueue's TryRemove returns false for
+        ///     duplicates, and _pendingCount settles correctly since it is decremented per dequeue.
         /// </summary>
         private void PushWrite(int3 coord, byte[] serializedData)
         {
-            bool isNew = _pendingWrites.TryAdd(coord, serializedData);
-
-            if (isNew)
-            {
-                Interlocked.Increment(ref _pendingCount);
-                _writeQueue.Enqueue(coord);
-                _workAvailable.Set();
-            }
-            else
-            {
-                // Replace bytes — the queue already has this coord enqueued
-                _pendingWrites[coord] = serializedData;
-            }
+            _pendingWrites[coord] = serializedData;
+            _writeQueue.Enqueue(coord);
+            Interlocked.Increment(ref _pendingCount);
+            _workAvailable.Set();
         }
 
         /// <summary>Main loop of the I/O thread: waits for work, then drains the queue.</summary>
@@ -334,7 +328,12 @@ namespace Lithforge.Voxel.Storage
             DrainQueue();
         }
 
-        /// <summary>Dequeues and writes all pending save requests to disk.</summary>
+        /// <summary>
+        ///     Dequeues and writes all pending save requests to disk. Each dequeue decrements
+        ///     _pendingCount regardless of whether TryRemove finds an entry, since PushWrite
+        ///     always enqueues (producing duplicate entries for the same coord when writes
+        ///     overlap). Duplicate dequeues harmlessly fail TryRemove and skip the disk write.
+        /// </summary>
         private void DrainQueue()
         {
             while (_writeQueue.TryDequeue(out int3 coord))
@@ -350,11 +349,9 @@ namespace Lithforge.Voxel.Storage
                         _logger?.LogError(
                             $"[ChunkPersistenceService] Save failed for {coord}: {ex.Message}");
                     }
-                    finally
-                    {
-                        Interlocked.Decrement(ref _pendingCount);
-                    }
                 }
+
+                Interlocked.Decrement(ref _pendingCount);
             }
         }
 
