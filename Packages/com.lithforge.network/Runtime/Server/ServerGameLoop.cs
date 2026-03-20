@@ -350,9 +350,6 @@ namespace Lithforge.Network.Server
             // Publish player chunk snapshot for main thread consumption (after CurrentChunk is updated)
             PublishPlayerChunkSnapshot();
 
-            // Publish physics state snapshot for main thread save captures
-            PublishPlayerPhysicsSnapshot();
-
             // Post-input hook: allows BridgedSimulation to synchronize physics results
             (_simulation as IPostInputHook)?.AfterProcessPlayerInputs();
 
@@ -933,20 +930,6 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
-        ///     Publishes a snapshot of all player physics states to the bridge for
-        ///     main-thread consumption (periodic save, disconnect save).
-        /// </summary>
-        private void PublishPlayerPhysicsSnapshot()
-        {
-            if (_bridge is null)
-            {
-                return;
-            }
-
-            _bridge.SetPlayerPhysicsSnapshot(_simulation.GetAllPlayerStates());
-        }
-
-        /// <summary>
         ///     Transitions a Loading peer to Playing state, clears initial load mode,
         ///     sends the GameReady message, and fires the player count changed event.
         /// </summary>
@@ -1295,9 +1278,10 @@ namespace Lithforge.Network.Server
 
         /// <summary>
         ///     Saves all currently playing players via the <see cref="OnSavePlayerState" /> delegate.
-        ///     Called periodically from the server thread every <see cref="SaveIntervalTicks" />.
+        ///     Called periodically from the server thread every <see cref="SaveIntervalTicks" />,
+        ///     and once on shutdown by <see cref="ServerThreadRunner" />.
         /// </summary>
-        private void SaveAllPlayers()
+        internal void SaveAllPlayers()
         {
             if (OnSavePlayerState is null)
             {

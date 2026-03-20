@@ -152,24 +152,5 @@ namespace Lithforge.Runtime.Simulation
             return body;
         }
 
-        /// <summary>Reusable cache for <see cref="GetAllStates"/>.</summary>
-        private readonly Dictionary<ushort, PlayerPhysicsState> _allStatesCache = new();
-
-        /// <summary>
-        ///     Returns a snapshot of all current player physics states keyed by player ID.
-        ///     Used by the save system to capture positions for all connected players.
-        ///     Reuses an internal cache — caller must consume before the next call.
-        /// </summary>
-        public Dictionary<ushort, PlayerPhysicsState> GetAllStates()
-        {
-            _allStatesCache.Clear();
-
-            foreach (KeyValuePair<ushort, PlayerPhysicsBody> kvp in _bodies)
-            {
-                _allStatesCache[kvp.Key] = kvp.Value.GetState();
-            }
-
-            return _allStatesCache;
-        }
     }
 }

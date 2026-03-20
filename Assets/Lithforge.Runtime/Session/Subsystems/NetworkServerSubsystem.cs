@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Lithforge.Network;
 using Lithforge.Network.Bridge;
 using Lithforge.Network.Chunk;
-using Lithforge.Network.Connection;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
 using Lithforge.Runtime.Content.Settings;
@@ -15,7 +14,6 @@ using Lithforge.Runtime.Simulation;
 using Lithforge.Runtime.Tick;
 using Lithforge.Runtime.World;
 using Lithforge.Voxel.Chunk;
-using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Storage;
 
 using Unity.Mathematics;
@@ -301,7 +299,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             if (context.TryGet(out PlayerDataStore pds))
             {
                 PlayerDataStore storeRef = pds;
-                _serverGameLoop.OnSavePlayerState = (string uuid, WorldPlayerState state) =>
+                _serverGameLoop.OnSavePlayerState = (uuid, state) =>
                 {
                     storeRef.Save(uuid, state);
                 };

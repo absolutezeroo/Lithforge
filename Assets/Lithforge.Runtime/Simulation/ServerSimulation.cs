@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 using Lithforge.Network;
 using Lithforge.Network.Server;
@@ -107,12 +106,6 @@ namespace Lithforge.Runtime.Simulation
         public float GetTimeOfDay()
         {
             return _timeOfDayProvider();
-        }
-
-        /// <summary>Returns a snapshot of all current player physics states.</summary>
-        public Dictionary<ushort, PlayerPhysicsState> GetAllPlayerStates()
-        {
-            return _playerPhysicsManager.GetAllStates();
         }
     }
 }

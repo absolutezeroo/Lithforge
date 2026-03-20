@@ -145,6 +145,9 @@ namespace Lithforge.Network.Bridge
                         }
                     }
                 }
+
+                // Final save: persist all playing players before the thread exits
+                _serverGameLoop.SaveAllPlayers();
             }
             catch (Exception ex)
             {
