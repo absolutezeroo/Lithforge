@@ -101,7 +101,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         /// <summary>Per-frame GPU upload operation count.</summary>
         private int[] _gpuUploadCount;
 
-        /// <summary>Per-frame MegaMeshBuffer grow (reallocation) events.</summary>
+        /// <summary>Per-frame BufferArena grow (reallocation) events.</summary>
         private int[] _growEvents;
 
         /// <summary>UI label displaying keyboard shortcut hints at the bottom of the menu.</summary>

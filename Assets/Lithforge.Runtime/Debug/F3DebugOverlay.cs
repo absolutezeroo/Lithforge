@@ -121,7 +121,7 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Label displaying frame-time graph statistics (current, max, avg).</summary>
         private Label _graphStatsLabel;
 
-        /// <summary>Label displaying MegaMeshBuffer grow events and free list size.</summary>
+        /// <summary>Label displaying BufferArena grow events and arena count.</summary>
         private Label _growLabel;
 
         /// <summary>Label displaying frame budget headroom relative to 16.67ms target.</summary>

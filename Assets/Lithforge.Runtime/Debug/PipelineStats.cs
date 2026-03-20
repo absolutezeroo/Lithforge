@@ -5,7 +5,7 @@ namespace Lithforge.Runtime.Debug
 {
     /// <summary>
     ///     Pipeline statistics collector implementing IPipelineStats.
-    ///     Counters are incremented by schedulers and MegaMeshBuffer.
+    ///     Counters are incremented by schedulers and BufferArena.
     ///     Per-frame counters are reset at the start of each frame by BeginFrame().
     ///     Cumulative counters persist. All increment methods are AggressiveInlining
     ///     and gated by Enabled.
@@ -55,7 +55,7 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Number of GPU upload operations this frame.</summary>
         public int GpuUploadCount { get; private set; }
 
-        /// <summary>Number of MegaMeshBuffer grow (reallocation) events this frame.</summary>
+        /// <summary>Number of BufferArena grow (reallocation) events this frame.</summary>
         public int GrowEvents { get; private set; }
 
         /// <summary>Number of chunk mesh invalidations this frame.</summary>

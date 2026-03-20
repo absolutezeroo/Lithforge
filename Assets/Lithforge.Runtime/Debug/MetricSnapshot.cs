@@ -97,10 +97,10 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Number of individual GPU upload operations this frame.</summary>
         public int GpuUploadCount;
 
-        /// <summary>MegaMeshBuffer grow (reallocation) events triggered this frame.</summary>
+        /// <summary>BufferArena grow (reallocation) events triggered this frame.</summary>
         public int GrowEvents;
 
-        /// <summary>Slots available in the MegaMeshBuffer free list at snapshot time.</summary>
+        /// <summary>Number of active arenas in the opaque BufferArenaPool at snapshot time.</summary>
         public int FreeListSize;
 
         /// <summary>Chunk mesh invalidations (remesh requests) issued this frame.</summary>
@@ -203,7 +203,7 @@ namespace Lithforge.Runtime.Debug
         /// <summary>Total NativeArray allocations (available + checked out) in the pool.</summary>
         public int PoolTotal;
 
-        // --- VRAM (computed from MegaMeshBuffer capacities) ---
+        // --- VRAM (computed from BufferArenaPool capacities) ---
 
         /// <summary>Total estimated GPU memory in bytes across all render layers.</summary>
         public long VramTotalBytes;

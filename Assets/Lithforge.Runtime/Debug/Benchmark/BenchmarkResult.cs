@@ -60,7 +60,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         /// <summary>Cumulative bytes uploaded to GPU during the benchmark.</summary>
         public long TotalGpuUploadBytes;
 
-        /// <summary>Number of MegaMeshBuffer grow (reallocation) events during the benchmark.</summary>
+        /// <summary>Number of BufferArena grow (reallocation) events during the benchmark.</summary>
         public int TotalGrowEvents;
 
         // Top costs (section index, avg ms)
@@ -110,7 +110,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         /// <summary>Per-frame GPU upload operation count.</summary>
         public int[] GpuUploadCount;
 
-        /// <summary>Per-frame MegaMeshBuffer grow events.</summary>
+        /// <summary>Per-frame BufferArena grow events.</summary>
         public int[] GrowEvents;
 
         /// <summary>Per-frame GC generation-0 collection count.</summary>
