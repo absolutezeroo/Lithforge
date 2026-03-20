@@ -555,21 +555,5 @@ namespace Lithforge.Network.Server
             return (a - b + 1) / b;
         }
 
-        /// <summary>Counts the number of peers currently in Playing state.</summary>
-        internal int CountPlayingPeers()
-        {
-            int count = 0;
-            IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;
-
-            for (int i = 0; i < allPeers.Count; i++)
-            {
-                if (allPeers[i].StateMachine.Current == ConnectionState.Playing)
-                {
-                    count++;
-                }
-            }
-
-            return count;
-        }
     }
 }
