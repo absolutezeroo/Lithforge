@@ -26,6 +26,7 @@ MonoBehaviour:
   maxLODCompletionsPerFrame: 8
   yLoadMin: -2
   yLoadMax: 3
+  gracePeriodSeconds: 3
   unloadBudgetMs: 2
   yUnloadMin: -3
   yUnloadMax: 4

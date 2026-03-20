@@ -87,7 +87,7 @@ namespace Lithforge.Runtime.Content.Settings
         [Header("Unloading")]
         [Tooltip("Grace period in seconds before an out-of-range chunk is unloaded (0 = immediate)")]
         [Range(0f, 120f)]
-        [SerializeField] private float gracePeriodSeconds = 30f;
+        [SerializeField] private float gracePeriodSeconds = 3f;
 
         /// <summary>Wall-clock milliseconds the main thread may spend disposing out-of-range chunks each frame.</summary>
         [Tooltip("Milliseconds of CPU budget for unloading chunks per frame")]
