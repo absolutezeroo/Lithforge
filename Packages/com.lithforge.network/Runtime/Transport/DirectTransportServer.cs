@@ -12,7 +12,7 @@ namespace Lithforge.Network.Transport
         /// <summary>
         /// Fixed connection ID for the single local client connection.
         /// </summary>
-        private static readonly ConnectionId LocalConnectionId = new(1);
+        private static readonly ConnectionId s_localConnectionId = new(1);
 
         /// <summary>
         /// Channel for data flowing from client to this server.
@@ -118,7 +118,7 @@ namespace Lithforge.Network.Transport
                 _hasPendingReturn = false;
             }
 
-            connectionId = LocalConnectionId;
+            connectionId = s_localConnectionId;
             data = null;
             offset = 0;
             length = 0;
