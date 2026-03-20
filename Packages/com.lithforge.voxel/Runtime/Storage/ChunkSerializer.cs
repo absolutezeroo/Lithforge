@@ -22,8 +22,8 @@ namespace Lithforge.Voxel.Storage
     /// </summary>
     public static class ChunkSerializer
     {
-        /// <summary>Current binary format version (5 = Zstd compression).</summary>
-        private const byte Version = 5;
+        /// <summary>Current binary format version (6 = Zstd + InhabitedTime).</summary>
+        private const byte Version = 6;
 
         /// <summary>Zstd compression level (1 = fastest, best for real-time saves).</summary>
         private const int ZstdCompressionLevel = 1;
@@ -88,13 +88,14 @@ namespace Lithforge.Voxel.Storage
 
         /// <summary>
         ///     Serializes chunk data from NativeArrays (main-thread path).
-        ///     Palette-compresses voxel data, LZ4-compresses both voxel and light,
-        ///     includes block entities, and appends a CRC-32 checksum. Format version 4.
+        ///     Palette-compresses voxel data, Zstd-compresses both voxel and light,
+        ///     includes block entities and inhabited time, and appends a CRC-32 checksum.
         /// </summary>
         public static byte[] Serialize(
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
-            Dictionary<int, IBlockEntity> blockEntities = null)
+            Dictionary<int, IBlockEntity> blockEntities = null,
+            float inhabitedTime = 0f)
         {
             if (s_stream == null)
             {
@@ -192,6 +193,9 @@ namespace Lithforge.Voxel.Storage
             // Block entity section
             WriteBlockEntities(writer, blockEntities);
 
+            // InhabitedTime (v6+)
+            writer.Write(inhabitedTime);
+
             // Append CRC32 checksum of all preceding bytes
             writer.Flush();
             byte[] streamBuf = s_stream.GetBuffer();
@@ -209,14 +213,15 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
-        ///     Serializes chunk data from raw byte[] snapshots (used by AsyncChunkSaver worker thread).
+        ///     Serializes chunk data from raw byte[] snapshots (used by I/O worker thread).
         ///     voxelSnapshot contains StateId values as little-endian ushorts (2 bytes each).
         /// </summary>
         public static byte[] Serialize(
             byte[] voxelSnapshot,
             int voxelCount,
             byte[] lightSnapshot,
-            Dictionary<int, IBlockEntity> blockEntities = null)
+            Dictionary<int, IBlockEntity> blockEntities = null,
+            float inhabitedTime = 0f)
         {
             if (s_stream == null)
             {
@@ -307,6 +312,9 @@ namespace Lithforge.Voxel.Storage
             // Block entity section
             WriteBlockEntities(writer, blockEntities);
 
+            // InhabitedTime (v6+)
+            writer.Write(inhabitedTime);
+
             // Append CRC32 checksum of all preceding bytes
             writer.Flush();
             byte[] streamBuf = s_stream.GetBuffer();
@@ -359,7 +367,7 @@ namespace Lithforge.Voxel.Storage
         /// <summary>
         ///     Deserializes chunk data from a byte array into pre-allocated NativeArrays.
         ///     Verifies CRC-32 checksum, magic bytes, and version before reading data.
-        ///     Supports format versions 3 (LZ4Pickler), 4 (LZ4Codec), and 5 (Zstd).
+        ///     Supports format versions 3 (LZ4Pickler), 4 (LZ4Codec), 5 (Zstd), and 6 (Zstd + InhabitedTime).
         ///     Returns false if the data is corrupted, truncated, or version-mismatched.
         /// </summary>
         public static bool Deserialize(byte[] data,
@@ -368,15 +376,29 @@ namespace Lithforge.Voxel.Storage
             out Dictionary<int, IBlockEntity> blockEntities,
             BlockEntityRegistry blockEntityRegistry = null)
         {
-            blockEntities = null;
+            return Deserialize(data, chunkData, lightData, out blockEntities, out float _, blockEntityRegistry);
+        }
 
-            if (data == null || data.Length < 9)
+        /// <summary>
+        ///     Deserializes chunk data with InhabitedTime output. Supports v3-v6.
+        ///     Versions prior to 6 return inhabitedTime = 0f.
+        /// </summary>
+        public static bool Deserialize(byte[] data,
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            out Dictionary<int, IBlockEntity> blockEntities,
+            out float inhabitedTime,
+            BlockEntityRegistry blockEntityRegistry = null)
+        {
+            blockEntities = null;
+            inhabitedTime = 0f;
+
+            if (data is null || data.Length < 9)
             {
                 return false;
             }
 
-            // Verify CRC32: last 4 bytes are the checksum
-            if (data.Length < 13) // 4 magic + 1 version + 4 min content + 4 crc
+            if (data.Length < 13)
             {
                 return false;
             }
@@ -396,7 +418,6 @@ namespace Lithforge.Voxel.Storage
             using (MemoryStream ms = new(data, 0, payloadLength))
             using (BinaryReader reader = new(ms))
             {
-                // Verify magic
                 byte[] magic = reader.ReadBytes(4);
 
                 if (magic.Length != 4 ||
@@ -418,13 +439,17 @@ namespace Lithforge.Voxel.Storage
                     return DeserializeV4(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry);
                 }
 
-                if (version != 5)
+                if (version == 5)
+                {
+                    return DeserializeV5(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry);
+                }
+
+                if (version != 6)
                 {
                     return false;
                 }
 
-                // Version 5 path (Zstd compression)
-                return DeserializeV5(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry);
+                return DeserializeV6(reader, ms, chunkData, lightData, out blockEntities, out inhabitedTime, blockEntityRegistry);
             }
         }
 
@@ -607,6 +632,35 @@ namespace Lithforge.Voxel.Storage
 
             // Block entity section
             ReadBlockEntities(reader, ms, out blockEntities, blockEntityRegistry);
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Deserializes version 6 format (Zstd + InhabitedTime). Same wire format as v5
+        ///     with a float32 inhabitedTime appended after the block entity section.
+        /// </summary>
+        private static bool DeserializeV6(
+            BinaryReader reader,
+            MemoryStream ms,
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            out Dictionary<int, IBlockEntity> blockEntities,
+            out float inhabitedTime,
+            BlockEntityRegistry blockEntityRegistry)
+        {
+            inhabitedTime = 0f;
+
+            if (!DeserializeV5(reader, ms, chunkData, lightData, out blockEntities, blockEntityRegistry))
+            {
+                return false;
+            }
+
+            // Read inhabitedTime if bytes remain (before CRC, which has already been stripped)
+            if (ms.Position + 4 <= ms.Length)
+            {
+                inhabitedTime = reader.ReadSingle();
+            }
 
             return true;
         }

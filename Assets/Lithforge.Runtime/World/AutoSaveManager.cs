@@ -31,8 +31,8 @@ namespace Lithforge.Runtime.World
         /// <summary>Optional player data store for per-player save files.</summary>
         private PlayerDataStore _playerDataStore;
 
-        /// <summary>Optional async chunk saver flushed before region file writes.</summary>
-        private AsyncChunkSaver _asyncSaver;
+        /// <summary>Optional persistence service flushed before region file writes.</summary>
+        private ChunkPersistenceService _persistenceService;
 
         /// <summary>Realtime timestamp of the last chunk flush, or -1 if not yet run.</summary>
         private float _lastChunkFlushTime = -1f;
@@ -64,12 +64,12 @@ namespace Lithforge.Runtime.World
         }
 
         /// <summary>
-        /// Sets the AsyncChunkSaver so that pending async writes are flushed
+        /// Sets the persistence service so that pending async writes are flushed
         /// before region files are written to disk.
         /// </summary>
-        public void SetAsyncSaver(AsyncChunkSaver asyncSaver)
+        public void SetPersistenceService(ChunkPersistenceService persistenceService)
         {
-            _asyncSaver = asyncSaver;
+            _persistenceService = persistenceService;
         }
 
         /// <summary>Injects the player data store for per-player save files.</summary>
@@ -105,12 +105,15 @@ namespace Lithforge.Runtime.World
 
             if (realtimeSinceStartup >= _lastChunkFlushTime + ChunkFlushInterval)
             {
-                if (_asyncSaver is not null)
+                if (_persistenceService is not null)
                 {
-                    _asyncSaver.Flush();
+                    _persistenceService.Flush();
+                }
+                else
+                {
+                    _worldStorage.FlushAllIncremental();
                 }
 
-                _worldStorage.FlushAllIncremental();
                 _lastChunkFlushTime = realtimeSinceStartup;
             }
         }

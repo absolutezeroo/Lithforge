@@ -176,6 +176,14 @@ namespace Lithforge.Voxel.Chunk
         public double GracePeriodExpiry { get; set; }
 
         /// <summary>
+        /// Cumulative real-time seconds that at least one player has been within
+        /// interest range of this chunk. Accumulated by ChunkManager.AdjustRefCounts
+        /// each frame for chunks with RefCount greater than 0. Persisted via ChunkSerializer v6
+        /// for future chunk trimming tools.
+        /// </summary>
+        public float InhabitedTime { get; set; }
+
+        /// <summary>
         /// Sparse per-block entity storage, keyed by flat voxel index.
         /// Null until a block entity is first placed or loaded in this chunk.
         /// Owner: ManagedChunk. Populated by BlockEntityTickScheduler on placement

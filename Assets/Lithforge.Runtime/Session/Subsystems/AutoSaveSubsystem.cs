@@ -47,11 +47,6 @@ namespace Lithforge.Runtime.Session.Subsystems
                 () => 0f, // TimeOfDay wired in PostInitialize
                 player.Inventory);
 
-            if (context.TryGet(out AsyncChunkSaver saver))
-            {
-                autoSave.SetAsyncSaver(saver);
-            }
-
             if (context.TryGet(out PlayerDataStore playerDataStore))
             {
                 autoSave.SetPlayerDataStore(playerDataStore);

@@ -26,7 +26,7 @@ namespace Lithforge.Voxel.Storage
         /// <summary>Keys that have been modified via SaveChunk and need flushing to disk.</summary>
         private readonly HashSet<int> _dirtyKeys = new();
 
-        /// <summary>Lock protecting _cache and _dirtyKeys for thread-safe access from AsyncChunkSaver.</summary>
+        /// <summary>Lock protecting _cache and _dirtyKeys for thread-safe access from ChunkPersistenceService.</summary>
         private readonly object _cacheLock = new();
 
         /// <summary>Full filesystem path to this region file (.lfrg).</summary>

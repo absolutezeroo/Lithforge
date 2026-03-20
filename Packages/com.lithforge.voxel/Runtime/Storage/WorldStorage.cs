@@ -30,7 +30,7 @@ namespace Lithforge.Voxel.Storage
         /// <summary>Cache of open region files, keyed by region coordinate (chunk coord / 32).</summary>
         private readonly Dictionary<int3, RegionFile> _regionFiles = new();
 
-        /// <summary>Lock protecting _regionFiles for thread-safe region access from AsyncChunkSaver.</summary>
+        /// <summary>Lock protecting _regionFiles for thread-safe region access from ChunkPersistenceService.</summary>
         private readonly object _regionFilesLock = new();
 
         /// <summary>Whether this storage instance has been disposed.</summary>
@@ -124,6 +124,43 @@ namespace Lithforge.Voxel.Storage
         }
 
         /// <summary>
+        ///     Overload that also returns the InhabitedTime from v6+ chunk data.
+        /// </summary>
+        public bool LoadChunk(int3 chunkCoord,
+            NativeArray<StateId> chunkData,
+            NativeArray<byte> lightData,
+            out Dictionary<int, IBlockEntity> blockEntities,
+            out float inhabitedTime,
+            BlockEntityRegistry blockEntityRegistry = null)
+        {
+            blockEntities = null;
+            inhabitedTime = 0f;
+
+            try
+            {
+                GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
+                RegionFile region = GetOrOpenRegion(regionCoord);
+
+                byte[] serialized = region.LoadChunk(localX, localZ);
+
+                if (serialized is null)
+                {
+                    return false;
+                }
+
+                return ChunkSerializer.Deserialize(
+                    serialized, chunkData, lightData,
+                    out blockEntities, out inhabitedTime, blockEntityRegistry);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"[WorldStorage] LoadChunk failed for {chunkCoord}: {ex.Message}");
+
+                return false;
+            }
+        }
+
+        /// <summary>
         ///     Backward-compatible overload without block entity support.
         /// </summary>
         public bool LoadChunk(
@@ -142,14 +179,15 @@ namespace Lithforge.Voxel.Storage
             int3 chunkCoord,
             NativeArray<StateId> chunkData,
             NativeArray<byte> lightData,
-            Dictionary<int, IBlockEntity> blockEntities = null)
+            Dictionary<int, IBlockEntity> blockEntities = null,
+            float inhabitedTime = 0f)
         {
             try
             {
                 GetRegionCoords(chunkCoord, out int3 regionCoord, out int localX, out int localZ);
                 RegionFile region = GetOrOpenRegion(regionCoord);
 
-                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData, blockEntities);
+                byte[] serialized = ChunkSerializer.Serialize(chunkData, lightData, blockEntities, inhabitedTime);
                 region.SaveChunk(localX, localZ, serialized);
             }
             catch (Exception ex)
@@ -160,7 +198,7 @@ namespace Lithforge.Voxel.Storage
 
         /// <summary>
         ///     Saves pre-serialized chunk data to the region file cache.
-        ///     Used by AsyncChunkSaver worker thread — thread-safe via region file lock.
+        ///     Used by ChunkPersistenceService worker thread — thread-safe via region file lock.
         /// </summary>
         public void SaveChunkRaw(int3 chunkCoord, byte[] serializedData)
         {

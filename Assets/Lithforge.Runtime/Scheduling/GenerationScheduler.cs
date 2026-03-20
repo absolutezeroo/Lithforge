@@ -132,10 +132,10 @@ namespace Lithforge.Runtime.Scheduling
         private BlockEntityRegistry _blockEntityRegistry;
 
         /// <summary>
-        ///     Optional in-memory LRU cache of serialized clean chunks. Checked before disk
-        ///     and worldgen in ScheduleJobs. Set via SetGeneratedChunkCache after construction.
+        ///     Optional unified persistence service for in-memory caching and async saves.
+        ///     Checked before disk and worldgen in ScheduleJobs. Set via SetPersistenceService after construction.
         /// </summary>
-        private GeneratedChunkCache _generatedChunkCache;
+        private ChunkPersistenceService _persistenceService;
 
         /// <summary>
         ///     Optional liquid scheduler for initializing liquid data on newly generated chunks.
@@ -206,10 +206,10 @@ namespace Lithforge.Runtime.Scheduling
             _liquidScheduler = liquidScheduler;
         }
 
-        /// <summary>Injects the in-memory LRU generation cache for fast clean-chunk reload.</summary>
-        public void SetGeneratedChunkCache(GeneratedChunkCache cache)
+        /// <summary>Injects the unified persistence service for fast clean-chunk reload and async saves.</summary>
+        public void SetPersistenceService(ChunkPersistenceService service)
         {
-            _generatedChunkCache = cache;
+            _persistenceService = service;
         }
 
         /// <summary>
@@ -634,21 +634,23 @@ namespace Lithforge.Runtime.Scheduling
                     continue;
                 }
 
-                // Try loading from in-memory generation cache first (fastest: no I/O)
-                if (_generatedChunkCache is not null
-                    && _generatedChunkCache.TryGet(chunk.Coord, out byte[] cachedBytes))
+                // Try loading from persistence service cache first (fastest: no I/O)
+                if (_persistenceService is not null
+                    && _persistenceService.TryLoadCached(chunk.Coord, out byte[] cachedBytes))
                 {
                     NativeArray<byte> cachedLightData = new(
                         ChunkConstants.Volume,
                         Allocator.Persistent);
 
                     if (ChunkSerializer.Deserialize(cachedBytes, chunk.Data, cachedLightData,
-                            out Dictionary<int, IBlockEntity> cachedEntities, _blockEntityRegistry))
+                            out Dictionary<int, IBlockEntity> cachedEntities,
+                            out float cachedInhabitedTime, _blockEntityRegistry))
                     {
                         chunk.LightData = cachedLightData;
+                        chunk.InhabitedTime = cachedInhabitedTime;
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
-                        _generatedChunkCache.Remove(chunk.Coord);
+                        _persistenceService.RemoveCached(chunk.Coord);
 
                         if (cachedEntities is { Count: > 0 })
                         {
@@ -671,7 +673,7 @@ namespace Lithforge.Runtime.Scheduling
                     }
 
                     cachedLightData.Dispose();
-                    _generatedChunkCache.Remove(chunk.Coord);
+                    _persistenceService.RemoveCached(chunk.Coord);
                 }
 
                 // Try loading from storage (disk)
@@ -682,17 +684,16 @@ namespace Lithforge.Runtime.Scheduling
                         Allocator.Persistent);
 
                     if (_worldStorage.LoadChunk(chunk.Coord, chunk.Data, lightData,
-                            out Dictionary<int, IBlockEntity> loadedEntities, _blockEntityRegistry))
+                            out Dictionary<int, IBlockEntity> loadedEntities,
+                            out float diskInhabitedTime, _blockEntityRegistry))
                     {
                         chunk.LightData = lightData;
+                        chunk.InhabitedTime = diskInhabitedTime;
                         _chunkManager.SetChunkState(chunk, ChunkState.Generated);
                         chunk.ActiveJobHandle = default;
 
                         // Attach loaded block entities to the chunk
-                        if (loadedEntities is
-                            {
-                                Count: > 0,
-                            })
+                        if (loadedEntities is { Count: > 0 })
                         {
                             Dictionary<int, IBlockEntity> chunkEntities =
                                 chunk.GetOrCreateBlockEntities();

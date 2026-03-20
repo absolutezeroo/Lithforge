@@ -18,9 +18,6 @@ namespace Lithforge.Runtime.Session.Subsystems
         /// <summary>The owned generation scheduler instance.</summary>
         private GenerationScheduler _scheduler;
 
-        /// <summary>LRU cache of serialized clean chunks to avoid regeneration on reload.</summary>
-        private GeneratedChunkCache _generatedChunkCache;
-
         /// <summary>Human-readable name for logging.</summary>
         public string Name
         {
@@ -78,10 +75,6 @@ namespace Lithforge.Runtime.Session.Subsystems
                 cs.GenCompletionBudgetMs);
 
             context.Register(_scheduler);
-
-            _generatedChunkCache = new GeneratedChunkCache();
-            _scheduler.SetGeneratedChunkCache(_generatedChunkCache);
-            context.Register(_generatedChunkCache);
         }
 
         /// <summary>Wires the biome tint manager, block entity registry, and liquid scheduler.</summary>

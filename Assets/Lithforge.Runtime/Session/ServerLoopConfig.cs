@@ -24,9 +24,6 @@ namespace Lithforge.Runtime.Session
         /// <summary>Persistence layer for reading and writing chunk data to disk.</summary>
         public WorldStorage WorldStorage { get; set; }
 
-        /// <summary>LRU cache of serialized clean chunks to avoid regeneration on reload.</summary>
-        public GeneratedChunkCache GeneratedChunkCache { get; set; }
-
         /// <summary>Schedules and polls Burst generation jobs for new chunks.</summary>
         public GenerationScheduler GenerationScheduler { get; set; }
 

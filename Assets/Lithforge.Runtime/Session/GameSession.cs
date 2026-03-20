@@ -181,7 +181,7 @@ namespace Lithforge.Runtime.Session
             list.Add(new Subsystems.StorageSubsystem());
             list.Add(new Subsystems.ChunkPoolSubsystem());
             list.Add(new Subsystems.ChunkManagerSubsystem());
-            list.Add(new Subsystems.AsyncChunkSaverSubsystem());
+            list.Add(new Subsystems.ChunkPersistenceSubsystem());
 
             // Phase 2: World generation
             list.Add(new Subsystems.WorldGenSubsystem());

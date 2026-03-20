@@ -277,11 +277,6 @@ namespace Lithforge.Runtime.Session.Subsystems
                 slConfig.WorldStorage = worldStorage;
             }
 
-            if (context.TryGet(out GeneratedChunkCache generatedChunkCache))
-            {
-                slConfig.GeneratedChunkCache = generatedChunkCache;
-            }
-
             if (context.TryGet(out GenerationScheduler generationScheduler))
             {
                 slConfig.GenerationScheduler = generationScheduler;

@@ -64,8 +64,11 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>ChunkPool for NativeArray checkout and return.</summary>
         private readonly ChunkPool _pool;
 
-        /// <summary>Optional background chunk saver for async serialization on unload.</summary>
-        private AsyncChunkSaver _asyncSaver;
+        /// <summary>Optional unified persistence service for async saves and pristine chunk caching.</summary>
+        private ChunkPersistenceService _persistenceService;
+
+        /// <summary>Realtime of the last AdjustRefCounts call, used for InhabitedTime delta.</summary>
+        private double _lastAdjustRealtime;
 
         /// <summary>Whether this ChunkManager has been disposed.</summary>
         private bool _disposed;
@@ -298,12 +301,12 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        ///     Sets the async chunk saver for off-thread serialization during unload.
+        ///     Sets the persistence service for off-thread serialization and caching during unload.
         ///     Must be called after construction and before gameplay starts.
         /// </summary>
-        public void SetAsyncSaver(AsyncChunkSaver asyncSaver)
+        public void SetPersistenceService(ChunkPersistenceService persistenceService)
         {
-            _asyncSaver = asyncSaver;
+            _persistenceService = persistenceService;
         }
 
         /// <summary>
@@ -336,6 +339,25 @@ namespace Lithforge.Voxel.Chunk
             double gracePeriodSeconds)
         {
             _loadQueue.AdjustRefCounts(playerChunkCoords, currentRealtime, gracePeriodSeconds, _chunks);
+
+            // Accumulate InhabitedTime for chunks with at least one interested player
+            if (_lastAdjustRealtime > 0.0)
+            {
+                float delta = (float)(currentRealtime - _lastAdjustRealtime);
+
+                if (delta > 0f)
+                {
+                    foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
+                    {
+                        if (kvp.Value.RefCount > 0)
+                        {
+                            kvp.Value.InhabitedTime += delta;
+                        }
+                    }
+                }
+            }
+
+            _lastAdjustRealtime = currentRealtime;
         }
 
         /// <summary>
@@ -532,8 +554,7 @@ namespace Lithforge.Voxel.Chunk
             List<int3> unloaded,
             double currentRealtime,
             WorldStorage worldStorage = null,
-            float budgetMs = 2.0f,
-            GeneratedChunkCache generatedChunkCache = null)
+            float budgetMs = 2.0f)
         {
             unloaded.Clear();
 
@@ -574,10 +595,11 @@ namespace Lithforge.Voxel.Chunk
                 // Save modified chunks before unloading (enqueue must precede dispose)
                 if (chunk.IsDirty && chunk.Data.IsCreated)
                 {
-                    if (_asyncSaver is not null)
+                    if (_persistenceService is not null)
                     {
-                        _asyncSaver.EnqueueSave(
-                            chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                        _persistenceService.EnqueueDirtySave(
+                            chunk.Coord, chunk.Data, chunk.LightData,
+                            chunk.BlockEntities, chunk.InhabitedTime);
                     }
                     else if (worldStorage is not null)
                     {
@@ -589,13 +611,14 @@ namespace Lithforge.Voxel.Chunk
                 }
                 else if (!chunk.IsDirty && chunk.Data.IsCreated
                          && chunk.State >= ChunkState.Generated
-                         && generatedChunkCache is not null)
+                         && _persistenceService is not null)
                 {
                     // Cache clean chunks for fast reload without worldgen.
                     // Serialize on main thread before NativeArray is returned to pool.
                     byte[] serialized = ChunkSerializer.Serialize(
-                        chunk.Data, chunk.LightData, chunk.BlockEntities);
-                    generatedChunkCache.Put(coord, serialized);
+                        chunk.Data, chunk.LightData, chunk.BlockEntities,
+                        chunk.InhabitedTime);
+                    _persistenceService.CachePristineChunk(coord, serialized);
                 }
 
                 if (chunk.Data.IsCreated)
@@ -668,8 +691,6 @@ namespace Lithforge.Voxel.Chunk
         {
             Span<int3> single = stackalloc int3[1];
             single[0] = cameraChunkCoord;
-            // Pass currentRealtime=0 so all grace periods are treated as expired,
-            // matching the legacy distance-only unload behavior.
             UnloadDistantChunks(
                 (ReadOnlySpan<int3>)single, unloaded, 0.0, worldStorage, budgetMs);
         }
@@ -704,7 +725,9 @@ namespace Lithforge.Voxel.Chunk
                 if (chunk.IsDirty && chunk.State >= ChunkState.RelightPending && chunk.Data.IsCreated)
                 {
                     chunk.ActiveJobHandle.Complete();
-                    storage.SaveChunk(chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                    storage.SaveChunk(
+                        chunk.Coord, chunk.Data, chunk.LightData,
+                        chunk.BlockEntities, chunk.InhabitedTime);
                     chunk.IsDirty = false;
                 }
             }

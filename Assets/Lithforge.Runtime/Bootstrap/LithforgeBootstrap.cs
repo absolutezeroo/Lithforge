@@ -125,9 +125,9 @@ namespace Lithforge.Runtime.Bootstrap
                     autoSave.SaveMetadataOnly();
                 }
 
-                if (session.Context.TryGet(out AsyncChunkSaver asyncSaver))
+                if (session.Context.TryGet(out ChunkPersistenceService persistence))
                 {
-                    asyncSaver.Flush();
+                    persistence.Flush();
                 }
 
                 if (session.Context.TryGet(out WorldStorage ws)

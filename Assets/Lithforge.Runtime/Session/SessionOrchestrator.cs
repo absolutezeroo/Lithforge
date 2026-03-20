@@ -158,9 +158,9 @@ namespace Lithforge.Runtime.Session
                     multiSave.SaveAll();
                 }
 
-                if (session.Context.TryGet(out AsyncChunkSaver asyncSaver))
+                if (session.Context.TryGet(out ChunkPersistenceService persistence))
                 {
-                    asyncSaver.Flush();
+                    persistence.Flush();
                 }
             }
             catch (Exception ex)
@@ -190,7 +190,8 @@ namespace Lithforge.Runtime.Session
                     {
                         chunk.ActiveJobHandle.Complete();
                         worldStorage.SaveChunk(
-                            chunk.Coord, chunk.Data, chunk.LightData, chunk.BlockEntities);
+                            chunk.Coord, chunk.Data, chunk.LightData,
+                            chunk.BlockEntities, chunk.InhabitedTime);
                         chunk.IsDirty = false;
                     }
                     catch (Exception ex)
