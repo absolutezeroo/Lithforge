@@ -213,6 +213,7 @@ namespace Lithforge.Runtime.Session
             list.Add(new Subsystems.RemotePlayerManagerSubsystem());
 
             // Phase 7: Player & gameplay
+            list.Add(new Subsystems.PlayerDataSubsystem());
             list.Add(new Subsystems.PlayerSubsystem());
             list.Add(new Subsystems.BlockEntitySubsystem());
             list.Add(new Subsystems.BlockInteractionSubsystem());
