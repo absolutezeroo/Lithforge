@@ -41,6 +41,11 @@ namespace Lithforge.Network.Server
         private const float MaxAccumulatedTime = TickDt * 5f;
 
         /// <summary>
+        ///     Interval (in ticks) between periodic save sweeps. 900 ticks = 30s at 30 TPS.
+        /// </summary>
+        private const int SaveIntervalTicks = 900;
+
+        /// <summary>
         ///     Maximum block interaction reach distance in blocks.
         /// </summary>
         private const float MaxReachDistance = 6f;
@@ -172,6 +177,11 @@ namespace Lithforge.Network.Server
         private bool _disposed;
 
         /// <summary>
+        ///     Tick counter for periodic save scheduling. Resets after each save sweep.
+        /// </summary>
+        private int _ticksSinceLastSave;
+
+        /// <summary>
         ///     The currentTime value from the most recent Update call, cached for use in callbacks.
         /// </summary>
         private float _lastCurrentTime;
@@ -207,6 +217,12 @@ namespace Lithforge.Network.Server
 
         /// <summary>Fired when the number of playing peers changes. Parameter is the new count.</summary>
         public Action<int> OnPlayerCountChanged;
+
+        /// <summary>
+        ///     Delegate for persisting a player's state to disk. Called on the server thread
+        ///     for both disconnect saves and periodic saves. Parameters: (playerUuid, state).
+        /// </summary>
+        public Action<string, WorldPlayerState> OnSavePlayerState;
 
         /// <summary>
         ///     Creates a new ServerGameLoop wiring together all server-side subsystems.
@@ -357,6 +373,15 @@ namespace Lithforge.Network.Server
 
             // Phase 6: implicit — UTP batches sends within frame
             CurrentTick++;
+
+            // Periodic save: persist all playing players every SaveIntervalTicks
+            _ticksSinceLastSave++;
+
+            if (_ticksSinceLastSave >= SaveIntervalTicks)
+            {
+                _ticksSinceLastSave = 0;
+                SaveAllPlayers();
+            }
         }
 
         /// <summary>
@@ -1225,9 +1250,9 @@ namespace Lithforge.Network.Server
             {
                 WorldPlayerState captured = CapturePlayerState(peer);
 
-                if (captured is not null)
+                if (captured is not null && !string.IsNullOrEmpty(peer.PlayerUuid))
                 {
-                    peer.PlayerData = captured;
+                    OnSavePlayerState?.Invoke(peer.PlayerUuid, captured);
                 }
             }
 
@@ -1266,6 +1291,37 @@ namespace Lithforge.Network.Server
             }
 
             return state;
+        }
+
+        /// <summary>
+        ///     Saves all currently playing players via the <see cref="OnSavePlayerState" /> delegate.
+        ///     Called periodically from the server thread every <see cref="SaveIntervalTicks" />.
+        /// </summary>
+        private void SaveAllPlayers()
+        {
+            if (OnSavePlayerState is null)
+            {
+                return;
+            }
+
+            IReadOnlyList<PeerInfo> peers = _serverImpl.AllPeers;
+
+            for (int i = 0; i < peers.Count; i++)
+            {
+                PeerInfo peer = peers[i];
+
+                if (peer.StateMachine.Current != ConnectionState.Playing)
+                {
+                    continue;
+                }
+
+                WorldPlayerState state = CapturePlayerState(peer);
+
+                if (state is not null && !string.IsNullOrEmpty(peer.PlayerUuid))
+                {
+                    OnSavePlayerState(peer.PlayerUuid, state);
+                }
+            }
         }
 
         /// <summary>

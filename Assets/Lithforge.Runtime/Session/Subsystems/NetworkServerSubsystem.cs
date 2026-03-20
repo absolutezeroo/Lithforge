@@ -48,9 +48,6 @@ namespace Lithforge.Runtime.Session.Subsystems
         /// <summary>The owned network server managing connections and message dispatch.</summary>
         private NetworkServer _server;
 
-        /// <summary>Multi-player save manager for periodic and on-disconnect persistence.</summary>
-        private MultiPlayerSaveManager _multiPlayerSaveManager;
-
         /// <summary>Background server thread runner (null until PostInitialize starts it).</summary>
         private ServerThreadRunner _runner;
 
@@ -254,11 +251,13 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.Register(chunkProvider);
             }
 
-            // Wire player data store and admin store into the server for handshake integration
+            // Wire player data store and admin store into the bridged server for handshake
+            // integration. The bridged server is the one that actually processes events;
+            // the real server (_server) is never Updated and exists only for registration.
             if (context.TryGet(out PlayerDataStore playerDataStore)
                 && context.TryGet(out AdminStore adminStore))
             {
-                _server.SetPlayerDataStore(playerDataStore, adminStore);
+                bridgeResult.BridgedServer.SetPlayerDataStore(playerDataStore, adminStore);
             }
 
             context.Register(_server);
@@ -296,58 +295,16 @@ namespace Lithforge.Runtime.Session.Subsystems
                 metricsRegistry.SetNetworkMetrics(_server);
             }
 
-            // Create multi-player save manager for Host/Dedicated modes
-            if (context.Config is SessionConfig.Host or SessionConfig.DedicatedServer
-                && context.TryGet(out PlayerDataStore pds)
-                && context.TryGet(out MainThreadBridgePump bridgePump))
+            // Wire player save delegate on the server game loop. Both periodic saves
+            // and disconnect saves run directly on the server thread, which has live access
+            // to the bridged server's PeerInfo (with correct PlayerData) and the simulation.
+            if (context.TryGet(out PlayerDataStore pds))
             {
-                MainThreadBridgePump pumpForSave = bridgePump;
-                _multiPlayerSaveManager = new MultiPlayerSaveManager(
-                    pds,
-                    _server,
-                    peer =>
-                    {
-                        // For disconnect saves, OnPeerRemovedInternal already captured live state
-                        // into peer.PlayerData on the server thread. For periodic saves, read
-                        // the latest physics snapshot published by the server thread each tick.
-                        Dictionary<ushort, PlayerPhysicsState> snapshot =
-                            pumpForSave.GetPlayerPhysicsSnapshot();
-
-                        if (snapshot.TryGetValue(peer.AssignedPlayerId, out PlayerPhysicsState physState))
-                        {
-                            WorldPlayerState state = new()
-                            {
-                                PosX = physState.Position.x,
-                                PosY = physState.Position.y,
-                                PosZ = physState.Position.z,
-                                RotX = physState.Pitch,
-                                RotY = physState.Yaw,
-                            };
-
-                            // Preserve existing inventory from peer.PlayerData if available
-                            if (peer.PlayerData is not null)
-                            {
-                                state.SelectedSlot = peer.PlayerData.SelectedSlot;
-                                state.Slots = peer.PlayerData.Slots;
-                            }
-
-                            return state;
-                        }
-
-                        return peer.PlayerData;
-                    });
-
-                // On peer removed: save player data via main thread bridge
-                MultiPlayerSaveManager saveRef = _multiPlayerSaveManager;
-                _server.OnPeerRemoved += (PeerInfo removedPeer) =>
+                PlayerDataStore storeRef = pds;
+                _serverGameLoop.OnSavePlayerState = (string uuid, WorldPlayerState state) =>
                 {
-                    bridgePump.EnqueueMainThreadAction(() =>
-                    {
-                        saveRef.SavePlayer(removedPeer);
-                    });
+                    storeRef.Save(uuid, state);
                 };
-
-                context.Register(_multiPlayerSaveManager);
             }
 
             // Start the background server thread after all wiring is complete
