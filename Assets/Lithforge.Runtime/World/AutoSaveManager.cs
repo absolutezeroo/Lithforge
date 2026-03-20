@@ -1,6 +1,8 @@
 using System;
+
 using Lithforge.Item;
 using Lithforge.Voxel.Storage;
+
 using UnityEngine;
 
 namespace Lithforge.Runtime.World
@@ -25,6 +27,9 @@ namespace Lithforge.Runtime.World
 
         /// <summary>Player inventory for serializing slot contents.</summary>
         private readonly Inventory _inventory;
+
+        /// <summary>Optional player data store for per-player save files.</summary>
+        private PlayerDataStore _playerDataStore;
 
         /// <summary>Optional async chunk saver flushed before region file writes.</summary>
         private AsyncChunkSaver _asyncSaver;
@@ -65,6 +70,12 @@ namespace Lithforge.Runtime.World
         public void SetAsyncSaver(AsyncChunkSaver asyncSaver)
         {
             _asyncSaver = asyncSaver;
+        }
+
+        /// <summary>Injects the player data store for per-player save files.</summary>
+        public void SetPlayerDataStore(PlayerDataStore playerDataStore)
+        {
+            _playerDataStore = playerDataStore;
         }
 
         /// <summary>Checks timers and flushes metadata and/or chunks when intervals elapse.</summary>
@@ -128,11 +139,16 @@ namespace Lithforge.Runtime.World
                 return;
             }
 
-            _worldMetadata.PlayerState = PlayerStateSerializer.Capture(
+            WorldPlayerState captured = PlayerStateSerializer.Capture(
                 _playerTransform,
                 _mainCamera,
                 _getTimeOfDay(),
                 _inventory);
+
+            if (_playerDataStore is not null)
+            {
+                _playerDataStore.Save("local", captured);
+            }
 
             _worldStorage.SaveMetadataFull(_worldMetadata);
         }

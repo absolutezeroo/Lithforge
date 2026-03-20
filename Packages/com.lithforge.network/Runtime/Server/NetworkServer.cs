@@ -8,6 +8,7 @@ using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 using Lithforge.Network.SendQueue;
 using Lithforge.Network.Transport;
+using Lithforge.Voxel.Storage;
 
 namespace Lithforge.Network.Server
 {
@@ -53,8 +54,23 @@ namespace Lithforge.Network.Server
         /// <summary>The underlying network transport (UTP driver or direct transport).</summary>
         private INetworkTransport _transport;
 
+        /// <summary>Optional admin store for ban/op/whitelist checks during handshake.</summary>
+        private AdminStore _adminStore;
+
+        /// <summary>Optional chat command processor for handling chat messages and admin commands.</summary>
+        private ChatCommandProcessor _chatProcessor;
+
+        /// <summary>Optional player data store for loading saved state during handshake.</summary>
+        private PlayerDataStore _playerDataStore;
+
         /// <summary>Callback invoked when a peer completes the handshake and is accepted.</summary>
         public Action<PeerInfo> OnPeerAccepted;
+
+        /// <summary>
+        ///     Callback fired when a peer is about to be removed (disconnect or timeout).
+        ///     Fires BEFORE the peer is removed from the registry. Use for persistence.
+        /// </summary>
+        public Action<PeerInfo> OnPeerRemoved;
 
         /// <summary>Creates a new NetworkServer with the given logger, content hash, and connection limit.</summary>
         public NetworkServer(ILogger logger, ContentHash contentHash, int maxConnections)
@@ -90,6 +106,19 @@ namespace Lithforge.Network.Server
 
         /// <summary>The world seed, sent to clients during the handshake response.</summary>
         public ulong WorldSeed { get; set; }
+
+        /// <summary>Injects the player data store and admin store for handshake integration.</summary>
+        public void SetPlayerDataStore(PlayerDataStore playerDataStore, AdminStore adminStore)
+        {
+            _playerDataStore = playerDataStore;
+            _adminStore = adminStore;
+        }
+
+        /// <summary>Injects the chat command processor for handling chat messages.</summary>
+        public void SetChatProcessor(ChatCommandProcessor chatProcessor)
+        {
+            _chatProcessor = chatProcessor;
+        }
 
         /// <summary>Starts the server on the given UDP port using a NetworkDriverWrapper transport.</summary>
         public bool Start(ushort port)
@@ -236,6 +265,8 @@ namespace Lithforge.Network.Server
                 return;
             }
 
+            OnPeerRemoved?.Invoke(peer);
+
             DisconnectMessage msg = new()
             {
                 Reason = reason,
@@ -306,6 +337,7 @@ namespace Lithforge.Network.Server
             Dispatcher.RegisterHandler(MessageType.Ping, OnPing);
             Dispatcher.RegisterHandler(MessageType.Pong, OnPong);
             Dispatcher.RegisterHandler(MessageType.Disconnect, OnDisconnectMessage);
+            Dispatcher.RegisterHandler(MessageType.ChatCmd, OnChatCmd);
         }
 
         /// <summary>
@@ -359,7 +391,7 @@ namespace Lithforge.Network.Server
             _logger.LogDebug($"Peer connected: {connectionId}, awaiting handshake");
         }
 
-        /// <summary>Handles a transport disconnect: removes the peer from the registry and send queue.</summary>
+        /// <summary>Handles a transport disconnect: fires OnPeerRemoved, then removes the peer from the registry and send queue.</summary>
         private void OnPeerDisconnected(ConnectionId connectionId)
         {
             PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
@@ -369,6 +401,7 @@ namespace Lithforge.Network.Server
                 return;
             }
 
+            OnPeerRemoved?.Invoke(peer);
             _sendQueue.RemoveForConnection(connectionId);
             _peerRegistry.Remove(connectionId);
 
@@ -414,6 +447,37 @@ namespace Lithforge.Network.Server
                 return;
             }
 
+            // Extract UUID and public key
+            string playerUuid = request.PlayerUuid ?? "";
+            peer.PlayerUuid = playerUuid;
+
+            // Check bans
+            if (_adminStore is not null && !string.IsNullOrEmpty(playerUuid))
+            {
+                if (_adminStore.IsBanned(playerUuid, ""))
+                {
+                    SendHandshakeReject(connectionId, HandshakeRejectReason.Banned);
+                    _logger.LogWarning($"Rejected {connectionId}: player {playerUuid} is banned");
+                    return;
+                }
+
+                if (_adminStore.WhitelistEnabled && !_adminStore.IsWhitelisted(playerUuid))
+                {
+                    SendHandshakeReject(connectionId, HandshakeRejectReason.Banned);
+                    _logger.LogWarning(
+                        $"Rejected {connectionId}: player {playerUuid} not on whitelist");
+                    return;
+                }
+
+                peer.IsAdmin = _adminStore.IsOp(playerUuid);
+            }
+
+            // Load player data if available
+            if (_playerDataStore is not null && !string.IsNullOrEmpty(playerUuid))
+            {
+                peer.PlayerData = _playerDataStore.Load(playerUuid);
+            }
+
             // Accept
             ushort playerId = _peerRegistry.AllocatePlayerId(connectionId);
             peer.PlayerName = request.PlayerName ?? "";
@@ -437,7 +501,7 @@ namespace Lithforge.Network.Server
             peer.StateMachine.Transition(ConnectionState.Loading, _currentTime);
 
             _logger.LogInfo(
-                $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName})");
+                $"Accepted peer {connectionId} as player {playerId} ({peer.PlayerName}, uuid={playerUuid})");
 
             OnPeerAccepted?.Invoke(peer);
         }
@@ -474,9 +538,36 @@ namespace Lithforge.Network.Server
             DisconnectMessage msg = DisconnectMessage.Deserialize(data, offset, length);
             _logger.LogInfo($"Peer {connectionId} requested disconnect: {msg.Reason}");
 
+            PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
+
+            if (peer is not null)
+            {
+                OnPeerRemoved?.Invoke(peer);
+            }
+
             _sendQueue.RemoveForConnection(connectionId);
             _transport.Disconnect(connectionId);
             _peerRegistry.Remove(connectionId);
+        }
+
+        /// <summary>Handles a chat command message from a client, delegating to the chat processor.</summary>
+        private void OnChatCmd(ConnectionId connectionId, byte[] data, int offset, int length)
+        {
+            TouchPeer(connectionId);
+            PeerInfo peer = _peerRegistry.GetByConnection(connectionId);
+
+            if (peer == null || peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            if (_chatProcessor == null)
+            {
+                return;
+            }
+
+            ChatCmdMessage msg = ChatCmdMessage.Deserialize(data, offset, length);
+            _chatProcessor.ProcessChat(peer, msg.Content);
         }
 
         /// <summary>Sends a rejection response and immediately disconnects the peer.</summary>

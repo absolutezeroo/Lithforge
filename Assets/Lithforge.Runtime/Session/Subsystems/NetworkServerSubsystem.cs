@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Lithforge.Network;
 using Lithforge.Network.Bridge;
 using Lithforge.Network.Chunk;
+using Lithforge.Network.Connection;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
 using Lithforge.Runtime.Content.Settings;
@@ -46,6 +47,9 @@ namespace Lithforge.Runtime.Session.Subsystems
         /// <summary>The owned network server managing connections and message dispatch.</summary>
         private NetworkServer _server;
 
+        /// <summary>Multi-player save manager for periodic and on-disconnect persistence.</summary>
+        private MultiPlayerSaveManager _multiPlayerSaveManager;
+
         /// <summary>Background server thread runner (null until PostInitialize starts it).</summary>
         private ServerThreadRunner _runner;
 
@@ -61,11 +65,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        /// <summary>Depends on chunk manager and tick registry for server simulation.</summary>
+        /// <summary>Depends on chunk manager, tick registry, and player data for server simulation.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(ChunkManagerSubsystem),
             typeof(TickRegistrySubsystem),
+            typeof(PlayerDataSubsystem),
         };
 
         /// <summary>Created for singleplayer, host, and dedicated server modes.</summary>
@@ -248,6 +253,13 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.Register(chunkProvider);
             }
 
+            // Wire player data store and admin store into the server for handshake integration
+            if (context.TryGet(out PlayerDataStore playerDataStore)
+                && context.TryGet(out AdminStore adminStore))
+            {
+                _server.SetPlayerDataStore(playerDataStore, adminStore);
+            }
+
             context.Register(_server);
             context.Register(_serverGameLoop);
             context.Register(dirtyTracker);
@@ -281,6 +293,34 @@ namespace Lithforge.Runtime.Session.Subsystems
             if (context.TryGet(out MetricsRegistry metricsRegistry))
             {
                 metricsRegistry.SetNetworkMetrics(_server);
+            }
+
+            // Create multi-player save manager for Host/Dedicated modes
+            if (context.Config is SessionConfig.Host or SessionConfig.DedicatedServer
+                && context.TryGet(out PlayerDataStore pds)
+                && context.TryGet(out MainThreadBridgePump bridgePump))
+            {
+                _multiPlayerSaveManager = new MultiPlayerSaveManager(
+                    pds,
+                    _server,
+                    peer =>
+                    {
+                        // Capture peer state: position from simulation, inventory from PlayerData
+                        // For now return existing PlayerData (updated by ServerInventoryProcessor later)
+                        return peer.PlayerData;
+                    });
+
+                // On peer removed: save player data via main thread bridge
+                MultiPlayerSaveManager saveRef = _multiPlayerSaveManager;
+                _server.OnPeerRemoved += (PeerInfo removedPeer) =>
+                {
+                    bridgePump.EnqueueMainThreadAction(() =>
+                    {
+                        saveRef.SavePlayer(removedPeer);
+                    });
+                };
+
+                context.Register(_multiPlayerSaveManager);
             }
 
             // Start the background server thread after all wiring is complete

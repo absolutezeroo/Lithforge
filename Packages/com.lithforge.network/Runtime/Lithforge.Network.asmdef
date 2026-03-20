@@ -4,6 +4,7 @@
   "references": [
     "Lithforge.Core",
     "Lithforge.Voxel",
+    "Lithforge.Item",
     "Unity.Networking.Transport",
     "Unity.Collections",
     "Unity.Mathematics"

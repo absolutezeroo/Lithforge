@@ -13,7 +13,7 @@ namespace Lithforge.Network
         /// <summary>
         /// Current network protocol version. Clients must match to connect.
         /// </summary>
-        public const ushort ProtocolVersion = 1;
+        public const ushort ProtocolVersion = 2;
 
         /// <summary>
         /// Maximum number of concurrent connections the server accepts.
@@ -89,6 +89,12 @@ namespace Lithforge.Network
         /// Maximum UTF-8 byte length for player names.
         /// </summary>
         public const int MaxPlayerNameLength = 32;
+
+        /// <summary>Maximum UTF-8 byte length for player UUIDs.</summary>
+        public const int MaxUuidLength = 36;
+
+        /// <summary>Maximum UTF-8 byte length for chat messages.</summary>
+        public const int MaxChatLength = 256;
 
         /// <summary>
         /// Maximum chunks in-flight (sent but not ACK'd) per peer before the server

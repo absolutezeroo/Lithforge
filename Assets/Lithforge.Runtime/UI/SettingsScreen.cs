@@ -33,16 +33,44 @@ namespace Lithforge.Runtime.UI
         private static readonly int s_aoStrengthId = Shader.PropertyToID("_AOStrength");
 
         /// <summary>Shadow distance values indexed by shadow quality level.</summary>
-        private static readonly float[] s_shadowDistances = { 0f, 20f, 40f, 80f };
+        private static readonly float[] s_shadowDistances =
+        {
+            0f,
+            20f,
+            40f,
+            80f,
+        };
 
         /// <summary>MSAA sample count values indexed by dropdown position.</summary>
-        private static readonly int[] s_msaaCounts = { 1, 2, 4, 8 };
+        private static readonly int[] s_msaaCounts =
+        {
+            1,
+            2,
+            4,
+            8,
+        };
 
         /// <summary>Max FPS choices for the dropdown.</summary>
-        private static readonly string[] s_fpsChoices = { "30", "60", "120", "144", "240", "Unlimited" };
+        private static readonly string[] s_fpsChoices =
+        {
+            "30",
+            "60",
+            "120",
+            "144",
+            "240",
+            "Unlimited",
+        };
 
         /// <summary>Max FPS values corresponding to dropdown indices.</summary>
-        private static readonly int[] s_fpsValues = { 30, 60, 120, 144, 240, 0 };
+        private static readonly int[] s_fpsValues =
+        {
+            30,
+            60,
+            120,
+            144,
+            240,
+            0,
+        };
 
         /// <summary>Current ambient volume level (0 to 1).</summary>
         private float _ambientVolume;
@@ -140,47 +168,6 @@ namespace Lithforge.Runtime.UI
         /// </summary>
         public bool OpenedFromPause { get; set; }
 
-        /// <summary>Unique screen name identifier for the settings screen.</summary>
-        public string ScreenName
-        {
-            get { return ScreenNames.Settings; }
-        }
-
-        /// <summary>Returns true because the settings screen blocks all input beneath it.</summary>
-        public bool IsInputOpaque
-        {
-            get { return true; }
-        }
-
-        /// <summary>Returns true because the settings screen requires a visible mouse cursor.</summary>
-        public bool RequiresCursor
-        {
-            get { return true; }
-        }
-
-        /// <summary>Opens the settings overlay when the screen is shown.</summary>
-        public void OnShow(ScreenShowArgs args)
-        {
-            Open();
-        }
-
-        /// <summary>Closes the settings overlay if open and invokes the completion callback.</summary>
-        public void OnHide(Action onComplete)
-        {
-            if (IsOpen)
-            {
-                Close();
-            }
-
-            onComplete();
-        }
-
-        /// <summary>Returns false so the ScreenManager will pop this screen on Escape.</summary>
-        public bool HandleEscape()
-        {
-            return false;
-        }
-
         /// <summary>Polls for key press during rebind and applies the result.</summary>
         private void Update()
         {
@@ -225,6 +212,57 @@ namespace Lithforge.Runtime.UI
                     return;
                 }
             }
+        }
+
+        /// <summary>Destroys the cloned URP asset on teardown to prevent memory leaks.</summary>
+        private void OnDestroy()
+        {
+            if (_urpClone is not null)
+            {
+                Destroy(_urpClone);
+                _urpClone = null;
+            }
+        }
+
+        /// <summary>Unique screen name identifier for the settings screen.</summary>
+        public string ScreenName
+        {
+            get { return ScreenNames.Settings; }
+        }
+
+        /// <summary>Returns true because the settings screen blocks all input beneath it.</summary>
+        public bool IsInputOpaque
+        {
+            get { return true; }
+        }
+
+        /// <summary>Returns true because the settings screen requires a visible mouse cursor.</summary>
+        public bool RequiresCursor
+        {
+            get { return true; }
+        }
+
+        /// <summary>Opens the settings overlay when the screen is shown.</summary>
+        public void OnShow(ScreenShowArgs args)
+        {
+            Open();
+        }
+
+        /// <summary>Closes the settings overlay if open and invokes the completion callback.</summary>
+        public void OnHide(Action onComplete)
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+
+            onComplete();
+        }
+
+        /// <summary>Returns false so the ScreenManager will pop this screen on Escape.</summary>
+        public bool HandleEscape()
+        {
+            return false;
         }
 
         /// <summary>Initializes the settings screen with system references, builds the UI, and loads persisted settings.</summary>
@@ -286,16 +324,6 @@ namespace Lithforge.Runtime.UI
             _overlay.style.display = DisplayStyle.None;
         }
 
-        /// <summary>Destroys the cloned URP asset on teardown to prevent memory leaks.</summary>
-        private void OnDestroy()
-        {
-            if (_urpClone is not null)
-            {
-                Destroy(_urpClone);
-                _urpClone = null;
-            }
-        }
-
         /// <summary>Clones the active URP pipeline asset to avoid modifying the editor asset.</summary>
         private void CloneUrpAsset()
         {
@@ -334,48 +362,84 @@ namespace Lithforge.Runtime.UI
             tabBar.AddToClassList("settings-tab-bar");
             _panel.Add(tabBar);
 
-            Button videoTab = new() { text = "Video" };
+            Button videoTab = new()
+            {
+                text = "Video",
+            };
             videoTab.AddToClassList("settings-tab");
 
-            Button audioTab = new() { text = "Audio" };
+            Button audioTab = new()
+            {
+                text = "Audio",
+            };
             audioTab.AddToClassList("settings-tab");
 
-            Button controlsTab = new() { text = "Controls" };
+            Button controlsTab = new()
+            {
+                text = "Controls",
+            };
             controlsTab.AddToClassList("settings-tab");
 
             tabBar.Add(videoTab);
             tabBar.Add(audioTab);
             tabBar.Add(controlsTab);
 
-            _tabButtons = new[] { videoTab, audioTab, controlsTab };
+            _tabButtons = new[]
+            {
+                videoTab,
+                audioTab,
+                controlsTab,
+            };
 
             // Tab content container
             VisualElement tabContent = new()
             {
                 style =
                 {
-                    flexGrow = 1,
-                    overflow = Overflow.Hidden,
+                    flexGrow = 1, overflow = Overflow.Hidden,
                 },
             };
             _panel.Add(tabContent);
 
             // Video content
-            ScrollView videoContent = new(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
+            ScrollView videoContent = new(ScrollViewMode.Vertical)
+            {
+                style =
+                {
+                    flexGrow = 1,
+                },
+            };
             BuildVideoTab(videoContent);
             tabContent.Add(videoContent);
 
             // Audio content
-            ScrollView audioContent = new(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
+            ScrollView audioContent = new(ScrollViewMode.Vertical)
+            {
+                style =
+                {
+                    flexGrow = 1,
+                },
+            };
             BuildAudioTab(audioContent);
             tabContent.Add(audioContent);
 
             // Controls content
-            ScrollView controlsContent = new(ScrollViewMode.Vertical) { style = { flexGrow = 1 } };
+            ScrollView controlsContent = new(ScrollViewMode.Vertical)
+            {
+                style =
+                {
+                    flexGrow = 1,
+                },
+            };
             BuildControlsTab(controlsContent);
             tabContent.Add(controlsContent);
 
-            _tabContents = new VisualElement[] { videoContent, audioContent, controlsContent };
+            _tabContents = new VisualElement[]
+            {
+                videoContent,
+                audioContent,
+                controlsContent,
+            };
 
             // Wire tab switching
             for (int i = 0; i < _tabButtons.Length; i++)
@@ -475,7 +539,12 @@ namespace Lithforge.Runtime.UI
             });
 
             // Fullscreen mode dropdown
-            string[] fullscreenChoices = { "Borderless Window", "Exclusive Fullscreen", "Windowed" };
+            string[] fullscreenChoices =
+            {
+                "Borderless Window",
+                "Exclusive Fullscreen",
+                "Windowed",
+            };
             int currentFsIndex = GetFullScreenModeIndex(Screen.fullScreenMode);
 
             if (_preferences.HasFullScreenMode)
@@ -520,7 +589,14 @@ namespace Lithforge.Runtime.UI
             });
 
             // GUI Scale dropdown (stub)
-            string[] guiScaleChoices = { "Auto", "1", "2", "3", "4" };
+            string[] guiScaleChoices =
+            {
+                "Auto",
+                "1",
+                "2",
+                "3",
+                "4",
+            };
             int currentGuiScale = 0;
 
             if (_preferences.HasGuiScale)
@@ -565,7 +641,13 @@ namespace Lithforge.Runtime.UI
             });
 
             // Shadow Quality
-            string[] shadowChoices = { "Off", "Low", "Medium", "High" };
+            string[] shadowChoices =
+            {
+                "Off",
+                "Low",
+                "Medium",
+                "High",
+            };
             int currentShadow = _urpClone is not null ? GetShadowQualityIndex(_urpClone.shadowDistance) : 3;
 
             if (_preferences.HasShadowQuality)
@@ -584,7 +666,13 @@ namespace Lithforge.Runtime.UI
             });
 
             // MSAA
-            string[] msaaChoices = { "Off", "2x", "4x", "8x" };
+            string[] msaaChoices =
+            {
+                "Off",
+                "2x",
+                "4x",
+                "8x",
+            };
             int currentMsaa = 0;
 
             if (_urpClone is not null)
@@ -648,7 +736,12 @@ namespace Lithforge.Runtime.UI
             });
 
             // Clouds (stub)
-            string[] cloudChoices = { "Off", "Fast", "Fancy" };
+            string[] cloudChoices =
+            {
+                "Off",
+                "Fast",
+                "Fancy",
+            };
             int currentCloud = 0;
 
             if (_preferences.HasCloudQuality)
@@ -663,7 +756,12 @@ namespace Lithforge.Runtime.UI
             });
 
             // Particles (stub)
-            string[] particleChoices = { "All", "Decreased", "Minimal" };
+            string[] particleChoices =
+            {
+                "All",
+                "Decreased",
+                "Minimal",
+            };
             int currentParticle = 0;
 
             if (_preferences.HasParticleQuality)
@@ -824,10 +922,7 @@ namespace Lithforge.Runtime.UI
             {
                 style =
                 {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    marginBottom = 4,
-                    height = 26,
+                    flexDirection = FlexDirection.Row, alignItems = Align.Center, marginBottom = 4, height = 26,
                 },
             };
 
@@ -835,9 +930,7 @@ namespace Lithforge.Runtime.UI
             {
                 style =
                 {
-                    width = new Length(40, LengthUnit.Percent),
-                    color = new Color(0.85f, 0.85f, 0.85f, 1f),
-                    fontSize = 14,
+                    width = new Length(40, LengthUnit.Percent), color = new Color(0.85f, 0.85f, 0.85f, 1f), fontSize = 14,
                 },
             };
             row.Add(actionLabel);
@@ -846,8 +939,7 @@ namespace Lithforge.Runtime.UI
             {
                 style =
                 {
-                    color = new Color(0.6f, 0.6f, 0.7f, 1f),
-                    fontSize = 14,
+                    color = new Color(0.6f, 0.6f, 0.7f, 1f), fontSize = 14,
                 },
             };
             row.Add(keyLabel);
@@ -886,6 +978,7 @@ namespace Lithforge.Runtime.UI
         private void PersistKeyBindings()
         {
             Dictionary<string, string> dict = _bindings.ToDictionary();
+
             _preferences.KeyBindingsJson = JsonConvert.SerializeObject(dict);
         }
 

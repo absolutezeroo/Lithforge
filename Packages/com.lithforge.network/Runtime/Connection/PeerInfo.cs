@@ -1,4 +1,5 @@
 using Lithforge.Network.Server;
+using Lithforge.Voxel.Storage;
 
 namespace Lithforge.Network.Connection
 {
@@ -58,5 +59,14 @@ namespace Lithforge.Network.Connection
         ///     within <see cref="SessionTokenRegistry.TokenLifetimeSeconds" />.
         /// </summary>
         public SessionToken SessionToken { get; internal set; }
+
+        /// <summary>The player's unique identifier string (Ed25519-derived UUID or "local").</summary>
+        public string PlayerUuid { get; internal set; } = "";
+
+        /// <summary>True if this peer has operator privileges on the server.</summary>
+        public bool IsAdmin { get; internal set; }
+
+        /// <summary>Loaded player save data, or null if no save exists.</summary>
+        public WorldPlayerState PlayerData { get; internal set; }
     }
 }

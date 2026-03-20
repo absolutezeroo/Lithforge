@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 
 using Newtonsoft.Json;
@@ -9,7 +8,8 @@ namespace Lithforge.Voxel.Storage
 {
     /// <summary>
     ///     World metadata stored in world.json at the root of each world directory.
-    ///     Contains seed, game mode, timestamps, player state, and content hash.
+    ///     Contains seed, game mode, timestamps, and content hash.
+    ///     Player state is stored separately in playerdata/ via <see cref="PlayerDataStore"/>.
     ///     Saved atomically via temp-file + rename pattern.
     /// </summary>
     public sealed class WorldMetadata
@@ -30,13 +30,10 @@ namespace Lithforge.Voxel.Storage
         public DateTime LastPlayed { get; set; } = DateTime.UtcNow;
 
         /// <summary>Save format version for migration compatibility.</summary>
-        public int DataVersion { get; set; } = 2;
+        public int DataVersion { get; set; } = 3;
 
         /// <summary>Hash of the content pipeline output, used to detect content pack changes.</summary>
         public string ContentHash { get; set; } = "";
-
-        /// <summary>Serialized player position, rotation, inventory, and time of day.</summary>
-        public WorldPlayerState PlayerState { get; set; }
 
         /// <summary>
         ///     Serializes this metadata to a JSON file at the given path.
@@ -56,75 +53,6 @@ namespace Lithforge.Voxel.Storage
                 ["data_version"] = DataVersion,
                 ["content_hash"] = ContentHash,
             };
-
-            if (PlayerState != null)
-            {
-                JObject player = new()
-                {
-                    ["pos_x"] = PlayerState.PosX,
-                    ["pos_y"] = PlayerState.PosY,
-                    ["pos_z"] = PlayerState.PosZ,
-                    ["rot_x"] = PlayerState.RotX,
-                    ["rot_y"] = PlayerState.RotY,
-                    ["time_of_day"] = PlayerState.TimeOfDay,
-                    ["selected_slot"] = PlayerState.SelectedSlot,
-                };
-
-                if (PlayerState.Slots is
-                    {
-                        Length: > 0,
-                    })
-                {
-                    JArray slots = new();
-
-                    for (int i = 0; i < PlayerState.Slots.Length; i++)
-                    {
-                        SavedItemStack stack = PlayerState.Slots[i];
-
-                        if (stack is
-                            {
-                                Count: > 0,
-                            })
-                        {
-                            JObject slot = new()
-                            {
-                                ["slot"] = stack.Slot,
-                                ["ns"] = stack.Ns,
-                                ["name"] = stack.Name,
-                                ["count"] = stack.Count,
-                                ["durability"] = stack.Durability,
-                            };
-
-                            // New format: components array
-                            if (stack.Components is
-                                {
-                                    Count: > 0,
-                                })
-                            {
-                                JArray comps = new();
-
-                                for (int c = 0; c < stack.Components.Count; c++)
-                                {
-                                    SavedComponentEntry entry = stack.Components[c];
-                                    JObject comp = new()
-                                    {
-                                        ["type"] = entry.TypeId, ["data"] = entry.DataBase64,
-                                    };
-                                    comps.Add(comp);
-                                }
-
-                                slot["components"] = comps;
-                            }
-
-                            slots.Add(slot);
-                        }
-                    }
-
-                    player["slots"] = slots;
-                }
-
-                root["player"] = player;
-            }
 
             string dir = Path.GetDirectoryName(filePath);
 
@@ -209,90 +137,6 @@ namespace Lithforge.Voxel.Storage
                 if (!string.IsNullOrEmpty(lastPlayedStr) && DateTime.TryParse(lastPlayedStr, out DateTime lastParsed))
                 {
                     meta.LastPlayed = lastParsed;
-                }
-
-                // Load player state if present
-                JToken playerToken = root["player"];
-
-                if (playerToken is
-                    {
-                        Type: JTokenType.Object,
-                    })
-                {
-                    JObject playerObj = (JObject)playerToken;
-
-                    WorldPlayerState playerState = new()
-                    {
-                        PosX = playerObj["pos_x"]?.Value<float>() ?? 0f,
-                        PosY = playerObj["pos_y"]?.Value<float>() ?? 0f,
-                        PosZ = playerObj["pos_z"]?.Value<float>() ?? 0f,
-                        RotX = playerObj["rot_x"]?.Value<float>() ?? 0f,
-                        RotY = playerObj["rot_y"]?.Value<float>() ?? 0f,
-                        TimeOfDay = playerObj["time_of_day"]?.Value<double>() ?? 0.0,
-                        SelectedSlot = playerObj["selected_slot"]?.Value<int>() ?? 0,
-                    };
-
-                    if (playerObj["slots"] is JArray
-                        {
-                            Count: > 0,
-                        } slotsArray)
-                    {
-                        SavedItemStack[] slots = new SavedItemStack[slotsArray.Count];
-
-                        for (int i = 0; i < slotsArray.Count; i++)
-                        {
-
-                            if (slotsArray[i] is JObject slotObj)
-                            {
-                                SavedItemStack saved = new()
-                                {
-                                    Slot = slotObj["slot"]?.Value<int>() ?? 0,
-                                    Ns = slotObj["ns"]?.Value<string>() ?? "",
-                                    Name = slotObj["name"]?.Value<string>() ?? "",
-                                    Count = slotObj["count"]?.Value<int>() ?? 0,
-                                    Durability = slotObj["durability"]?.Value<int>() ?? -1,
-                                };
-
-                                // New format: components array
-                                if (slotObj["components"] is JArray
-                                    {
-                                        Count: > 0,
-                                    } compsArray)
-                                {
-                                    List<SavedComponentEntry> components = new(compsArray.Count);
-
-                                    for (int c = 0; c < compsArray.Count; c++)
-                                    {
-                                        if (compsArray[c] is JObject compObj)
-                                        {
-                                            int typeId = compObj["type"]?.Value<int>() ?? 0;
-                                            string data = compObj["data"]?.Value<string>();
-
-                                            components.Add(new SavedComponentEntry(typeId, data));
-                                        }
-                                    }
-
-                                    saved.Components = components;
-                                }
-                                else
-                                {
-                                    // Legacy format: custom_data string
-                                    string customData = slotObj["custom_data"]?.Value<string>();
-
-                                    if (!string.IsNullOrEmpty(customData))
-                                    {
-                                        saved.CustomDataBase64 = customData;
-                                    }
-                                }
-
-                                slots[i] = saved;
-                            }
-                        }
-
-                        playerState.Slots = slots;
-                    }
-
-                    meta.PlayerState = playerState;
                 }
 
                 return meta;

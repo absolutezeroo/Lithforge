@@ -171,11 +171,18 @@ namespace Lithforge.Runtime.Session.Subsystems
                 _ => false,
             };
 
-            if (context.TryGet(out WorldMetadata metadata)
-                && metadata.PlayerState != null && !isNewWorld)
+            // Try loading player state from per-player data store first, then fall back to legacy
+            WorldPlayerState restoredPlayerState = null;
+
+            if (!isNewWorld && context.TryGet(out PlayerDataStore playerDataStore))
+            {
+                restoredPlayerState = playerDataStore.Load("local");
+            }
+
+            if (restoredPlayerState is not null)
             {
                 PlayerStateSerializer.Restore(
-                    metadata.PlayerState,
+                    restoredPlayerState,
                     playerObject.transform,
                     mainCamera,
                     playerInventory,
@@ -183,7 +190,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                     out restoredTimeOfDay,
                     context.App.Logger);
                 hasRestoredState = true;
-                context.App.Logger.LogInfo("[Lithforge] Player state restored from save.");
+                context.App.Logger.LogInfo("[Lithforge] Player state restored from playerdata/local.json.");
             }
             else
             {

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 using Lithforge.Core.Data;
@@ -55,6 +56,12 @@ namespace Lithforge.Runtime.UI.Interaction
 
         /// <summary>True between the initial right-click place and the first hover on a different slot.</summary>
         private bool _paintPending;
+
+        /// <summary>
+        ///     Optional callback invoked after each optimistic slot click for network sync.
+        ///     Parameters: slotIndex, clickType, button.
+        /// </summary>
+        public Action<int, byte, byte> OnSlotClicked;
 
         /// <summary>Creates a slot interaction controller with the required registries for item lookups and repair.</summary>
         public SlotInteractionController(
@@ -162,6 +169,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             container.OnSlotChanged(slotIndex);
+            OnSlotClicked?.Invoke(slotIndex, 0, 0);
         }
 
         /// <summary>Handles right-click on a slot: repair-kit application, pick up half, place one, or start paint-drag.</summary>
@@ -279,6 +287,7 @@ namespace Lithforge.Runtime.UI.Interaction
 
             // Right click on different item = nothing
             container.OnSlotChanged(slotIndex);
+            OnSlotClicked?.Invoke(slotIndex, 1, 0);
         }
 
         /// <summary>
@@ -327,6 +336,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             source.OnSlotChanged(slotIndex);
+            OnSlotClicked?.Invoke(slotIndex, 2, 0);
         }
 
         /// <summary>
@@ -356,6 +366,7 @@ namespace Lithforge.Runtime.UI.Interaction
             hoveredContainer.SetSlot(hoveredIndex, hotbarItem);
             hotbarAdapter.OnSlotChanged(hotbarSlot);
             hoveredContainer.OnSlotChanged(hoveredIndex);
+            OnSlotClicked?.Invoke(hoveredIndex, 4, (byte)hotbarSlot);
         }
 
         /// <summary>
@@ -395,6 +406,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             output.TakeOutput(grid);
+            OnSlotClicked?.Invoke(0, 5, 0);
         }
 
         /// <summary>

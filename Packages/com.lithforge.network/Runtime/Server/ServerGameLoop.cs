@@ -49,6 +49,9 @@ namespace Lithforge.Network.Server
         /// </summary>
         private const int DefaultViewRadius = 10;
 
+        /// <summary>Server-side inventory processor for slot click commands (null until set).</summary>
+        private ServerInventoryProcessor _inventoryProcessor;
+
         /// <summary>
         ///     Server-side block command processor for validating and executing block changes.
         /// </summary>
@@ -239,6 +242,7 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
             dispatcher.RegisterHandler(MessageType.ClientReady, OnClientReady);
             dispatcher.RegisterHandler(MessageType.ChunkBatchAck, OnChunkBatchAck);
+            dispatcher.RegisterHandler(MessageType.SlotClickCmd, OnSlotClickCmd);
 
             _serverImpl.OnPeerAccepted = OnPeerAcceptedInternal;
         }
@@ -265,6 +269,12 @@ namespace Lithforge.Network.Server
                 OnHostDespawnPlayer = null;
                 OnHostPlayerState = null;
             }
+        }
+
+        /// <summary>Injects the server-side inventory processor for slot click command handling.</summary>
+        public void SetInventoryProcessor(ServerInventoryProcessor processor)
+        {
+            _inventoryProcessor = processor;
         }
 
         /// <summary>
@@ -1061,6 +1071,32 @@ namespace Lithforge.Network.Server
             peer.InterestState.PendingStartDiggingCommands.Add(cmd);
         }
 
+        /// <summary>Handles a slot click command from a client, delegating to the inventory processor.</summary>
+        private void OnSlotClickCmd(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            _serverImpl.TouchPeer(connId);
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState == null
+                || peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            if (_inventoryProcessor == null)
+            {
+                return;
+            }
+
+            SlotClickCmdMessage cmd = SlotClickCmdMessage.Deserialize(data, offset, length);
+            InventorySyncMessage? response = _inventoryProcessor.ProcessSlotClick(peer, cmd);
+
+            if (response.HasValue)
+            {
+                _server.SendTo(connId, response.Value, PipelineId.ReliableSequenced);
+            }
+        }
+
         /// <summary>
         ///     Internal callback wired to NetworkServer.OnPeerAccepted. Computes the spawn
         ///     position and delegates to OnPlayerAccepted.
@@ -1114,6 +1150,18 @@ namespace Lithforge.Network.Server
 
             _server.SendTo(peer.ConnectionId, spawnInit, PipelineId.ReliableSequenced);
 
+            // Create server-side inventory and send initial sync
+            if (_inventoryProcessor is not null)
+            {
+                _inventoryProcessor.GetOrCreateInventory(playerId);
+                InventorySyncMessage? sync = _inventoryProcessor.BuildFullSyncForPlayer(playerId);
+
+                if (sync.HasValue)
+                {
+                    _server.SendTo(peer.ConnectionId, sync.Value, PipelineId.ReliableSequenced);
+                }
+            }
+
             // Register with the readiness waiter for timeout enforcement
             _readinessWaiter.OnPeerEnteredLoading(peer.ConnectionId, CurrentTick);
 
@@ -1128,6 +1176,7 @@ namespace Lithforge.Network.Server
         {
             _blockProcessor.CancelDigging(playerId);
             _simulation.RemovePlayer(playerId);
+            _inventoryProcessor?.RemoveInventory(playerId);
 
             // Notify all observers to despawn this player
             IReadOnlyList<PeerInfo> allPeers = _serverImpl.AllPeers;

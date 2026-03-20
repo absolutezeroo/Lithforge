@@ -153,6 +153,11 @@ namespace Lithforge.Runtime.Session
                     autoSave.SaveMetadataOnly();
                 }
 
+                if (session.Context.TryGet(out MultiPlayerSaveManager multiSave))
+                {
+                    multiSave.SaveAll();
+                }
+
                 if (session.Context.TryGet(out AsyncChunkSaver asyncSaver))
                 {
                     asyncSaver.Flush();
@@ -290,6 +295,7 @@ namespace Lithforge.Runtime.Session
                 "CraftingTableScreen",
                 "PartBuilderScreen",
                 "SavingScreen",
+                "ChatPanel",
                 "SfxSourcePool",
                 "SessionBridge",
                 "LoadingScreen",

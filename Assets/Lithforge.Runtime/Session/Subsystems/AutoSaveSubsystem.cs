@@ -18,11 +18,12 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
         }
 
-        /// <summary>Depends on storage and player subsystems for save data access.</summary>
+        /// <summary>Depends on storage, player, and player data subsystems for save data access.</summary>
         public IReadOnlyList<Type> Dependencies { get; } = new[]
         {
             typeof(StorageSubsystem),
             typeof(PlayerSubsystem),
+            typeof(PlayerDataSubsystem),
         };
 
         /// <summary>Only created for sessions with a local world to persist.</summary>
@@ -49,6 +50,11 @@ namespace Lithforge.Runtime.Session.Subsystems
             if (context.TryGet(out AsyncChunkSaver saver))
             {
                 autoSave.SetAsyncSaver(saver);
+            }
+
+            if (context.TryGet(out PlayerDataStore playerDataStore))
+            {
+                autoSave.SetPlayerDataStore(playerDataStore);
             }
 
             context.Register(autoSave);
