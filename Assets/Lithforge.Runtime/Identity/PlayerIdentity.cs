@@ -13,6 +13,8 @@ namespace Lithforge.Runtime.Identity
     ///     Generates and persists an ECDSA keypair (NIST P-256) for player identity.
     ///     The keypair is stored at Application.persistentDataPath/identity.bin as PKCS#8.
     ///     The player UUID is derived as UUIDv5 from the public key.
+    ///     Falls back to a persistent random UUID without signing on runtimes that lack
+    ///     ECDSA support (e.g. Unity Mono backend).
     /// </summary>
     public sealed class PlayerIdentity : IDisposable
     {
@@ -23,13 +25,13 @@ namespace Lithforge.Runtime.Identity
         private static readonly Guid s_lithforgeNamespace =
             new("7b3d5e8a-2f1c-4a9b-b8e6-d4c7f0a1e3b2");
 
-        /// <summary>The ECDSA signing key (NIST P-256).</summary>
+        /// <summary>The ECDSA signing key (NIST P-256). Null when using fallback UUID mode.</summary>
         private ECDsa _signingKey;
 
         /// <summary>The player's unique identifier derived from the public key.</summary>
         public string Uuid { get; private set; } = "";
 
-        /// <summary>The exported public key bytes (SubjectPublicKeyInfo DER).</summary>
+        /// <summary>The exported public key bytes (SubjectPublicKeyInfo DER). Empty in fallback mode.</summary>
         public byte[] PublicKeyBytes { get; private set; } = Array.Empty<byte>();
 
         /// <summary>Whether identity was successfully loaded or generated.</summary>
@@ -44,9 +46,38 @@ namespace Lithforge.Runtime.Identity
 
         /// <summary>
         ///     Loads an existing identity from disk or generates a new one.
-        ///     Uses Application.persistentDataPath/identity.bin for storage.
+        ///     Uses Application.persistentDataPath/identity.bin for ECDSA keys,
+        ///     or Application.persistentDataPath/identity_uuid.txt for fallback UUIDs.
         /// </summary>
         public void LoadOrGenerate(ILogger logger)
+        {
+            // Try ECDSA first (works on .NET CoreCLR, fails on Mono)
+            if (TryLoadOrGenerateEcdsa(logger))
+            {
+                return;
+            }
+
+            // Fallback: persistent random UUID without cryptographic signing.
+            // The server will skip challenge-response for clients with empty public keys.
+            TryLoadOrGenerateFallbackUuid(logger);
+        }
+
+        /// <summary>Signs a challenge byte array using the ECDSA private key (SHA-256 digest).</summary>
+        public byte[] Sign(byte[] challenge)
+        {
+            if (_signingKey is null)
+            {
+                return Array.Empty<byte>();
+            }
+
+            return _signingKey.SignData(challenge, HashAlgorithmName.SHA256);
+        }
+
+        /// <summary>
+        ///     Attempts to load or generate an ECDSA P-256 identity.
+        ///     Returns false if the runtime does not support the required crypto operations.
+        /// </summary>
+        private bool TryLoadOrGenerateEcdsa(ILogger logger)
         {
             string identityPath = Path.Combine(Application.persistentDataPath, "identity.bin");
 
@@ -64,8 +95,8 @@ namespace Lithforge.Runtime.Identity
                         PublicKeyBytes = _signingKey.ExportSubjectPublicKeyInfo();
                         Uuid = DeriveUuid(PublicKeyBytes);
                         IsValid = true;
-                        logger?.LogInfo($"[Identity] Loaded identity: {Uuid}");
-                        return;
+                        logger?.LogInfo($"[Identity] Loaded ECDSA identity: {Uuid}");
+                        return true;
                     }
 
                     logger?.LogWarning("[Identity] Corrupted identity.bin, regenerating.");
@@ -81,24 +112,63 @@ namespace Lithforge.Runtime.Identity
                 File.WriteAllBytes(identityPath, exported);
 
                 IsValid = true;
-                logger?.LogInfo($"[Identity] Generated new identity: {Uuid}");
+                logger?.LogInfo($"[Identity] Generated new ECDSA identity: {Uuid}");
+                return true;
             }
-            catch (Exception ex)
+            catch (NotImplementedException)
             {
-                logger?.LogError($"[Identity] Failed to load/generate identity: {ex.Message}");
-                IsValid = false;
+                // Runtime doesn't support ECDSA PKCS#8 (e.g. Unity Mono backend)
+                _signingKey?.Dispose();
+                _signingKey = null;
+                PublicKeyBytes = Array.Empty<byte>();
+                return false;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                _signingKey?.Dispose();
+                _signingKey = null;
+                PublicKeyBytes = Array.Empty<byte>();
+                return false;
             }
         }
 
-        /// <summary>Signs a challenge byte array using the ECDSA private key (SHA-256 digest).</summary>
-        public byte[] Sign(byte[] challenge)
+        /// <summary>
+        ///     Loads or generates a persistent random UUID without cryptographic signing.
+        ///     Used as a fallback when ECDSA is not available on the runtime.
+        /// </summary>
+        private void TryLoadOrGenerateFallbackUuid(ILogger logger)
         {
-            if (_signingKey is null)
-            {
-                return Array.Empty<byte>();
-            }
+            string uuidPath = Path.Combine(Application.persistentDataPath, "identity_uuid.txt");
 
-            return _signingKey.SignData(challenge, HashAlgorithmName.SHA256);
+            try
+            {
+                if (File.Exists(uuidPath))
+                {
+                    string existing = File.ReadAllText(uuidPath).Trim();
+
+                    if (existing.Length > 0)
+                    {
+                        Uuid = existing;
+                        PublicKeyBytes = Array.Empty<byte>();
+                        IsValid = true;
+                        logger?.LogInfo($"[Identity] Loaded fallback UUID: {Uuid}");
+                        return;
+                    }
+                }
+
+                // Generate a random UUIDv4
+                Uuid = Guid.NewGuid().ToString();
+                File.WriteAllText(uuidPath, Uuid);
+                PublicKeyBytes = Array.Empty<byte>();
+                IsValid = true;
+                logger?.LogWarning(
+                    $"[Identity] ECDSA not available, generated fallback UUID: {Uuid}");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"[Identity] Failed to load/generate fallback UUID: {ex.Message}");
+                IsValid = false;
+            }
         }
 
         /// <summary>
