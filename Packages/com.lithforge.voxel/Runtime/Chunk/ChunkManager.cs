@@ -14,7 +14,8 @@ namespace Lithforge.Voxel.Chunk
     /// <summary>
     ///     Central authority for chunk lifecycle: loading, unloading, state transitions,
     ///     block edits, and query methods consumed by schedulers. Owns the loaded chunk
-    ///     dictionary and secondary indices (_generatedChunks, _chunksNeedingLightUpdate).
+    ///     dictionary and secondary indices. Delegates to internal helpers:
+    ///     <see cref="ChunkEditor" />, <see cref="ChunkLoadQueue" />, <see cref="ChunkStateIndex" />.
     ///     <remarks>
     ///         All ChunkState transitions must go through <see cref="SetChunkState" /> so that
     ///         secondary indices stay consistent. Direct assignment to chunk.State is forbidden
@@ -41,7 +42,7 @@ namespace Lithforge.Voxel.Chunk
 
         /// <summary>
         ///     Maps face index to its opposite: +X(0)↔-X(1), +Y(2)↔-Y(3), +Z(4)↔-Z(5).
-        ///     Used by RegisterChunk, UnregisterChunk, and SetChunkState for bitmask updates.
+        ///     Used by RegisterChunk, UnregisterChunk for bitmask updates.
         /// </summary>
         private static readonly int[] s_oppositeFace =
         {
@@ -52,6 +53,7 @@ namespace Lithforge.Voxel.Chunk
             5,
             4,
         };
+
         /// <summary>
         ///     Primary dictionary of all loaded chunks, keyed by chunk coordinate.
         ///     Copy-on-write: the main thread replaces the entire reference on mutation;
@@ -59,47 +61,8 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         private volatile Dictionary<int3, ManagedChunk> _chunks = new();
 
-        /// <summary>Secondary index: coordinates of chunks with NeedsLightUpdate = true.</summary>
-        private readonly HashSet<int3> _chunksNeedingLightUpdate = new();
-
-        /// <summary>Reusable list for collecting dirtied chunk coords during deferred edit application.</summary>
-        private readonly List<int3> _deferredDirtiedCache = new();
-
-        /// <summary>Secondary index: chunks in the Generated state (excluding LightJobInFlight).</summary>
-        private readonly HashSet<ManagedChunk> _generatedChunks = new();
-
-        /// <summary>Ordered list of chunk coordinates to load, rebuilt by UpdateLoadingQueue.</summary>
-        private readonly List<int3> _loadQueue = new();
-
-        /// <summary>Scratch buffer for FillChunksToMesh top-K selection.</summary>
-        private readonly List<ManagedChunk> _meshCandidateCache = new();
-
-        /// <summary>Parallel score array for FillChunksToMesh insertion sort.</summary>
-        private readonly List<int> _meshScoreCache = new();
-
         /// <summary>ChunkPool for NativeArray checkout and return.</summary>
         private readonly ChunkPool _pool;
-
-        /// <summary>Secondary index: chunks in the Ready state.</summary>
-        private readonly HashSet<ManagedChunk> _readyChunks = new();
-
-        /// <summary>Secondary index: chunks in the RelightPending state.</summary>
-        private readonly HashSet<ManagedChunk> _relightPendingChunks = new();
-
-        /// <summary>Reusable list for collecting unload candidates in UnloadDistantChunks.</summary>
-        private readonly List<int3> _toRemoveCache = new();
-
-        /// <summary>Maximum chunk Y coordinate (inclusive) for loading.</summary>
-        private readonly int _yLoadMax;
-
-        /// <summary>Minimum chunk Y coordinate (inclusive) for loading.</summary>
-        private readonly int _yLoadMin;
-
-        /// <summary>Maximum chunk Y coordinate (inclusive) for unloading threshold.</summary>
-        private readonly int _yUnloadMax;
-
-        /// <summary>Minimum chunk Y coordinate (inclusive) for unloading threshold.</summary>
-        private readonly int _yUnloadMin;
 
         /// <summary>Optional background chunk saver for async serialization on unload.</summary>
         private AsyncChunkSaver _asyncSaver;
@@ -107,58 +70,57 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>Whether this ChunkManager has been disposed.</summary>
         private bool _disposed;
 
-        /// <summary>Last per-player chunk coordinates used for rebuild-threshold tracking.</summary>
-        private readonly List<int3> _lastPlayerChunkCoords = new();
+        /// <summary>Maximum chunk Y coordinate (inclusive) for loading.</summary>
+        private readonly int _yLoadMin;
 
-        /// <summary>Deduplication set for the union load queue rebuild. Cleared after each use.</summary>
-        private readonly HashSet<int3> _loadQueueSet = new();
+        /// <summary>Minimum chunk Y coordinate (inclusive) for loading.</summary>
+        private readonly int _yLoadMax;
 
-        /// <summary>
-        ///     Cursor index into _loadQueue. Advanced instead of RemoveRange(0, count).
-        ///     Reset when UpdateLoadingQueue() rebuilds the queue.
-        /// </summary>
-        private int _loadQueueIndex;
+        /// <summary>Internal helper for block editing operations.</summary>
+        private readonly ChunkEditor _editor;
 
-        /// <summary>
-        ///     NativeStateRegistry reference for checking HasBlockEntity flag during SetBlock.
-        ///     Must be set after content pipeline completes.
-        /// </summary>
-        private NativeStateRegistry _nativeStateRegistry;
-        /// <summary>Parallel coordinate array for Schwartzian sort in UpdateLoadingQueue.</summary>
-        private int3[] _sortCoordCache = Array.Empty<int3>();
+        /// <summary>Internal helper for load queue management.</summary>
+        private readonly ChunkLoadQueue _loadQueue;
 
-        /// <summary>
-        ///     Schwartzian transform caches for forward-weighted queue sort.
-        ///     Resized on demand, never shrunk. Owner: ChunkManager.
-        /// </summary>
-        private float[] _sortScoreCache = Array.Empty<float>();
-        /// <summary>Parallel coordinate array for Schwartzian sort in UnloadDistantChunks.</summary>
-        private int3[] _unloadCoordCache = Array.Empty<int3>();
+        /// <summary>Internal helper for state-based secondary indices.</summary>
+        private readonly ChunkStateIndex _stateIndex;
 
-        /// <summary>
-        ///     Schwartzian transform caches for distance-sorted unload.
-        ///     Resized on demand, never shrunk. Owner: ChunkManager.
-        /// </summary>
-        private int[] _unloadDistCache = Array.Empty<int>();
+        /// <summary>Reusable list for collecting sorted unload candidates from ChunkLoadQueue.</summary>
+        private readonly List<int3> _unloadCandidateCache = new();
+
+        /// <summary>Reusable list for collecting coordinates to generate from the load queue.</summary>
+        private readonly List<int3> _coordsToGenerateCache = new();
 
         /// <summary>
         ///     Called after any block change (both immediate and deferred paths).
         ///     Parameters: worldCoord, newStateId.
         ///     Used by <see cref="Network.ChunkDirtyTracker" /> for network delta sync.
         /// </summary>
-        public Action<int3, StateId> OnBlockChanged;
+        public Action<int3, StateId> OnBlockChanged
+        {
+            get { return _editor.OnBlockChanged; }
+            set { _editor.OnBlockChanged = value; }
+        }
 
         /// <summary>
         ///     Called when a block with FlagHasBlockEntity is placed.
         ///     Parameters: chunkCoord, flatIndex, stateId.
         /// </summary>
-        public Action<int3, int, StateId> OnBlockEntityPlaced;
+        public Action<int3, int, StateId> OnBlockEntityPlaced
+        {
+            get { return _editor.OnBlockEntityPlaced; }
+            set { _editor.OnBlockEntityPlaced = value; }
+        }
 
         /// <summary>
         ///     Called when a block with FlagHasBlockEntity is broken (replaced by air).
         ///     Parameters: chunkCoord, flatIndex, oldStateId.
         /// </summary>
-        public Action<int3, int, StateId> OnBlockEntityRemoved;
+        public Action<int3, int, StateId> OnBlockEntityRemoved
+        {
+            get { return _editor.OnBlockEntityRemoved; }
+            set { _editor.OnBlockEntityRemoved = value; }
+        }
 
         /// <summary>Creates a ChunkManager with the given pool, render distance, and Y load/unload bounds.</summary>
         public ChunkManager(
@@ -170,11 +132,12 @@ namespace Lithforge.Voxel.Chunk
             int yUnloadMax = 4)
         {
             _pool = pool;
-            RenderDistance = renderDistance;
             _yLoadMin = yLoadMin;
             _yLoadMax = yLoadMax;
-            _yUnloadMin = yUnloadMin;
-            _yUnloadMax = yUnloadMax;
+
+            _editor = new ChunkEditor(GetChunk, SetChunkState);
+            _loadQueue = new ChunkLoadQueue(renderDistance, yLoadMin, yLoadMax, yUnloadMin, yUnloadMax);
+            _stateIndex = new ChunkStateIndex();
         }
 
         /// <summary>Adds a chunk via copy-on-write. Main thread only.</summary>
@@ -211,17 +174,20 @@ namespace Lithforge.Voxel.Chunk
         /// <summary>Number of chunks in the Generated state (mesh-eligible).</summary>
         public int GeneratedChunkCount
         {
-            get { return _generatedChunks.Count; }
+            get { return _stateIndex.GeneratedChunkCount; }
         }
 
         /// <summary>Number of remaining entries in the load queue.</summary>
         public int PendingLoadCount
         {
-            get { return _loadQueue.Count - _loadQueueIndex; }
+            get { return _loadQueue.PendingLoadCount; }
         }
 
         /// <summary>Current render distance in chunks (Chebyshev XZ radius).</summary>
-        public int RenderDistance { get; private set; }
+        public int RenderDistance
+        {
+            get { return _loadQueue.RenderDistance; }
+        }
 
         /// <summary>Completes all in-flight jobs and returns all chunk NativeArrays to the pool.</summary>
         public void Dispose()
@@ -275,16 +241,13 @@ namespace Lithforge.Voxel.Chunk
             }
 
             _chunks.Clear();
-            _chunksNeedingLightUpdate.Clear();
-            _generatedChunks.Clear();
-            _readyChunks.Clear();
-            _relightPendingChunks.Clear();
+            _stateIndex.Clear();
         }
 
         /// <summary>Updates the render distance (clamped to at least 1).</summary>
         public void SetRenderDistance(int distance)
         {
-            RenderDistance = math.max(1, distance);
+            _loadQueue.SetRenderDistance(distance);
         }
 
         /// <summary>
@@ -294,72 +257,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void SetChunkState(ManagedChunk chunk, ChunkState newState)
         {
-            ChunkState oldState = chunk.State;
-            chunk.State = newState;
-
-            // --- _generatedChunks ---
-            if (oldState == ChunkState.Generated && newState != ChunkState.Generated)
-            {
-                _generatedChunks.Remove(chunk);
-            }
-            else if (newState == ChunkState.Generated && oldState != ChunkState.Generated)
-            {
-                if (!chunk.LightJobInFlight)
-                {
-                    _generatedChunks.Add(chunk);
-                }
-            }
-
-            // --- _readyChunks ---
-            if (oldState == ChunkState.Ready && newState != ChunkState.Ready)
-            {
-                _readyChunks.Remove(chunk);
-            }
-            else if (newState == ChunkState.Ready && oldState != ChunkState.Ready)
-            {
-                _readyChunks.Add(chunk);
-            }
-
-            // --- _relightPendingChunks ---
-            if (oldState == ChunkState.RelightPending && newState != ChunkState.RelightPending)
-            {
-                _relightPendingChunks.Remove(chunk);
-            }
-            else if (newState == ChunkState.RelightPending && oldState != ChunkState.RelightPending)
-            {
-                _relightPendingChunks.Add(chunk);
-            }
-
-            // --- Neighbor ReadyNeighborMask maintenance ---
-            // When this chunk crosses the RelightPending threshold (in either direction),
-            // flip the corresponding bit on each existing neighbor's mask.
-            bool wasReady = oldState >= ChunkState.RelightPending;
-            bool isReady = newState >= ChunkState.RelightPending;
-
-            if (wasReady != isReady)
-            {
-                for (int f = 0; f < 6; f++)
-                {
-                    ManagedChunk neighbor = chunk.Neighbors[f];
-
-                    if (neighbor == null)
-                    {
-                        continue;
-                    }
-
-                    int oppF = s_oppositeFace[f];
-
-                    if (isReady)
-                    {
-                        neighbor.ReadyNeighborMask |= (byte)(1 << oppF);
-                    }
-                    else
-                    {
-                        neighbor.ReadyNeighborMask &= (byte)~(1 << oppF);
-                    }
-                }
-            }
-
+            _stateIndex.SetChunkState(chunk, newState);
         }
 
         /// <summary>
@@ -368,17 +266,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void NotifyLightJobChanged(ManagedChunk chunk)
         {
-            if (chunk.State == ChunkState.Generated)
-            {
-                if (chunk.LightJobInFlight)
-                {
-                    _generatedChunks.Remove(chunk);
-                }
-                else
-                {
-                    _generatedChunks.Add(chunk);
-                }
-            }
+            _stateIndex.NotifyLightJobChanged(chunk);
         }
 
         /// <summary>
@@ -387,7 +275,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void SetNativeStateRegistry(NativeStateRegistry nativeStateRegistry)
         {
-            _nativeStateRegistry = nativeStateRegistry;
+            _editor.SetNativeStateRegistry(nativeStateRegistry);
         }
 
         /// <summary>
@@ -406,123 +294,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void UpdateLoadingQueue(ReadOnlySpan<int3> playerChunkCoords, float3 cameraForward)
         {
-            if (playerChunkCoords.Length == 0)
-            {
-                return;
-            }
-
-            // Detect if any player moved >= 2 chunks since last rebuild
-            bool anyMoved = playerChunkCoords.Length != _lastPlayerChunkCoords.Count;
-
-            if (!anyMoved)
-            {
-                for (int p = 0; p < playerChunkCoords.Length; p++)
-                {
-                    int3 diff = playerChunkCoords[p] - _lastPlayerChunkCoords[p];
-                    int moved = math.max(math.abs(diff.x), math.max(math.abs(diff.y), math.abs(diff.z)));
-
-                    if (moved >= 2)
-                    {
-                        anyMoved = true;
-                        break;
-                    }
-                }
-            }
-
-            bool queueHasWork = _loadQueue.Count - _loadQueueIndex > 0;
-
-            if (queueHasWork && !anyMoved)
-            {
-                return;
-            }
-
-            // Sync last-known positions
-            _lastPlayerChunkCoords.Clear();
-
-            for (int p = 0; p < playerChunkCoords.Length; p++)
-            {
-                _lastPlayerChunkCoords.Add(playerChunkCoords[p]);
-            }
-
-            _loadQueue.Clear();
-            _loadQueueIndex = 0;
-
-            // Union of all player interest regions, deduplicated
-            for (int p = 0; p < playerChunkCoords.Length; p++)
-            {
-                int3 origin = playerChunkCoords[p];
-
-                for (int d = 0; d <= RenderDistance; d++)
-                {
-                    for (int x = -d; x <= d; x++)
-                    {
-                        for (int z = -d; z <= d; z++)
-                        {
-                            if (math.abs(x) != d && math.abs(z) != d)
-                            {
-                                continue;
-                            }
-
-                            for (int y = _yLoadMin; y <= _yLoadMax; y++)
-                            {
-                                int3 coord = origin + new int3(x, y, z);
-
-                                if (!_chunks.ContainsKey(coord) && _loadQueueSet.Add(coord))
-                                {
-                                    _loadQueue.Add(coord);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            _loadQueueSet.Clear();
-
-            // Schwartzian transform: score = min over all players of (dist² * (2 - dot)),
-            // so the closest chunk to any player in the forward direction scores lowest.
-            int count = _loadQueue.Count;
-
-            if (_sortScoreCache.Length < count)
-            {
-                int newSize = math.max(count, _sortScoreCache.Length * 2);
-                _sortScoreCache = new float[newSize];
-                _sortCoordCache = new int3[newSize];
-            }
-
-            float3 forwardXZ = math.normalizesafe(new float3(cameraForward.x, 0, cameraForward.z));
-
-            for (int i = 0; i < count; i++)
-            {
-                int3 coord = _loadQueue[i];
-                _sortCoordCache[i] = coord;
-                float bestScore = float.MaxValue;
-
-                for (int p = 0; p < playerChunkCoords.Length; p++)
-                {
-                    int3 delta = coord - playerChunkCoords[p];
-                    float3 dirXZ = math.normalizesafe(new float3(delta.x, 0, delta.z));
-                    float dot = math.dot(dirXZ, forwardXZ);
-                    float distSq = math.lengthsq((float3)delta);
-                    float score = distSq * (2.0f - dot);
-
-                    if (score < bestScore)
-                    {
-                        bestScore = score;
-                    }
-                }
-
-                _sortScoreCache[i] = bestScore;
-            }
-
-            Array.Sort(_sortScoreCache, _sortCoordCache, 0, count);
-
-            _loadQueue.Clear();
-
-            for (int i = 0; i < count; i++)
-            {
-                _loadQueue.Add(_sortCoordCache[i]);
-            }
+            _loadQueue.UpdateLoadingQueue(playerChunkCoords, cameraForward, _chunks);
         }
 
         /// <summary>
@@ -530,9 +302,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void UpdateLoadingQueue(int3 cameraChunkCoord, float3 cameraForward)
         {
-            Span<int3> single = stackalloc int3[1];
-            single[0] = cameraChunkCoord;
-            UpdateLoadingQueue((ReadOnlySpan<int3>)single, cameraForward);
+            _loadQueue.UpdateLoadingQueue(cameraChunkCoord, cameraForward, _chunks);
         }
 
         /// <summary>
@@ -546,33 +316,7 @@ namespace Lithforge.Voxel.Chunk
             double currentRealtime,
             double gracePeriodSeconds)
         {
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
-            {
-                ManagedChunk chunk = kvp.Value;
-                int3 coord = kvp.Key;
-                int newCount = 0;
-
-                for (int p = 0; p < playerChunkCoords.Length; p++)
-                {
-                    int3 diff = coord - playerChunkCoords[p];
-                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
-                    bool yInRange = diff.y >= _yLoadMin && diff.y <= _yLoadMax;
-
-                    if (xzDist <= RenderDistance && yInRange)
-                    {
-                        newCount++;
-                    }
-                }
-
-                int oldCount = chunk.RefCount;
-                chunk.RefCount = newCount;
-
-                if (newCount == 0 && (oldCount > 0 || chunk.GracePeriodExpiry == double.MaxValue))
-                {
-                    // Player(s) left range, or chunk was never referenced: arm grace period
-                    chunk.GracePeriodExpiry = currentRealtime + gracePeriodSeconds;
-                }
-            }
+            _loadQueue.AdjustRefCounts(playerChunkCoords, currentRealtime, gracePeriodSeconds, _chunks);
         }
 
         /// <summary>
@@ -581,43 +325,25 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void FillChunksToGenerate(List<ManagedChunk> result, int maxCount)
         {
+            _loadQueue.FillCoordsToGenerate(_coordsToGenerateCache, maxCount, _chunks);
+
             result.Clear();
-            int created = 0;
 
-            while (_loadQueueIndex < _loadQueue.Count && created < maxCount)
+            for (int i = 0; i < _coordsToGenerateCache.Count; i++)
             {
-                int3 coord = _loadQueue[_loadQueueIndex];
-                _loadQueueIndex++;
-
-                // Skip already-loaded chunks without consuming budget
-                if (_chunks.ContainsKey(coord))
-                {
-                    continue;
-                }
-
+                int3 coord = _coordsToGenerateCache[i];
                 NativeArray<StateId> data = _pool.Checkout();
                 ManagedChunk chunk = new(coord, data);
                 AddChunk(coord, chunk);
                 RegisterChunk(chunk);
                 SetChunkState(chunk, ChunkState.Generating);
                 result.Add(chunk);
-                created++;
-            }
-
-            // If cursor has consumed the entire queue, clear to free memory
-            if (_loadQueueIndex >= _loadQueue.Count)
-            {
-                _loadQueue.Clear();
-                _loadQueueIndex = 0;
             }
         }
 
         /// <summary>
         ///     Fills the provided list with Generated chunks, prioritized for meshing.
-        ///     Priority: neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
-        ///     distScore uses Manhattan distance (no rsqrt). Neighbor readiness uses eagerly
-        ///     maintained ReadyNeighborMask bitmask (O(1) per chunk).
-        ///     Uses a single-pass top-K selection over _generatedChunks.
+        ///     Priority: hasPlayerEdit (DESC) > neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
         /// </summary>
         public void FillChunksToMesh(
             List<ManagedChunk> result,
@@ -625,169 +351,9 @@ namespace Lithforge.Voxel.Chunk
             int3 cameraChunkCoord,
             float3 cameraForwardXZ)
         {
-            result.Clear();
-            _meshCandidateCache.Clear();
-            _meshScoreCache.Clear();
-
-            // --- Single-pass top-K selection over _generatedChunks ---
-            foreach (ManagedChunk chunk in _generatedChunks)
-            {
-                bool hasEdit = chunk.HasPlayerEdit;
-                bool neverMeshed = chunk.RenderedLODLevel < 0;
-                bool allNeighbors = (chunk.ReadyNeighborMask & 0x3F) == 0x3F;
-
-                // Distance = min Manhattan distance to any known player origin
-                int distScore = int.MaxValue;
-
-                if (_lastPlayerChunkCoords.Count > 0)
-                {
-                    for (int p = 0; p < _lastPlayerChunkCoords.Count; p++)
-                    {
-                        int3 d = chunk.Coord - _lastPlayerChunkCoords[p];
-                        int dist = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
-
-                        if (dist < distScore)
-                        {
-                            distScore = dist;
-                        }
-                    }
-                }
-                else
-                {
-                    int3 d = chunk.Coord - cameraChunkCoord;
-                    distScore = math.abs(d.x) + math.abs(d.y) + math.abs(d.z);
-                }
-
-                if (_meshCandidateCache.Count < maxCount)
-                {
-                    _meshCandidateCache.Add(chunk);
-                    _meshScoreCache.Add(distScore);
-                }
-                else
-                {
-                    // Find worst element in buffer
-                    int worstIdx = 0;
-
-                    for (int w = 1; w < _meshCandidateCache.Count; w++)
-                    {
-                        if (IsWorseThan(w, worstIdx))
-                        {
-                            worstIdx = w;
-                        }
-                    }
-
-                    // Compare incoming chunk against worst
-                    bool worstHasEdit = _meshCandidateCache[worstIdx].HasPlayerEdit;
-                    bool worstNeverMeshed = _meshCandidateCache[worstIdx].RenderedLODLevel < 0;
-                    bool worstAllNeighbors = (_meshCandidateCache[worstIdx].ReadyNeighborMask & 0x3F) == 0x3F;
-                    int worstScore = _meshScoreCache[worstIdx];
-
-                    if (IsBetterPriority(hasEdit, neverMeshed, allNeighbors, distScore,
-                            worstHasEdit, worstNeverMeshed, worstAllNeighbors, worstScore))
-                    {
-                        _meshCandidateCache[worstIdx] = chunk;
-                        _meshScoreCache[worstIdx] = distScore;
-                    }
-                }
-            }
-
-            // Sort the small buffer (maxCount elements max — insertion sort is fine here)
-            for (int i = 1; i < _meshCandidateCache.Count; i++)
-            {
-                ManagedChunk tempChunk = _meshCandidateCache[i];
-                int tempScore = _meshScoreCache[i];
-                bool tempHasEdit = tempChunk.HasPlayerEdit;
-                bool tempNeverMeshed = tempChunk.RenderedLODLevel < 0;
-                bool tempAllNeighbors = (tempChunk.ReadyNeighborMask & 0x3F) == 0x3F;
-                int j = i - 1;
-
-                while (j >= 0)
-                {
-                    bool jHasEdit = _meshCandidateCache[j].HasPlayerEdit;
-                    bool jNeverMeshed = _meshCandidateCache[j].RenderedLODLevel < 0;
-                    bool jAllNeighbors = (_meshCandidateCache[j].ReadyNeighborMask & 0x3F) == 0x3F;
-                    int jScore = _meshScoreCache[j];
-
-                    // Stop if current position is correct (j is better or equal)
-                    if (!IsBetterPriority(tempHasEdit, tempNeverMeshed, tempAllNeighbors, tempScore,
-                            jHasEdit, jNeverMeshed, jAllNeighbors, jScore))
-                    {
-                        break;
-                    }
-
-                    _meshCandidateCache[j + 1] = _meshCandidateCache[j];
-                    _meshScoreCache[j + 1] = _meshScoreCache[j];
-                    j--;
-                }
-
-                _meshCandidateCache[j + 1] = tempChunk;
-                _meshScoreCache[j + 1] = tempScore;
-            }
-
-            for (int i = 0; i < _meshCandidateCache.Count; i++)
-            {
-                result.Add(_meshCandidateCache[i]);
-            }
-        }
-
-        /// <summary>
-        ///     Returns true if buffer element at indexA is worse priority than element at indexB.
-        ///     Priority: hasPlayerEdit (DESC) > neverMeshed (DESC) > hasAllNeighbors (DESC) > distScore (ASC).
-        /// </summary>
-        private bool IsWorseThan(int indexA, int indexB)
-        {
-            bool aHasEdit = _meshCandidateCache[indexA].HasPlayerEdit;
-            bool bHasEdit = _meshCandidateCache[indexB].HasPlayerEdit;
-
-            if (aHasEdit != bHasEdit)
-            {
-                return !aHasEdit;
-            }
-
-            bool aNeverMeshed = _meshCandidateCache[indexA].RenderedLODLevel < 0;
-            bool bNeverMeshed = _meshCandidateCache[indexB].RenderedLODLevel < 0;
-
-            if (aNeverMeshed != bNeverMeshed)
-            {
-                return !aNeverMeshed;
-            }
-
-            bool aAllNeighbors = (_meshCandidateCache[indexA].ReadyNeighborMask & 0x3F) == 0x3F;
-            bool bAllNeighbors = (_meshCandidateCache[indexB].ReadyNeighborMask & 0x3F) == 0x3F;
-
-            if (aAllNeighbors != bAllNeighbors)
-            {
-                return !aAllNeighbors;
-            }
-
-            return _meshScoreCache[indexA] > _meshScoreCache[indexB];
-        }
-
-        /// <summary>
-        ///     Returns true if (hasEdit, neverMeshed, allNeighbors, distScore) is strictly better
-        ///     than (worstHasEdit, worstNeverMeshed, worstAllNeighbors, worstScore).
-        ///     Better = hasEdit first, then neverMeshed, then allNeighbors, then lower distScore.
-        /// </summary>
-        private static bool IsBetterPriority(
-            bool hasEdit, bool neverMeshed, bool allNeighbors, int distScore,
-            bool worstHasEdit, bool worstNeverMeshed, bool worstAllNeighbors, int worstScore)
-        {
-            if (hasEdit != worstHasEdit)
-            {
-                return hasEdit;
-            }
-
-            if (neverMeshed != worstNeverMeshed)
-            {
-                return neverMeshed;
-            }
-
-            if (allNeighbors != worstAllNeighbors)
-            {
-                return allNeighbors;
-            }
-
-            return distScore < worstScore;
+            _stateIndex.FillChunksToMesh(
+                result, maxCount, cameraChunkCoord, cameraForwardXZ,
+                _loadQueue.LastPlayerChunkCoords);
         }
 
         /// <summary>
@@ -796,12 +362,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void FillGeneratedChunks(List<ManagedChunk> result)
         {
-            result.Clear();
-
-            foreach (ManagedChunk chunk in _generatedChunks)
-            {
-                result.Add(chunk);
-            }
+            _stateIndex.FillGeneratedChunks(result);
         }
 
         /// <summary>
@@ -810,15 +371,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void FillGeneratedChunksWithLOD(List<ManagedChunk> result)
         {
-            result.Clear();
-
-            foreach (ManagedChunk chunk in _generatedChunks)
-            {
-                if (chunk.LODLevel > 0)
-                {
-                    result.Add(chunk);
-                }
-            }
+            _stateIndex.FillGeneratedChunksWithLOD(result);
         }
 
         /// <summary>
@@ -828,12 +381,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void FillReadyChunks(List<ManagedChunk> result)
         {
-            result.Clear();
-
-            foreach (ManagedChunk chunk in _readyChunks)
-            {
-                result.Add(chunk);
-            }
+            _stateIndex.FillReadyChunks(result);
         }
 
         /// <summary>
@@ -843,16 +391,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void FillChunksNeedingLightUpdate(List<ManagedChunk> result)
         {
-            result.Clear();
-
-            foreach (int3 coord in _chunksNeedingLightUpdate)
-            {
-                if (_chunks.TryGetValue(coord, out ManagedChunk chunk) &&
-                    chunk.NeedsLightUpdate && !chunk.LightJobInFlight)
-                {
-                    result.Add(chunk);
-                }
-            }
+            _stateIndex.FillChunksNeedingLightUpdate(result, GetChunk);
         }
 
         /// <summary>
@@ -861,11 +400,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void MarkNeedsLightUpdate(int3 coord)
         {
-            if (_chunks.TryGetValue(coord, out ManagedChunk chunk))
-            {
-                chunk.NeedsLightUpdate = true;
-                _chunksNeedingLightUpdate.Add(coord);
-            }
+            _stateIndex.MarkNeedsLightUpdate(coord, GetChunk(coord));
         }
 
         /// <summary>
@@ -874,12 +409,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void ClearNeedsLightUpdate(int3 coord)
         {
-            if (_chunks.TryGetValue(coord, out ManagedChunk chunk))
-            {
-                chunk.NeedsLightUpdate = false;
-            }
-
-            _chunksNeedingLightUpdate.Remove(coord);
+            _stateIndex.ClearNeedsLightUpdate(coord, GetChunk(coord));
         }
 
         /// <summary>
@@ -889,15 +419,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void FillChunksNeedingRelight(List<ManagedChunk> result)
         {
-            result.Clear();
-
-            foreach (ManagedChunk chunk in _relightPendingChunks)
-            {
-                if (!chunk.LightJobInFlight)
-                {
-                    result.Add(chunk);
-                }
-            }
+            _stateIndex.FillChunksNeedingRelight(result);
         }
 
         /// <summary>Returns the chunk at the given coordinate, or null if not loaded.</summary>
@@ -915,17 +437,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public bool IsBlockLoaded(int3 worldCoord)
         {
-            int3 chunkCoord = WorldToChunk(worldCoord);
-            ManagedChunk chunk = GetChunk(chunkCoord);
-
-            return chunk is
-            {
-                State: >= ChunkState.RelightPending,
-                Data:
-                {
-                    IsCreated: true,
-                },
-            };
+            return _editor.IsBlockLoaded(worldCoord);
         }
 
         /// <summary>
@@ -934,22 +446,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public StateId GetBlock(int3 worldCoord)
         {
-            int3 chunkCoord = WorldToChunk(worldCoord);
-            ManagedChunk chunk = GetChunk(chunkCoord);
-
-            if (chunk == null || chunk.State < ChunkState.RelightPending || !chunk.Data.IsCreated)
-            {
-                return StateId.Air;
-            }
-
-            int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
-            int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
-            int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
-            int index = ChunkData.GetIndex(localX, localY, localZ);
-
-            NativeArray<StateId> data = chunk.Data;
-
-            return data[index];
+            return _editor.GetBlock(worldCoord);
         }
 
         /// <summary>
@@ -960,96 +457,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void SetBlock(int3 worldCoord, StateId state, List<int3> dirtiedChunks)
         {
-            int3 chunkCoord = WorldToChunk(worldCoord);
-            ManagedChunk chunk = GetChunk(chunkCoord);
-
-            if (chunk == null || chunk.State < ChunkState.RelightPending || !chunk.Data.IsCreated)
-            {
-                return;
-            }
-
-            int localX = worldCoord.x - chunkCoord.x * ChunkConstants.Size;
-            int localY = worldCoord.y - chunkCoord.y * ChunkConstants.Size;
-            int localZ = worldCoord.z - chunkCoord.z * ChunkConstants.Size;
-            int index = ChunkData.GetIndex(localX, localY, localZ);
-
-            chunk.IsDirty = true;
-            chunk.HasPlayerEdit = true;
-            chunk.NetworkVersion++;
-
-            if (state.Value != 0)
-            {
-                chunk.IsAllAir = false;
-            }
-
-            // Check block entity flags for old and new states
-            StateId oldState = chunk.Data[index];
-            bool oldHasEntity = _nativeStateRegistry.States.IsCreated &&
-                                oldState.Value < _nativeStateRegistry.States.Length &&
-                                _nativeStateRegistry.States[oldState.Value].HasBlockEntity;
-            bool newHasEntity = _nativeStateRegistry.States.IsCreated &&
-                                state.Value < _nativeStateRegistry.States.Length &&
-                                _nativeStateRegistry.States[state.Value].HasBlockEntity;
-
-            if (chunk.State == ChunkState.Meshing)
-            {
-                // Defer the edit — do NOT write to ChunkData while the mesh job is
-                // reading it. The edit will be applied in ApplyDeferredEdits() after
-                // the job finishes. Block entity events are also deferred.
-                chunk.DeferredEdits.Add(new DeferredEdit
-                {
-                    FlatIndex = index, OldState = oldState, NewState = state,
-                });
-            }
-            else
-            {
-                // Complete any jobs that hold this chunk's Data before writing.
-                // Light jobs read ChunkData as [ReadOnly].
-                if (chunk.LightJobInFlight)
-                {
-                    chunk.ActiveJobHandle.Complete();
-                }
-
-                // LiquidSimJob reads BlockData as [ReadOnly].
-                chunk.LiquidJobHandle.Complete();
-
-                // Neighbor mesh jobs read this chunk's Data as border slices via
-                // ExtractAllBordersJob. Complete them to release safety locks.
-                for (int face = 0; face < 6; face++)
-                {
-                    ManagedChunk neighbor = chunk.Neighbors[face];
-
-                    if (neighbor is
-                        {
-                            State: ChunkState.Meshing,
-                        })
-                    {
-                        neighbor.ActiveJobHandle.Complete();
-                    }
-                }
-
-                // Normal path: write immediately and trigger relight
-                NativeArray<StateId> data = chunk.Data;
-                data[index] = state;
-                chunk.PendingEditIndices.Add(index);
-                SetChunkState(chunk, ChunkState.RelightPending);
-
-                // Fire block entity events only on the immediate path
-                if (oldHasEntity && !newHasEntity)
-                {
-                    OnBlockEntityRemoved?.Invoke(chunkCoord, index, oldState);
-                }
-
-                if (newHasEntity && !oldHasEntity)
-                {
-                    OnBlockEntityPlaced?.Invoke(chunkCoord, index, state);
-                }
-
-                OnBlockChanged?.Invoke(worldCoord, state);
-            }
-
-            dirtiedChunks.Add(chunkCoord);
-            DirtyNeighborBorders(chunkCoord, localX, localY, localZ, dirtiedChunks);
+            _editor.SetBlock(worldCoord, state, dirtiedChunks);
         }
 
         /// <summary>
@@ -1059,121 +467,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public void ApplyDeferredEdits(ManagedChunk chunk)
         {
-            // Complete any in-flight LiquidSimJob holding a [ReadOnly] safety lock
-            // on chunk.Data before writing deferred edits.
-            chunk.LiquidJobHandle.Complete();
-
-            NativeArray<StateId> chunkData = chunk.Data;
-            _deferredDirtiedCache.Clear();
-            _deferredDirtiedCache.Add(chunk.Coord);
-
-            for (int di = 0; di < chunk.DeferredEdits.Count; di++)
-            {
-                DeferredEdit edit = chunk.DeferredEdits[di];
-                chunkData[edit.FlatIndex] = edit.NewState;
-                chunk.PendingEditIndices.Add(edit.FlatIndex);
-
-                // Unpack flat index to local coordinates
-                int localY = edit.FlatIndex / ChunkConstants.SizeSquared;
-                int remainder = edit.FlatIndex % ChunkConstants.SizeSquared;
-                int localZ = remainder / ChunkConstants.Size;
-                int localX = remainder % ChunkConstants.Size;
-
-                // Fire block entity events now that the voxel write has happened
-                bool editOldHasEntity = _nativeStateRegistry.States.IsCreated &&
-                                        edit.OldState.Value < _nativeStateRegistry.States.Length &&
-                                        _nativeStateRegistry.States[edit.OldState.Value].HasBlockEntity;
-                bool editNewHasEntity = _nativeStateRegistry.States.IsCreated &&
-                                        edit.NewState.Value < _nativeStateRegistry.States.Length &&
-                                        _nativeStateRegistry.States[edit.NewState.Value].HasBlockEntity;
-
-                if (editOldHasEntity && !editNewHasEntity)
-                {
-                    OnBlockEntityRemoved?.Invoke(chunk.Coord, edit.FlatIndex, edit.OldState);
-                }
-
-                if (editNewHasEntity && !editOldHasEntity)
-                {
-                    OnBlockEntityPlaced?.Invoke(chunk.Coord, edit.FlatIndex, edit.NewState);
-                }
-
-                // Fire network dirty tracking event
-                if (OnBlockChanged != null)
-                {
-                    int3 worldCoord = new(
-                        chunk.Coord.x * ChunkConstants.Size + localX,
-                        chunk.Coord.y * ChunkConstants.Size + localY,
-                        chunk.Coord.z * ChunkConstants.Size + localZ);
-                    OnBlockChanged.Invoke(worldCoord, edit.NewState);
-                }
-
-                // Dirty neighbor chunks for border-touching edits
-                DirtyNeighborBorders(chunk.Coord, localX, localY, localZ, _deferredDirtiedCache);
-            }
-
-            chunk.DeferredEdits.Clear();
-            SetChunkState(chunk, ChunkState.RelightPending);
-        }
-
-        /// <summary>
-        ///     Dirties neighbor chunks when an edit is on a chunk border face (local coord 0 or 31).
-        ///     Extracted to avoid duplication between normal and deferred edit paths.
-        /// </summary>
-        private void DirtyNeighborBorders(int3 chunkCoord, int localX, int localY, int localZ,
-            List<int3> dirtiedChunks)
-        {
-            if (localX == 0)
-            {
-                DirtyNeighborChunk(chunkCoord + new int3(-1, 0, 0), dirtiedChunks);
-            }
-
-            if (localX == ChunkConstants.SizeMask)
-            {
-                DirtyNeighborChunk(chunkCoord + new int3(1, 0, 0), dirtiedChunks);
-            }
-
-            if (localY == 0)
-            {
-                DirtyNeighborChunk(chunkCoord + new int3(0, -1, 0), dirtiedChunks);
-            }
-
-            if (localY == ChunkConstants.SizeMask)
-            {
-                DirtyNeighborChunk(chunkCoord + new int3(0, 1, 0), dirtiedChunks);
-            }
-
-            if (localZ == 0)
-            {
-                DirtyNeighborChunk(chunkCoord + new int3(0, 0, -1), dirtiedChunks);
-            }
-
-            if (localZ == ChunkConstants.SizeMask)
-            {
-                DirtyNeighborChunk(chunkCoord + new int3(0, 0, 1), dirtiedChunks);
-            }
-        }
-
-        /// <summary>Marks a neighbor chunk for remesh if it is Ready, or flags NeedsRemesh if Meshing.</summary>
-        private void DirtyNeighborChunk(int3 neighborCoord, List<int3> dirtiedChunks)
-        {
-            ManagedChunk neighbor = GetChunk(neighborCoord);
-
-            if (neighbor == null || neighbor.State < ChunkState.RelightPending)
-            {
-                return;
-            }
-
-            neighbor.HasPlayerEdit = true;
-
-            if (neighbor.State == ChunkState.Ready)
-            {
-                SetChunkState(neighbor, ChunkState.Generated);
-                dirtiedChunks.Add(neighborCoord);
-            }
-            else if (neighbor.State == ChunkState.Meshing)
-            {
-                neighbor.NeedsRemesh = true;
-            }
+            _editor.ApplyDeferredEdits(chunk);
         }
 
         /// <summary>
@@ -1195,10 +489,6 @@ namespace Lithforge.Voxel.Chunk
         }
 
         /// <summary>
-        ///     Unloads chunks outside the render distance, saving dirty ones via AsyncChunkSaver.
-        ///     Processes farthest-first within a time budget to avoid frame spikes.
-        /// </summary>
-        /// <summary>
         ///     Unloads chunks outside all player interest regions, respecting refcounts
         ///     and grace periods. A chunk is eligible only when RefCount == 0 AND
         ///     GracePeriodExpiry has passed. Processes farthest-first within a time budget.
@@ -1211,117 +501,24 @@ namespace Lithforge.Voxel.Chunk
             float budgetMs = 2.0f)
         {
             unloaded.Clear();
-            _toRemoveCache.Clear();
 
-            // Phase 1: Collect candidates — zero-refcount chunks past grace period
-            foreach (KeyValuePair<int3, ManagedChunk> kvp in _chunks)
-            {
-                ManagedChunk chunk = kvp.Value;
+            _loadQueue.CollectUnloadCandidates(
+                playerChunkCoords, currentRealtime, _chunks, _unloadCandidateCache);
 
-                // Skip chunks still referenced by a player
-                if (chunk.RefCount > 0)
-                {
-                    continue;
-                }
-
-                // Skip chunks within grace period
-                if (currentRealtime < chunk.GracePeriodExpiry)
-                {
-                    continue;
-                }
-
-                // No players connected: all zero-refcount past-grace chunks are candidates
-                if (playerChunkCoords.Length == 0)
-                {
-                    _toRemoveCache.Add(kvp.Key);
-                    continue;
-                }
-
-                // Check Y bounds against all player origins
-                bool yInRange = false;
-
-                for (int p = 0; p < playerChunkCoords.Length; p++)
-                {
-                    int3 diff = kvp.Key - playerChunkCoords[p];
-
-                    if (diff.y >= _yUnloadMin && diff.y <= _yUnloadMax)
-                    {
-                        yInRange = true;
-                        break;
-                    }
-                }
-
-                if (!yInRange)
-                {
-                    _toRemoveCache.Add(kvp.Key);
-                    continue;
-                }
-
-                // Check XZ distance against all player origins
-                bool anyNear = false;
-
-                for (int p = 0; p < playerChunkCoords.Length; p++)
-                {
-                    int3 diff = kvp.Key - playerChunkCoords[p];
-                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
-
-                    if (xzDist <= RenderDistance + 1)
-                    {
-                        anyNear = true;
-                        break;
-                    }
-                }
-
-                if (!anyNear)
-                {
-                    _toRemoveCache.Add(kvp.Key);
-                }
-            }
-
-            int candidateCount = _toRemoveCache.Count;
+            int candidateCount = _unloadCandidateCache.Count;
 
             if (candidateCount == 0)
             {
                 return;
             }
 
-            // Phase 2: Schwartzian sort by min Chebyshev XZ distance to nearest player (ascending)
-            if (_unloadDistCache.Length < candidateCount)
-            {
-                int newSize = math.max(candidateCount, _unloadDistCache.Length * 2);
-                _unloadDistCache = new int[newSize];
-                _unloadCoordCache = new int3[newSize];
-            }
-
-            for (int i = 0; i < candidateCount; i++)
-            {
-                int3 coord = _toRemoveCache[i];
-                _unloadCoordCache[i] = coord;
-                int minDist = int.MaxValue;
-
-                for (int p = 0; p < playerChunkCoords.Length; p++)
-                {
-                    int3 diff = coord - playerChunkCoords[p];
-                    int xzDist = math.max(math.abs(diff.x), math.abs(diff.z));
-
-                    if (xzDist < minDist)
-                    {
-                        minDist = xzDist;
-                    }
-                }
-
-                _unloadDistCache[i] = minDist;
-            }
-
-            Array.Sort(_unloadDistCache, _unloadCoordCache, 0, candidateCount);
-
-            // Phase 3: Process within budget, farthest first (iterate in reverse)
+            // Process within budget, farthest first (iterate in reverse)
             long startTicks = Stopwatch.GetTimestamp();
             double ticksPerMs = Stopwatch.Frequency / 1000.0;
 
             for (int i = candidateCount - 1; i >= 0; i--)
             {
-                int3 coord = _unloadCoordCache[i];
+                int3 coord = _unloadCandidateCache[i];
                 ManagedChunk chunk = _chunks[coord];
 
                 chunk.ActiveJobHandle.Complete();
@@ -1397,18 +594,15 @@ namespace Lithforge.Voxel.Chunk
                 }
             }
 
-            // Phase 4: Remove processed chunks from _chunks and index sets
+            // Remove processed chunks from _chunks and index sets
             for (int i = 0; i < unloaded.Count; i++)
             {
                 if (_chunks.TryGetValue(unloaded[i], out ManagedChunk unloadedChunk))
                 {
                     UnregisterChunk(unloadedChunk);
-                    _generatedChunks.Remove(unloadedChunk);
-                    _readyChunks.Remove(unloadedChunk);
-                    _relightPendingChunks.Remove(unloadedChunk);
+                    _stateIndex.RemoveFromIndices(unloadedChunk, unloaded[i]);
                 }
 
-                _chunksNeedingLightUpdate.Remove(unloaded[i]);
                 RemoveChunk(unloaded[i], out _);
             }
         }
@@ -1531,10 +725,7 @@ namespace Lithforge.Voxel.Chunk
             chunk.ActiveJobHandle.Complete();
 
             UnregisterChunk(chunk);
-            _generatedChunks.Remove(chunk);
-            _readyChunks.Remove(chunk);
-            _relightPendingChunks.Remove(chunk);
-            _chunksNeedingLightUpdate.Remove(coord);
+            _stateIndex.RemoveFromIndices(chunk, coord);
 
             if (chunk.Data.IsCreated)
             {
@@ -1573,11 +764,6 @@ namespace Lithforge.Voxel.Chunk
             RemoveChunk(coord, out _);
         }
 
-        /// <summary>
-        ///     Marks all Ready neighbors of the given coord as Generated (needing remesh),
-        ///     and flags any Meshing neighbors for re-mesh after their current job completes.
-        ///     Called after a chunk finishes generation or is loaded from storage.
-        /// </summary>
         /// <summary>
         ///     Fills the given array with chunk counts per state. The array must have
         ///     length >= ChunkState enum count (8). Also outputs NeedsRemesh and
@@ -1756,12 +942,7 @@ namespace Lithforge.Voxel.Chunk
         /// </summary>
         public int3 GetCameraChunkCoord()
         {
-            if (_lastPlayerChunkCoords.Count > 0)
-            {
-                return _lastPlayerChunkCoords[0];
-            }
-
-            return int3.zero;
+            return _loadQueue.GetCameraChunkCoord();
         }
 
         /// <summary>
