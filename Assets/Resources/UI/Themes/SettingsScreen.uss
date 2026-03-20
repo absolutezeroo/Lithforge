@@ -1,0 +1,146 @@
+/* SettingsScreen USS — tab layout, rows, rebind overlay.
+ * Uses --lf-* variables from LithforgeVariables.uss where applicable. */
+
+.settings-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.settings-panel {
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    left: 20%;
+    right: 20%;
+    background-color: rgba(30, 30, 38, 0.95);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    padding-left: 30px;
+    padding-right: 30px;
+    overflow: hidden;
+}
+
+.settings-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: white;
+    margin-bottom: 12px;
+    -unity-text-align: middle-center;
+}
+
+.settings-tab-bar {
+    flex-direction: row;
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(102, 102, 102, 0.5);
+}
+
+.settings-tab {
+    flex-grow: 1;
+    height: 36px;
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgba(179, 179, 179, 1);
+    background-color: rgba(40, 40, 45, 0.8);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-right: 2px;
+    -unity-text-align: middle-center;
+    border-bottom-width: 2px;
+    border-bottom-color: rgba(0, 0, 0, 0);
+}
+
+.settings-tab--active {
+    color: white;
+    background-color: rgba(60, 60, 70, 0.95);
+    border-bottom-color: rgba(120, 160, 255, 1);
+}
+
+.settings-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+    height: 30px;
+}
+
+.settings-label {
+    width: 40%;
+    color: rgba(217, 217, 217, 1);
+    font-size: 14px;
+}
+
+.settings-section-header {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgba(204, 204, 217, 1);
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.settings-close-button {
+    height: 40px;
+    margin-top: 15px;
+    font-size: 16px;
+    background-color: rgba(76, 76, 89, 1);
+    color: white;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.settings-close-button:hover {
+    background-color: rgba(96, 96, 112, 1);
+}
+
+.settings-rebind-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.75);
+    justify-content: center;
+    align-items: center;
+}
+
+.settings-rebind-label {
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: white;
+    -unity-text-align: middle-center;
+}
+
+.settings-rebind-hint {
+    font-size: 14px;
+    color: rgba(179, 179, 179, 1);
+    margin-top: 8px;
+    -unity-text-align: middle-center;
+}
+
+.settings-reset-button {
+    height: 34px;
+    margin-top: 12px;
+    font-size: 14px;
+    background-color: rgba(100, 50, 50, 1);
+    color: white;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.settings-reset-button:hover {
+    background-color: rgba(130, 60, 60, 1);
+}

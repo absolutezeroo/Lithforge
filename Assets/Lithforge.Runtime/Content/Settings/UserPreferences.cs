@@ -63,6 +63,51 @@ namespace Lithforge.Runtime.Content.Settings
         /// <summary>Preferred ambient volume [0..1], or -1 if unset.</summary>
         public float AmbientVolume { get; set; } = -1f;
 
+        /// <summary>Preferred screen resolution width in pixels, or -1 if unset.</summary>
+        public int ResolutionWidth { get; set; } = -1;
+
+        /// <summary>Preferred screen resolution height in pixels, or -1 if unset.</summary>
+        public int ResolutionHeight { get; set; } = -1;
+
+        /// <summary>Preferred fullscreen mode (int cast of FullScreenMode), or -1 if unset.</summary>
+        public int FullScreenMode { get; set; } = -1;
+
+        /// <summary>VSync count (0=off, 1=every vblank), or -1 if unset.</summary>
+        public int VSyncCount { get; set; } = -1;
+
+        /// <summary>Target frame rate (0=unlimited, 30/60/120/144/240), or -1 if unset.</summary>
+        public int MaxFrameRate { get; set; } = -1;
+
+        /// <summary>Shadow quality level (0=off, 1=low, 2=med, 3=high), or -1 if unset.</summary>
+        public int ShadowQuality { get; set; } = -1;
+
+        /// <summary>MSAA sample count (1=off, 2, 4, 8), or -1 if unset.</summary>
+        public int MsaaLevel { get; set; } = -1;
+
+        /// <summary>Render scale factor [0.5..1.0], or -1 if unset.</summary>
+        public float RenderScale { get; set; } = -1f;
+
+        /// <summary>Fog density multiplier, or -1 if unset.</summary>
+        public float FogDensity { get; set; } = -1f;
+
+        /// <summary>Mipmap streaming level (0-4), or -1 if unset.</summary>
+        public int MipmapLevel { get; set; } = -1;
+
+        /// <summary>Smooth lighting / AO toggle (0=off, 1=on), or -1 if unset.</summary>
+        public int SmoothLighting { get; set; } = -1;
+
+        /// <summary>Cloud quality (0=off, 1=fast, 2=fancy), or -1 if unset.</summary>
+        public int CloudQuality { get; set; } = -1;
+
+        /// <summary>Particle quality (0=all, 1=decreased, 2=minimal), or -1 if unset.</summary>
+        public int ParticleQuality { get; set; } = -1;
+
+        /// <summary>GUI scale (0=auto, 1-4), or -1 if unset.</summary>
+        public int GuiScale { get; set; } = -1;
+
+        /// <summary>Serialized key bindings JSON, or null if using defaults.</summary>
+        public string KeyBindingsJson { get; set; }
+
         /// <summary>True if the user has explicitly set a render distance preference.</summary>
         public bool HasRenderDistance
         {
@@ -111,6 +156,90 @@ namespace Lithforge.Runtime.Content.Settings
             get { return AmbientVolume >= 0f; }
         }
 
+        /// <summary>True if the user has explicitly set a resolution preference.</summary>
+        public bool HasResolution
+        {
+            get { return ResolutionWidth >= 0 && ResolutionHeight >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a fullscreen mode preference.</summary>
+        public bool HasFullScreenMode
+        {
+            get { return FullScreenMode >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a VSync preference.</summary>
+        public bool HasVSyncCount
+        {
+            get { return VSyncCount >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a max frame rate preference.</summary>
+        public bool HasMaxFrameRate
+        {
+            get { return MaxFrameRate >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a shadow quality preference.</summary>
+        public bool HasShadowQuality
+        {
+            get { return ShadowQuality >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set an MSAA level preference.</summary>
+        public bool HasMsaaLevel
+        {
+            get { return MsaaLevel >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a render scale preference.</summary>
+        public bool HasRenderScale
+        {
+            get { return RenderScale >= 0f; }
+        }
+
+        /// <summary>True if the user has explicitly set a fog density preference.</summary>
+        public bool HasFogDensity
+        {
+            get { return FogDensity >= 0f; }
+        }
+
+        /// <summary>True if the user has explicitly set a mipmap level preference.</summary>
+        public bool HasMipmapLevel
+        {
+            get { return MipmapLevel >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a smooth lighting preference.</summary>
+        public bool HasSmoothLighting
+        {
+            get { return SmoothLighting >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a cloud quality preference.</summary>
+        public bool HasCloudQuality
+        {
+            get { return CloudQuality >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a particle quality preference.</summary>
+        public bool HasParticleQuality
+        {
+            get { return ParticleQuality >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set a GUI scale preference.</summary>
+        public bool HasGuiScale
+        {
+            get { return GuiScale >= 0; }
+        }
+
+        /// <summary>True if the user has explicitly set key bindings.</summary>
+        public bool HasKeyBindings
+        {
+            get { return KeyBindingsJson is not null; }
+        }
+
         /// <summary>
         ///     Persists preferences to disk using atomic write.
         /// </summary>
@@ -129,7 +258,26 @@ namespace Lithforge.Runtime.Content.Settings
                 ["sfx_volume"] = SfxVolume,
                 ["music_volume"] = MusicVolume,
                 ["ambient_volume"] = AmbientVolume,
+                ["resolution_width"] = ResolutionWidth,
+                ["resolution_height"] = ResolutionHeight,
+                ["fullscreen_mode"] = FullScreenMode,
+                ["vsync_count"] = VSyncCount,
+                ["max_frame_rate"] = MaxFrameRate,
+                ["shadow_quality"] = ShadowQuality,
+                ["msaa_level"] = MsaaLevel,
+                ["render_scale"] = RenderScale,
+                ["fog_density"] = FogDensity,
+                ["mipmap_level"] = MipmapLevel,
+                ["smooth_lighting"] = SmoothLighting,
+                ["cloud_quality"] = CloudQuality,
+                ["particle_quality"] = ParticleQuality,
+                ["gui_scale"] = GuiScale,
             };
+
+            if (KeyBindingsJson is not null)
+            {
+                root["key_bindings"] = KeyBindingsJson;
+            }
 
             string dir = Path.GetDirectoryName(filePath);
 
@@ -204,6 +352,21 @@ namespace Lithforge.Runtime.Content.Settings
                         SfxVolume = root["sfx_volume"]?.Value<float>() ?? -1f,
                         MusicVolume = root["music_volume"]?.Value<float>() ?? -1f,
                         AmbientVolume = root["ambient_volume"]?.Value<float>() ?? -1f,
+                        ResolutionWidth = root["resolution_width"]?.Value<int>() ?? -1,
+                        ResolutionHeight = root["resolution_height"]?.Value<int>() ?? -1,
+                        FullScreenMode = root["fullscreen_mode"]?.Value<int>() ?? -1,
+                        VSyncCount = root["vsync_count"]?.Value<int>() ?? -1,
+                        MaxFrameRate = root["max_frame_rate"]?.Value<int>() ?? -1,
+                        ShadowQuality = root["shadow_quality"]?.Value<int>() ?? -1,
+                        MsaaLevel = root["msaa_level"]?.Value<int>() ?? -1,
+                        RenderScale = root["render_scale"]?.Value<float>() ?? -1f,
+                        FogDensity = root["fog_density"]?.Value<float>() ?? -1f,
+                        MipmapLevel = root["mipmap_level"]?.Value<int>() ?? -1,
+                        SmoothLighting = root["smooth_lighting"]?.Value<int>() ?? -1,
+                        CloudQuality = root["cloud_quality"]?.Value<int>() ?? -1,
+                        ParticleQuality = root["particle_quality"]?.Value<int>() ?? -1,
+                        GuiScale = root["gui_scale"]?.Value<int>() ?? -1,
+                        KeyBindingsJson = root["key_bindings"]?.Value<string>(),
                     };
 
                     return prefs;

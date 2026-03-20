@@ -56,7 +56,7 @@ namespace Lithforge.Runtime.UI.Screens
 
             // Toggle with E key
             if (Keyboard.current != null &&
-                Keyboard.current.eKey.wasPressedThisFrame)
+                Keyboard.current[Context.KeyBindings?.Inventory ?? Key.E].wasPressedThisFrame)
             {
                 // If a block entity screen is open (or was just closed this frame
                 // by its own Update running first), consume E without opening inventory

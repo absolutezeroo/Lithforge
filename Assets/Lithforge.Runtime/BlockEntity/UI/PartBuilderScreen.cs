@@ -104,7 +104,7 @@ namespace Lithforge.Runtime.BlockEntity.UI
 
             if (IsOpen && Keyboard.current != null &&
                 (Keyboard.current.escapeKey.wasPressedThisFrame ||
-                 Keyboard.current.eKey.wasPressedThisFrame))
+                 Keyboard.current[Context.KeyBindings?.Inventory ?? Key.E].wasPressedThisFrame))
             {
                 Close();
 

@@ -1,3 +1,5 @@
+using Lithforge.Runtime.Input;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -26,6 +28,10 @@ namespace Lithforge.Runtime.Tick
             Key.Digit8,
             Key.Digit9,
         };
+
+        /// <summary>Key binding configuration for all gameplay actions.</summary>
+        private readonly KeyBindingConfig _bindings;
+
         /// <summary>Camera transform for pitch sampling.</summary>
         private readonly Transform _cameraTransform;
 
@@ -53,11 +59,12 @@ namespace Lithforge.Runtime.Tick
         /// <summary>OR-latched right mouse button edge across frames.</summary>
         private bool _secondaryPressed;
 
-        /// <summary>Creates a new input snapshot builder sampling from the given transforms.</summary>
-        public InputSnapshotBuilder(Transform playerTransform, Transform cameraTransform)
+        /// <summary>Creates a new input snapshot builder sampling from the given transforms and key bindings.</summary>
+        public InputSnapshotBuilder(Transform playerTransform, Transform cameraTransform, KeyBindingConfig bindings)
         {
             _playerTransform = playerTransform;
             _cameraTransform = cameraTransform;
+            _bindings = bindings;
         }
 
         /// <summary>
@@ -76,17 +83,17 @@ namespace Lithforge.Runtime.Tick
 
             if (keyboard != null)
             {
-                if (keyboard.spaceKey.wasPressedThisFrame)
+                if (keyboard[_bindings.Jump].wasPressedThisFrame)
                 {
                     _jumpPressed = true;
                 }
 
-                if (keyboard.fKey.wasPressedThisFrame)
+                if (keyboard[_bindings.FlyToggle].wasPressedThisFrame)
                 {
                     _flyTogglePressed = true;
                 }
 
-                if (keyboard.nKey.wasPressedThisFrame)
+                if (keyboard[_bindings.NoclipToggle].wasPressedThisFrame)
                 {
                     _noclipTogglePressed = true;
                 }
@@ -156,12 +163,12 @@ namespace Lithforge.Runtime.Tick
                 HotbarSlotPressed = _hotbarSlotPressed,
 
                 // Continuous (sampled now at tick time, gated on cursor lock)
-                MoveForward = cursorLocked && keyboard != null && keyboard.wKey.isPressed,
-                MoveBack = cursorLocked && keyboard != null && keyboard.sKey.isPressed,
-                MoveLeft = cursorLocked && keyboard != null && keyboard.aKey.isPressed,
-                MoveRight = cursorLocked && keyboard != null && keyboard.dKey.isPressed,
-                Sprint = cursorLocked && keyboard != null && keyboard.leftShiftKey.isPressed,
-                JumpHeld = cursorLocked && keyboard != null && keyboard.spaceKey.isPressed,
+                MoveForward = cursorLocked && keyboard != null && keyboard[_bindings.MoveForward].isPressed,
+                MoveBack = cursorLocked && keyboard != null && keyboard[_bindings.MoveBack].isPressed,
+                MoveLeft = cursorLocked && keyboard != null && keyboard[_bindings.MoveLeft].isPressed,
+                MoveRight = cursorLocked && keyboard != null && keyboard[_bindings.MoveRight].isPressed,
+                Sprint = cursorLocked && keyboard != null && keyboard[_bindings.Sprint].isPressed,
+                JumpHeld = cursorLocked && keyboard != null && keyboard[_bindings.Jump].isPressed,
                 PrimaryHeld = cursorLocked && mouse != null && mouse.leftButton.isPressed,
 
                 // Look direction (sampled from transforms)

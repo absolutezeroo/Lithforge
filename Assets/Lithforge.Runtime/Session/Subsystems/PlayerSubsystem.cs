@@ -216,8 +216,33 @@ namespace Lithforge.Runtime.Session.Subsystems
                 }
             }
 
+            // Create KeyBindingConfig from persisted preferences or defaults
+            KeyBindingConfig keyBindings;
+            UserPreferences prefs = context.App.UserPreferences;
+
+            if (prefs.KeyBindingsJson is not null)
+            {
+                try
+                {
+                    Dictionary<string, string> dict =
+                        Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(
+                            prefs.KeyBindingsJson);
+                    keyBindings = KeyBindingConfig.FromDictionary(dict);
+                }
+                catch
+                {
+                    keyBindings = new KeyBindingConfig();
+                }
+            }
+            else
+            {
+                keyBindings = new KeyBindingConfig();
+            }
+
+            context.Register(keyBindings);
+
             // Create InputSnapshotBuilder
-            InputSnapshotBuilder inputBuilder = new(playerObject.transform, mainCamera.transform);
+            InputSnapshotBuilder inputBuilder = new(playerObject.transform, mainCamera.transform, keyBindings);
             context.Register(inputBuilder);
 
             // Create arm materials and player renderer

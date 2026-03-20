@@ -71,6 +71,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 gameLoop?.NotifyRenderDistanceChanged(rd);
             };
 
+            KeyBindingConfig keyBindings = context.Get<KeyBindingConfig>();
+
             settingsScreen.Initialize(
                 context.Get<ChunkManager>(),
                 cameraController,
@@ -78,7 +80,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 meshStore,
                 panelSettings,
                 context.App.UserPreferences,
-                renderDistChanged);
+                renderDistChanged,
+                keyBindings);
 
             // Wire audio mixer
             AudioMixer mixer = Resources.Load<AudioMixer>("Audio/LithforgeMixer");

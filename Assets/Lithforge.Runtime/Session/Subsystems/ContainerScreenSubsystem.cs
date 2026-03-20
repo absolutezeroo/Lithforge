@@ -50,6 +50,8 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             screenManager.SetLogger(context.App.Logger);
 
+            KeyBindingConfig keyBindings = context.Get<KeyBindingConfig>();
+
             ScreenContext screenContext = new(
                 player.Inventory,
                 context.Content.ItemRegistry,
@@ -64,6 +66,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.Content.ToolMaterialRegistry,
                 context.Content.MaterialInputRegistry,
                 screenManager,
+                keyBindings,
                 context.App.Logger);
 
             // Player inventory screen

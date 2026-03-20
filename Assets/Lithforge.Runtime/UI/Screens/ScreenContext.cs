@@ -1,4 +1,5 @@
 using Lithforge.Runtime.Content.Tools;
+using Lithforge.Runtime.Input;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Item.Crafting;
 using Lithforge.Item;
@@ -77,6 +78,9 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         public ContainerScreenManager ScreenManager { get; }
 
+        /// <summary>Key binding configuration for rebindable actions. May be null.</summary>
+        public KeyBindingConfig KeyBindings { get; }
+
         /// <summary>Logger for container screen diagnostics. May be null.</summary>
         public ILogger Logger { get; }
 
@@ -95,6 +99,7 @@ namespace Lithforge.Runtime.UI.Screens
             ToolMaterialRegistry toolMaterialRegistry,
             MaterialInputRegistry materialInputRegistry,
             ContainerScreenManager screenManager = null,
+            KeyBindingConfig keyBindings = null,
             ILogger logger = null)
         {
             PlayerInventory = playerInventory;
@@ -110,6 +115,7 @@ namespace Lithforge.Runtime.UI.Screens
             ToolMaterialRegistry = toolMaterialRegistry;
             MaterialInputRegistry = materialInputRegistry;
             ScreenManager = screenManager;
+            KeyBindings = keyBindings;
             Logger = logger;
         }
     }
