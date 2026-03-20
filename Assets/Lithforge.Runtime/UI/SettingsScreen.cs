@@ -804,9 +804,9 @@ namespace Lithforge.Runtime.UI
             Action<Key> onKeyChanged)
         {
             Button button = SettingsTabBuilder.AddKeybindRow(parent, actionName, currentKey,
-                (name, callback) =>
+                (_, callback) =>
                 {
-                    StartRebind(name, newKey =>
+                    StartRebind(newKey =>
                     {
                         onKeyChanged(newKey);
                         callback(newKey);
@@ -856,7 +856,7 @@ namespace Lithforge.Runtime.UI
         }
 
         /// <summary>Begins a keybind rebind operation, showing the overlay.</summary>
-        private void StartRebind(string actionName, Action<Key> callback)
+        private void StartRebind(Action<Key> callback)
         {
             if (_isRebinding)
             {
