@@ -5,6 +5,7 @@
     "Lithforge.Core",
     "Unity.Burst",
     "Unity.Collections",
+    "Unity.Jobs",
     "Unity.Mathematics"
   ],
   "includePlatforms": [],
@@ -19,5 +20,5 @@
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": true
+  "noEngineReferences": false
 }
