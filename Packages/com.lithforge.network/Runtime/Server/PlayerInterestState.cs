@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+
+using Lithforge.Item;
 using Lithforge.Voxel.Command;
+
 using Unity.Mathematics;
 
 
@@ -116,6 +119,25 @@ namespace Lithforge.Network.Server
         /// for this peer. Prevents overwhelming slow clients. Default: 32.
         /// </summary>
         public int MaxInFlightChunks;
+
+        /// <summary>
+        ///     Snapshot of inventory state last confirmed sent to this client.
+        ///     Used by ServerInventoryProcessor for per-tick delta comparison.
+        ///     Null until inventory is initialized at player accept.
+        /// </summary>
+        internal InventoryRemoteState InventoryRemote;
+
+        /// <summary>
+        ///     The server's authoritative cursor (held item) for this player.
+        ///     Updated by SlotActionExecutor on each successful click.
+        /// </summary>
+        internal ItemStack ServerCursor;
+
+        /// <summary>
+        ///     Accumulated paint-drag state for the current drag gesture.
+        ///     Null when no paint-drag has ever been initiated. Reused across drags.
+        /// </summary>
+        internal PaintDragState PaintDrag;
 
         /// <summary>
         /// Creates a new PlayerInterestState with the given view radius and default values.

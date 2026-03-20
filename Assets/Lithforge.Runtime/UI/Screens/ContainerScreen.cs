@@ -64,6 +64,9 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>Controller handling all slot interaction modes (click, drag, shift-click).</summary>
         protected SlotInteractionController Interaction { get; private set; }
 
+        /// <summary>Cursor correction callback wired to <see cref="HeldStack.Set" /> during open.</summary>
+        private System.Action<ItemStack> _cursorCorrectionCallback;
+
         /// <summary>Item sprite atlas for displaying item icons in slot widgets.</summary>
         protected ItemSpriteAtlas SpriteAtlas { get; private set; }
 
@@ -89,6 +92,13 @@ namespace Lithforge.Runtime.UI.Screens
             Panel.style.display = DisplayStyle.None;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            // Unwire cursor corrections so a stale callback doesn't fire on a closed screen
+            if (Context?.SyncHandler is not null
+                && Context.SyncHandler.OnCursorCorrected == _cursorCorrectionCallback)
+            {
+                Context.SyncHandler.OnCursorCorrected = null;
+            }
 
             Interaction.ResetState();
             _tooltip.Hide();
@@ -149,6 +159,21 @@ namespace Lithforge.Runtime.UI.Screens
                 held, context.ItemRegistry, context.ToolTemplateRegistry, context.ToolMaterialRegistry);
             SpriteAtlas = context.ItemSpriteAtlas;
             ItemRegistryRef = context.ItemRegistry;
+
+            // Wire server sync: send clicks to server
+            if (context.SyncHandler is not null)
+            {
+                Interaction.OnSlotClicked = (slotIndex, clickType, button) =>
+                {
+                    context.SyncHandler.SendSlotClick(slotIndex, clickType, button);
+                };
+
+                // Build callback for cursor corrections (wired in Open, unwired in Close)
+                _cursorCorrectionCallback = stack =>
+                {
+                    held.Set(stack);
+                };
+            }
 
             Document = gameObject.AddComponent<UIDocument>();
             Document.panelSettings = context.PanelSettings;
@@ -443,6 +468,12 @@ namespace Lithforge.Runtime.UI.Screens
 
             _openGraceFrames = 2;
             Interaction.ResetState();
+
+            // Wire cursor corrections to this screen's HeldStack while open
+            if (Context?.SyncHandler is not null && _cursorCorrectionCallback is not null)
+            {
+                Context.SyncHandler.OnCursorCorrected = _cursorCorrectionCallback;
+            }
 
             // Invalidate all slots so they redraw and clear residual hover classes
             for (int i = 0; i < _allBindings.Count; i++)

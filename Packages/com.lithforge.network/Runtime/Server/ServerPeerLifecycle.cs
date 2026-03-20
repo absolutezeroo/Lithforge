@@ -211,16 +211,17 @@ namespace Lithforge.Network.Server
 
             _server.SendTo(peer.ConnectionId, spawnInit, PipelineId.ReliableSequenced);
 
-            // Create server-side inventory and send initial sync
+            // Create server-side inventory, restore saved data, and send initial full sync
             if (_inventoryProcessor is not null)
             {
                 _inventoryProcessor.GetOrCreateInventory(playerId);
-                InventorySyncMessage? sync = _inventoryProcessor.BuildFullSyncForPlayer(playerId);
 
-                if (sync.HasValue)
+                if (peer.PlayerData is not null)
                 {
-                    _server.SendTo(peer.ConnectionId, sync.Value, PipelineId.ReliableSequenced);
+                    _inventoryProcessor.RestoreInventoryFromSave(playerId, peer.PlayerData);
                 }
+
+                _inventoryProcessor.InitializePlayerState(peer);
             }
 
             // Register with the readiness waiter for timeout enforcement
@@ -270,6 +271,7 @@ namespace Lithforge.Network.Server
         {
             _blockProcessor.CancelDigging(playerId);
             _simulation.RemovePlayer(playerId);
+            _inventoryProcessor?.ReturnCursorToInventory(playerId);
             _inventoryProcessor?.RemoveInventory(playerId);
 
             // Notify all observers to despawn this player

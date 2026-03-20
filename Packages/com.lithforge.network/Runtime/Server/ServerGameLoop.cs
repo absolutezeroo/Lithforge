@@ -45,6 +45,9 @@ namespace Lithforge.Network.Server
         /// <summary>Input processing and block command handler.</summary>
         private readonly ServerInputProcessor _inputProcessor;
 
+        /// <summary>Server-side inventory processor for per-tick delta sync (null until set).</summary>
+        private ServerInventoryProcessor _inventoryProcessor;
+
         /// <summary>Peer accept, ready, disconnect, and persistence handler.</summary>
         private readonly ServerPeerLifecycle _lifecycle;
 
@@ -185,6 +188,7 @@ namespace Lithforge.Network.Server
         /// <summary>Injects the server-side inventory processor for slot click command handling.</summary>
         public void SetInventoryProcessor(ServerInventoryProcessor processor)
         {
+            _inventoryProcessor = processor;
             _inputProcessor.SetInventoryProcessor(processor);
             _lifecycle.SetInventoryProcessor(processor);
         }
@@ -254,6 +258,7 @@ namespace Lithforge.Network.Server
 
             // Phase 5: Broadcast updates
             _broadcaster.BroadcastAll(_playingPeersCache, dirtyChanges);
+            _inventoryProcessor?.BroadcastInventoryDeltas(_playingPeersCache);
             _lifecycle.ProcessStreamingAndReadiness(currentTime);
 
             // Phase 6: implicit — UTP batches sends within frame

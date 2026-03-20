@@ -47,6 +47,16 @@ namespace Lithforge.Item
         }
 
         /// <summary>
+        ///     Overwrites the StateId to a specific value. Used by the client-side
+        ///     sync handler after receiving server corrections to re-align the
+        ///     client's state ID with the server's authoritative value.
+        /// </summary>
+        public void ForceStateId(uint stateId)
+        {
+            StateId = stateId;
+        }
+
+        /// <summary>
         ///     Returns the ItemStack in the currently selected hotbar slot.
         /// </summary>
         public ItemStack GetSelectedItem()

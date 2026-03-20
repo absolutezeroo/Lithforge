@@ -1,5 +1,6 @@
 using Lithforge.Runtime.Content.Tools;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Network;
 using Lithforge.Runtime.UI.Sprites;
 using Lithforge.Item.Crafting;
 using Lithforge.Item;
@@ -84,6 +85,9 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>Logger for container screen diagnostics. May be null.</summary>
         public ILogger Logger { get; }
 
+        /// <summary>Client-side inventory sync handler for sending clicks to server. May be null.</summary>
+        public ClientInventorySyncHandler SyncHandler { get; }
+
         /// <summary>Creates a ScreenContext with all shared dependencies for container screens.</summary>
         public ScreenContext(
             Inventory playerInventory,
@@ -100,7 +104,8 @@ namespace Lithforge.Runtime.UI.Screens
             MaterialInputRegistry materialInputRegistry,
             ContainerScreenManager screenManager = null,
             KeyBindingConfig keyBindings = null,
-            ILogger logger = null)
+            ILogger logger = null,
+            ClientInventorySyncHandler syncHandler = null)
         {
             PlayerInventory = playerInventory;
             ItemRegistry = itemRegistry;
@@ -117,6 +122,7 @@ namespace Lithforge.Runtime.UI.Screens
             ScreenManager = screenManager;
             KeyBindings = keyBindings;
             Logger = logger;
+            SyncHandler = syncHandler;
         }
     }
 }

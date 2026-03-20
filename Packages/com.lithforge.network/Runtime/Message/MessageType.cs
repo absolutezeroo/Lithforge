@@ -92,5 +92,8 @@ namespace Lithforge.Network.Message
 
         /// <summary>Server sends a full inventory snapshot to a client.</summary>
         InventorySync = 51,
+
+        /// <summary>Server sends a targeted single-slot correction to a client.</summary>
+        InventorySlotUpdate = 52,
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Input;
+using Lithforge.Runtime.Network;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.World;
 
@@ -51,6 +52,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             screenManager.SetLogger(context.App.Logger);
 
             KeyBindingConfig keyBindings = context.Get<KeyBindingConfig>();
+            context.TryGet(out ClientInventorySyncHandler syncHandler);
 
             ScreenContext screenContext = new(
                 player.Inventory,
@@ -67,7 +69,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.Content.MaterialInputRegistry,
                 screenManager,
                 keyBindings,
-                context.App.Logger);
+                context.App.Logger,
+                syncHandler);
 
             // Player inventory screen
             GameObject inventoryObject = new("PlayerInventoryScreen");

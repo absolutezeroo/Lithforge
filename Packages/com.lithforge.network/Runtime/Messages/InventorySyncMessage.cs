@@ -6,21 +6,37 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    ///     Server→Client full inventory snapshot for reconciliation.
+    ///     Server-to-Client full inventory snapshot for reconciliation.
     ///     Wire format: [StateId:4][SlotCount:1][per-slot: SlotIndex:1, NsLen:1, Ns:N,
     ///     NameLen:1, Name:N, Count:2, Durability:2, ComponentCount:1,
     ///     per-comp: TypeId:2, DataLen:2, Data:N]
+    ///     [HasCursor:1][if HasCursor: NsLen:1, Ns:N, NameLen:1, Name:N, Count:2, Durability:2]
     /// </summary>
     public struct InventorySyncMessage : INetworkMessage
     {
-        /// <summary>Minimum size: StateId(4) + SlotCount(1).</summary>
-        public const int MinSize = 5;
+        /// <summary>Minimum size: StateId(4) + SlotCount(1) + HasCursor(1).</summary>
+        public const int MinSize = 6;
 
         /// <summary>The server's current inventory state ID after this mutation.</summary>
         public uint StateId;
 
         /// <summary>Serialized slot data. Each entry is: slotIndex, namespace, name, count, durability, components.</summary>
         public SyncSlot[] Slots;
+
+        /// <summary>True if the message includes a cursor (held item) state.</summary>
+        public bool HasCursor;
+
+        /// <summary>Cursor item namespace. Empty if no cursor.</summary>
+        public string CursorNs;
+
+        /// <summary>Cursor item name. Empty if no cursor.</summary>
+        public string CursorName;
+
+        /// <summary>Cursor item count. 0 if no cursor.</summary>
+        public ushort CursorCount;
+
+        /// <summary>Cursor item durability.</summary>
+        public short CursorDurability;
 
         /// <summary>Returns the MessageType for this message.</summary>
         public MessageType Type
@@ -40,6 +56,17 @@ namespace Lithforge.Network.Messages
                 {
                     size += GetSlotSize(ref Slots[i]);
                 }
+            }
+
+            if (HasCursor && CursorCount > 0)
+            {
+                int nsLen = string.IsNullOrEmpty(CursorNs)
+                    ? 0
+                    : Encoding.UTF8.GetByteCount(CursorNs);
+                int nameLen = string.IsNullOrEmpty(CursorName)
+                    ? 0
+                    : Encoding.UTF8.GetByteCount(CursorName);
+                size += 1 + nsLen + 1 + nameLen + 2 + 2;
             }
 
             return size;
@@ -62,6 +89,45 @@ namespace Lithforge.Network.Messages
                 {
                     offset += SerializeSlot(ref Slots[i], buffer, offset);
                 }
+            }
+
+            buffer[offset] = (byte)(HasCursor && CursorCount > 0 ? 1 : 0);
+            offset += 1;
+
+            if (HasCursor && CursorCount > 0)
+            {
+                if (string.IsNullOrEmpty(CursorNs))
+                {
+                    buffer[offset] = 0;
+                    offset += 1;
+                }
+                else
+                {
+                    byte[] nsBytes = Encoding.UTF8.GetBytes(CursorNs);
+                    buffer[offset] = (byte)nsBytes.Length;
+                    offset += 1;
+                    Array.Copy(nsBytes, 0, buffer, offset, nsBytes.Length);
+                    offset += nsBytes.Length;
+                }
+
+                if (string.IsNullOrEmpty(CursorName))
+                {
+                    buffer[offset] = 0;
+                    offset += 1;
+                }
+                else
+                {
+                    byte[] nameBytes = Encoding.UTF8.GetBytes(CursorName);
+                    buffer[offset] = (byte)nameBytes.Length;
+                    offset += 1;
+                    Array.Copy(nameBytes, 0, buffer, offset, nameBytes.Length);
+                    offset += nameBytes.Length;
+                }
+
+                MessageSerializer.WriteUShort(buffer, offset, CursorCount);
+                offset += 2;
+                MessageSerializer.WriteUShort(buffer, offset, (ushort)CursorDurability);
+                offset += 2;
             }
 
             return offset - start;
@@ -89,6 +155,54 @@ namespace Lithforge.Network.Messages
             for (int i = 0; i < slotCount && offset < end; i++)
             {
                 msg.Slots[i] = DeserializeSlot(buffer, ref offset, end);
+            }
+
+            // Cursor field (optional for backward compatibility)
+            if (offset < end)
+            {
+                byte hasCursor = buffer[offset];
+                offset += 1;
+
+                if (hasCursor != 0 && offset < end)
+                {
+                    msg.HasCursor = true;
+
+                    int nsLen = buffer[offset];
+                    offset += 1;
+
+                    if (nsLen > 0 && offset + nsLen <= end)
+                    {
+                        msg.CursorNs = Encoding.UTF8.GetString(buffer, offset, nsLen);
+                        offset += nsLen;
+                    }
+                    else
+                    {
+                        msg.CursorNs = "";
+                    }
+
+                    if (offset < end)
+                    {
+                        int nameLen = buffer[offset];
+                        offset += 1;
+
+                        if (nameLen > 0 && offset + nameLen <= end)
+                        {
+                            msg.CursorName = Encoding.UTF8.GetString(buffer, offset, nameLen);
+                            offset += nameLen;
+                        }
+                        else
+                        {
+                            msg.CursorName = "";
+                        }
+                    }
+
+                    if (offset + 4 <= end)
+                    {
+                        msg.CursorCount = MessageSerializer.ReadUShort(buffer, offset);
+                        offset += 2;
+                        msg.CursorDurability = (short)MessageSerializer.ReadUShort(buffer, offset);
+                    }
+                }
             }
 
             return msg;

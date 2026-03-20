@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Item;
 using Lithforge.Network;
 using Lithforge.Network.Client;
 using Lithforge.Network.Message;
@@ -122,6 +123,14 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             context.Register(_client);
             context.Register<INetworkClient>(_client);
+
+            // Create client-side inventory sync handler for server corrections
+            if (context.TryGet(out Inventory playerInventory))
+            {
+                ClientInventorySyncHandler syncHandler = new(playerInventory, _client);
+                syncHandler.RegisterHandlers(_client.Dispatcher);
+                context.Register(syncHandler);
+            }
         }
 
         /// <summary>Wires network metrics, creates client-private physics manager, and defers simulation until handshake.</summary>

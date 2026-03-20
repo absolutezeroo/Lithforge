@@ -208,6 +208,14 @@ namespace Lithforge.Runtime.Session.Subsystems
             MainThreadBridgePump pump = bridgeResult.Pump;
             _runner = bridgeResult.Runner;
 
+            // Create server-authoritative inventory processor and wire into game loop
+            ServerInventoryProcessor inventoryProcessor = new(
+                context.Content.ItemRegistry,
+                bridgeResult.BridgedServer,
+                bridgeResult.BridgedServer);
+
+            _serverGameLoop.SetInventoryProcessor(inventoryProcessor);
+
             // For SP/Host, set up local chunk streaming strategy for zero-copy chunk delivery.
             if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
             {
