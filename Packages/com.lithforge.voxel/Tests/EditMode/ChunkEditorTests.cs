@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 using Lithforge.Voxel.Block;
@@ -11,25 +10,10 @@ using Unity.Mathematics;
 
 namespace Lithforge.Voxel.Tests
 {
-    /// <summary>Tests for <see cref="ChunkEditor"/> block read/write, deferred edits, and border dirtying.</summary>
+    /// <summary>Tests for <see cref="ChunkEditor" /> block read/write, deferred edits, and border dirtying.</summary>
     [TestFixture]
     public sealed class ChunkEditorTests
     {
-        /// <summary>Pool for allocating chunk NativeArrays.</summary>
-        private ChunkPool _pool;
-
-        /// <summary>Lookup table mapping chunk coordinates to ManagedChunk instances.</summary>
-        private Dictionary<int3, ManagedChunk> _chunks;
-
-        /// <summary>The chunk editor under test.</summary>
-        private ChunkEditor _editor;
-
-        /// <summary>Tracks all created chunks for cleanup.</summary>
-        private List<ManagedChunk> _createdChunks;
-
-        /// <summary>Reusable list for collecting dirtied chunk coordinates.</summary>
-        private List<int3> _dirtiedChunks;
-
         /// <summary>Allocates pool, chunk dictionary, editor, and scratch lists.</summary>
         [SetUp]
         public void SetUp()
@@ -59,6 +43,20 @@ namespace Lithforge.Voxel.Tests
 
             _pool.Dispose();
         }
+        /// <summary>Pool for allocating chunk NativeArrays.</summary>
+        private ChunkPool _pool;
+
+        /// <summary>Lookup table mapping chunk coordinates to ManagedChunk instances.</summary>
+        private Dictionary<int3, ManagedChunk> _chunks;
+
+        /// <summary>The chunk editor under test.</summary>
+        private ChunkEditor _editor;
+
+        /// <summary>Tracks all created chunks for cleanup.</summary>
+        private List<ManagedChunk> _createdChunks;
+
+        /// <summary>Reusable list for collecting dirtied chunk coordinates.</summary>
+        private List<int3> _dirtiedChunks;
 
         /// <summary>GetBlock on a loaded chunk returns the correct StateId.</summary>
         [Test]
@@ -69,7 +67,8 @@ namespace Lithforge.Voxel.Tests
 
             // Write StateId(5) at local (3, 4, 5)
             int index = ChunkData.GetIndex(3, 4, 5);
-            chunk.Data[index] = new StateId(5);
+            NativeArray<StateId> nativeArray = chunk.Data;
+            nativeArray[index] = new StateId(5);
 
             int3 worldCoord = new(3, 4, 5);
             StateId result = _editor.GetBlock(worldCoord);
