@@ -125,8 +125,29 @@ namespace Lithforge.WorldGen.Stages
                 return;
             }
 
-            RiverCarveDepth[columnIndex] = carveDepth;
-            RiverFlags[columnIndex] = (byte)math.select(0, 1, isRiver);
+            // Bank smoothing: columns outside the river threshold but within the bank
+            // zone get a partial carveDepth that slopes terrain down toward sea level.
+            float bankThreshold = threshold * 3f;
+            bool isBank = !isRiver && absNoise < bankThreshold && fadeFactor > 0.01f;
+
+            if (isBank)
+            {
+                // bankT: 1.0 at river edge (absNoise=threshold), 0.0 at bank edge (absNoise=bankThreshold)
+                float bankT = 1f - (absNoise - threshold) / (bankThreshold - threshold);
+                bankT = bankT * bankT; // quadratic falloff: steep near river, gentle far
+
+                // Only lower terrain above sea level — don't carve underwater banks
+                float aboveWater = math.max(0f, surfaceY - (float)SeaLevel);
+                float bankCarve = bankT * aboveWater * 0.75f * coastFade;
+
+                RiverCarveDepth[columnIndex] = bankCarve;
+                RiverFlags[columnIndex] = 0; // bank columns don't get gravel
+            }
+            else
+            {
+                RiverCarveDepth[columnIndex] = carveDepth;
+                RiverFlags[columnIndex] = (byte)math.select(0, 1, isRiver);
+            }
         }
     }
 }
