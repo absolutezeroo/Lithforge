@@ -2,6 +2,8 @@ using System.Collections.Generic;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Content.Models
 {
     /// <summary>
@@ -14,8 +16,17 @@ namespace Lithforge.Runtime.Content.Models
         /// <summary>Maximum parent chain depth before aborting to prevent infinite loops.</summary>
         private const int MaxParentDepth = 16;
 
+        /// <summary>Logger for diagnostic messages.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Cache of already-resolved models to avoid redundant parent chain walks.</summary>
         private readonly Dictionary<BlockModel, ResolvedFaceTextures2D> _resolvedCache = new();
+
+        /// <summary>Creates a content model resolver with an optional logger.</summary>
+        public ContentModelResolver(ILogger logger = null)
+        {
+            _logger = logger;
+        }
 
         /// <summary>Resolves a BlockModel to its per-face Texture2D references by walking the parent chain.</summary>
         public ResolvedFaceTextures2D Resolve(BlockModel model)
@@ -45,7 +56,7 @@ namespace Lithforge.Runtime.Content.Models
 
                 if (!visited.Add(current))
                 {
-                    UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
+                    _logger?.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
 
                     break;
                 }
@@ -138,7 +149,7 @@ namespace Lithforge.Runtime.Content.Models
 
                 if (!visited.Add(current))
                 {
-                    UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
+                    _logger?.LogWarning($"[ContentModelResolver] Circular parent chain detected at '{current.name}'.");
 
                     break;
                 }
@@ -197,7 +208,7 @@ namespace Lithforge.Runtime.Content.Models
         }
 
         /// <summary>Follows #variable indirection chains to resolve a TextureVariable to a concrete Texture2D.</summary>
-        private static Texture2D ResolveTextureVariable(
+        private Texture2D ResolveTextureVariable(
             TextureVariable texVar,
             Dictionary<string, TextureVariable> mergedTextures)
         {
@@ -217,7 +228,7 @@ namespace Lithforge.Runtime.Content.Models
 
                 if (!visitedVars.Add(varName))
                 {
-                    UnityEngine.Debug.LogWarning($"[ContentModelResolver] Circular texture variable reference: #{varName}");
+                    _logger?.LogWarning($"[ContentModelResolver] Circular texture variable reference: #{varName}");
 
                     break;
                 }

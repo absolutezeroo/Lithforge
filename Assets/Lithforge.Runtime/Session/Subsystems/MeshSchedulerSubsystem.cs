@@ -59,7 +59,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.App.PipelineStats,
                 SchedulingConfig.MaxMeshesPerFrame(rd),
                 SchedulingConfig.MaxMeshCompletionsPerFrame(rd),
-                cs.MeshCompletionBudgetMs);
+                cs.MeshCompletionBudgetMs,
+                context.App.Logger);
             _scheduler.UpdateConfig(rd);
 
             context.Register(_scheduler);

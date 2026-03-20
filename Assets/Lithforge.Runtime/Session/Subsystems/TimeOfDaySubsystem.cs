@@ -86,7 +86,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 _timeOfDay,
                 _timeOfDay.DirectionalLight,
                 rendering,
-                chunkManager);
+                chunkManager,
+                context.App.Logger);
 
             context.Register(_timeOfDay);
             context.Register(_skyController);

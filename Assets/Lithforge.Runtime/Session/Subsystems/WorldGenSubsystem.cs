@@ -65,9 +65,9 @@ namespace Lithforge.Runtime.Session.Subsystems
             NativeNoiseConfig erosionNoise = wg.ErosionNoise.ToNativeConfig();
             NativeNoiseConfig caveNoise = wg.CaveNoise.ToNativeConfig();
 
-            StateId stoneId = StateIdHelper.FindStateId(context.Content, "lithforge:stone");
+            StateId stoneId = StateIdHelper.FindStateId(context.Content, "lithforge:stone", context.App.Logger);
             StateId airId = StateId.Air;
-            StateId waterId = StateIdHelper.FindStateId(context.Content, "lithforge:water");
+            StateId waterId = StateIdHelper.FindStateId(context.Content, "lithforge:water", context.App.Logger);
 
             // Build native biome data
             BiomeDefinition[] biomes = context.Content.BiomeDefinitions;
@@ -86,10 +86,10 @@ namespace Lithforge.Runtime.Session.Subsystems
                     HumidityMin = def.HumidityMin,
                     HumidityMax = def.HumidityMax,
                     HumidityCenter = def.HumidityCenter,
-                    TopBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.TopBlock),
-                    FillerBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.FillerBlock),
-                    StoneBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.StoneBlock),
-                    UnderwaterBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.UnderwaterBlock),
+                    TopBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.TopBlock, context.App.Logger),
+                    FillerBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.FillerBlock, context.App.Logger),
+                    StoneBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.StoneBlock, context.App.Logger),
+                    UnderwaterBlock = StateIdHelper.FindStateIdForBlock(context.Content, def.UnderwaterBlock, context.App.Logger),
                     FillerDepth = (byte)def.FillerDepth,
                     TreeDensity = def.TreeDensity,
                     TreeTemplateIndex = (byte)def.TreeType,
@@ -121,8 +121,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 OreDefinition def = ores[i];
                 _nativeOreConfigs[i] = new NativeOreConfig
                 {
-                    OreStateId = StateIdHelper.FindStateIdForBlock(context.Content, def.OreBlock),
-                    ReplaceStateId = StateIdHelper.FindStateIdForBlock(context.Content, def.ReplaceBlock),
+                    OreStateId = StateIdHelper.FindStateIdForBlock(context.Content, def.OreBlock, context.App.Logger),
+                    ReplaceStateId = StateIdHelper.FindStateIdForBlock(context.Content, def.ReplaceBlock, context.App.Logger),
                     MinY = def.MinY,
                     MaxY = def.MaxY,
                     VeinSize = def.VeinSize,
@@ -131,9 +131,9 @@ namespace Lithforge.Runtime.Session.Subsystems
                 };
             }
 
-            StateId iceId = StateIdHelper.FindStateId(context.Content, "lithforge:ice");
-            StateId gravelId = StateIdHelper.FindStateId(context.Content, "lithforge:gravel");
-            StateId sandId = StateIdHelper.FindStateId(context.Content, "lithforge:sand");
+            StateId iceId = StateIdHelper.FindStateId(context.Content, "lithforge:ice", context.App.Logger);
+            StateId gravelId = StateIdHelper.FindStateId(context.Content, "lithforge:gravel", context.App.Logger);
+            StateId sandId = StateIdHelper.FindStateId(context.Content, "lithforge:sand", context.App.Logger);
             NativeRiverConfig riverConfig = wg.RiverNoise.ToNativeConfig();
 
             _pipeline = new GenerationPipeline(

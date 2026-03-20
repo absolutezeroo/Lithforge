@@ -125,7 +125,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             // Phase 3: Resolve block models via ContentModelResolver
             yield return "Resolving models...";
-            ContentModelResolver modelResolver = new();
+            ContentModelResolver modelResolver = new(_logger);
             ctx.ModelResolver = modelResolver;
             Dictionary<BlockModel, ResolvedFaceTextures2D> resolvedModelCache = new();
 

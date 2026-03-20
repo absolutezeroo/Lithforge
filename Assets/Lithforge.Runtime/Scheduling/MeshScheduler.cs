@@ -14,6 +14,8 @@ using Unity.Mathematics;
 
 using UnityEngine.Profiling;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Scheduling
 {
     /// <summary>
@@ -33,6 +35,9 @@ namespace Lithforge.Runtime.Scheduling
 
         /// <summary>Frustum culling helper for mesh scheduling prioritization.</summary>
         private readonly ChunkCulling _culling;
+
+        /// <summary>Logger for diagnostic warnings (nullable, uses Null Object pattern).</summary>
+        private readonly ILogger _logger;
 
         /// <summary>
         ///     Reusable list for FillChunksToMesh — avoids per-frame allocation.
@@ -94,7 +99,8 @@ namespace Lithforge.Runtime.Scheduling
             IPipelineStats pipelineStats,
             int maxMeshesPerFrame,
             int maxMeshCompletionsPerFrame,
-            float completionBudgetMs)
+            float completionBudgetMs,
+            ILogger logger = null)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
@@ -105,6 +111,7 @@ namespace Lithforge.Runtime.Scheduling
             _maxMeshesPerFrame = maxMeshesPerFrame;
             _maxMeshCompletionsPerFrame = maxMeshCompletionsPerFrame;
             _completionBudgetMs = completionBudgetMs;
+            _logger = logger;
             _dummyBorder = new NativeArray<StateId>(1, Allocator.Persistent);
             _dummyLiquid = new NativeArray<byte>(1, Allocator.Persistent);
         }
@@ -177,7 +184,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (urgentForceComplete)
                 {
-                    UnityEngine.Debug.LogWarning(
+                    _logger?.LogWarning(
                         "[MeshScheduler] Force-completing stale urgent mesh job for chunk " +
                         $"{pending.Coord} after {pending.FrameAge} frames");
                 }
@@ -220,7 +227,7 @@ namespace Lithforge.Runtime.Scheduling
 
                 if (pending.FrameAge > 300)
                 {
-                    UnityEngine.Debug.LogWarning(
+                    _logger?.LogWarning(
                         "[MeshScheduler] Force-completing stale mesh job for chunk " +
                         $"{pending.Coord} after {pending.FrameAge} frames");
                     forceComplete = true;

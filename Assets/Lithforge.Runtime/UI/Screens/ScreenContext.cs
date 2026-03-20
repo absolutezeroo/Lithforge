@@ -6,6 +6,8 @@ using Lithforge.Voxel.Crafting;
 
 using UnityEngine.UIElements;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
@@ -75,6 +77,9 @@ namespace Lithforge.Runtime.UI.Screens
         /// </summary>
         public ContainerScreenManager ScreenManager { get; }
 
+        /// <summary>Logger for container screen diagnostics. May be null.</summary>
+        public ILogger Logger { get; }
+
         /// <summary>Creates a ScreenContext with all shared dependencies for container screens.</summary>
         public ScreenContext(
             Inventory playerInventory,
@@ -89,7 +94,8 @@ namespace Lithforge.Runtime.UI.Screens
             PartBuilderRecipeRegistry partBuilderRecipeRegistry,
             ToolMaterialRegistry toolMaterialRegistry,
             MaterialInputRegistry materialInputRegistry,
-            ContainerScreenManager screenManager = null)
+            ContainerScreenManager screenManager = null,
+            ILogger logger = null)
         {
             PlayerInventory = playerInventory;
             ItemRegistry = itemRegistry;
@@ -104,6 +110,7 @@ namespace Lithforge.Runtime.UI.Screens
             ToolMaterialRegistry = toolMaterialRegistry;
             MaterialInputRegistry = materialInputRegistry;
             ScreenManager = screenManager;
+            Logger = logger;
         }
     }
 }

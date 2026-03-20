@@ -2,6 +2,8 @@ using System.IO;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Player
 {
     /// <summary>
@@ -14,6 +16,15 @@ namespace Lithforge.Runtime.Player
         /// <summary>Subfolder name within StreamingAssets where skin PNGs are stored.</summary>
         private const string SkinsFolder = "Skins";
 
+        /// <summary>Logger for diagnostic messages.</summary>
+        private readonly ILogger _logger;
+
+        /// <summary>Creates a skin loader with an optional logger.</summary>
+        public SkinLoader(ILogger logger = null)
+        {
+            _logger = logger;
+        }
+
         /// <summary>
         ///     Loads a skin PNG from StreamingAssets/skins/{filename}.
         ///     Returns null if the file is not found or has invalid dimensions.
@@ -24,7 +35,7 @@ namespace Lithforge.Runtime.Player
 
             if (!File.Exists(path))
             {
-                UnityEngine.Debug.LogWarning($"[SkinLoader] Skin not found: {path}");
+                _logger?.LogWarning($"[SkinLoader] Skin not found: {path}");
                 return null;
             }
 
@@ -34,13 +45,13 @@ namespace Lithforge.Runtime.Player
             if (!tex.LoadImage(pngBytes))
             {
                 Object.Destroy(tex);
-                UnityEngine.Debug.LogWarning($"[SkinLoader] Failed to decode skin image: {path}");
+                _logger?.LogWarning($"[SkinLoader] Failed to decode skin image: {path}");
                 return null;
             }
 
             if (tex.width != 64 || tex.height != 64 && tex.height != 32)
             {
-                UnityEngine.Debug.LogWarning(
+                _logger?.LogWarning(
                     $"[SkinLoader] Invalid skin dimensions: {tex.width}x{tex.height} (expected 64x64 or 64x32)");
                 Object.Destroy(tex);
                 return null;

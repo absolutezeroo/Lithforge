@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Audio
 {
     /// <summary>
@@ -12,8 +14,17 @@ namespace Lithforge.Runtime.Audio
         /// <summary>Maps sound group names to their definitions.</summary>
         private readonly Dictionary<string, SoundGroupDefinition> _groups = new();
 
+        /// <summary>Logger for diagnostic messages.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Set of group names that have already emitted a missing-group warning.</summary>
         private readonly HashSet<string> _warnedGroups = new();
+
+        /// <summary>Creates a sound group registry with an optional logger.</summary>
+        public SoundGroupRegistry(ILogger logger = null)
+        {
+            _logger = logger;
+        }
 
         /// <summary>Number of registered sound groups.</summary>
         public int Count
@@ -47,7 +58,7 @@ namespace Lithforge.Runtime.Audio
 
             if (_warnedGroups.Add(groupName))
             {
-                UnityEngine.Debug.LogWarning(
+                _logger?.LogWarning(
                     $"[Audio] Sound group '{groupName}' not found. Sounds will be silent.");
             }
 

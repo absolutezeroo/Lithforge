@@ -48,7 +48,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 {
                     Shader fallback = Shader.Find("Universal Render Pipeline/Lit")
                                       ?? Shader.Find("Hidden/InternalErrorShader");
-                    UnityEngine.Debug.LogError(
+                    context.App.Logger.LogError(
                         "[Lithforge] VoxelOpaque shader not found! Using fallback.");
                     opaqueMaterial = new Material(fallback);
                 }
@@ -69,7 +69,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
             else
             {
-                UnityEngine.Debug.LogWarning("[Lithforge] VoxelCutout shader not found, using opaque fallback.");
+                context.App.Logger.LogWarning("[Lithforge] VoxelCutout shader not found, using opaque fallback.");
                 cutoutMaterial = new Material(opaqueMaterial);
             }
 
@@ -88,7 +88,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
             else
             {
-                UnityEngine.Debug.LogWarning("[Lithforge] VoxelTranslucent shader not found, using opaque fallback.");
+                context.App.Logger.LogWarning("[Lithforge] VoxelTranslucent shader not found, using opaque fallback.");
                 translucentMaterial = new Material(opaqueMaterial);
             }
 

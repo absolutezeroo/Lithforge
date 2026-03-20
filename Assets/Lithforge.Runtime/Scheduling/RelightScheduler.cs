@@ -12,6 +12,8 @@ using Unity.Mathematics;
 
 using UnityEngine.Profiling;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Scheduling
 {
     /// <summary>
@@ -61,6 +63,9 @@ namespace Lithforge.Runtime.Scheduling
         /// <summary>Chunk manager for state transitions and chunk queries.</summary>
         private readonly ChunkManager _chunkManager;
 
+        /// <summary>Logger for diagnostic warnings (nullable, uses Null Object pattern).</summary>
+        private readonly ILogger _logger;
+
         /// <summary>
         ///     Relight jobs in flight, awaiting completion next frame.
         ///     Two-phase pattern: schedule frame N, complete frame N+1.
@@ -99,11 +104,13 @@ namespace Lithforge.Runtime.Scheduling
         public RelightScheduler(
             ChunkManager chunkManager,
             NativeStateRegistry nativeStateRegistry,
-            int maxRelightsPerFrame = 6)
+            int maxRelightsPerFrame = 6,
+            ILogger logger = null)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _maxRelightsPerFrame = maxRelightsPerFrame;
+            _logger = logger;
         }
 
         /// <summary>
@@ -128,7 +135,7 @@ namespace Lithforge.Runtime.Scheduling
 
             if (_relightCache.Count > 20)
             {
-                UnityEngine.Debug.LogWarning(
+                _logger?.LogWarning(
                     $"[RelightScheduler] {_relightCache.Count} chunks pending relight — possible cascade loop");
             }
 
@@ -262,7 +269,7 @@ namespace Lithforge.Runtime.Scheduling
                 {
                     if (entry.FrameAge > 300)
                     {
-                        UnityEngine.Debug.LogWarning(
+                        _logger?.LogWarning(
                             "[RelightScheduler] Force-completing stale relight job for chunk " +
                             $"{entry.Chunk.Coord} after {entry.FrameAge} frames");
                     }

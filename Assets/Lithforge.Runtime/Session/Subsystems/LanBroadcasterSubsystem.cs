@@ -52,7 +52,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 contentHash = contentHash.ToString(),
                 worldName = host.DisplayName,
                 gameMode = host.GameMode.ToString(),
-            });
+            }, context.App.Logger);
             _broadcaster.Start();
 
             context.Register(_broadcaster);

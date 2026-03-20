@@ -43,7 +43,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             if (worldPath != null && !SessionLock.TryAcquire(worldPath, out _handle))
             {
-                UnityEngine.Debug.LogError(
+                context.App.Logger.LogError(
                     $"[Lithforge] Could not acquire session lock for {worldPath}. " +
                     "World may be open in another instance.");
             }

@@ -44,7 +44,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             if (copyShader == null)
             {
-                UnityEngine.Debug.LogError(
+                context.App.Logger.LogError(
                     "[Lithforge] BufferCopy compute shader not found. " +
                     "Assign it in the Inspector or place it in a Resources folder.");
             }

@@ -38,8 +38,8 @@ namespace Lithforge.Runtime.Session.Subsystems
             NativeBiomeDataHolder biomeHolder = context.Get<NativeBiomeDataHolder>();
             WorldGenSettings wg = context.App.Settings.WorldGen;
 
-            StateId oakLogId = StateIdHelper.FindStateId(context.Content, "lithforge:oak_log");
-            StateId oakLeavesId = StateIdHelper.FindStateId(context.Content, "lithforge:oak_leaves");
+            StateId oakLogId = StateIdHelper.FindStateId(context.Content, "lithforge:oak_log", context.App.Logger);
+            StateId oakLeavesId = StateIdHelper.FindStateId(context.Content, "lithforge:oak_leaves", context.App.Logger);
             StateId airId = StateId.Air;
 
             DecorationStage decoration = new(biomeHolder.Data, oakLogId, oakLeavesId, airId, wg.SeaLevel);

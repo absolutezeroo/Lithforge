@@ -12,6 +12,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 using Cursor = UnityEngine.Cursor;
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.UI.Screens
 {
@@ -74,6 +75,9 @@ namespace Lithforge.Runtime.UI.Screens
         ///     Available after <see cref="InitializeBase" /> has been called.
         /// </summary>
         protected ScreenContext Context { get; private set; }
+
+        /// <summary>Logger for container screen diagnostics. Set from ScreenContext during initialization.</summary>
+        protected ILogger Logger { get; private set; }
 
         /// <summary>True while this container screen is open and visible.</summary>
         public bool IsOpen { get; private set; }
@@ -138,6 +142,7 @@ namespace Lithforge.Runtime.UI.Screens
         protected void InitializeBase(ScreenContext context, int sortingOrder, string templatePath = null)
         {
             Context = context;
+            Logger = context.Logger;
 
             HeldStack held = new();
             Interaction = new SlotInteractionController(
@@ -195,7 +200,7 @@ namespace Lithforge.Runtime.UI.Screens
 
                 if (_screenTemplate == null)
                 {
-                    UnityEngine.Debug.LogError("[ContainerScreen] VisualTreeAsset not found at: " + templatePath);
+                    Logger?.LogError("[ContainerScreen] VisualTreeAsset not found at: " + templatePath);
                 }
             }
         }
@@ -221,14 +226,14 @@ namespace Lithforge.Runtime.UI.Screens
         {
             if (Panel == null)
             {
-                UnityEngine.Debug.LogError("[ContainerScreen] CloneTemplate called before InitializeBase.");
+                Logger?.LogError("[ContainerScreen] CloneTemplate called before InitializeBase.");
                 return false;
             }
 
             if (_screenTemplate == null)
             {
-                UnityEngine.Debug.LogError("[" + GetType().Name + "] CloneTemplate: no VisualTreeAsset loaded. "
-                                           + "Pass a non-null templatePath to InitializeBase.");
+                Logger?.LogError("[" + GetType().Name + "] CloneTemplate: no VisualTreeAsset loaded. "
+                                 + "Pass a non-null templatePath to InitializeBase.");
                 return false;
             }
 
@@ -247,7 +252,7 @@ namespace Lithforge.Runtime.UI.Screens
         {
             if (Panel == null)
             {
-                UnityEngine.Debug.LogError("[ContainerScreen] QueryContainer called before InitializeBase.");
+                Logger?.LogError("[ContainerScreen] QueryContainer called before InitializeBase.");
                 return null;
             }
 
@@ -255,8 +260,8 @@ namespace Lithforge.Runtime.UI.Screens
 
             if (result == null)
             {
-                UnityEngine.Debug.LogError("[" + GetType().Name + "] QueryContainer: element '"
-                                           + name + "' not found in UXML template.");
+                Logger?.LogError("[" + GetType().Name + "] QueryContainer: element '"
+                                 + name + "' not found in UXML template.");
             }
 
             return result;

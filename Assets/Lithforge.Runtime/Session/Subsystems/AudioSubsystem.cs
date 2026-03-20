@@ -77,7 +77,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
             else
             {
-                UnityEngine.Debug.LogWarning(
+                context.App.Logger.LogWarning(
                     "[Lithforge] LithforgeMixer not found at Resources/Audio/. " +
                     "Audio will use AudioListener.volume fallback.");
             }

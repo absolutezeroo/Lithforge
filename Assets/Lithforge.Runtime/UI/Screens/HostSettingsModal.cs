@@ -7,6 +7,8 @@ using Lithforge.Voxel.Storage;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
@@ -73,6 +75,9 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>World seed received from the context for new world creation.</summary>
         private long _seed;
 
+        /// <summary>Logger for host settings modal diagnostics.</summary>
+        private ILogger _logger;
+
         /// <summary>File system path of the selected world, received from the context.</summary>
         private string _worldPath;
 
@@ -128,10 +133,12 @@ namespace Lithforge.Runtime.UI.Screens
         public void Initialize(
             PanelSettings panelSettings,
             ScreenManager screenManager,
-            Action<SessionConfig> onSessionCreated)
+            Action<SessionConfig> onSessionCreated,
+            ILogger logger = null)
         {
             _screenManager = screenManager;
             _onSessionCreated = onSessionCreated;
+            _logger = logger;
 
             _document = gameObject.AddComponent<UIDocument>();
             _document.panelSettings = panelSettings;
@@ -263,14 +270,14 @@ namespace Lithforge.Runtime.UI.Screens
 
             if (!ushort.TryParse(portText, out ushort port) || port == 0)
             {
-                UnityEngine.Debug.LogWarning("[HostSettingsModal] Invalid port.");
+                _logger?.LogWarning("[HostSettingsModal] Invalid port.");
 
                 return;
             }
 
             if (!int.TryParse(maxPlayersText, out int maxPlayers) || maxPlayers < 1)
             {
-                UnityEngine.Debug.LogWarning("[HostSettingsModal] Invalid max players.");
+                _logger?.LogWarning("[HostSettingsModal] Invalid max players.");
 
                 return;
             }

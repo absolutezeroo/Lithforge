@@ -67,6 +67,7 @@ namespace Lithforge.Runtime.Bootstrap
             pipelineStats.Enabled = settings.Debug.EnableProfiling;
 
             _screenManager = gameObject.AddComponent<ScreenManager>();
+            _screenManager.SetLogger(logger);
             _savedServerList = new SavedServerList(logger);
 
             _appContext = new AppContext(
@@ -166,7 +167,7 @@ namespace Lithforge.Runtime.Bootstrap
 
             GameObject hostSettingsObj = new("HostSettingsModal");
             HostSettingsModal hostSettings = hostSettingsObj.AddComponent<HostSettingsModal>();
-            hostSettings.Initialize(panelSettings, _screenManager, onSessionSelected);
+            hostSettings.Initialize(panelSettings, _screenManager, onSessionSelected, _appContext.Logger);
             _screenManager.Register(hostSettings);
 
             GameObject joinGameObj = new("JoinGameScreen");
@@ -174,7 +175,7 @@ namespace Lithforge.Runtime.Bootstrap
             joinGame.Initialize(panelSettings, _screenManager, _savedServerList, clientConfig =>
             {
                 _pendingSession = clientConfig;
-            });
+            }, _appContext.Logger);
             _screenManager.Register(joinGame);
 
             GameObject connectionObj = new("ConnectionProgressScreen");

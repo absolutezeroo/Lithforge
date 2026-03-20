@@ -44,7 +44,7 @@ namespace Lithforge.Runtime.Session.Subsystems
         {
             _pool = new LiquidPool(64);
 
-            StateId waterSourceId = StateIdHelper.FindStateId(context.Content, "lithforge:water");
+            StateId waterSourceId = StateIdHelper.FindStateId(context.Content, "lithforge:water", context.App.Logger);
             LiquidJobConfig waterConfig = LiquidJobConfig.Water(waterSourceId.Value);
 
             ChunkManager chunkManager = context.Get<ChunkManager>();

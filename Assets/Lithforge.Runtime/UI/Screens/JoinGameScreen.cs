@@ -8,6 +8,8 @@ using Lithforge.Runtime.World;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.UI.Screens
 {
     /// <summary>
@@ -110,6 +112,9 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>Persisted list of saved server entries for the recent servers section.</summary>
         private SavedServerList _savedServerList;
 
+        /// <summary>Logger for join game screen diagnostics.</summary>
+        private ILogger _logger;
+
         /// <summary>Screen manager for navigating back to the main menu.</summary>
         private ScreenManager _screenManager;
 
@@ -209,11 +214,13 @@ namespace Lithforge.Runtime.UI.Screens
             PanelSettings panelSettings,
             ScreenManager screenManager,
             SavedServerList savedServerList,
-            Action<SessionConfig.Client> onConnect)
+            Action<SessionConfig.Client> onConnect,
+            ILogger logger = null)
         {
             _screenManager = screenManager;
             _savedServerList = savedServerList;
             _onConnect = onConnect;
+            _logger = logger;
             _lanListener = new LanDiscoveryListener();
 
             _document = gameObject.AddComponent<UIDocument>();
@@ -723,13 +730,13 @@ namespace Lithforge.Runtime.UI.Screens
 
             if (string.IsNullOrEmpty(address))
             {
-                UnityEngine.Debug.LogWarning("[JoinGameScreen] Address is empty.");
+                _logger?.LogWarning("[JoinGameScreen] Address is empty.");
                 return;
             }
 
             if (!ushort.TryParse(portText, out ushort port) || port == 0)
             {
-                UnityEngine.Debug.LogWarning("[JoinGameScreen] Invalid port.");
+                _logger?.LogWarning("[JoinGameScreen] Invalid port.");
                 return;
             }
 

@@ -48,6 +48,8 @@ namespace Lithforge.Runtime.Session.Subsystems
             ContainerScreenManager screenManager =
                 screenManagerObject.AddComponent<ContainerScreenManager>();
 
+            screenManager.SetLogger(context.App.Logger);
+
             ScreenContext screenContext = new(
                 player.Inventory,
                 context.Content.ItemRegistry,
@@ -61,7 +63,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 context.Content.PartBuilderRecipeRegistry,
                 context.Content.ToolMaterialRegistry,
                 context.Content.MaterialInputRegistry,
-                screenManager);
+                screenManager,
+                context.App.Logger);
 
             // Player inventory screen
             GameObject inventoryObject = new("PlayerInventoryScreen");

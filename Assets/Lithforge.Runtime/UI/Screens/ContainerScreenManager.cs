@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 using BlockEntityBase = Lithforge.Runtime.BlockEntity.BlockEntity;
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.UI.Screens
 {
@@ -19,6 +20,9 @@ namespace Lithforge.Runtime.UI.Screens
     /// </summary>
     public sealed class ContainerScreenManager : MonoBehaviour
     {
+        /// <summary>Logger for container screen manager diagnostics.</summary>
+        private ILogger _logger;
+
         /// <summary>List of registered screen bindings keyed by entity type ID.</summary>
         private readonly List<BlockEntityScreenBinding> _bindings = new();
 
@@ -44,6 +48,12 @@ namespace Lithforge.Runtime.UI.Screens
         public bool WasClosedThisFrame
         {
             get { return _lastCloseFrame == Time.frameCount; }
+        }
+
+        /// <summary>Sets the logger for container screen manager diagnostics.</summary>
+        public void SetLogger(ILogger logger)
+        {
+            _logger = logger;
         }
 
         /// <summary>
@@ -156,7 +166,7 @@ namespace Lithforge.Runtime.UI.Screens
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError(
+                    _logger?.LogError(
                         "[ContainerScreenManager] Factory failed for entity type '"
                         + binding.EntityTypeId + "': " + ex.Message);
                     return null;

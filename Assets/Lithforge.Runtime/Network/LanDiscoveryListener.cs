@@ -5,6 +5,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Network
 {
     /// <summary>
@@ -21,6 +23,9 @@ namespace Lithforge.Runtime.Network
         /// <summary>Map of IP address to discovered LAN server entry, maintained on the main thread.</summary>
         private readonly Dictionary<string, LanServerEntry> _discovered = new();
 
+        /// <summary>Logger for diagnostic messages.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Thread-safe queue of raw packets received by the background listener thread.</summary>
         private readonly ConcurrentQueue<(byte[] data, string address, DateTime time)> _receiveQueue = new();
 
@@ -35,6 +40,12 @@ namespace Lithforge.Runtime.Network
 
         /// <summary>UDP socket used for receiving broadcast packets.</summary>
         private UdpClient _udpClient;
+
+        /// <summary>Creates a LAN discovery listener with an optional logger.</summary>
+        public LanDiscoveryListener(ILogger logger = null)
+        {
+            _logger = logger;
+        }
 
         /// <summary>Stops the listener thread, closes the UDP socket, and waits for thread exit.</summary>
         public void Dispose()
@@ -175,7 +186,7 @@ namespace Lithforge.Runtime.Network
                     {
                         if (_running)
                         {
-                            UnityEngine.Debug.LogWarning(
+                            _logger?.LogWarning(
                                 $"[LanDiscoveryListener] Receive error: {ex.Message}");
                         }
                     }
@@ -185,7 +196,7 @@ namespace Lithforge.Runtime.Network
             {
                 if (_running)
                 {
-                    UnityEngine.Debug.LogError($"[LanDiscoveryListener] Fatal: {ex}");
+                    _logger?.LogError($"[LanDiscoveryListener] Fatal: {ex}");
                 }
             }
         }

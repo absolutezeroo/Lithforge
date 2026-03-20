@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 using Cursor = UnityEngine.Cursor;
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.UI.Navigation
 {
@@ -25,6 +26,9 @@ namespace Lithforge.Runtime.UI.Navigation
 
         /// <summary>Ordered stack of active screens from bottom (index 0) to top.</summary>
         private readonly List<IScreen> _stack = new();
+
+        /// <summary>Logger for screen manager diagnostics.</summary>
+        private ILogger _logger;
 
         /// <summary>True while a hide transition is in progress to prevent re-entrant stack mutations.</summary>
         private bool _transitioning;
@@ -47,6 +51,12 @@ namespace Lithforge.Runtime.UI.Navigation
         ///     Cleared when the game session ends.
         /// </summary>
         public Action OnEscapeEmpty { get; set; }
+
+        /// <summary>Sets the logger for screen manager diagnostics.</summary>
+        public void SetLogger(ILogger logger)
+        {
+            _logger = logger;
+        }
 
         /// <summary>Polls for Escape key and dispatches it to the topmost opaque screen.</summary>
         private void Update()
@@ -105,7 +115,7 @@ namespace Lithforge.Runtime.UI.Navigation
         {
             if (!_registry.TryGetValue(screenName, out IScreen screen))
             {
-                UnityEngine.Debug.LogError(
+                _logger?.LogError(
                     $"[ScreenManager] Screen '{screenName}' is not registered.");
 
                 return;
@@ -239,7 +249,7 @@ namespace Lithforge.Runtime.UI.Navigation
         {
             if (!_registry.TryGetValue(screenName, out IScreen screen))
             {
-                UnityEngine.Debug.LogError(
+                _logger?.LogError(
                     $"[ScreenManager] Screen '{screenName}' is not registered.");
                 return;
             }

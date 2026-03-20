@@ -41,7 +41,8 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             _scheduler = new RelightScheduler(
                 chunkManager,
-                context.Content.NativeStateRegistry);
+                context.Content.NativeStateRegistry,
+                logger: context.App.Logger);
 
             context.Register(_scheduler);
         }

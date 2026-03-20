@@ -3,6 +3,8 @@ using Lithforge.Voxel.Chunk;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
@@ -29,6 +31,9 @@ namespace Lithforge.Runtime.Rendering
 
         /// <summary>Gradient mapping time-of-day to ambient light color.</summary>
         private Gradient _ambientGradient;
+
+        /// <summary>Logger for diagnostic messages.</summary>
+        private ILogger _logger;
 
         /// <summary>Base fog density before render-distance scaling is applied.</summary>
         private float _baseFogDensity;
@@ -135,11 +140,13 @@ namespace Lithforge.Runtime.Rendering
             TimeOfDayController timeOfDayController,
             Light directionalLight,
             RenderingSettings settings,
-            ChunkManager chunkManager = null)
+            ChunkManager chunkManager = null,
+            ILogger logger = null)
         {
             _timeOfDayController = timeOfDayController;
             _directionalLight = directionalLight;
             _chunkManager = chunkManager;
+            _logger = logger;
             _skyGradient = settings.SkyGradient;
             _skyZenithGradient = settings.SkyZenithGradient;
             _fogGradient = settings.FogGradient;
@@ -151,7 +158,7 @@ namespace Lithforge.Runtime.Rendering
 
             if (skyShader == null)
             {
-                UnityEngine.Debug.LogError("[Lithforge] ProceduralSky shader not found.");
+                _logger?.LogError("[Lithforge] ProceduralSky shader not found.");
                 return;
             }
 

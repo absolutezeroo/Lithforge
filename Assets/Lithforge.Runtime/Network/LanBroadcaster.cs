@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Network
 {
     /// <summary>
@@ -21,6 +23,9 @@ namespace Lithforge.Runtime.Network
         /// <summary>Server info payload included in each broadcast packet.</summary>
         private readonly LanServerInfo _info;
 
+        /// <summary>Logger for diagnostic messages.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Reusable buffer for serializing broadcast packets.</summary>
         private readonly byte[] _packetBuffer = new byte[LanDiscoveryPacket.MaxPacketSize];
 
@@ -34,9 +39,10 @@ namespace Lithforge.Runtime.Network
         private UdpClient _udpClient;
 
         /// <summary>Creates a broadcaster with the given server info payload.</summary>
-        public LanBroadcaster(LanServerInfo info)
+        public LanBroadcaster(LanServerInfo info, ILogger logger = null)
         {
             _info = info;
+            _logger = logger;
         }
 
         /// <summary>Stops the broadcast thread and closes the UDP socket.</summary>
@@ -116,7 +122,7 @@ namespace Lithforge.Runtime.Network
                     }
                     catch (SocketException ex)
                     {
-                        UnityEngine.Debug.LogWarning($"[LanBroadcaster] Send failed: {ex.Message}");
+                        _logger?.LogWarning($"[LanBroadcaster] Send failed: {ex.Message}");
                     }
 
                     Thread.Sleep(BroadcastIntervalMs);
@@ -126,7 +132,7 @@ namespace Lithforge.Runtime.Network
             {
                 if (_running)
                 {
-                    UnityEngine.Debug.LogError($"[LanBroadcaster] Fatal: {ex}");
+                    _logger?.LogError($"[LanBroadcaster] Fatal: {ex}");
                 }
             }
         }
