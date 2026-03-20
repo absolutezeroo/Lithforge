@@ -60,6 +60,8 @@ namespace Lithforge.Network.Tests
             {
                 _targetLight.Dispose();
             }
+
+            ChunkNetSerializer.DisposeThreadLocalResources();
         }
 
         /// <summary>Round-trip of a uniform chunk (single palette entry) preserves all voxel and light data.</summary>
