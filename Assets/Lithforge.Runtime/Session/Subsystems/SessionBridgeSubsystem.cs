@@ -305,44 +305,57 @@ namespace Lithforge.Runtime.Session.Subsystems
             slConfig.GracePeriodSeconds = context.App.Settings.Chunk.GracePeriodSeconds;
             slConfig.GetCurrentRealtime = () => Time.realtimeSinceStartupAsDouble;
 
-            // Player chunk positions: prefer bridge snapshot (populated by server thread
-            // with all player positions), fall back to camera when bridge is empty or absent.
-            // The camera fallback is critical for SP/Host startup: the bridge starts empty
-            // until the server thread processes the local peer's handshake (~100ms).
+            // Camera drives chunk loading for the local player (always correct — not
+            // affected by server-side physics falling through unloaded chunks).
+            // Bridge provides chunk coords for remote players only.
             Camera mainCamera = player?.MainCamera;
 
             context.TryGet(out MainThreadBridgePump pump);
 
             slConfig.GetPlayerChunkSnapshot = () =>
             {
-                // Bridge snapshot includes all connected players (local + remote)
-                if (pump is not null)
-                {
-                    PlayerChunkSnapshot bridgeSnapshot = pump.GetPlayerChunkSnapshot();
+                int3 cameraCoord = default;
+                bool hasCamera = false;
 
-                    if (bridgeSnapshot.Count > 0)
-                    {
-                        return bridgeSnapshot;
-                    }
+                if (mainCamera is not null)
+                {
+                    Vector3 pos = mainCamera.transform.position;
+
+                    cameraCoord = new int3(
+                        (int)math.floor(pos.x / ChunkConstants.Size),
+                        (int)math.floor(pos.y / ChunkConstants.Size),
+                        (int)math.floor(pos.z / ChunkConstants.Size));
+
+                    hasCamera = true;
                 }
 
-                // Fallback: read camera directly (startup + modes without a bridge)
-                if (mainCamera == null)
+                // Bridge adds remote players (local peer's stale server-side position
+                // is harmless noise — the camera coord is authoritative for loading).
+                PlayerChunkSnapshot bridge = pump is not null
+                    ? pump.GetPlayerChunkSnapshot()
+                    : PlayerChunkSnapshot.Empty;
+
+                int total = (hasCamera ? 1 : 0) + bridge.Count;
+
+                if (total == 0)
                 {
                     return PlayerChunkSnapshot.Empty;
                 }
 
-                Vector3 pos = mainCamera.transform.position;
+                int3[] coords = new int3[total];
+                int idx = 0;
 
-                int3 coord = new(
-                    (int)math.floor(pos.x / ChunkConstants.Size),
-                    (int)math.floor(pos.y / ChunkConstants.Size),
-                    (int)math.floor(pos.z / ChunkConstants.Size));
-
-                return new PlayerChunkSnapshot(new[]
+                if (hasCamera)
                 {
-                    coord,
-                }, 1);
+                    coords[idx++] = cameraCoord;
+                }
+
+                for (int i = 0; i < bridge.Count; i++)
+                {
+                    coords[idx++] = bridge.Coords[i];
+                }
+
+                return new PlayerChunkSnapshot(coords, total);
             };
 
             Camera lookCamera = player?.MainCamera;
