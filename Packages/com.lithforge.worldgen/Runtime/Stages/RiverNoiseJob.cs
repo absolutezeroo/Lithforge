@@ -114,6 +114,17 @@ namespace Lithforge.WorldGen.Stages
                 Config.MaxCarveDepthMountain,
                 mountainFactor);
 
+            // Suppress river if carved channel cannot reach near sea level.
+            // A river with no water (channel entirely above seaLevel) serves no purpose
+            // and would require liquid sim to fill it — which would spread water incorrectly.
+            int projectedBedY = surfaceY - (int)carveDepth;
+            if (projectedBedY > SeaLevel + 2)
+            {
+                RiverCarveDepth[columnIndex] = 0f;
+                RiverFlags[columnIndex] = 0;
+                return;
+            }
+
             RiverCarveDepth[columnIndex] = carveDepth;
             RiverFlags[columnIndex] = (byte)math.select(0, 1, isRiver);
         }

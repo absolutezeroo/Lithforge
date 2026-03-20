@@ -102,36 +102,6 @@ namespace Lithforge.WorldGen.Stages
                 }
             }
 
-            // Fill water in river bed: at minimum the layer just above the carved floor
-            // must contain water, even if riverBedY is above sea level.
-            int waterTopY = math.min(surfaceY, SeaLevel);
-            int waterBotY = riverBedY + 1;
-
-            if (waterBotY > waterTopY)
-            {
-                // River is entirely above sea level — place exactly 1 water layer
-                waterBotY = surfaceY - (int)carveDepth + 1;
-                waterTopY = waterBotY;
-            }
-
-            for (int wy = waterBotY; wy <= waterTopY; wy++)
-            {
-                int ly = wy - chunkWorldY;
-
-                if (ly < 0 || ly >= ChunkConstants.Size)
-                {
-                    continue;
-                }
-
-                int idx = Lithforge.Voxel.Chunk.ChunkData.GetIndex(x, ly, z);
-
-                if (!ChunkData[idx].Equals(AirId))
-                {
-                    continue;
-                }
-
-                ChunkData[idx] = WaterId;
-            }
         }
     }
 }
