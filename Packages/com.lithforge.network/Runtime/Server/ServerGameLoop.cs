@@ -175,6 +175,10 @@ namespace Lithforge.Network.Server
                 _broadcaster.ClearAll();
                 _serverImpl.OnPeerAccepted = null;
                 OnPlayerCountChanged = null;
+                OnPlayerAcceptedCallback = null;
+                OnHostSpawnPlayer = null;
+                OnHostDespawnPlayer = null;
+                OnHostPlayerState = null;
             }
         }
 
