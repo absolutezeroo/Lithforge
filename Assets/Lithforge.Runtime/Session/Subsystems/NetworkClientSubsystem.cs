@@ -90,6 +90,17 @@ namespace Lithforge.Runtime.Session.Subsystems
                 {
                     _client.SetIdentity(identity.Uuid, identity.PublicKeyBytes, identity.Sign);
                 }
+                else
+                {
+                    // Identity generation failed — use a transient UUID without auth.
+                    // This ensures the handshake always carries a player UUID, even if
+                    // the persistent identity store is unavailable (e.g. read-only filesystem).
+                    string fallbackUuid = Guid.NewGuid().ToString();
+                    logger.LogWarning(
+                        $"[Identity] Identity unavailable, using transient UUID: {fallbackUuid}");
+                    _client.SetIdentity(
+                        fallbackUuid, Array.Empty<byte>(), _ => Array.Empty<byte>());
+                }
 
                 context.Register(identity);
             }
