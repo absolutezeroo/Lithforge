@@ -1,6 +1,7 @@
 using Lithforge.Voxel.Chunk;
 using Lithforge.WorldGen.Climate;
 using Lithforge.WorldGen.River;
+
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -9,15 +10,13 @@ using Unity.Mathematics;
 namespace Lithforge.WorldGen.Stages
 {
     /// <summary>
-    /// Computes per-column river presence and carve depth using domain-warped noise.
-    /// Rivers exist where |warpedNoise| is less than a variable threshold modulated by
-    /// erosion (wider in plains, narrower in mountains) and faded near oceans.
-    ///
-    /// Inputs: ClimateMap (continentalness/erosion gate), HeightMap, seed.
-    /// Outputs: RiverFlags (per-column byte, 0 = no river, 1 = river), RiverCarveDepth (float).
-    ///
-    /// Owner: GenerationPipeline.Schedule allocates both output arrays.
-    /// Dispose: RiverFlags transferred to ManagedChunk; RiverCarveDepth transient.
+    ///     Computes per-column river presence and carve depth using domain-warped noise.
+    ///     Rivers exist where |warpedNoise| is less than a variable threshold modulated by
+    ///     erosion (wider in plains, narrower in mountains) and faded near oceans.
+    ///     Inputs: ClimateMap (continentalness/erosion gate), HeightMap, seed.
+    ///     Outputs: RiverFlags (per-column byte, 0 = no river, 1 = river), RiverCarveDepth (float).
+    ///     Owner: GenerationPipeline.Schedule allocates both output arrays.
+    ///     Dispose: RiverFlags transferred to ManagedChunk; RiverCarveDepth transient.
     /// </summary>
     [BurstCompile(FloatMode = FloatMode.Deterministic)]
     public struct RiverNoiseJob : IJobParallelFor
@@ -49,7 +48,7 @@ namespace Lithforge.WorldGen.Stages
         /// <summary>Evaluates river presence and carve depth for a single XZ column.</summary>
         public void Execute(int columnIndex)
         {
-            int x = columnIndex & (ChunkConstants.Size - 1);
+            int x = columnIndex & ChunkConstants.Size - 1;
             int z = columnIndex >> 5;
 
             ClimateData climate = ClimateMap[columnIndex];
@@ -59,7 +58,7 @@ namespace Lithforge.WorldGen.Stages
             float worldZ = ChunkCoord.z * ChunkConstants.Size + z;
 
             float seedX = (Seed & 0xFFFF) * 0.3183099f + Config.SeedOffset;
-            float seedZ = ((Seed >> 16) & 0xFFFF) * 0.3183099f + Config.SeedOffset;
+            float seedZ = (Seed >> 16 & 0xFFFF) * 0.3183099f + Config.SeedOffset;
 
             // Suppress rivers in ocean zones (low continentalness)
             float coastFade = math.smoothstep(
@@ -69,9 +68,9 @@ namespace Lithforge.WorldGen.Stages
 
             // Suppress rivers below sea level (already underwater)
             float heightFade = math.smoothstep(
-                (float)(SeaLevel - 1),
-                (float)(SeaLevel + 4),
-                (float)surfaceY);
+                SeaLevel - 1,
+                SeaLevel + 4,
+                surfaceY);
 
             // Early out if both fades are negligible
             float fadeFactor = coastFade * heightFade;
@@ -99,13 +98,13 @@ namespace Lithforge.WorldGen.Stages
 
             // Variable threshold: wider in plains (high erosion), narrower in mountains (low erosion)
             float erosionFactor = math.remap(0f, 1f, 0.4f, 2.5f, climate.Erosion);
-            float threshold = Config.BaseThreshold * erosionFactor * fadeFactor;
+            float threshold = Config.BaseThreshold * erosionFactor * coastFade;
 
             // River detection
             bool isRiver = absNoise < threshold;
             float intensity = math.select(
                 0f,
-                (1f - absNoise / math.max(threshold, 0.001f)) * fadeFactor,
+                (1f - absNoise / math.max(threshold, 0.001f)) * coastFade * heightFade,
                 isRiver);
 
             // Carve depth: deeper in mountains, shallow in plains

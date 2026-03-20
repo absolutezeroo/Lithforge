@@ -92,7 +92,7 @@ namespace Lithforge.Runtime.Content.Settings
             frequency = 0.003f,
             warpFrequency = 0.006f,
             warpStrength = 80f,
-            baseThreshold = 0.04f,
+            baseThreshold = 0.065f,
             seedOffset = 7777,
             oceanContinentalnessCutoff = 0.3f,
             maxCarveDepthPlains = 4f,
