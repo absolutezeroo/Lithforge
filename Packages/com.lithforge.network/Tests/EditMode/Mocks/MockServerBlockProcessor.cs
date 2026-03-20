@@ -6,7 +6,7 @@ using Unity.Mathematics;
 
 namespace Lithforge.Network.Tests.Mocks
 {
-    /// <summary>Minimal mock of <see cref="IServerBlockProcessor"/> for testing ServerGameLoop.</summary>
+    /// <summary>Minimal mock of <see cref="IServerBlockProcessor" /> for testing ServerGameLoop.</summary>
     internal sealed class MockServerBlockProcessor : IServerBlockProcessor
     {
         /// <summary>Adds a player (no-op).</summary>
@@ -38,13 +38,13 @@ namespace Lithforge.Network.Tests.Mocks
         /// <summary>Returns a rejected block break result.</summary>
         public BlockProcessResult TryBreakBlock(ushort playerId, int3 position, float3 playerPosition, uint serverTick)
         {
-            return BlockProcessResult.Reject(CommandResult.ChunkNotLoaded, StateId.Air);
+            return BlockProcessResult.Reject(CommandResult.ChunkNotReady, StateId.Air);
         }
 
         /// <summary>Returns a rejected block place result.</summary>
         public BlockProcessResult TryPlaceBlock(ushort playerId, int3 position, StateId blockState, BlockFace face, float3 playerPosition)
         {
-            return BlockProcessResult.Reject(CommandResult.ChunkNotLoaded, StateId.Air);
+            return BlockProcessResult.Reject(CommandResult.ChunkNotReady, StateId.Air);
         }
 
         /// <summary>Returns air for any position.</summary>
