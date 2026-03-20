@@ -226,7 +226,7 @@ half3 SampleBiomeTint(float3 worldPos, int tintType)
     //   u = 1 - temp                      (hot=left, cold=right)
     //   v = 1 - adjustedRainfall          (humid=bottom, dry=top)
     float adjustedRainfall = rainfall * temp;
-    float2 colormapUV = float2(1.0 - temp, 1.0 - adjustedRainfall);
+    float2 colormapUV = float2(1.0 - temp, adjustedRainfall);
 
     if (tintType == 1) // grass
     {
