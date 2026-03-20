@@ -53,7 +53,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             if (cullShader == null)
             {
-                UnityEngine.Debug.LogWarning(
+                context.App.Logger.LogWarning(
                     "[Lithforge] FrustumCull compute shader not found. " +
                     "GPU frustum culling will be disabled.");
             }
@@ -67,7 +67,7 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             if (hiZShader == null)
             {
-                UnityEngine.Debug.LogWarning(
+                context.App.Logger.LogWarning(
                     "[Lithforge] HiZGenerate compute shader not found. " +
                     "Hi-Z occlusion culling will be disabled.");
             }
@@ -78,7 +78,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                 cs.YLoadMin, cs.YLoadMax,
                 cs.YUnloadMin, cs.YUnloadMax,
                 cullShader, hiZShader, resizer,
-                context.App.PipelineStats);
+                context.App.PipelineStats,
+                context.App.Logger);
 
             // Set sea level for altitude-based tint adjustment in shader
             Shader.SetGlobalFloat("_SeaLevel", context.App.Settings.WorldGen.SeaLevel);

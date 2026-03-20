@@ -4,6 +4,8 @@ using System.IO;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.World
 {
     /// <summary>
@@ -16,12 +18,16 @@ namespace Lithforge.Runtime.World
         /// <summary>Full filesystem path to the servers.json file.</summary>
         private readonly string _filePath;
 
+        /// <summary>Logger for I/O diagnostics.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>In-memory representation of the saved server list.</summary>
         private SavedServerListData _data;
 
         /// <summary>Creates the list and loads existing entries from disk.</summary>
-        public SavedServerList()
+        public SavedServerList(ILogger logger = null)
         {
+            _logger = logger;
             _filePath = Path.Combine(Application.persistentDataPath, "servers.json");
             Load();
         }
@@ -133,7 +139,7 @@ namespace Lithforge.Runtime.World
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogWarning($"[SavedServerList] Failed to load {_filePath}: {ex.Message}");
+                _logger?.LogWarning($"[SavedServerList] Failed to load {_filePath}: {ex.Message}");
             }
         }
 
@@ -163,7 +169,7 @@ namespace Lithforge.Runtime.World
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[SavedServerList] Failed to save: {ex.Message}");
+                _logger?.LogError($"[SavedServerList] Failed to save: {ex.Message}");
             }
         }
 

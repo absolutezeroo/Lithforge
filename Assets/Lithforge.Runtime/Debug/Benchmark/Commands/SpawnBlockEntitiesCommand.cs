@@ -23,7 +23,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         public override IEnumerator Execute(BenchmarkContext context)
         {
-            UnityEngine.Debug.Log("[Benchmark] SpawnBlockEntities: " + count +
+            context.Logger?.LogInfo("[Benchmark] SpawnBlockEntities: " + count +
                 " entities (placeholder — requires block entity benchmark hooks)");
             yield return null;
         }

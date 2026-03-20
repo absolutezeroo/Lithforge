@@ -6,6 +6,8 @@ using Newtonsoft.Json.Linq;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Content.Settings
 {
     /// <summary>
@@ -180,7 +182,7 @@ namespace Lithforge.Runtime.Content.Settings
         ///     migration from legacy PlayerPrefs keys. Returns a new instance with
         ///     sentinel defaults if nothing is found.
         /// </summary>
-        public static UserPreferences Load()
+        public static UserPreferences Load(ILogger logger = null)
         {
             string filePath = GetFilePath();
 
@@ -208,7 +210,7 @@ namespace Lithforge.Runtime.Content.Settings
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogWarning(
+                    logger?.LogWarning(
                         $"[UserPreferences] Failed to load {filePath}: {ex.Message}. Using defaults.");
 
                     return new UserPreferences();
@@ -216,14 +218,14 @@ namespace Lithforge.Runtime.Content.Settings
             }
 
             // No JSON file — attempt one-time migration from PlayerPrefs
-            return MigrateFromPlayerPrefs();
+            return MigrateFromPlayerPrefs(logger);
         }
 
         /// <summary>
         ///     Reads legacy PlayerPrefs keys, creates a UserPreferences, saves it to JSON,
         ///     then deletes the old PlayerPrefs keys. Returns defaults if no legacy keys exist.
         /// </summary>
-        private static UserPreferences MigrateFromPlayerPrefs()
+        private static UserPreferences MigrateFromPlayerPrefs(ILogger logger = null)
         {
             UserPreferences prefs = new();
             bool migrated = false;
@@ -265,12 +267,12 @@ namespace Lithforge.Runtime.Content.Settings
                     PlayerPrefs.DeleteKey(LegacyPrefAOStrength);
                     PlayerPrefs.Save();
 
-                    UnityEngine.Debug.Log(
+                    logger?.LogInfo(
                         "[UserPreferences] Migrated settings from PlayerPrefs to preferences.json.");
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogWarning(
+                    logger?.LogWarning(
                         $"[UserPreferences] Migration save failed: {ex.Message}. " +
                         "Legacy PlayerPrefs keys were NOT deleted.");
                 }

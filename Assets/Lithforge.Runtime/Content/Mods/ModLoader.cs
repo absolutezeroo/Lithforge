@@ -11,6 +11,8 @@ using Lithforge.Runtime.Content.WorldGen;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Content.Mods
 {
     /// <summary>
@@ -23,6 +25,9 @@ namespace Lithforge.Runtime.Content.Mods
         ///     Keeps loaded AssetBundles alive so their assets stay valid until UnloadAll.
         /// </summary>
         private readonly List<AssetBundle> _loadedBundles = new();
+
+        /// <summary>Logger for mod loading diagnostics.</summary>
+        private readonly ILogger _logger;
 
         /// <summary>Block definitions extracted from all loaded mods, ready for StateRegistry.</summary>
         public List<BlockDefinition> LoadedBlocks { get; } = new();
@@ -54,6 +59,12 @@ namespace Lithforge.Runtime.Content.Mods
         /// <summary>Parsed manifests carrying mod metadata (name, version, dependencies).</summary>
         public List<ModManifest> LoadedManifests { get; } = new();
 
+        /// <summary>Creates a mod loader with the given logger for diagnostics.</summary>
+        public ModLoader(ILogger logger)
+        {
+            _logger = logger;
+        }
+
         /// <summary>
         ///     Scans the mods directory for .lithmod files, loads each as an AssetBundle,
         ///     and extracts all recognized ScriptableObject types into the LoadedXxx lists.
@@ -65,7 +76,7 @@ namespace Lithforge.Runtime.Content.Mods
 
             if (!Directory.Exists(modsDir))
             {
-                UnityEngine.Debug.Log("[ModLoader] No mods directory found.");
+                _logger.LogInfo("[ModLoader] No mods directory found.");
                 return;
             }
 
@@ -76,9 +87,9 @@ namespace Lithforge.Runtime.Content.Mods
                 LoadMod(modFiles[i]);
             }
 
-            UnityEngine.Debug.Log($"[ModLoader] Loaded {_loadedBundles.Count} mods: " +
-                                  $"{LoadedBlocks.Count} blocks, {LoadedItems.Count} items, " +
-                                  $"{LoadedBiomes.Count} biomes, {LoadedOres.Count} ores.");
+            _logger.LogInfo($"[ModLoader] Loaded {_loadedBundles.Count} mods: " +
+                           $"{LoadedBlocks.Count} blocks, {LoadedItems.Count} items, " +
+                           $"{LoadedBiomes.Count} biomes, {LoadedOres.Count} ores.");
         }
 
         /// <summary>
@@ -91,14 +102,14 @@ namespace Lithforge.Runtime.Content.Mods
 
             if (bundle == null)
             {
-                UnityEngine.Debug.LogError($"[ModLoader] Failed to load mod bundle: {bundlePath}");
+                _logger.LogError($"[ModLoader] Failed to load mod bundle: {bundlePath}");
                 return;
             }
 
             _loadedBundles.Add(bundle);
 
             string modName = Path.GetFileNameWithoutExtension(bundlePath);
-            UnityEngine.Debug.Log($"[ModLoader] Loading mod: {modName}");
+            _logger.LogInfo($"[ModLoader] Loading mod: {modName}");
 
             LoadAssetsOfType(bundle, LoadedManifests);
             LoadAssetsOfType(bundle, LoadedBlocks);

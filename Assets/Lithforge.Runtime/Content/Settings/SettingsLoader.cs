@@ -1,5 +1,7 @@
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Content.Settings
 {
     /// <summary>
@@ -12,18 +14,19 @@ namespace Lithforge.Runtime.Content.Settings
         ///     Loads every settings asset and returns them bundled in a single <see cref="LoadedSettings" />.
         ///     Missing assets produce a log warning and a runtime-created default instance.
         /// </summary>
+        /// <param name="logger">Logger for reporting missing assets.</param>
         /// <returns>A fully populated settings container, never null.</returns>
-        public static LoadedSettings Load()
+        public static LoadedSettings Load(ILogger logger)
         {
             LoadedSettings result = new()
             {
-                WorldGen = LoadOrCreate<WorldGenSettings>("Settings/WorldGenSettings"),
-                Chunk = LoadOrCreate<ChunkSettings>("Settings/ChunkSettings"),
-                Physics = LoadOrCreate<PhysicsSettings>("Settings/PhysicsSettings"),
-                Rendering = LoadOrCreate<RenderingSettings>("Settings/RenderingSettings"),
-                Debug = LoadOrCreate<DebugSettings>("Settings/DebugSettings"),
-                Gameplay = LoadOrCreate<GameplaySettings>("Settings/GameplaySettings"),
-                Audio = LoadOrCreate<AudioSettings>("Settings/AudioSettings"),
+                WorldGen = LoadOrCreate<WorldGenSettings>("Settings/WorldGenSettings", logger),
+                Chunk = LoadOrCreate<ChunkSettings>("Settings/ChunkSettings", logger),
+                Physics = LoadOrCreate<PhysicsSettings>("Settings/PhysicsSettings", logger),
+                Rendering = LoadOrCreate<RenderingSettings>("Settings/RenderingSettings", logger),
+                Debug = LoadOrCreate<DebugSettings>("Settings/DebugSettings", logger),
+                Gameplay = LoadOrCreate<GameplaySettings>("Settings/GameplaySettings", logger),
+                Audio = LoadOrCreate<AudioSettings>("Settings/AudioSettings", logger),
             };
 
             return result;
@@ -34,15 +37,16 @@ namespace Lithforge.Runtime.Content.Settings
         ///     absent, creates a temporary instance with default field values so the game can still run.
         /// </summary>
         /// <param name="path">Resources-relative path without extension (e.g. "Settings/ChunkSettings").</param>
+        /// <param name="logger">Logger for reporting missing assets.</param>
         /// <typeparam name="T">The ScriptableObject subclass to load.</typeparam>
         /// <returns>The loaded or freshly created asset, never null.</returns>
-        private static T LoadOrCreate<T>(string path) where T : ScriptableObject
+        private static T LoadOrCreate<T>(string path, ILogger logger) where T : ScriptableObject
         {
             T asset = Resources.Load<T>(path);
 
             if (asset == null)
             {
-                UnityEngine.Debug.LogWarning(
+                logger.LogWarning(
                     $"[Lithforge] Settings asset not found at Resources/{path}. " +
                     "Using default values from a transient instance.");
 

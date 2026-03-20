@@ -2,7 +2,10 @@ using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Session;
 using Lithforge.Voxel.Chunk;
+
 using UnityEngine;
+
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Debug.Benchmark
 {
@@ -32,6 +35,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
         /// <summary>Block interaction system for placing and breaking blocks during benchmarks.</summary>
         public BlockInteraction BlockInteraction { get; set; }
+
+        /// <summary>Logger for benchmark diagnostics.</summary>
+        public ILogger Logger { get; set; }
 
         /// <summary>
         /// Returns true when all generation and meshing queues have drained.

@@ -69,8 +69,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 placed++;
             }
 
-            UnityEngine.Debug.Log("[Benchmark] ToggleLightSources: " + placed +
-                                  (remove ? " removed" : " placed"));
+            context.Logger?.LogInfo("[Benchmark] ToggleLightSources: " + placed +
+                                   (remove ? " removed" : " placed"));
 
             yield return null;
         }

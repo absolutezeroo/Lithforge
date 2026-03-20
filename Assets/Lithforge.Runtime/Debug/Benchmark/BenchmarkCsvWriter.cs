@@ -2,6 +2,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Debug.Benchmark
 {
     /// <summary>
@@ -11,7 +13,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
     public static class BenchmarkCsvWriter
     {
         /// <summary>Writes per-frame benchmark data to a CSV file in the specified output directory.</summary>
-        public static void Write(BenchmarkResult result, string outputDir, string timestamp)
+        public static void Write(BenchmarkResult result, string outputDir, string timestamp,
+            ILogger logger = null)
         {
             int count = result.TotalFrames;
 
@@ -116,7 +119,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
             Directory.CreateDirectory(outputDir);
             File.WriteAllText(path, csv.ToString());
-            UnityEngine.Debug.Log("[Benchmark] CSV written to: " + path);
+            logger?.LogInfo("[Benchmark] CSV written to: " + path);
         }
     }
 }

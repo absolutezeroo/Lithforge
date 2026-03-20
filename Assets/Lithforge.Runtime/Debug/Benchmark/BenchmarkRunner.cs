@@ -334,8 +334,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
             if (_allScenarios.Length > 0)
             {
-                UnityEngine.Debug.Log("[Benchmark] Loaded " + _allScenarios.Length +
-                                      " scenarios. Press F5 to open picker.");
+                _context.Logger?.LogInfo("[Benchmark] Loaded " + _allScenarios.Length +
+                                       " scenarios. Press F5 to open picker.");
             }
         }
 
@@ -695,7 +695,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         {
             if (IsRunning)
             {
-                UnityEngine.Debug.LogWarning("[Benchmark] Already running.");
+                _context.Logger?.LogWarning("[Benchmark] Already running.");
                 return;
             }
 
@@ -707,7 +707,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
         /// <summary>Main benchmark coroutine that executes phases, records metrics, and produces results.</summary>
         private IEnumerator RunScenarioCoroutine(BenchmarkScenario scenario)
         {
-            UnityEngine.Debug.Log("[Benchmark] Starting scenario: " + scenario.ScenarioName);
+            _context.Logger?.LogInfo("[Benchmark] Starting scenario: " + scenario.ScenarioName);
 
             // Enable profiling
             _frameProfiler.Enabled = true;
@@ -727,7 +727,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
 
             if (phases == null || phases.Length == 0)
             {
-                UnityEngine.Debug.LogWarning("[Benchmark] Scenario has no phases.");
+                _context.Logger?.LogWarning("[Benchmark] Scenario has no phases.");
                 FinishRun(null);
                 yield break;
             }
@@ -735,8 +735,8 @@ namespace Lithforge.Runtime.Debug.Benchmark
             for (int p = 0; p < phases.Length; p++)
             {
                 BenchmarkPhase phase = phases[p];
-                UnityEngine.Debug.Log("[Benchmark] Phase " + (p + 1) + "/" + phases.Length +
-                                      ": " + phase.PhaseName);
+                _context.Logger?.LogInfo("[Benchmark] Phase " + (p + 1) + "/" + phases.Length +
+                                       ": " + phase.PhaseName);
 
                 ShowStatus("Phase " + (p + 1) + "/" + phases.Length + ": " + phase.PhaseName, s_runningColor);
 
@@ -834,13 +834,13 @@ namespace Lithforge.Runtime.Debug.Benchmark
             // Write outputs
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             string outputDir = Application.persistentDataPath;
-            BenchmarkCsvWriter.Write(result, outputDir, timestamp);
+            BenchmarkCsvWriter.Write(result, outputDir, timestamp, _context.Logger);
 
             // Build and display summary
             string summary = BuildSummary(result);
             LastSummary = summary;
             SummaryDisplayTimer = SummaryDisplayDuration;
-            UnityEngine.Debug.Log(summary);
+            _context.Logger?.LogInfo(summary);
 
             // Show completion status
             string passText = result.Passed ? "PASS" : "FAIL";

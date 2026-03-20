@@ -130,7 +130,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 chunkManager, client,
                 msg =>
                 {
-                    UnityEngine.Debug.Log(
+                    context.App.Logger.LogInfo(
                         $"[Lithforge] GameReady: spawn=({msg.SpawnX},{msg.SpawnY},{msg.SpawnZ})");
 
                     // Teleport player to server-assigned spawn position

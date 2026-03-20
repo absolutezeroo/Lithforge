@@ -8,6 +8,8 @@ using Lithforge.Voxel.Storage;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.World
 {
     /// <summary>
@@ -25,7 +27,8 @@ namespace Lithforge.Runtime.World
             Transform playerTransform,
             Camera camera,
             float timeOfDay,
-            Inventory inventory)
+            Inventory inventory,
+            ILogger logger = null)
         {
             WorldPlayerState state = new();
 
@@ -36,7 +39,7 @@ namespace Lithforge.Runtime.World
                 state.PosY = pos.y;
                 state.PosZ = pos.z;
 #if LITHFORGE_DEBUG
-                Debug.Log(
+                logger?.LogDebug(
                     $"[PlayerStateSerializer] Capture: pos=({pos.x:F1}, {pos.y:F1}, {pos.z:F1})");
 #endif
             }
@@ -129,7 +132,8 @@ namespace Lithforge.Runtime.World
             Camera camera,
             Inventory inventory,
             ItemRegistry itemRegistry,
-            out float restoredTimeOfDay)
+            out float restoredTimeOfDay,
+            ILogger logger = null)
         {
             restoredTimeOfDay = 0f;
 
@@ -171,7 +175,7 @@ namespace Lithforge.Runtime.World
 
                     if (saved.Slot < 0 || saved.Slot >= Inventory.SlotCount)
                     {
-                        UnityEngine.Debug.LogWarning(
+                        logger?.LogWarning(
                             $"[PlayerStateSerializer] Slot index {saved.Slot} out of range (0-{Inventory.SlotCount - 1}), skipping.");
                         continue;
                     }
@@ -182,7 +186,7 @@ namespace Lithforge.Runtime.World
                     // since they carry all their data in the serialized components
                     if (!itemRegistry.Contains(itemId) && !saved.HasData)
                     {
-                        UnityEngine.Debug.LogWarning(
+                        logger?.LogWarning(
                             $"[PlayerStateSerializer] Item '{saved.Ns}:{saved.Name}' not found in registry, slot {saved.Slot} cleared.");
                         continue;
                     }

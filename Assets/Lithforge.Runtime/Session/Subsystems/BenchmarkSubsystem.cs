@@ -57,6 +57,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 MainCamera = player.MainCamera,
                 GameLoopPoco = null, // Set in PostInitialize after SessionBridgeSubsystem
                 BlockInteraction = blockInteraction,
+                Logger = context.App.Logger,
             };
 
             BenchmarkRunner benchmarkRunner = host.gameObject.AddComponent<BenchmarkRunner>();

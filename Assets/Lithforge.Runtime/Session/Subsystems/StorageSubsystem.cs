@@ -78,7 +78,7 @@ namespace Lithforge.Runtime.Session.Subsystems
                 _worldStorage.SaveMetadataFull(metadata);
             }
 
-            UnityEngine.Debug.Log(
+            context.App.Logger.LogInfo(
                 $"[Lithforge] World storage: {worldPath} (seed={metadata.Seed}, mode={metadata.GameMode})");
 
             context.Register(_worldStorage);

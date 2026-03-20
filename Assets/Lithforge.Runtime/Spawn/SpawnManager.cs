@@ -6,6 +6,8 @@ using Unity.Mathematics;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Spawn
 {
     /// <summary>
@@ -20,6 +22,9 @@ namespace Lithforge.Runtime.Spawn
 
         /// <summary>Fallback Y coordinate if no safe surface is found.</summary>
         private readonly int _fallbackY;
+
+        /// <summary>Logger for spawn diagnostics.</summary>
+        private readonly ILogger _logger;
 
         /// <summary>Native state registry for checking block solidity during safe-spawn search.</summary>
         private readonly NativeStateRegistry _nativeStateRegistry;
@@ -56,11 +61,13 @@ namespace Lithforge.Runtime.Spawn
             int spawnRadius,
             int yMin = -1,
             int yMax = 3,
-            int fallbackY = 65)
+            int fallbackY = 65,
+            ILogger logger = null)
         {
             _chunkManager = chunkManager;
             _nativeStateRegistry = nativeStateRegistry;
             _playerTransform = playerTransform;
+            _logger = logger;
             _yMin = yMin;
             _yMax = yMax;
             _fallbackY = fallbackY;
@@ -181,7 +188,7 @@ namespace Lithforge.Runtime.Spawn
                     if (_skipSpawnSearch)
                     {
 #if LITHFORGE_DEBUG
-                        UnityEngine.Debug.LogWarning(
+                        _logger?.LogWarning(
                             "[SpawnManager] Saved position is inside solid blocks, falling back to FindingY.");
 #endif
                     }
@@ -215,7 +222,7 @@ namespace Lithforge.Runtime.Spawn
                     _progress.SpawnZ + 0.5f);
 
 #if LITHFORGE_DEBUG
-                UnityEngine.Debug.Log(
+                _logger?.LogInfo(
                     $"[SpawnManager] Spawn complete at ({_progress.SpawnX}, {_progress.SpawnY}, {_progress.SpawnZ})");
 #endif
             }

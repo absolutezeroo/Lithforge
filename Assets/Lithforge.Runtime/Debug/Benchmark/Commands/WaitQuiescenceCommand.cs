@@ -30,7 +30,7 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 yield return null;
             }
 
-            UnityEngine.Debug.LogWarning(
+            context.Logger?.LogWarning(
                 "[Benchmark] WaitQuiescence timed out after " +
                 timeoutSeconds.ToString("F1") + "s");
         }

@@ -145,7 +145,7 @@ namespace Lithforge.Runtime.Session
                     && _config.NetworkClient.State == ConnectionState.Disconnected)
                 {
                     _clientDisconnectNotified = true;
-                    UnityEngine.Debug.LogWarning(
+                    _config.Logger?.LogWarning(
                         "[Lithforge] Client disconnected — returning to main menu.");
                     OnClientDisconnected?.Invoke();
                 }

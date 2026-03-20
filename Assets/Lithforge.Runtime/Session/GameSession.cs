@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using Lithforge.Runtime.Bootstrap;
 using Lithforge.Runtime.World;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Session
 {
     /// <summary>
@@ -23,6 +25,9 @@ namespace Lithforge.Runtime.Session
 
         /// <summary>Whether all subsystems have been initialized and post-initialized.</summary>
         private bool _initialized;
+
+        /// <summary>Logger for session lifecycle diagnostics.</summary>
+        private ILogger _logger;
 
         /// <summary>The session context containing config, services, and lifetime tracker.</summary>
         public SessionContext Context { get; private set; }
@@ -49,7 +54,8 @@ namespace Lithforge.Runtime.Session
             AppContext app,
             ContentPipelineResult content)
         {
-            SessionLifetimeTracker lifetime = new();
+            _logger = app.Logger;
+            SessionLifetimeTracker lifetime = new(_logger);
             Context = new SessionContext(config, app, content, lifetime);
 
             // Build the full candidate list
@@ -82,7 +88,7 @@ namespace Lithforge.Runtime.Session
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError(
+                    _logger.LogError(
                         $"[Lithforge] Failed to initialize {sub.Name}: {ex}");
 
                     // Dispose already-initialized subsystems in reverse order
@@ -102,7 +108,7 @@ namespace Lithforge.Runtime.Session
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError(
+                    _logger.LogError(
                         $"[Lithforge] Failed to post-initialize {sub.Name}: {ex}");
                     ShutdownAndDispose();
                     throw;
@@ -127,7 +133,7 @@ namespace Lithforge.Runtime.Session
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError(
+                    _logger?.LogError(
                         $"[Lithforge] Error shutting down {_subsystems[i].Name}: {ex}");
                 }
             }
@@ -153,7 +159,7 @@ namespace Lithforge.Runtime.Session
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError(
+                    _logger?.LogError(
                         $"[Lithforge] Error disposing {_subsystems[i].Name}: {ex}");
                 }
             }

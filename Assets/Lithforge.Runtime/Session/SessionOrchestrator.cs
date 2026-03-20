@@ -16,6 +16,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 using Object = UnityEngine.Object;
+using ILogger = Lithforge.Core.Logging.ILogger;
 
 namespace Lithforge.Runtime.Session
 {
@@ -59,14 +60,14 @@ namespace Lithforge.Runtime.Session
 
             if (content == null)
             {
-                UnityEngine.Debug.LogError(
+                app.Logger.LogError(
                     "[Lithforge] Content pipeline failed — Result is null. Aborting session.");
                 Object.Destroy(loadingObject);
                 onSessionEnded?.Invoke();
                 yield break;
             }
 
-            UnityEngine.Debug.Log(
+            app.Logger.LogInfo(
                 $"[Lithforge] Content pipeline: {content.StateRegistry.TotalStateCount} states, " +
                 $"{content.NativeAtlasLookup.TextureCount} textures, " +
                 $"{content.BiomeDefinitions.Length} biomes, " +
@@ -92,7 +93,7 @@ namespace Lithforge.Runtime.Session
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[Lithforge] Session initialization failed: {ex}");
+                app.Logger.LogError($"[Lithforge] Session initialization failed: {ex}");
                 session?.Dispose();
                 app.CurrentSession = null;
                 Object.Destroy(loadingObject);
@@ -101,7 +102,7 @@ namespace Lithforge.Runtime.Session
                 yield break;
             }
 
-            UnityEngine.Debug.Log("[Lithforge] Session initialized.");
+            app.Logger.LogInfo("[Lithforge] Session initialized.");
 
             SessionBridge bridge = null;
 
@@ -159,7 +160,7 @@ namespace Lithforge.Runtime.Session
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[Lithforge] Error completing jobs during save: {ex}");
+                app.Logger.LogError($"[Lithforge] Error completing jobs during save: {ex}");
             }
 
             yield return null;
@@ -189,7 +190,7 @@ namespace Lithforge.Runtime.Session
                     }
                     catch (Exception ex)
                     {
-                        UnityEngine.Debug.LogError(
+                        app.Logger.LogError(
                             $"[Lithforge] Error saving chunk {chunk.Coord}: {ex}");
                     }
 
@@ -229,7 +230,7 @@ namespace Lithforge.Runtime.Session
             session.Dispose();
 
             // Dispose content pipeline native resources
-            DisposeContentResources(session.Context.Content);
+            DisposeContentResources(session.Context.Content, app.Logger);
 
             // Destroy session GameObjects and components on the bootstrap GO
             DestroySessionGameObjects();
@@ -243,7 +244,9 @@ namespace Lithforge.Runtime.Session
         /// <summary>
         ///     Disposes native resources owned by the content pipeline result.
         /// </summary>
-        internal static void DisposeContentResources(ContentPipelineResult content)
+        internal static void DisposeContentResources(
+            ContentPipelineResult content,
+            ILogger logger = null)
         {
             if (content == null)
             {
@@ -261,7 +264,7 @@ namespace Lithforge.Runtime.Session
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError(
+                logger?.LogError(
                     $"[Lithforge] Error disposing content resources: {ex}");
             }
         }

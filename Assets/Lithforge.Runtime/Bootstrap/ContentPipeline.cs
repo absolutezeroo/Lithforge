@@ -238,7 +238,7 @@ namespace Lithforge.Runtime.Bootstrap
             }
 
             yield return "Loading mods...";
-            ModLoader modLoader = new();
+            ModLoader modLoader = new(_logger);
             modLoader.LoadAllMods();
 
             for (int i = 0; i < modLoader.LoadedBlocks.Count; i++)

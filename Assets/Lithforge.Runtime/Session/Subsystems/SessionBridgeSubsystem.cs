@@ -208,6 +208,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             // Debug
             config.FrameProfiler = context.App.FrameProfiler;
             config.PipelineStats = context.App.PipelineStats;
+            config.Logger = context.App.Logger;
 
             if (context.TryGet(out MetricsRegistry metricsRegistry))
             {

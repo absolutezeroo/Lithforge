@@ -171,7 +171,8 @@ namespace Lithforge.Runtime.Session.Subsystems
                     tickRegistry, clientPhysicsManager, input,
                     _client, localId,
                     _client.ServerTickAtHandshake,
-                    serverIsLocal);
+                    serverIsLocal,
+                    context.App.Logger);
 
                 // Register player state handler for reconciliation
                 _client.Dispatcher.RegisterHandler(

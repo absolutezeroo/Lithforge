@@ -57,9 +57,9 @@ namespace Lithforge.Runtime.Bootstrap
         /// <summary>Creates app-lifetime resources: settings, logger, profiler, screen manager.</summary>
         private void Awake()
         {
-            LoadedSettings settings = SettingsLoader.Load();
             ILogger logger = new UnityLogger();
-            UserPreferences userPreferences = UserPreferences.Load();
+            LoadedSettings settings = SettingsLoader.Load(logger);
+            UserPreferences userPreferences = UserPreferences.Load(logger);
 
             IFrameProfiler frameProfiler = new FrameProfiler();
             frameProfiler.Enabled = settings.Debug.EnableProfiling;
@@ -67,7 +67,7 @@ namespace Lithforge.Runtime.Bootstrap
             pipelineStats.Enabled = settings.Debug.EnableProfiling;
 
             _screenManager = gameObject.AddComponent<ScreenManager>();
-            _savedServerList = new SavedServerList();
+            _savedServerList = new SavedServerList(logger);
 
             _appContext = new AppContext(
                 settings, logger, frameProfiler, pipelineStats,
@@ -138,11 +138,11 @@ namespace Lithforge.Runtime.Bootstrap
             }
             catch (Exception ex)
             {
-                UnityEngine.Debug.LogError($"[Lithforge] Error during shutdown save: {ex}");
+                _appContext?.Logger?.LogError($"[Lithforge] Error during shutdown save: {ex}");
             }
 
             session.Dispose();
-            SessionOrchestrator.DisposeContentResources(session.Context.Content);
+            SessionOrchestrator.DisposeContentResources(session.Context.Content, _appContext?.Logger);
             _appContext.CurrentSession = null;
         }
 

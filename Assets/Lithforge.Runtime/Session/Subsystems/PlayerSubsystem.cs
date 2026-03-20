@@ -180,9 +180,10 @@ namespace Lithforge.Runtime.Session.Subsystems
                     mainCamera,
                     playerInventory,
                     context.Content.ItemRegistry,
-                    out restoredTimeOfDay);
+                    out restoredTimeOfDay,
+                    context.App.Logger);
                 hasRestoredState = true;
-                UnityEngine.Debug.Log("[Lithforge] Player state restored from save.");
+                context.App.Logger.LogInfo("[Lithforge] Player state restored from save.");
             }
             else
             {
@@ -251,7 +252,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             }
             else
             {
-                UnityEngine.Debug.LogWarning(
+                context.App.Logger.LogWarning(
                     "[Lithforge] PlayerModel shaders not found. Player model will not render.");
             }
 

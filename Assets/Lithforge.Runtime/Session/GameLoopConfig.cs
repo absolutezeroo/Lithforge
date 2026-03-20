@@ -15,6 +15,8 @@ using Lithforge.Voxel.Chunk;
 
 using UnityEngine;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Session
 {
     /// <summary>
@@ -118,5 +120,8 @@ namespace Lithforge.Runtime.Session
 
         /// <summary>Shared metrics data source for overlay and benchmarks.</summary>
         public MetricsRegistry MetricsRegistry { get; set; }
+
+        /// <summary>Logger for runtime diagnostics.</summary>
+        public ILogger Logger { get; set; }
     }
 }

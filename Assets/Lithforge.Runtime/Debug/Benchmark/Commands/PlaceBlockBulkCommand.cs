@@ -62,9 +62,9 @@ namespace Lithforge.Runtime.Debug.Benchmark
                 }
             }
 
-            UnityEngine.Debug.Log("[Benchmark] PlaceBlockBulk: " + count + " blocks " +
-                                  (clearRegion ? "cleared" : "placed") +
-                                  ", " + _dirtiedChunks.Count + " chunks dirtied");
+            context.Logger?.LogInfo("[Benchmark] PlaceBlockBulk: " + count + " blocks " +
+                                   (clearRegion ? "cleared" : "placed") +
+                                   ", " + _dirtiedChunks.Count + " chunks dirtied");
 
             yield return null;
         }

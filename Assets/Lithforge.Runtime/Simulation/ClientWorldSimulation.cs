@@ -8,6 +8,8 @@ using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
@@ -64,6 +66,9 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Registry of all ITickable systems driven each simulation tick.</summary>
         private readonly TickRegistry _tickRegistry;
 
+        /// <summary>Logger for reconciliation diagnostics.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Per-player monotonic sequence counter for input messages, wraps at 65535.</summary>
         private ushort _moveSequenceId;
 
@@ -81,10 +86,12 @@ namespace Lithforge.Runtime.Simulation
             INetworkClient networkClient,
             ushort localPlayerId,
             uint initialServerTick,
-            bool serverIsLocal = false)
+            bool serverIsLocal = false,
+            ILogger logger = null)
         {
             _tickRegistry = tickRegistry;
             _playerPhysicsManager = playerPhysicsManager;
+            _logger = logger;
             _inputSnapshotBuilder = inputSnapshotBuilder;
             _networkClient = networkClient;
             _localPlayerId = localPlayerId;
@@ -227,7 +234,7 @@ namespace Lithforge.Runtime.Simulation
 
             if (error > ErrorThresholdIgnore)
             {
-                UnityEngine.Debug.Log($"[RECON] error={error:F4} serverPos=({serverPos.x:F2},{serverPos.y:F2},{serverPos.z:F2}) predictedPos=({predictedPos.x:F2},{predictedPos.y:F2},{predictedPos.z:F2}) ackedSeq={ackedSeqId} ackedTick={ackedTick}");
+                _logger?.LogInfo($"[RECON] error={error:F4} serverPos=({serverPos.x:F2},{serverPos.y:F2},{serverPos.z:F2}) predictedPos=({predictedPos.x:F2},{predictedPos.y:F2},{predictedPos.z:F2}) ackedSeq={ackedSeqId} ackedTick={ackedTick}");
             }
 
             if (error < ErrorThresholdIgnore)

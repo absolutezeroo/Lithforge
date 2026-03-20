@@ -12,6 +12,8 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Profiling;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
@@ -53,6 +55,9 @@ namespace Lithforge.Runtime.Rendering
         /// </summary>
         private readonly GraphicsBuffer.IndirectDrawIndexedArgs[] _slotArgsUpload =
             new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+
+        /// <summary>Logger for buffer diagnostics.</summary>
+        private readonly ILogger _logger;
 
         /// <summary>Maps chunk coord to its vertex/index region in the shared buffers.</summary>
         private readonly Dictionary<int3, SlotInfo> _slots = new();
@@ -100,10 +105,12 @@ namespace Lithforge.Runtime.Rendering
         ///     The buffer grows automatically by doubling when capacity is exceeded.
         /// </summary>
         public MegaMeshBuffer(string bufferName, int initialVertexCapacity, int initialIndexCapacity,
-            int maxChunkSlots, GpuBufferResizer resizer, IPipelineStats pipelineStats)
+            int maxChunkSlots, GpuBufferResizer resizer, IPipelineStats pipelineStats,
+            ILogger logger = null)
         {
             _name = bufferName;
             _pipelineStats = pipelineStats;
+            _logger = logger;
             _resizer = resizer;
             _maxChunkSlots = maxChunkSlots;
             VertexCapacity = initialVertexCapacity;
@@ -691,7 +698,7 @@ namespace Lithforge.Runtime.Rendering
             _pipelineStats.IncrGrow();
 
 #if LITHFORGE_DEBUG
-            UnityEngine.Debug.Log(
+            _logger?.LogInfo(
                 $"[MegaMeshBuffer] {_name}: grew to " +
                 $"{newVertCap} vertices, {newIdxCap} indices capacity");
 #endif

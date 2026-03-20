@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Session
 {
     /// <summary>
@@ -12,8 +14,17 @@ namespace Lithforge.Runtime.Session
         /// <summary>LIFO stack of disposables for reverse-order cleanup.</summary>
         private readonly Stack<IDisposable> _disposables = new();
 
+        /// <summary>Logger for reporting disposal errors.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Whether this tracker has already been disposed.</summary>
         private bool _disposed;
+
+        /// <summary>Creates a lifetime tracker with the given logger for error reporting.</summary>
+        public SessionLifetimeTracker(ILogger logger)
+        {
+            _logger = logger;
+        }
 
         /// <summary>
         ///     Disposes all tracked objects in reverse order, logging errors but
@@ -38,7 +49,7 @@ namespace Lithforge.Runtime.Session
                 }
                 catch (Exception ex)
                 {
-                    UnityEngine.Debug.LogError(
+                    _logger?.LogError(
                         $"[Lithforge] Error disposing {disposable.GetType().Name}: {ex}");
                 }
             }

@@ -13,6 +13,8 @@ using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
+using ILogger = Lithforge.Core.Logging.ILogger;
+
 namespace Lithforge.Runtime.Rendering
 {
     /// <summary>
@@ -104,6 +106,9 @@ namespace Lithforge.Runtime.Rendering
         /// <summary>Maximum number of concurrent chunk draw slots, grown by doubling when exceeded.</summary>
         private int _maxChunkSlots;
 
+        /// <summary>Logger for mesh store diagnostics.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Reverse mapping from slot ID to chunk coordinate, used for swap-and-pop on destroy.</summary>
         private int3[] _slotToCoord;
 
@@ -118,12 +123,14 @@ namespace Lithforge.Runtime.Rendering
             int yUnloadMin, int yUnloadMax,
             ComputeShader frustumCullShader, ComputeShader hiZGenerateShader,
             GpuBufferResizer resizer,
-            IPipelineStats pipelineStats)
+            IPipelineStats pipelineStats,
+            ILogger logger = null)
         {
             OpaqueMaterial = opaqueMaterial;
             CutoutMaterial = cutoutMaterial;
             TranslucentMaterial = translucentMaterial;
             _resizer = resizer;
+            _logger = logger;
 
             // Compute max chunk slots from unload boundaries (worst-case loaded chunks).
             // Unload radius is renderDistance + 1 on XZ; Y uses the unload range.
@@ -186,9 +193,9 @@ namespace Lithforge.Runtime.Rendering
             int smallVerts = maxChunks * 300 * 3 / 2;
             int smallIdx = maxChunks * 450 * 3 / 2;
 
-            OpaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats);
-            CutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
-            TranslucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats);
+            OpaqueBuffer = new MegaMeshBuffer("MegaMesh_Opaque", opaqueVerts, opaqueIdx, maxChunkSlots, resizer, pipelineStats, _logger);
+            CutoutBuffer = new MegaMeshBuffer("MegaMesh_Cutout", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats, _logger);
+            TranslucentBuffer = new MegaMeshBuffer("MegaMesh_Translucent", smallVerts, smallIdx, maxChunkSlots, resizer, pipelineStats, _logger);
 
             // Shared chunk bounds buffer — same AABB regardless of render layer.
             // Slot IDs are sourced from the opaque buffer.
@@ -344,7 +351,7 @@ namespace Lithforge.Runtime.Rendering
             _maxChunkSlots = newMax;
 
 #if LITHFORGE_DEBUG
-            UnityEngine.Debug.Log(
+            _logger?.LogInfo(
                 $"[ChunkMeshStore] Grew slot capacity: {oldMax} → {newMax}");
 #endif
         }
