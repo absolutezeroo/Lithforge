@@ -30,6 +30,15 @@ namespace Lithforge.Network.Bridge
         /// <summary>Cached physics results keyed by player ID value, updated by ApplyMoveInput.</summary>
         private readonly Dictionary<ushort, PlayerPhysicsState> _resultCache = new();
 
+        /// <summary>Double-buffered snapshot dictionaries for <see cref="GetAllPlayerStates"/>. Avoids per-tick allocation.</summary>
+        private readonly Dictionary<ushort, PlayerPhysicsState> _snapshotA = new();
+
+        /// <summary>Second buffer for double-buffered snapshots.</summary>
+        private readonly Dictionary<ushort, PlayerPhysicsState> _snapshotB = new();
+
+        /// <summary>Tracks which snapshot buffer to use next (alternates between A and B).</summary>
+        private bool _useBufferA = true;
+
         /// <summary>Creates a bridged simulation with direct physics dispatch.</summary>
         internal BridgedSimulation(ServerThreadBridge bridge, IServerSimulation directSimulation)
         {
@@ -147,19 +156,24 @@ namespace Lithforge.Network.Bridge
         }
 
         /// <summary>
-        ///     Returns a copy of the result cache containing all current player physics states.
+        ///     Returns a snapshot of the result cache containing all current player physics states.
         ///     Called from the server thread; the cache is populated by <see cref="ApplyMoveInput" />.
+        ///     Uses double-buffering: writes into the inactive buffer and returns it, while the
+        ///     main thread may still be reading the previously published buffer.
         /// </summary>
         public Dictionary<ushort, PlayerPhysicsState> GetAllPlayerStates()
         {
-            Dictionary<ushort, PlayerPhysicsState> snapshot = new(_resultCache.Count);
+            Dictionary<ushort, PlayerPhysicsState> buffer = _useBufferA ? _snapshotA : _snapshotB;
+            _useBufferA = !_useBufferA;
+
+            buffer.Clear();
 
             foreach (KeyValuePair<ushort, PlayerPhysicsState> kvp in _resultCache)
             {
-                snapshot[kvp.Key] = kvp.Value;
+                buffer[kvp.Key] = kvp.Value;
             }
 
-            return snapshot;
+            return buffer;
         }
     }
 }

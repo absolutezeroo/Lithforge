@@ -74,9 +74,14 @@ namespace Lithforge.Runtime.Session.Subsystems
             _client = new NetworkClient(logger, contentHash, playerName);
 
             // Wire player identity for challenge-response authentication.
-            // SP/Host uses a blank identity (DirectTransport skips challenge).
+            // SP/Host uses a fixed "local" UUID with no public key (DirectTransport skips challenge).
             // Remote clients load or generate their persistent ECDSA keypair.
-            if (context.Config is SessionConfig.Client)
+            if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
+            {
+                _client.SetIdentity(
+                    PlayerIdentity.LocalUuid, Array.Empty<byte>(), _ => Array.Empty<byte>());
+            }
+            else if (context.Config is SessionConfig.Client)
             {
                 PlayerIdentity identity = new();
                 identity.LoadOrGenerate(logger);

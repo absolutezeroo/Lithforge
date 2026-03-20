@@ -1215,12 +1215,20 @@ namespace Lithforge.Network.Server
                 return;
             }
 
-            // Capture live state before cleanup destroys the physics body
-            WorldPlayerState captured = CapturePlayerState(peer);
+            // Only capture state if the peer reached Loading/Playing (has a physics body).
+            // Peers disconnecting during Handshaking/Authenticating have no body — capturing
+            // would overwrite valid saved data with a zero-position default.
+            ConnectionState currentState = peer.StateMachine.Current;
+            bool hasPhysicsBody = currentState is ConnectionState.Loading or ConnectionState.Playing;
 
-            if (captured is not null)
+            if (hasPhysicsBody)
             {
-                peer.PlayerData = captured;
+                WorldPlayerState captured = CapturePlayerState(peer);
+
+                if (captured is not null)
+                {
+                    peer.PlayerData = captured;
+                }
             }
 
             OnPlayerDisconnected(playerId);
