@@ -8,11 +8,17 @@ namespace Lithforge.Item
     ///     Player inventory with 36 slots (9 hotbar + 27 main).
     ///     Slots 0-8 are the hotbar, slots 9-35 are the main inventory.
     /// </summary>
-    public sealed class Inventory
+    public sealed class Inventory : IItemStorage
     {
         public const int SlotCount = 36;
 
         public const int HotbarSize = 9;
+
+        /// <summary>Explicit interface implementation for IItemStorage.SlotCount.</summary>
+        int IItemStorage.SlotCount
+        {
+            get { return SlotCount; }
+        }
 
         private readonly ItemStack[] _slots = new ItemStack[SlotCount];
 

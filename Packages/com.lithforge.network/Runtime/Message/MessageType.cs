@@ -58,6 +58,15 @@ namespace Lithforge.Network.Message
         /// <summary>Client acknowledges receipt of a batch of chunk data messages.</summary>
         ChunkBatchAck = 27,
 
+        /// <summary>Client requests crafting output take with a specific recipe.</summary>
+        CraftActionCmd = 28,
+
+        /// <summary>Client requests opening a block entity container at a world position.</summary>
+        ContainerOpenCmd = 29,
+
+        /// <summary>Client notifies the server that a container window was closed.</summary>
+        ContainerCloseCmd = 30,
+
         // Server-to-Client state updates
 
         /// <summary>Server sends authoritative player position and physics state.</summary>
@@ -95,5 +104,14 @@ namespace Lithforge.Network.Message
 
         /// <summary>Server sends a targeted single-slot correction to a client.</summary>
         InventorySlotUpdate = 52,
+
+        /// <summary>Server opens a container window for a client with slot contents.</summary>
+        ContainerOpen = 53,
+
+        /// <summary>Server force-closes a container window for a client.</summary>
+        ContainerClose = 54,
+
+        /// <summary>Server sends furnace burn/smelt progress to a client.</summary>
+        ContainerProgress = 55,
     }
 }

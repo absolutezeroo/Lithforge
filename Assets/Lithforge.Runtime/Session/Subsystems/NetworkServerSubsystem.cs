@@ -6,6 +6,7 @@ using Lithforge.Network.Bridge;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
+using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Debug;
 using Lithforge.Runtime.Network;
@@ -311,6 +312,18 @@ namespace Lithforge.Runtime.Session.Subsystems
                 {
                     storeRef.Save(uuid, state);
                 };
+            }
+
+            // Inject crafting engine for server-side recipe validation
+            _serverGameLoop.SetCraftingEngine(context.Content.CraftingEngine);
+
+            // Inject container session dependencies (block entity provider + container manager)
+            if (context.TryGet(out BlockEntityTickScheduler beScheduler))
+            {
+                ChunkManager chunkManager = context.Get<ChunkManager>();
+                ServerBlockEntityProvider blockEntityProvider = new(beScheduler, chunkManager);
+                ServerContainerManager containerManager = new();
+                _serverGameLoop.SetContainerDependencies(containerManager, blockEntityProvider);
             }
 
             // Start the background server thread after all wiring is complete

@@ -9,6 +9,7 @@ using Lithforge.Runtime.Audio;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.Behaviors;
 using Lithforge.Runtime.Content.Settings;
+using Lithforge.Runtime.Network;
 using Lithforge.Runtime.Rendering;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Voxel.Block;
@@ -155,6 +156,9 @@ namespace Lithforge.Runtime.Input
 
         /// <summary>Manager for block entity container screens dispatched on right-click.</summary>
         private ContainerScreenManager _screenManager;
+
+        /// <summary>Client inventory sync handler for sending container open commands (nullable).</summary>
+        private ClientInventorySyncHandler _syncHandler;
 
         /// <summary>State registry for looking up block definitions by state ID.</summary>
         private StateRegistry _stateRegistry;
@@ -318,6 +322,12 @@ namespace Lithforge.Runtime.Input
             _blockEntityTickScheduler = scheduler;
             _screenManager = screenManager;
             _toolTraitRegistry = toolTraitRegistry;
+        }
+
+        /// <summary>Sets the client inventory sync handler for network container open commands.</summary>
+        public void SetSyncHandler(ClientInventorySyncHandler syncHandler)
+        {
+            _syncHandler = syncHandler;
         }
 
         /// <summary>
@@ -703,9 +713,17 @@ namespace Lithforge.Runtime.Input
                     BlockEntity.BlockEntity entity =
                         _blockEntityTickScheduler.GetEntity(chunkCoord, flatIndex);
 
-                    if (entity != null && _screenManager != null)
+                    if (entity != null)
                     {
-                        if (_screenManager.TryOpenForEntity(entity))
+                        if (_syncHandler is not null)
+                        {
+                            // Network mode: send open request to server
+                            _syncHandler.SendContainerOpen(hit.BlockCoord);
+                            _placeCooldown = _placeCooldownTime;
+                            return;
+                        }
+
+                        if (_screenManager != null && _screenManager.TryOpenForEntity(entity))
                         {
                             _placeCooldown = _placeCooldownTime;
                             return;

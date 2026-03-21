@@ -11,7 +11,7 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
     ///     Slot count is fixed at construction (27 for chest, 3 for furnace).
     ///     Serializes items as resourceId string + count + durability + components.
     /// </summary>
-    public sealed class InventoryBehavior : BlockEntityBehavior
+    public sealed class InventoryBehavior : BlockEntityBehavior, IItemStorage
     {
         /// <summary>Optional callback invoked when any slot changes. Wired by BlockEntity.SetHost.</summary>
         private Action _onChanged;
@@ -29,6 +29,13 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
 
         /// <summary>Fixed-size array of item slots.</summary>
         private readonly ItemStack[] _slots;
+
+        /// <summary>
+        ///     Lightweight lock for thread safety. Block entity inventories are shared
+        ///     between the server thread (slot clicks) and the main thread (furnace ticking).
+        ///     Uncontended lock cost is ~20ns — negligible.
+        /// </summary>
+        private readonly object _syncRoot = new();
 
         /// <summary>Creates an inventory behavior with the specified number of slots.</summary>
         public InventoryBehavior(int slotCount)
@@ -51,13 +58,20 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
         /// <summary>Returns the item stack at the given slot index.</summary>
         public ItemStack GetSlot(int index)
         {
-            return _slots[index];
+            lock (_syncRoot)
+            {
+                return _slots[index];
+            }
         }
 
         /// <summary>Sets the item stack at the given slot index.</summary>
         public void SetSlot(int index, ItemStack stack)
         {
-            _slots[index] = stack;
+            lock (_syncRoot)
+            {
+                _slots[index] = stack;
+            }
+
             _onChanged?.Invoke();
         }
 

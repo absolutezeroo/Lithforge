@@ -2,23 +2,36 @@ using System.Collections.Generic;
 
 using Lithforge.Core.Data;
 using Lithforge.Item;
+using Lithforge.Item.Crafting;
 using Lithforge.Item.Interaction;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
+using Lithforge.Voxel.Chunk;
+using Lithforge.Voxel.Command;
 using Lithforge.Voxel.Storage;
+
+using Unity.Mathematics;
 
 namespace Lithforge.Network.Server
 {
     /// <summary>
     ///     Server-authoritative inventory processor. Holds per-player inventories,
     ///     re-executes slot click commands via <see cref="SlotActionExecutor" />,
-    ///     reconciles against client predictions, and broadcasts per-tick deltas.
+    ///     reconciles against client predictions, broadcasts per-tick deltas,
+    ///     manages server-side crafting grids, and orchestrates container sessions
+    ///     for block entity containers (chests, furnaces, etc.).
     /// </summary>
     public sealed class ServerInventoryProcessor
     {
+        /// <summary>Maximum number of items a shift-craft loop can produce.</summary>
+        private const int MaxShiftCraftIterations = 64;
+
         /// <summary>Per-player inventories keyed by player ID.</summary>
         private readonly Dictionary<ushort, Inventory> _inventories = new();
+
+        /// <summary>Per-player server-side crafting grids (created when crafting screen opens).</summary>
+        private readonly Dictionary<ushort, CraftingGrid> _playerCraftGrids = new();
 
         /// <summary>Item registry for looking up max stack sizes.</summary>
         private readonly ItemRegistry _itemRegistry;
@@ -29,6 +42,21 @@ namespace Lithforge.Network.Server
         /// <summary>Concrete server for peer lookup.</summary>
         private readonly NetworkServer _serverImpl;
 
+        /// <summary>Crafting engine for recipe matching (null until set).</summary>
+        private CraftingEngine _craftingEngine;
+
+        /// <summary>Container session manager (null until set).</summary>
+        private ServerContainerManager _containerManager;
+
+        /// <summary>Block entity provider for container access (null until set).</summary>
+        private IServerBlockEntityProvider _blockEntityProvider;
+
+        /// <summary>Simulation for player position queries (null until set).</summary>
+        private IServerSimulation _simulation;
+
+        /// <summary>Reusable list for entity cleanup iteration.</summary>
+        private readonly List<ContainerSession> _tempClosedSessions = new();
+
         /// <summary>Creates the processor with all required dependencies.</summary>
         public ServerInventoryProcessor(
             ItemRegistry itemRegistry,
@@ -38,6 +66,23 @@ namespace Lithforge.Network.Server
             _itemRegistry = itemRegistry;
             _server = server;
             _serverImpl = serverImpl;
+        }
+
+        /// <summary>Injects the crafting engine for server-side recipe validation.</summary>
+        public void SetCraftingEngine(CraftingEngine craftingEngine)
+        {
+            _craftingEngine = craftingEngine;
+        }
+
+        /// <summary>Injects the container manager and block entity provider for container sessions.</summary>
+        public void SetContainerDependencies(
+            ServerContainerManager containerManager,
+            IServerBlockEntityProvider blockEntityProvider,
+            IServerSimulation simulation)
+        {
+            _containerManager = containerManager;
+            _blockEntityProvider = blockEntityProvider;
+            _simulation = simulation;
         }
 
         /// <summary>Creates or retrieves the server-side inventory for a player.</summary>
@@ -125,6 +170,7 @@ namespace Lithforge.Network.Server
         ///     Processes a slot click command from a client. Validates the state ID,
         ///     re-executes the mutation via SlotActionExecutor, compares against
         ///     client predictions, and sends corrections if needed.
+        ///     When WindowId > 0, routes the click to the active container session's storage.
         /// </summary>
         public InventorySyncMessage? ProcessSlotClick(PeerInfo peer, SlotClickCmdMessage cmd)
         {
@@ -148,17 +194,31 @@ namespace Lithforge.Network.Server
                 return resync;
             }
 
-            // Crafting output take (ClickType=5): trusted pass-through for core scope.
-            // Apply the client's predicted slot changes directly.
-            if (cmd.ClickType == SlotActionExecutor.ClickOutputTake)
+            // Container slot click (WindowId > 0): route to container session
+            if (cmd.WindowId > 0)
             {
-                ApplyTrustedPredictions(inventory, ref cursor, cmd);
+                ProcessContainerSlotClick(peer, inventory, ref cursor, cmd);
 
                 if (peer.InterestState is not null)
                 {
                     peer.InterestState.ServerCursor = cursor;
                 }
 
+                return null;
+            }
+
+            // Crafting output take (ClickType=5): server re-executes recipe match
+            if (cmd.ClickType == SlotActionExecutor.ClickOutputTake)
+            {
+                // No crafting engine or no grid → reject silently (client will self-correct)
+                if (_craftingEngine is null)
+                {
+                    return null;
+                }
+
+                // Crafting output from player inventory's 2x2 grid is WindowId=0
+                // For now, reject ClickType=5 on WindowId=0 (2x2 crafting not yet wired)
+                // The client should use CraftActionCmd for all crafting
                 return null;
             }
 
@@ -209,11 +269,254 @@ namespace Lithforge.Network.Server
             }
 
             // Update remote state for all affected slots to prevent redundant delta sync.
-            // When predictions matched, this prevents BroadcastInventoryDeltas from re-sending.
-            // When predictions mismatched, SendSlotCorrections already sent the corrections.
             SyncRemoteStateForResult(peer, inventory, cursor, result);
 
             return null;
+        }
+
+        /// <summary>
+        ///     Processes a craft action command from a client. Server re-executes the
+        ///     recipe match on the server-side crafting grid, verifies the recipe ID,
+        ///     and atomically consumes ingredients + produces result.
+        /// </summary>
+        public void ProcessCraftAction(PeerInfo peer, CraftActionCmdMessage cmd)
+        {
+            if (_craftingEngine is null)
+            {
+                return;
+            }
+
+            ushort playerId = peer.AssignedPlayerId;
+
+            if (!_inventories.TryGetValue(playerId, out Inventory inventory))
+            {
+                return;
+            }
+
+            if (!_playerCraftGrids.TryGetValue(playerId, out CraftingGrid grid))
+            {
+                return;
+            }
+
+            ItemStack cursor = peer.InterestState?.ServerCursor ?? ItemStack.Empty;
+
+            if (cmd.IsShiftClick != 0)
+            {
+                ProcessShiftCraftAction(peer, inventory, grid, ref cursor);
+            }
+            else
+            {
+                ProcessSingleCraftAction(peer, inventory, grid, ref cursor, cmd);
+            }
+
+            if (peer.InterestState is not null)
+            {
+                peer.InterestState.ServerCursor = cursor;
+            }
+        }
+
+        /// <summary>
+        ///     Processes a container open command from a client. Validates distance
+        ///     and entity existence, creates a session, and sends ContainerOpenMessage.
+        /// </summary>
+        public void ProcessContainerOpen(PeerInfo peer, ContainerOpenCmdMessage cmd)
+        {
+            if (_containerManager is null || _blockEntityProvider is null || _simulation is null)
+            {
+                return;
+            }
+
+            ushort playerId = peer.AssignedPlayerId;
+            int3 worldPos = new(cmd.PositionX, cmd.PositionY, cmd.PositionZ);
+
+            // Convert world position to chunk coord + flat index
+            int3 chunkCoord = new(
+                (int)math.floor((float)worldPos.x / ChunkConstants.Size),
+                (int)math.floor((float)worldPos.y / ChunkConstants.Size),
+                (int)math.floor((float)worldPos.z / ChunkConstants.Size));
+
+            int localX = worldPos.x - chunkCoord.x * ChunkConstants.Size;
+            int localY = worldPos.y - chunkCoord.y * ChunkConstants.Size;
+            int localZ = worldPos.z - chunkCoord.z * ChunkConstants.Size;
+
+            // Handle negative modulo
+            if (localX < 0) { localX += ChunkConstants.Size; }
+            if (localY < 0) { localY += ChunkConstants.Size; }
+            if (localZ < 0) { localZ += ChunkConstants.Size; }
+
+            int flatIndex = localY * ChunkConstants.Size * ChunkConstants.Size
+                          + localZ * ChunkConstants.Size + localX;
+
+            // Validate entity exists
+            if (!_blockEntityProvider.EntityExists(chunkCoord, flatIndex))
+            {
+                return;
+            }
+
+            // Validate distance
+            PlayerPhysicsState physState = _simulation.GetPlayerState(playerId);
+
+            if (!ServerContainerManager.IsWithinReach(physState.Position, worldPos))
+            {
+                return;
+            }
+
+            string entityTypeId = _blockEntityProvider.GetEntityTypeId(chunkCoord, flatIndex);
+            IItemStorage storage = _blockEntityProvider.GetEntityInventory(chunkCoord, flatIndex);
+
+            if (storage is null || entityTypeId is null)
+            {
+                return;
+            }
+
+            ContainerSession session = _containerManager.OpenSession(
+                playerId, chunkCoord, flatIndex, entityTypeId, storage);
+
+            if (session is null)
+            {
+                return;
+            }
+
+            // Build and send ContainerOpenMessage
+            int slotCount = storage.SlotCount;
+            int nonEmpty = 0;
+
+            for (int i = 0; i < slotCount; i++)
+            {
+                if (!storage.GetSlot(i).IsEmpty)
+                {
+                    nonEmpty++;
+                }
+            }
+
+            SyncSlot[] slots = new SyncSlot[nonEmpty];
+            int writeIdx = 0;
+
+            for (int i = 0; i < slotCount; i++)
+            {
+                ItemStack stack = storage.GetSlot(i);
+
+                if (stack.IsEmpty)
+                {
+                    continue;
+                }
+
+                slots[writeIdx++] = new SyncSlot
+                {
+                    SlotIndex = (byte)i,
+                    Ns = stack.ItemId.Namespace,
+                    Name = stack.ItemId.Name,
+                    Count = (ushort)stack.Count,
+                    Durability = (short)stack.Durability,
+                };
+            }
+
+            ContainerOpenMessage openMsg = new()
+            {
+                WindowId = session.WindowId,
+                EntityTypeId = entityTypeId,
+                PositionX = worldPos.x,
+                PositionY = worldPos.y,
+                PositionZ = worldPos.z,
+                Slots = slots,
+            };
+
+            _server.SendTo(peer.ConnectionId, openMsg, PipelineId.ReliableSequenced);
+
+            // Mark all slots as sent in remote state
+            session.RemoteState.SyncAll(storage);
+        }
+
+        /// <summary>
+        ///     Processes a container close command from a client. Returns cursor items
+        ///     to the player inventory and closes the session.
+        /// </summary>
+        public void ProcessContainerClose(PeerInfo peer, ContainerCloseCmdMessage cmd)
+        {
+            if (_containerManager is null)
+            {
+                return;
+            }
+
+            ushort playerId = peer.AssignedPlayerId;
+            ContainerSession session = _containerManager.CloseSession(playerId);
+
+            if (session is null)
+            {
+                return;
+            }
+
+            // Return session cursor to player inventory (if any)
+            ReturnSessionCursor(playerId, session);
+
+            // If this was a crafting session, return grid items too
+            ReturnCraftingGridItems(playerId);
+        }
+
+        /// <summary>
+        ///     Called when a block entity is removed (broken). Force-closes all container
+        ///     sessions viewing that entity, returns cursors, and sends close messages.
+        /// </summary>
+        public void OnBlockEntityRemoved(int3 chunkCoord, int flatIndex)
+        {
+            if (_containerManager is null)
+            {
+                return;
+            }
+
+            _containerManager.CloseAllForEntity(chunkCoord, flatIndex, _tempClosedSessions);
+
+            for (int i = 0; i < _tempClosedSessions.Count; i++)
+            {
+                ContainerSession session = _tempClosedSessions[i];
+                ReturnSessionCursor(session.PlayerId, session);
+
+                PeerInfo peer = FindPeerByPlayerId(session.PlayerId);
+
+                if (peer is not null)
+                {
+                    ContainerCloseMessage closeMsg = new()
+                    {
+                        WindowId = session.WindowId,
+                    };
+
+                    _server.SendTo(peer.ConnectionId, closeMsg, PipelineId.ReliableSequenced);
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Handles player disconnect: closes container session, returns cursor,
+        ///     returns crafting grid items.
+        /// </summary>
+        public void CleanupPlayerContainers(ushort playerId)
+        {
+            if (_containerManager is not null)
+            {
+                ContainerSession session = _containerManager.CloseAllForPlayer(playerId);
+
+                if (session is not null)
+                {
+                    ReturnSessionCursor(playerId, session);
+                }
+            }
+
+            ReturnCraftingGridItems(playerId);
+        }
+
+        /// <summary>
+        ///     Creates or retrieves the server-side crafting grid for a player.
+        ///     Called when a crafting screen (3x3) opens on the server.
+        /// </summary>
+        public CraftingGrid GetOrCreateCraftingGrid(ushort playerId, int width, int height)
+        {
+            if (!_playerCraftGrids.TryGetValue(playerId, out CraftingGrid grid))
+            {
+                grid = new CraftingGrid(width, height);
+                _playerCraftGrids[playerId] = grid;
+            }
+
+            return grid;
         }
 
         /// <summary>
@@ -271,6 +574,139 @@ namespace Lithforge.Network.Server
         }
 
         /// <summary>
+        ///     Per-tick container delta sync. Compares each open container session's
+        ///     current storage against what was last sent, sending slot updates and
+        ///     progress updates for furnaces. Also validates distance and entity existence,
+        ///     force-closing invalid sessions.
+        /// </summary>
+        public void BroadcastContainerDeltas()
+        {
+            if (_containerManager is null || _blockEntityProvider is null || _simulation is null)
+            {
+                return;
+            }
+
+            // Iterate a snapshot to avoid modification during iteration
+            _tempClosedSessions.Clear();
+
+            foreach (ContainerSession session in _containerManager.GetAllSessions())
+            {
+                PeerInfo peer = FindPeerByPlayerId(session.PlayerId);
+
+                if (peer is null)
+                {
+                    _tempClosedSessions.Add(session);
+                    continue;
+                }
+
+                // Validate entity still exists and player is within reach
+                if (!_blockEntityProvider.EntityExists(session.ChunkCoord, session.FlatIndex))
+                {
+                    _tempClosedSessions.Add(session);
+                    continue;
+                }
+
+                PlayerPhysicsState physState = _simulation.GetPlayerState(session.PlayerId);
+                int3 worldPos = session.ChunkCoord * ChunkConstants.Size
+                              + new int3(
+                                  session.FlatIndex % ChunkConstants.Size,
+                                  session.FlatIndex / (ChunkConstants.Size * ChunkConstants.Size),
+                                  (session.FlatIndex / ChunkConstants.Size) % ChunkConstants.Size);
+
+                if (!ServerContainerManager.IsWithinReach(physState.Position, worldPos))
+                {
+                    _tempClosedSessions.Add(session);
+                    continue;
+                }
+
+                // Diff container slots
+                IItemStorage storage = session.Storage;
+                ContainerRemoteState remoteState = session.RemoteState;
+
+                if (!_inventories.TryGetValue(session.PlayerId, out Inventory inventory))
+                {
+                    continue;
+                }
+
+                uint stateId = inventory.StateId;
+
+                for (int slot = 0; slot < storage.SlotCount; slot++)
+                {
+                    ItemStack current = storage.GetSlot(slot);
+
+                    if (!remoteState.IsSlotDirty(slot, current))
+                    {
+                        continue;
+                    }
+
+                    InventorySlotUpdateMessage update = new()
+                    {
+                        WindowId = session.WindowId,
+                        StateId = stateId,
+                        SlotIndex = (short)slot,
+                        Count = (ushort)current.Count,
+                    };
+
+                    if (!current.IsEmpty)
+                    {
+                        update.Ns = current.ItemId.Namespace;
+                        update.Name = current.ItemId.Name;
+                        update.Durability = (short)current.Durability;
+                    }
+
+                    _server.SendTo(peer.ConnectionId, update, PipelineId.ReliableSequenced);
+                    remoteState.MarkSlotSent(slot, current);
+                }
+
+                // Furnace progress updates
+                if (session.EntityTypeId is "lithforge:furnace")
+                {
+                    float burnF = _blockEntityProvider.GetFurnaceBurnProgress(
+                        session.ChunkCoord, session.FlatIndex);
+                    float smeltF = _blockEntityProvider.GetFurnaceSmeltProgress(
+                        session.ChunkCoord, session.FlatIndex);
+
+                    ushort burn = (ushort)(burnF * 65535f);
+                    ushort smelt = (ushort)(smeltF * 65535f);
+
+                    if (burn != session.LastSentBurnProgress || smelt != session.LastSentSmeltProgress)
+                    {
+                        ContainerProgressMessage progress = new()
+                        {
+                            WindowId = session.WindowId,
+                            BurnProgress = burn,
+                            SmeltProgress = smelt,
+                        };
+
+                        _server.SendTo(peer.ConnectionId, progress, PipelineId.ReliableSequenced);
+                        session.LastSentBurnProgress = burn;
+                        session.LastSentSmeltProgress = smelt;
+                    }
+                }
+            }
+
+            // Force-close invalid sessions
+            for (int i = 0; i < _tempClosedSessions.Count; i++)
+            {
+                ContainerSession session = _tempClosedSessions[i];
+                _containerManager.CloseSession(session.PlayerId);
+                ReturnSessionCursor(session.PlayerId, session);
+
+                PeerInfo peer = FindPeerByPlayerId(session.PlayerId);
+
+                if (peer is not null)
+                {
+                    ContainerCloseMessage closeMsg = new()
+                    {
+                        WindowId = session.WindowId,
+                    };
+
+                    _server.SendTo(peer.ConnectionId, closeMsg, PipelineId.ReliableSequenced);
+                }
+            }
+        }
+
+        /// <summary>
         ///     Returns the cursor to the player's inventory. Called on container close
         ///     or player disconnect.
         /// </summary>
@@ -289,17 +725,7 @@ namespace Lithforge.Network.Server
                 return;
             }
 
-            ItemEntry def = _itemRegistry.Get(cursor.ItemId);
-            int maxStack = def?.MaxStackSize ?? 64;
-
-            if (cursor.HasComponents)
-            {
-                inventory.AddItemStack(cursor);
-            }
-            else
-            {
-                inventory.AddItem(cursor.ItemId, cursor.Count, maxStack);
-            }
+            ReturnItemToInventory(inventory, cursor);
 
             if (peer?.InterestState is not null)
             {
@@ -412,6 +838,372 @@ namespace Lithforge.Network.Server
             state.Slots = saved.ToArray();
         }
 
+        /// <summary>Processes a container slot click, routing to the session's IItemStorage.</summary>
+        private void ProcessContainerSlotClick(
+            PeerInfo peer,
+            Inventory inventory,
+            ref ItemStack cursor,
+            SlotClickCmdMessage cmd)
+        {
+            if (_containerManager is null)
+            {
+                return;
+            }
+
+            ContainerSession session = _containerManager.GetSession(peer.AssignedPlayerId);
+
+            if (session is null || session.WindowId != cmd.WindowId)
+            {
+                return;
+            }
+
+            IItemStorage storage = session.Storage;
+
+            if (cmd.SlotIndex < 0 || cmd.SlotIndex >= storage.SlotCount)
+            {
+                return;
+            }
+
+            // Execute the click against the container storage
+            ItemStack slotStack = storage.GetSlot(cmd.SlotIndex);
+
+            // Simple left/right click logic on container slots
+            if (cmd.ClickType == SlotActionExecutor.ClickLeft)
+            {
+                ExecuteContainerLeftClick(storage, cmd.SlotIndex, ref cursor, slotStack);
+            }
+            else if (cmd.ClickType == SlotActionExecutor.ClickRight)
+            {
+                ExecuteContainerRightClick(storage, cmd.SlotIndex, ref cursor, slotStack);
+            }
+
+            inventory.IncrementStateId();
+        }
+
+        /// <summary>Executes a left-click on a container slot (pick up, place, merge, swap).</summary>
+        private void ExecuteContainerLeftClick(
+            IItemStorage storage,
+            int slotIndex,
+            ref ItemStack cursor,
+            ItemStack slotStack)
+        {
+            if (cursor.IsEmpty)
+            {
+                // Pick up entire stack
+                if (!slotStack.IsEmpty)
+                {
+                    cursor = slotStack;
+                    storage.SetSlot(slotIndex, ItemStack.Empty);
+                }
+            }
+            else if (slotStack.IsEmpty)
+            {
+                // Place entire cursor
+                storage.SetSlot(slotIndex, cursor);
+                cursor = ItemStack.Empty;
+            }
+            else if (ItemStack.CanStack(cursor, slotStack))
+            {
+                // Merge
+                ItemEntry def = _itemRegistry.Get(cursor.ItemId);
+                int maxStack = def?.MaxStackSize ?? 64;
+                int space = maxStack - slotStack.Count;
+
+                if (space > 0)
+                {
+                    int toMove = cursor.Count < space ? cursor.Count : space;
+                    ItemStack updated = slotStack;
+                    updated.Count += toMove;
+                    storage.SetSlot(slotIndex, updated);
+
+                    if (cursor.Count - toMove <= 0)
+                    {
+                        cursor = ItemStack.Empty;
+                    }
+                    else
+                    {
+                        ItemStack remaining = cursor;
+                        remaining.Count -= toMove;
+                        cursor = remaining;
+                    }
+                }
+                else
+                {
+                    // Full stack, swap
+                    storage.SetSlot(slotIndex, cursor);
+                    cursor = slotStack;
+                }
+            }
+            else
+            {
+                // Swap different items
+                storage.SetSlot(slotIndex, cursor);
+                cursor = slotStack;
+            }
+        }
+
+        /// <summary>Executes a right-click on a container slot (pick up half, place one).</summary>
+        private void ExecuteContainerRightClick(
+            IItemStorage storage,
+            int slotIndex,
+            ref ItemStack cursor,
+            ItemStack slotStack)
+        {
+            if (cursor.IsEmpty)
+            {
+                // Pick up half
+                if (!slotStack.IsEmpty)
+                {
+                    int half = (slotStack.Count + 1) / 2;
+                    cursor = new ItemStack(slotStack.ItemId, half, slotStack.Durability);
+
+                    int remaining = slotStack.Count - half;
+
+                    if (remaining <= 0)
+                    {
+                        storage.SetSlot(slotIndex, ItemStack.Empty);
+                    }
+                    else
+                    {
+                        ItemStack leftover = slotStack;
+                        leftover.Count = remaining;
+                        storage.SetSlot(slotIndex, leftover);
+                    }
+                }
+            }
+            else
+            {
+                // Place one item
+                if (slotStack.IsEmpty)
+                {
+                    storage.SetSlot(slotIndex, new ItemStack(cursor.ItemId, 1, cursor.Durability));
+                    DecrementCursor(ref cursor);
+                }
+                else if (ItemStack.CanStack(cursor, slotStack))
+                {
+                    ItemEntry def = _itemRegistry.Get(cursor.ItemId);
+                    int maxStack = def?.MaxStackSize ?? 64;
+
+                    if (slotStack.Count < maxStack)
+                    {
+                        ItemStack updated = slotStack;
+                        updated.Count += 1;
+                        storage.SetSlot(slotIndex, updated);
+                        DecrementCursor(ref cursor);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Processes a single crafting action (non-shift).</summary>
+        private void ProcessSingleCraftAction(
+            PeerInfo peer,
+            Inventory inventory,
+            CraftingGrid grid,
+            ref ItemStack cursor,
+            CraftActionCmdMessage cmd)
+        {
+            RecipeEntry match = _craftingEngine.FindMatch(grid);
+
+            if (match is null)
+            {
+                // No match — send full resync to correct client
+                SendFullResyncForPlayer(peer, inventory, cursor);
+                return;
+            }
+
+            // Verify recipe ID matches what the client sent
+            ResourceId clientRecipeId = new(cmd.RecipeNs ?? "", cmd.RecipeName ?? "");
+
+            if (match.Id != clientRecipeId)
+            {
+                SendFullResyncForPlayer(peer, inventory, cursor);
+                return;
+            }
+
+            // Verify cursor can accept the result
+            if (!cursor.IsEmpty)
+            {
+                if (!ItemStack.CanStack(cursor, new ItemStack(match.ResultItem, 1)))
+                {
+                    return;
+                }
+
+                ItemEntry def = _itemRegistry.Get(match.ResultItem);
+                int maxStack = def?.MaxStackSize ?? 64;
+
+                if (cursor.Count + match.ResultCount > maxStack)
+                {
+                    return;
+                }
+            }
+
+            // Consume ingredients (decrement each non-empty grid slot by 1)
+            ConsumeGridIngredients(grid);
+
+            // Produce result to cursor
+            if (cursor.IsEmpty)
+            {
+                cursor = new ItemStack(match.ResultItem, match.ResultCount);
+            }
+            else
+            {
+                ItemStack updated = cursor;
+                updated.Count += match.ResultCount;
+                cursor = updated;
+            }
+
+            inventory.IncrementStateId();
+        }
+
+        /// <summary>Processes a shift-craft action (craft all up to 64 iterations).</summary>
+        private void ProcessShiftCraftAction(
+            PeerInfo peer,
+            Inventory inventory,
+            CraftingGrid grid,
+            ref ItemStack cursor)
+        {
+            for (int iteration = 0; iteration < MaxShiftCraftIterations; iteration++)
+            {
+                RecipeEntry match = _craftingEngine.FindMatch(grid);
+
+                if (match is null)
+                {
+                    break;
+                }
+
+                // Check if the result fits in the player inventory
+                ItemEntry def = _itemRegistry.Get(match.ResultItem);
+                int maxStack = def?.MaxStackSize ?? 64;
+
+                if (!inventory.CanAdd(match.ResultItem, match.ResultCount, maxStack))
+                {
+                    break;
+                }
+
+                // Consume ingredients
+                ConsumeGridIngredients(grid);
+
+                // Add result directly to inventory
+                inventory.AddItem(match.ResultItem, match.ResultCount, maxStack);
+            }
+        }
+
+        /// <summary>Decrements each non-empty slot in the crafting grid by 1.</summary>
+        private static void ConsumeGridIngredients(CraftingGrid grid)
+        {
+            for (int i = 0; i < grid.SlotCount; i++)
+            {
+                ItemStack slot = grid.GetSlot(i);
+
+                if (slot.IsEmpty)
+                {
+                    continue;
+                }
+
+                if (slot.Count <= 1)
+                {
+                    grid.SetSlot(i, ItemStack.Empty);
+                }
+                else
+                {
+                    ItemStack updated = slot;
+                    updated.Count -= 1;
+                    grid.SetSlot(i, updated);
+                }
+            }
+        }
+
+        /// <summary>Returns all items from a player's crafting grid to their inventory.</summary>
+        private void ReturnCraftingGridItems(ushort playerId)
+        {
+            if (!_playerCraftGrids.TryGetValue(playerId, out CraftingGrid grid))
+            {
+                return;
+            }
+
+            if (!_inventories.TryGetValue(playerId, out Inventory inventory))
+            {
+                _playerCraftGrids.Remove(playerId);
+                return;
+            }
+
+            for (int i = 0; i < grid.SlotCount; i++)
+            {
+                ItemStack slot = grid.GetSlot(i);
+
+                if (slot.IsEmpty)
+                {
+                    continue;
+                }
+
+                ReturnItemToInventory(inventory, slot);
+                grid.SetSlot(i, ItemStack.Empty);
+            }
+
+            _playerCraftGrids.Remove(playerId);
+        }
+
+        /// <summary>Returns a container session cursor to the player's inventory.</summary>
+        private void ReturnSessionCursor(ushort playerId, ContainerSession session)
+        {
+            if (session.Cursor.IsEmpty)
+            {
+                return;
+            }
+
+            if (!_inventories.TryGetValue(playerId, out Inventory inventory))
+            {
+                return;
+            }
+
+            ReturnItemToInventory(inventory, session.Cursor);
+            session.Cursor = ItemStack.Empty;
+        }
+
+        /// <summary>Returns an item stack to the player's inventory, handling tools and components.</summary>
+        private void ReturnItemToInventory(Inventory inventory, ItemStack stack)
+        {
+            ItemEntry def = _itemRegistry.Get(stack.ItemId);
+            int maxStack = def?.MaxStackSize ?? 64;
+
+            if (stack.HasComponents)
+            {
+                inventory.AddItemStack(stack);
+            }
+            else
+            {
+                inventory.AddItem(stack.ItemId, stack.Count, maxStack);
+            }
+        }
+
+        /// <summary>Sends a full resync to bring the client back in sync.</summary>
+        private void SendFullResyncForPlayer(PeerInfo peer, Inventory inventory, ItemStack cursor)
+        {
+            InventorySyncMessage resync = BuildFullSync(inventory, cursor);
+            _server.SendTo(peer.ConnectionId, resync, PipelineId.ReliableSequenced);
+
+            if (peer.InterestState?.InventoryRemote is not null)
+            {
+                peer.InterestState.InventoryRemote.SyncAll(inventory, cursor);
+            }
+        }
+
+        /// <summary>Decrements cursor count by 1, clearing it if empty.</summary>
+        private static void DecrementCursor(ref ItemStack cursor)
+        {
+            if (cursor.Count <= 1)
+            {
+                cursor = ItemStack.Empty;
+            }
+            else
+            {
+                ItemStack updated = cursor;
+                updated.Count -= 1;
+                cursor = updated;
+            }
+        }
+
         /// <summary>Processes a paint-drag sub-message (Begin/Slot/End).</summary>
         private void ProcessPaintDrag(
             PeerInfo peer,
@@ -465,51 +1257,6 @@ namespace Lithforge.Network.Server
                 case 2: // End
                     drag?.Reset();
                     break;
-            }
-        }
-
-        /// <summary>
-        ///     Applies client-predicted slot changes directly to the server inventory.
-        ///     Used for crafting output take (trusted) where the server cannot re-execute.
-        /// </summary>
-        private void ApplyTrustedPredictions(
-            Inventory inventory,
-            ref ItemStack cursor,
-            SlotClickCmdMessage cmd)
-        {
-            if (cmd.PredictedSlots is not null)
-            {
-                for (int i = 0; i < cmd.PredictedSlots.Length; i++)
-                {
-                    PredictedSlot pred = cmd.PredictedSlots[i];
-
-                    if (pred.SlotIndex >= Inventory.SlotCount)
-                    {
-                        continue;
-                    }
-
-                    if (pred.Count == 0)
-                    {
-                        inventory.SetSlot(pred.SlotIndex, ItemStack.Empty);
-                    }
-                    else
-                    {
-                        ResourceId itemId = new(pred.Ns ?? "", pred.Name ?? "");
-                        ItemStack stack = new(itemId, pred.Count, pred.Durability);
-                        inventory.SetSlot(pred.SlotIndex, stack);
-                    }
-                }
-            }
-
-            // Apply predicted cursor
-            if (cmd.CursorCount > 0)
-            {
-                ResourceId cursorId = new(cmd.CursorNs ?? "", cmd.CursorName ?? "");
-                cursor = new ItemStack(cursorId, cmd.CursorCount, cmd.CursorDurability);
-            }
-            else
-            {
-                cursor = ItemStack.Empty;
             }
         }
 

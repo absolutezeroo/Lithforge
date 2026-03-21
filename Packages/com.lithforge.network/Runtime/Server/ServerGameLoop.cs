@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Item.Crafting;
 using Lithforge.Network.Bridge;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Connection;
@@ -193,6 +194,21 @@ namespace Lithforge.Network.Server
             _lifecycle.SetInventoryProcessor(processor);
         }
 
+        /// <summary>Injects the crafting engine for server-side recipe validation.</summary>
+        public void SetCraftingEngine(CraftingEngine craftingEngine)
+        {
+            _inventoryProcessor?.SetCraftingEngine(craftingEngine);
+        }
+
+        /// <summary>Injects container dependencies (container manager, block entity provider, simulation).</summary>
+        public void SetContainerDependencies(
+            ServerContainerManager containerManager,
+            IServerBlockEntityProvider blockEntityProvider)
+        {
+            _inventoryProcessor?.SetContainerDependencies(
+                containerManager, blockEntityProvider, _simulation);
+        }
+
         /// <summary>Sets the default streaming strategy used for peers without a per-connection override.</summary>
         public void SetDefaultStrategy(IChunkStreamingStrategy strategy)
         {
@@ -259,6 +275,7 @@ namespace Lithforge.Network.Server
             // Phase 5: Broadcast updates
             _broadcaster.BroadcastAll(_playingPeersCache, dirtyChanges);
             _inventoryProcessor?.BroadcastInventoryDeltas(_playingPeersCache);
+            _inventoryProcessor?.BroadcastContainerDeltas();
             _lifecycle.ProcessStreamingAndReadiness(currentTime);
 
             // Phase 6: implicit — UTP batches sends within frame

@@ -271,6 +271,7 @@ namespace Lithforge.Network.Server
         {
             _blockProcessor.CancelDigging(playerId);
             _simulation.RemovePlayer(playerId);
+            _inventoryProcessor?.CleanupPlayerContainers(playerId);
             _inventoryProcessor?.ReturnCursorToInventory(playerId);
             _inventoryProcessor?.RemoveInventory(playerId);
 

@@ -13,8 +13,11 @@ namespace Lithforge.Network.Messages
     /// </summary>
     public struct SlotClickCmdMessage : INetworkMessage
     {
-        /// <summary>Minimum payload size: fixed header (10) + predicted count (1) + cursor count (2).</summary>
-        public const int MinSize = 13;
+        /// <summary>Minimum payload size: WindowId(1) + fixed header (10) + predicted count (1) + cursor count (2).</summary>
+        public const int MinSize = 14;
+
+        /// <summary>Window ID: 0 = player inventory, >= 1 = active container session.</summary>
+        public byte WindowId;
 
         /// <summary>The client's last-known inventory state ID.</summary>
         public uint StateId;
@@ -80,6 +83,8 @@ namespace Lithforge.Network.Messages
         {
             int start = offset;
 
+            buffer[offset] = WindowId;
+            offset += 1;
             MessageSerializer.WriteUInt(buffer, offset, StateId);
             offset += 4;
             MessageSerializer.WriteUShort(buffer, offset, SequenceId);
@@ -120,11 +125,13 @@ namespace Lithforge.Network.Messages
             SlotClickCmdMessage msg = new();
             int end = offset + length;
 
-            if (length < 10)
+            if (length < 11)
             {
                 return msg;
             }
 
+            msg.WindowId = buffer[offset];
+            offset += 1;
             msg.StateId = MessageSerializer.ReadUInt(buffer, offset);
             offset += 4;
             msg.SequenceId = MessageSerializer.ReadUShort(buffer, offset);

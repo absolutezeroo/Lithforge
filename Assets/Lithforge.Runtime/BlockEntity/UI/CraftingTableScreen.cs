@@ -204,6 +204,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Returns true if the container is the crafting grid or output adapter.</summary>
+        protected override bool IsContainerSlot(ISlotContainer container)
+        {
+            return container == _craftAdapter || container == _outputAdapter;
+        }
+
         /// <summary>Returns held items and remaining grid contents to the player inventory on close.</summary>
         protected override void OnClose()
         {

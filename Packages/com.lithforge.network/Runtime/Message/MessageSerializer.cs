@@ -74,6 +74,22 @@ namespace Lithforge.Network.Message
         }
 
         /// <summary>
+        /// Writes a little-endian signed int to the buffer at the given offset.
+        /// </summary>
+        public static void WriteInt(byte[] buffer, int offset, int value)
+        {
+            WriteUInt(buffer, offset, (uint)value);
+        }
+
+        /// <summary>
+        /// Reads a little-endian signed int from the buffer at the given offset.
+        /// </summary>
+        public static int ReadInt(byte[] buffer, int offset)
+        {
+            return (int)ReadUInt(buffer, offset);
+        }
+
+        /// <summary>
         /// Writes a little-endian ulong to the buffer at the given offset.
         /// </summary>
         public static void WriteULong(byte[] buffer, int offset, ulong value)

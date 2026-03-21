@@ -203,6 +203,12 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Returns true if the container is the chest adapter (WindowId > 0).</summary>
+        protected override bool IsContainerSlot(ISlotContainer container)
+        {
+            return container == _chestAdapter;
+        }
+
         /// <summary>Returns held items to the player inventory and clears the chest reference on close.</summary>
         protected override void OnClose()
         {

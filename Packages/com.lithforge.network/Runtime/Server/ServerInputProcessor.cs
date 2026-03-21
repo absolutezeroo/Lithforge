@@ -66,6 +66,9 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.BreakBlockCmd, OnBreakBlockCmd);
             dispatcher.RegisterHandler(MessageType.StartDiggingCmd, OnStartDiggingCmd);
             dispatcher.RegisterHandler(MessageType.SlotClickCmd, OnSlotClickCmd);
+            dispatcher.RegisterHandler(MessageType.CraftActionCmd, OnCraftActionCmd);
+            dispatcher.RegisterHandler(MessageType.ContainerOpenCmd, OnContainerOpenCmd);
+            dispatcher.RegisterHandler(MessageType.ContainerCloseCmd, OnContainerCloseCmd);
         }
 
         /// <summary>
@@ -326,6 +329,69 @@ namespace Lithforge.Network.Server
             {
                 _server.SendTo(connId, response.Value, PipelineId.ReliableSequenced);
             }
+        }
+
+        /// <summary>Handles a craft action command from a client.</summary>
+        private void OnCraftActionCmd(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            _serverImpl.TouchPeer(connId);
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState is null
+                || peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            if (_inventoryProcessor is null)
+            {
+                return;
+            }
+
+            CraftActionCmdMessage cmd = CraftActionCmdMessage.Deserialize(data, offset, length);
+            _inventoryProcessor.ProcessCraftAction(peer, cmd);
+        }
+
+        /// <summary>Handles a container open command from a client.</summary>
+        private void OnContainerOpenCmd(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            _serverImpl.TouchPeer(connId);
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState is null
+                || peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            if (_inventoryProcessor is null)
+            {
+                return;
+            }
+
+            ContainerOpenCmdMessage cmd = ContainerOpenCmdMessage.Deserialize(data, offset, length);
+            _inventoryProcessor.ProcessContainerOpen(peer, cmd);
+        }
+
+        /// <summary>Handles a container close command from a client.</summary>
+        private void OnContainerCloseCmd(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            _serverImpl.TouchPeer(connId);
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState is null
+                || peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            if (_inventoryProcessor is null)
+            {
+                return;
+            }
+
+            ContainerCloseCmdMessage cmd = ContainerCloseCmdMessage.Deserialize(data, offset, length);
+            _inventoryProcessor.ProcessContainerClose(peer, cmd);
         }
     }
 }

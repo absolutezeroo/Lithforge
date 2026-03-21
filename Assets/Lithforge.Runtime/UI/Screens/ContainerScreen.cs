@@ -85,6 +85,12 @@ namespace Lithforge.Runtime.UI.Screens
         /// <summary>True while this container screen is open and visible.</summary>
         public bool IsOpen { get; private set; }
 
+        /// <summary>
+        ///     The server-assigned window ID for this container session.
+        ///     Set by subclasses when opened via network. 0 = player inventory only.
+        /// </summary>
+        public byte ContainerWindowId { get; set; }
+
         /// <summary>Closes the screen, re-locks the cursor, resets interaction state, and invokes OnClose.</summary>
         public void Close()
         {
@@ -98,6 +104,13 @@ namespace Lithforge.Runtime.UI.Screens
                 && Context.SyncHandler.OnCursorCorrected == _cursorCorrectionCallback)
             {
                 Context.SyncHandler.OnCursorCorrected = null;
+            }
+
+            // Send container close command to server if a container session is active
+            if (ContainerWindowId > 0 && Context?.SyncHandler is not null)
+            {
+                Context.SyncHandler.SendContainerClose(ContainerWindowId);
+                ContainerWindowId = 0;
             }
 
             Interaction.ResetState();
@@ -163,9 +176,13 @@ namespace Lithforge.Runtime.UI.Screens
             // Wire server sync: send clicks to server
             if (context.SyncHandler is not null)
             {
-                Interaction.OnSlotClicked = (slotIndex, clickType, button) =>
+                Interaction.OnSlotClicked = (slotIndex, clickType, button, container) =>
                 {
-                    context.SyncHandler.SendSlotClick(slotIndex, clickType, button);
+                    byte windowId = IsContainerSlot(container)
+                        ? ContainerWindowId
+                        : (byte)0;
+
+                    context.SyncHandler.SendSlotClick(slotIndex, clickType, button, windowId);
                 };
 
                 // Build callback for cursor corrections (wired in Open, unwired in Close)
@@ -487,6 +504,17 @@ namespace Lithforge.Runtime.UI.Screens
         ///     Override to handle screen-specific close logic (return items, clear crafting grid).
         /// </summary>
         protected abstract void OnClose();
+
+        /// <summary>
+        ///     Returns true if the given container adapter represents a non-player
+        ///     container slot (e.g. chest, crafting grid) that should use the
+        ///     <see cref="ContainerWindowId" /> when sending slot clicks.
+        ///     Override in subclasses that have container adapters.
+        /// </summary>
+        protected virtual bool IsContainerSlot(ISlotContainer container)
+        {
+            return false;
+        }
 
         /// <summary>Handles pointer up on the panel to end paint-drag mode.</summary>
         private void OnPanelPointerUp(PointerUpEvent evt)

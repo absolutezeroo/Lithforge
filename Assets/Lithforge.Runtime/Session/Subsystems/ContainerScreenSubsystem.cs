@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Network.Messages;
 using Lithforge.Runtime.BlockEntity;
 using Lithforge.Runtime.BlockEntity.UI;
 using Lithforge.Runtime.Input;
 using Lithforge.Runtime.Network;
 using Lithforge.Runtime.UI.Screens;
 using Lithforge.Runtime.World;
+using Lithforge.Voxel.Chunk;
+
+using Unity.Mathematics;
 
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -147,6 +151,38 @@ namespace Lithforge.Runtime.Session.Subsystems
 
             blockInteraction.SetBlockEntityReferences(
                 beScheduler, screenManager, context.Content.ToolTraitRegistry);
+
+            // Wire network container open/close if sync handler is available
+            if (context.TryGet(out ClientInventorySyncHandler syncHandler))
+            {
+                blockInteraction.SetSyncHandler(syncHandler);
+
+                syncHandler.OnContainerOpened = msg =>
+                {
+                    // Convert world position to chunk coord + flat index, look up entity
+                    int3 worldPos = new(msg.PositionX, msg.PositionY, msg.PositionZ);
+                    int3 chunkCoord = new(
+                        FloorDiv(worldPos.x, ChunkConstants.Size),
+                        FloorDiv(worldPos.y, ChunkConstants.Size),
+                        FloorDiv(worldPos.z, ChunkConstants.Size));
+                    int localX = worldPos.x - chunkCoord.x * ChunkConstants.Size;
+                    int localY = worldPos.y - chunkCoord.y * ChunkConstants.Size;
+                    int localZ = worldPos.z - chunkCoord.z * ChunkConstants.Size;
+                    int flatIndex = ChunkData.GetIndex(localX, localY, localZ);
+
+                    BlockEntity.BlockEntity entity = beScheduler.GetEntity(chunkCoord, flatIndex);
+
+                    if (entity is not null)
+                    {
+                        screenManager.TryOpenForNetwork(msg.EntityTypeId, msg.WindowId, entity);
+                    }
+                };
+
+                syncHandler.OnContainerClosed = windowId =>
+                {
+                    screenManager.CloseActive();
+                };
+            }
         }
 
         /// <summary>No in-flight jobs to complete.</summary>
@@ -157,6 +193,12 @@ namespace Lithforge.Runtime.Session.Subsystems
         /// <summary>No owned disposable resources; GameObjects cleaned up separately.</summary>
         public void Dispose()
         {
+        }
+
+        /// <summary>Floor division that rounds toward negative infinity for negative dividends.</summary>
+        private static int FloorDiv(int a, int b)
+        {
+            return a >= 0 ? a / b : (a - b + 1) / b;
         }
     }
 }

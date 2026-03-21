@@ -7,7 +7,7 @@ namespace Lithforge.Item.Crafting
     /// Represents a crafting grid (2x2 for player inventory or 3x3 for crafting table).
     /// Stores ItemStack per slot (default = empty).
     /// </summary>
-    public sealed class CraftingGrid
+    public sealed class CraftingGrid : IItemStorage
     {
         private readonly ItemStack[] _slots;
 
@@ -67,6 +67,32 @@ namespace Lithforge.Item.Crafting
             else
             {
                 SetSlotStack(x, y, ItemStack.Empty);
+            }
+        }
+
+        /// <summary>Total number of slots in the grid (Width * Height).</summary>
+        public int SlotCount
+        {
+            get { return _slots.Length; }
+        }
+
+        /// <summary>Returns the ItemStack at the given linear index (row-major: index = y*Width+x).</summary>
+        public ItemStack GetSlot(int index)
+        {
+            if (index < 0 || index >= _slots.Length)
+            {
+                return ItemStack.Empty;
+            }
+
+            return _slots[index];
+        }
+
+        /// <summary>Sets the ItemStack at the given linear index (row-major: index = y*Width+x).</summary>
+        public void SetSlot(int index, ItemStack stack)
+        {
+            if (index >= 0 && index < _slots.Length)
+            {
+                _slots[index] = stack;
             }
         }
 

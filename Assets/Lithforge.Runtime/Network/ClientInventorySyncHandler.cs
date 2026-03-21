@@ -8,22 +8,24 @@ using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
 
+using Unity.Mathematics;
+
 namespace Lithforge.Runtime.Network
 {
     /// <summary>
-    ///     Client-side handler for server inventory corrections and full resyncs.
-    ///     Receives <see cref="InventorySyncMessage" /> (full resync) and
+    ///     Client-side handler for server inventory corrections, full resyncs, and
+    ///     container session messages. Receives <see cref="InventorySyncMessage" /> (full resync),
     ///     <see cref="InventorySlotUpdateMessage" /> (targeted slot/cursor corrections),
-    ///     applying them to the local <see cref="Inventory" />.
-    ///     Also provides <see cref="SendSlotClick" /> to send slot click commands to
-    ///     the server with the last known server state ID.
+    ///     <see cref="ContainerOpenMessage" />, <see cref="ContainerCloseMessage" />, and
+    ///     <see cref="ContainerProgressMessage" />.
+    ///     Also provides send methods for slot clicks, container open/close, and craft actions.
     /// </summary>
     public sealed class ClientInventorySyncHandler
     {
         /// <summary>The client-side player inventory to apply corrections to.</summary>
         private readonly Inventory _inventory;
 
-        /// <summary>Network client for sending slot click commands to the server.</summary>
+        /// <summary>Network client for sending commands to the server.</summary>
         private readonly INetworkClient _client;
 
         /// <summary>
@@ -39,6 +41,32 @@ namespace Lithforge.Runtime.Network
         /// </summary>
         public Action<ItemStack> OnCursorCorrected;
 
+        /// <summary>
+        ///     Fired when the server opens a container session. Parameter is the full
+        ///     <see cref="ContainerOpenMessage" /> with WindowId, EntityTypeId, Slots, and position.
+        /// </summary>
+        public Action<ContainerOpenMessage> OnContainerOpened;
+
+        /// <summary>
+        ///     Fired when the server force-closes a container session. Parameter is the WindowId.
+        /// </summary>
+        public Action<byte> OnContainerClosed;
+
+        /// <summary>
+        ///     Fired when the server sends furnace progress updates.
+        ///     Parameters: WindowId, BurnProgress (0–65535), SmeltProgress (0–65535).
+        /// </summary>
+        public Action<byte, ushort, ushort> OnContainerProgress;
+
+        /// <summary>
+        ///     Fired when the server sends a container slot update (WindowId > 0).
+        ///     Parameters: slotIndex, itemStack.
+        /// </summary>
+        public Action<int, ItemStack> OnContainerSlotUpdated;
+
+        /// <summary>The active container window ID, or 0 if no container is open.</summary>
+        public byte ActiveWindowId { get; private set; }
+
         /// <summary>Creates the sync handler with the local inventory and network client.</summary>
         public ClientInventorySyncHandler(Inventory inventory, INetworkClient client)
         {
@@ -52,6 +80,9 @@ namespace Lithforge.Runtime.Network
         {
             dispatcher.RegisterHandler(MessageType.InventorySync, OnInventorySync);
             dispatcher.RegisterHandler(MessageType.InventorySlotUpdate, OnSlotUpdate);
+            dispatcher.RegisterHandler(MessageType.ContainerOpen, OnContainerOpen);
+            dispatcher.RegisterHandler(MessageType.ContainerClose, OnContainerClose);
+            dispatcher.RegisterHandler(MessageType.ContainerProgress, OnContainerProgressMsg);
         }
 
         /// <summary>
@@ -60,10 +91,11 @@ namespace Lithforge.Runtime.Network
         ///     (not the local post-prediction value) so the server can match it
         ///     against its authoritative state.
         /// </summary>
-        public void SendSlotClick(int slotIndex, byte clickType, byte button)
+        public void SendSlotClick(int slotIndex, byte clickType, byte button, byte windowId = 0)
         {
             SlotClickCmdMessage msg = new()
             {
+                WindowId = windowId,
                 StateId = _lastKnownServerStateId,
                 SlotIndex = (short)slotIndex,
                 ClickType = clickType,
@@ -77,6 +109,45 @@ namespace Lithforge.Runtime.Network
             // client is correct, both stay in sync. If not, a correction or
             // full resync will overwrite this value.
             _lastKnownServerStateId = _inventory.StateId;
+        }
+
+        /// <summary>Sends a container open command to the server for the given world block position.</summary>
+        public void SendContainerOpen(int3 position)
+        {
+            ContainerOpenCmdMessage msg = new()
+            {
+                PositionX = position.x,
+                PositionY = position.y,
+                PositionZ = position.z,
+            };
+
+            _client.Send(msg, PipelineId.ReliableSequenced);
+        }
+
+        /// <summary>Sends a container close command to the server for the given window ID.</summary>
+        public void SendContainerClose(byte windowId)
+        {
+            ContainerCloseCmdMessage msg = new()
+            {
+                WindowId = windowId,
+            };
+
+            _client.Send(msg, PipelineId.ReliableSequenced);
+            ActiveWindowId = 0;
+        }
+
+        /// <summary>Sends a craft action command to the server with the recipe ID.</summary>
+        public void SendCraftAction(ResourceId recipeId, bool shiftClick)
+        {
+            CraftActionCmdMessage msg = new()
+            {
+                WindowId = ActiveWindowId,
+                IsShiftClick = (byte)(shiftClick ? 1 : 0),
+                RecipeNs = recipeId.Namespace,
+                RecipeName = recipeId.Name,
+            };
+
+            _client.Send(msg, PipelineId.ReliableSequenced);
         }
 
         /// <summary>Handles a full inventory resync from the server.</summary>
@@ -132,9 +203,18 @@ namespace Lithforge.Runtime.Network
                     OnCursorCorrected?.Invoke(new ItemStack(itemId, msg.Count, msg.Durability));
                 }
             }
+            else if (msg.WindowId > 0)
+            {
+                // Container slot correction — route to container handler
+                ItemStack stack = msg.Count == 0
+                    ? ItemStack.Empty
+                    : new ItemStack(new ResourceId(msg.Ns, msg.Name), msg.Count, msg.Durability);
+
+                OnContainerSlotUpdated?.Invoke(msg.SlotIndex, stack);
+            }
             else
             {
-                // Slot correction
+                // Player inventory slot correction
                 if (msg.Count == 0)
                 {
                     _inventory.SetSlot(msg.SlotIndex, ItemStack.Empty);
@@ -148,6 +228,34 @@ namespace Lithforge.Runtime.Network
                 _inventory.ForceStateId(msg.StateId);
                 _lastKnownServerStateId = msg.StateId;
             }
+        }
+
+        /// <summary>Handles a container open message from the server.</summary>
+        private void OnContainerOpen(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            ContainerOpenMessage msg = ContainerOpenMessage.Deserialize(data, offset, length);
+            ActiveWindowId = msg.WindowId;
+            OnContainerOpened?.Invoke(msg);
+        }
+
+        /// <summary>Handles a container close (force-close) message from the server.</summary>
+        private void OnContainerClose(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            ContainerCloseMessage msg = ContainerCloseMessage.Deserialize(data, offset, length);
+
+            if (msg.WindowId == ActiveWindowId)
+            {
+                ActiveWindowId = 0;
+            }
+
+            OnContainerClosed?.Invoke(msg.WindowId);
+        }
+
+        /// <summary>Handles a container progress (furnace burn/smelt) message from the server.</summary>
+        private void OnContainerProgressMsg(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            ContainerProgressMessage msg = ContainerProgressMessage.Deserialize(data, offset, length);
+            OnContainerProgress?.Invoke(msg.WindowId, msg.BurnProgress, msg.SmeltProgress);
         }
     }
 }

@@ -59,9 +59,9 @@ namespace Lithforge.Runtime.UI.Interaction
 
         /// <summary>
         ///     Optional callback invoked after each optimistic slot click for network sync.
-        ///     Parameters: slotIndex, clickType, button.
+        ///     Parameters: slotIndex, clickType, button, container.
         /// </summary>
-        public Action<int, byte, byte> OnSlotClicked;
+        public Action<int, byte, byte, ISlotContainer> OnSlotClicked;
 
         /// <summary>Creates a slot interaction controller with the required registries for item lookups and repair.</summary>
         public SlotInteractionController(
@@ -169,7 +169,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             container.OnSlotChanged(slotIndex);
-            OnSlotClicked?.Invoke(slotIndex, 0, 0);
+            OnSlotClicked?.Invoke(slotIndex, 0, 0, container);
         }
 
         /// <summary>Handles right-click on a slot: repair-kit application, pick up half, place one, or start paint-drag.</summary>
@@ -287,7 +287,7 @@ namespace Lithforge.Runtime.UI.Interaction
 
             // Right click on different item = nothing
             container.OnSlotChanged(slotIndex);
-            OnSlotClicked?.Invoke(slotIndex, 1, 0);
+            OnSlotClicked?.Invoke(slotIndex, 1, 0, container);
         }
 
         /// <summary>
@@ -336,7 +336,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             source.OnSlotChanged(slotIndex);
-            OnSlotClicked?.Invoke(slotIndex, 2, 0);
+            OnSlotClicked?.Invoke(slotIndex, 2, 0, source);
         }
 
         /// <summary>
@@ -366,7 +366,7 @@ namespace Lithforge.Runtime.UI.Interaction
             hoveredContainer.SetSlot(hoveredIndex, hotbarItem);
             hotbarAdapter.OnSlotChanged(hotbarSlot);
             hoveredContainer.OnSlotChanged(hoveredIndex);
-            OnSlotClicked?.Invoke(hoveredIndex, 4, (byte)hotbarSlot);
+            OnSlotClicked?.Invoke(hoveredIndex, 4, (byte)hotbarSlot, hoveredContainer);
         }
 
         /// <summary>
@@ -406,7 +406,7 @@ namespace Lithforge.Runtime.UI.Interaction
             }
 
             output.TakeOutput(grid);
-            OnSlotClicked?.Invoke(0, 5, 0);
+            OnSlotClicked?.Invoke(0, 5, 0, output);
         }
 
         /// <summary>

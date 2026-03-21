@@ -116,6 +116,47 @@ namespace Lithforge.Runtime.UI.Screens
         }
 
         /// <summary>
+        ///     Opens the appropriate screen for a network container open message.
+        ///     Looks up the block entity by position via the scheduler, sets the
+        ///     <see cref="ContainerScreen.ContainerWindowId" />, and opens the screen.
+        ///     Returns true if the screen was opened.
+        /// </summary>
+        public bool TryOpenForNetwork(
+            string entityTypeId,
+            byte windowId,
+            BlockEntityBase entity)
+        {
+            if (entity is null)
+            {
+                return false;
+            }
+
+            BlockEntityScreenBinding binding = FindBinding(entityTypeId);
+
+            if (binding is null)
+            {
+                return false;
+            }
+
+            if (_activeScreen is not null && _activeScreen.IsOpen)
+            {
+                _activeScreen.Close();
+            }
+
+            ContainerScreen screen = GetOrCreate(binding);
+
+            if (screen is null)
+            {
+                return false;
+            }
+
+            screen.ContainerWindowId = windowId;
+            binding.OpenAction(screen, entity);
+            _activeScreen = screen;
+            return true;
+        }
+
+        /// <summary>
         ///     Closes whatever screen is currently open.
         /// </summary>
         public void CloseActive()

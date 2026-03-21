@@ -311,6 +311,14 @@ namespace Lithforge.Runtime.BlockEntity.UI
             evt.StopPropagation();
         }
 
+        /// <summary>Returns true if the container is one of the furnace slot adapters.</summary>
+        protected override bool IsContainerSlot(ISlotContainer container)
+        {
+            return container == _furnaceInputAdapter
+                   || container == _furnaceFuelAdapter
+                   || container == _furnaceOutputAdapter;
+        }
+
         /// <summary>Returns held items to the player inventory and clears the furnace reference on close.</summary>
         protected override void OnClose()
         {
