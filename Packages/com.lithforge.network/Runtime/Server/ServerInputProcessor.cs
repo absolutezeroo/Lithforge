@@ -20,6 +20,13 @@ namespace Lithforge.Network.Server
     /// </summary>
     internal sealed class ServerInputProcessor
     {
+        /// <summary>
+        ///     Number of ticks the server delays input consumption to absorb
+        ///     transport jitter. Only affects remote clients — the local peer
+        ///     uses the authoritative position path and bypasses input processing.
+        /// </summary>
+        private const uint InputBufferTicks = 2;
+
         /// <summary>Block command processor for validating and executing block changes.</summary>
         private readonly IServerBlockProcessor _blockProcessor;
 
@@ -103,7 +110,9 @@ namespace Lithforge.Network.Server
                 byte flags;
                 ushort seqId;
 
-                if (interest.MoveBuffer.TryGet(currentTick, out MoveCommand moveCmd))
+                uint consumeTick = currentTick - InputBufferTicks;
+
+                if (interest.MoveBuffer.TryGet(consumeTick, out MoveCommand moveCmd))
                 {
                     yaw = moveCmd.LookDir.x;
                     pitch = moveCmd.LookDir.y;

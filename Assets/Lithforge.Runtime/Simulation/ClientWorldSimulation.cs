@@ -47,6 +47,9 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Network player ID assigned to this client by the server.</summary>
         private readonly ushort _localPlayerId;
 
+        /// <summary>Logger for reconciliation diagnostics.</summary>
+        private readonly ILogger _logger;
+
         /// <summary>Network client for sending input messages to the server.</summary>
         private readonly INetworkClient _networkClient;
 
@@ -65,9 +68,6 @@ namespace Lithforge.Runtime.Simulation
 
         /// <summary>Registry of all ITickable systems driven each simulation tick.</summary>
         private readonly TickRegistry _tickRegistry;
-
-        /// <summary>Logger for reconciliation diagnostics.</summary>
-        private readonly ILogger _logger;
 
         /// <summary>Per-player monotonic sequence counter for input messages, wraps at 65535.</summary>
         private ushort _moveSequenceId;
@@ -248,11 +248,14 @@ namespace Lithforge.Runtime.Simulation
 
             if (error < ErrorThresholdSmooth)
             {
-                // Small error: visual smoothing only (decays via PositionErrorDecay)
-                PositionError += serverPos - predictedPos;
-
-                _predictionBuffer.DiscardBefore(ackedTick + 1);
-                _inputBuffer.DiscardBefore(ackedTick + 1);
+                // Small error: full reconciliation with visual smoothing.
+                // Capture the visual offset BEFORE snapping so the player
+                // doesn't see a discrete jump. The offset decays via
+                // PositionErrorDecay in Tick().
+                float3 currentPos = _playerPhysicsManager.GetState(_localPlayerId).Position;
+                FullReconciliation(msg, ackedTick);
+                float3 correctedPos = _playerPhysicsManager.GetState(_localPlayerId).Position;
+                PositionError += currentPos - correctedPos;
 
                 return;
             }
