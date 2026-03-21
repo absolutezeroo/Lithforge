@@ -55,5 +55,10 @@ namespace Lithforge.Network.Tests.Mocks
         {
             return 0.5f;
         }
+
+        /// <summary>Accepts an authoritative state (no-op in mock).</summary>
+        public void AcceptAuthoritativeState(NetworkEntityId playerId, PlayerPhysicsState state)
+        {
+        }
     }
 }
