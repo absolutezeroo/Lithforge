@@ -194,24 +194,10 @@ namespace Lithforge.Runtime.BlockEntity.Behaviors
                     int itemCount = reader.ReadInt32();
                     int durability = reader.ReadInt32();
                     ResourceId id = ResourceId.Parse(idStr);
-                    ItemStack stack = new(id, itemCount, durability);
-
-                    if (formatVersion == 3)
+                    ItemStack stack = new(id, itemCount, durability)
                     {
-                        stack.Components = DataComponentRegistry.Deserialize(reader);
-                    }
-                    else if (formatVersion == 2)
-                    {
-                        bool hasCustomData = reader.ReadBoolean();
-
-                        if (hasCustomData)
-                        {
-                            int dataLen = reader.ReadInt32();
-                            byte[] customData = reader.ReadBytes(dataLen);
-                            stack.Components = LegacyCustomDataMigrator.Migrate(customData);
-                        }
-                    }
-
+                        Components = DataComponentRegistry.Deserialize(reader),
+                    };
                     _slots[i] = stack;
                 }
                 else

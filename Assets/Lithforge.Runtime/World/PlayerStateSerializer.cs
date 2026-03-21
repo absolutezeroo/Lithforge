@@ -229,12 +229,6 @@ namespace Lithforge.Runtime.World
 
                         stack.Components = map.IsEmpty ? null : map;
                     }
-                    // Legacy format: raw CustomData base64
-                    else if (!string.IsNullOrEmpty(saved.CustomDataBase64))
-                    {
-                        byte[] customData = Convert.FromBase64String(saved.CustomDataBase64);
-                        stack.Components = LegacyCustomDataMigrator.Migrate(customData);
-                    }
 
                     inventory.SetSlot(saved.Slot, stack);
                 }
