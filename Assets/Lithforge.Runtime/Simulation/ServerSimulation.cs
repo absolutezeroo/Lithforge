@@ -107,5 +107,24 @@ namespace Lithforge.Runtime.Simulation
         {
             return _timeOfDayProvider();
         }
+
+        /// <summary>
+        ///     Accepts a client-authoritative position. Teleports the server-side physics body
+        ///     to match the client's state so that chunk interest tracking, block command reach
+        ///     checks, and PlayerStateMessage broadcasts all use the correct position.
+        /// </summary>
+        public void AcceptAuthoritativeState(NetworkEntityId playerId, PlayerPhysicsState state)
+        {
+            PlayerPhysicsBody body = _playerPhysicsManager.GetBody(playerId);
+
+            if (body is null)
+            {
+                return;
+            }
+
+            body.SetPosition(state.Position);
+            body.SetVelocity(state.Velocity);
+            body.SetFlags(state.Flags);
+        }
     }
 }

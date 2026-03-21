@@ -153,11 +153,10 @@ namespace Lithforge.Network.Server
                 };
 
                 // Send to the owning player (for prediction reconciliation).
-                // Skip for local peer — no bridge latency to reconcile against.
-                if (!peer.IsLocal)
-                {
-                    _server.SendTo(peer.ConnectionId, msg, PipelineId.UnreliableSequenced);
-                }
+                // Local peers need this too: the server now uses the client's authoritative
+                // position, so the reconciliation error will be ~0 and no correction triggers.
+                // Remote clients receive the correct position via the broadcast below.
+                _server.SendTo(peer.ConnectionId, msg, PipelineId.UnreliableSequenced);
 
                 // Broadcast to spatially nearby playing peers (O(K) instead of O(N))
                 GatherNearbyPlayerIndices(interest.CurrentChunk);

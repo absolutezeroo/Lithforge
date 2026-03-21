@@ -123,5 +123,8 @@ namespace Lithforge.Runtime.Session
 
         /// <summary>Logger for runtime diagnostics.</summary>
         public ILogger Logger { get; set; }
+
+        /// <summary>True when the server runs in the same process (SP/Host). Used to write local player state to bridge.</summary>
+        public bool IsLocalServer { get; set; }
     }
 }

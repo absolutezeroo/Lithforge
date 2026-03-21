@@ -219,6 +219,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             if (context.Config is SessionConfig.Singleplayer or SessionConfig.Host)
             {
                 config.ServerLoop = BuildServerLoop(context, player);
+                config.IsLocalServer = true;
             }
 
             // Create and activate the game loop

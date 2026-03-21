@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 
+using Lithforge.Network.Bridge;
 using Lithforge.Network.Connection;
 using Lithforge.Network.Message;
 using Lithforge.Network.Messages;
@@ -21,6 +22,9 @@ namespace Lithforge.Network.Server
     {
         /// <summary>Block command processor for validating and executing block changes.</summary>
         private readonly IServerBlockProcessor _blockProcessor;
+
+        /// <summary>Bridge for reading the local player's authoritative state (null for dedicated server).</summary>
+        private readonly ServerThreadBridge _bridge;
 
         /// <summary>Delegate returning the current server tick number.</summary>
         private readonly Func<uint> _getCurrentTick;
@@ -43,13 +47,15 @@ namespace Lithforge.Network.Server
             NetworkServer serverImpl,
             IServerSimulation simulation,
             IServerBlockProcessor blockProcessor,
-            Func<uint> getCurrentTick)
+            Func<uint> getCurrentTick,
+            ServerThreadBridge bridge)
         {
             _server = server;
             _serverImpl = serverImpl;
             _simulation = simulation;
             _blockProcessor = blockProcessor;
             _getCurrentTick = getCurrentTick;
+            _bridge = bridge;
         }
 
         /// <summary>Injects the server-side inventory processor for slot click command handling.</summary>
@@ -116,8 +122,22 @@ namespace Lithforge.Network.Server
                     seqId = interest.LastProcessedSequenceId;
                 }
 
-                PlayerPhysicsState authState = _simulation.ApplyMoveInput(
-                    playerId, yaw, pitch, flags, tickDt);
+                PlayerPhysicsState authState;
+
+                // For the local peer (SP/Host), accept the client's authoritative position
+                // directly instead of re-simulating. The host IS the server — re-simulating
+                // from inputs that arrive 1-2 ticks late via the bridge creates divergence.
+                // This follows Minecraft's pattern: client computes physics, server validates.
+                if (peer.IsLocal && _bridge?.GetLocalPlayerState() is { } localSnapshot)
+                {
+                    authState = localSnapshot.State;
+                    _simulation.AcceptAuthoritativeState(playerId, authState);
+                }
+                else
+                {
+                    authState = _simulation.ApplyMoveInput(
+                        playerId, yaw, pitch, flags, tickDt);
+                }
 
                 // Update current chunk from authoritative position
                 interest.CurrentChunk = new int3(

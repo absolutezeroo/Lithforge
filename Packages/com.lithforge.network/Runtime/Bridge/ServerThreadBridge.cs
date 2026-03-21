@@ -4,11 +4,30 @@ using System.Collections.Generic;
 using System.Threading;
 
 using Lithforge.Network.Chunk;
+using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
 
 namespace Lithforge.Network.Bridge
 {
+    /// <summary>
+    ///     Immutable snapshot of the local player's authoritative physics state,
+    ///     written by the main thread after each client tick, read by the server thread
+    ///     during ServerInputProcessor.ProcessTick for the local peer.
+    ///     Reference swap via volatile field is atomic on all .NET platforms.
+    /// </summary>
+    public sealed class LocalPlayerStateSnapshot
+    {
+        /// <summary>The authoritative physics state captured from the client tick.</summary>
+        public readonly PlayerPhysicsState State;
+
+        /// <summary>Creates a new snapshot wrapping the given state.</summary>
+        public LocalPlayerStateSnapshot(PlayerPhysicsState state)
+        {
+            State = state;
+        }
+    }
+
     /// <summary>
     ///     Shared state between the server thread and the main thread.
     ///     All fields are thread-safe: ConcurrentQueues for data flow, SemaphoreSlim for signaling.
@@ -84,6 +103,14 @@ namespace Lithforge.Network.Bridge
         /// </summary>
         private volatile PlayerChunkSnapshot _playerChunkSnapshot = PlayerChunkSnapshot.Empty;
 
+        /// <summary>
+        ///     Authoritative physics state of the local player (SP/Host only).
+        ///     Written by the main thread after client physics tick,
+        ///     read by the server thread to skip re-simulation for the local peer.
+        ///     Null when no local state has been written yet.
+        /// </summary>
+        private volatile LocalPlayerStateSnapshot _localPlayerState;
+
         /// <summary>Time of day (0-1) written by main thread, read by server thread. Stored as raw int bits for atomic access.</summary>
         private int _cachedTimeOfDayBits;
 
@@ -112,6 +139,18 @@ namespace Lithforge.Network.Bridge
         public void SetPlayerChunkSnapshot(PlayerChunkSnapshot snapshot)
         {
             _playerChunkSnapshot = snapshot;
+        }
+
+        /// <summary>Gets the latest local player state, or null if not yet written.</summary>
+        public LocalPlayerStateSnapshot GetLocalPlayerState()
+        {
+            return _localPlayerState;
+        }
+
+        /// <summary>Writes the local player's authoritative state. Main thread only.</summary>
+        public void SetLocalPlayerState(PlayerPhysicsState state)
+        {
+            _localPlayerState = new LocalPlayerStateSnapshot(state);
         }
 
         /// <summary>Disposes all semaphores.</summary>

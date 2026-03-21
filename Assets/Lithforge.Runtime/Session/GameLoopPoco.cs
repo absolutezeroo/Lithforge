@@ -179,6 +179,18 @@ namespace Lithforge.Runtime.Session
 
                 Profiler.EndSample();
                 profiler.End(FrameProfilerSections.TickLoop);
+
+                // Write the local player's authoritative position to the bridge so the
+                // server thread uses it directly instead of re-simulating (Minecraft pattern).
+                // Must happen BEFORE TransportPump.Tick() so the state is available when
+                // the server thread processes this tick's inputs.
+                if (_config.IsLocalServer
+                    && _config.PlayerPhysicsBody is not null
+                    && _config.TransportPump is not null)
+                {
+                    _config.TransportPump.SetLocalPlayerState(
+                        _config.PlayerPhysicsBody.GetState());
+                }
             }
 
             // Pump the bridge AFTER tick loop so MoveInputMessages sent during client

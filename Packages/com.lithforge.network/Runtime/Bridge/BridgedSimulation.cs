@@ -146,5 +146,14 @@ namespace Lithforge.Network.Bridge
             return _bridge.CachedTimeOfDay;
         }
 
+        /// <summary>
+        ///     Accepts the local peer's authoritative position. Updates the result cache
+        ///     AND calls the direct simulation to teleport the server body.
+        /// </summary>
+        public void AcceptAuthoritativeState(NetworkEntityId playerId, PlayerPhysicsState state)
+        {
+            _resultCache[playerId.Value] = state;
+            _directSimulation.AcceptAuthoritativeState(playerId, state);
+        }
     }
 }

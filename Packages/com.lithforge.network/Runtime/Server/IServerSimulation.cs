@@ -45,5 +45,13 @@ namespace Lithforge.Network.Server
         /// Returns the current time of day (0-1 range) for inclusion in GameReadyMessage.
         /// </summary>
         public float GetTimeOfDay();
+
+        /// <summary>
+        ///     Accepts a client-authoritative position for the given player without
+        ///     re-simulating physics. Updates the cached state and teleports the
+        ///     server-side body so chunk interest and reach checks use the correct position.
+        ///     Used for the local peer in SP/Host mode (Minecraft pattern).
+        /// </summary>
+        public void AcceptAuthoritativeState(NetworkEntityId playerId, PlayerPhysicsState state);
     }
 }

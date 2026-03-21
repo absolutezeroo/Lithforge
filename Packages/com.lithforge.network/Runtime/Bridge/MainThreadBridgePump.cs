@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Lithforge.Network.Chunk;
 using Lithforge.Network.Server;
 using Lithforge.Network.Transport;
+using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
 
@@ -55,6 +56,16 @@ namespace Lithforge.Network.Bridge
         public PlayerChunkSnapshot GetPlayerChunkSnapshot()
         {
             return _bridge.GetPlayerChunkSnapshot();
+        }
+
+        /// <summary>
+        ///     Writes the local player's authoritative physics state to the bridge.
+        ///     Called from GameLoopPoco after each client tick for SP/Host modes.
+        ///     The server thread reads this to skip re-simulation for the local peer.
+        /// </summary>
+        public void SetLocalPlayerState(PlayerPhysicsState state)
+        {
+            _bridge.SetLocalPlayerState(state);
         }
 
         /// <summary>

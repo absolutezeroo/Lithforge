@@ -103,7 +103,7 @@ namespace Lithforge.Network.Server
             _defaultStrategy = defaultStrategy;
 
             _inputProcessor = new ServerInputProcessor(
-                server, server, simulation, blockProcessor, () => CurrentTick);
+                server, server, simulation, blockProcessor, () => CurrentTick, bridge);
 
             _broadcaster = new ServerBroadcaster(
                 server, server, simulation, () => CurrentTick, DefaultViewRadius);
