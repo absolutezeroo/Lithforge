@@ -20,10 +20,10 @@ namespace Lithforge.Network.Server
         private readonly Dictionary<ushort, ContainerSession> _playerSessions = new();
 
         /// <summary>
-        ///     Reverse lookup from entity key to all sessions viewing that entity.
-        ///     Enables efficient multi-viewer notification and destroy cleanup.
+        ///     Reverse lookup from (chunkCoord, flatIndex) to all sessions viewing that entity.
+        ///     Uses a value-tuple key for collision-free O(1) lookup.
         /// </summary>
-        private readonly Dictionary<long, List<ContainerSession>> _entityViewers = new();
+        private readonly Dictionary<(int3 ChunkCoord, int FlatIndex), List<ContainerSession>> _entityViewers = new();
 
         /// <summary>Next window ID to assign. Wraps around at 255, skipping 0.</summary>
         private byte _nextWindowId = 1;
@@ -80,7 +80,7 @@ namespace Lithforge.Network.Server
             _playerSessions[playerId] = session;
 
             // Add to entity viewers reverse lookup
-            long entityKey = session.EntityKey;
+            (int3 ChunkCoord, int FlatIndex) entityKey = (session.ChunkCoord, session.FlatIndex);
 
             if (!_entityViewers.TryGetValue(entityKey, out List<ContainerSession> viewers))
             {
@@ -116,7 +116,7 @@ namespace Lithforge.Network.Server
         public void CloseAllForEntity(int3 chunkCoord, int flatIndex, List<ContainerSession> result)
         {
             result.Clear();
-            long entityKey = ContainerSession.PackEntityKey(chunkCoord, flatIndex);
+            (int3 ChunkCoord, int FlatIndex) entityKey = (chunkCoord, flatIndex);
 
             if (!_entityViewers.TryGetValue(entityKey, out List<ContainerSession> viewers))
             {
@@ -162,7 +162,7 @@ namespace Lithforge.Network.Server
         /// <summary>Removes a session from the entity viewers reverse lookup.</summary>
         private void RemoveFromEntityViewers(ContainerSession session)
         {
-            long entityKey = session.EntityKey;
+            (int3 ChunkCoord, int FlatIndex) entityKey = (session.ChunkCoord, session.FlatIndex);
 
             if (!_entityViewers.TryGetValue(entityKey, out List<ContainerSession> viewers))
             {

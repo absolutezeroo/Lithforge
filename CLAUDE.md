@@ -290,13 +290,6 @@ The following tint overlay packing logic is duplicated across 2 IJob structs.
 |--------|---------------|------------------|
 | Tint overlay packing (baseTintType, overlayTintType, hasOverlay, overlayTexIdx bit packing) | ✓ | ✓ |
 
-The following slot click logic is shared across a Tier 2 executor and a Tier 3 UI controller.
-**Any change to click rules in one MUST be reflected in the other.**
-
-| Logic | SlotActionExecutor (Tier 2) | SlotInteractionController (Tier 3) |
-|-------|----------------------------|-------------------------------------|
-| Left/right/shift-click, paint-drag, number-key swap | ✓ (authoritative) | ✓ (prediction) |
-
 ## Reference Sources
 
 Local copies of reference implementations are available in `Sources/` (git-ignored):

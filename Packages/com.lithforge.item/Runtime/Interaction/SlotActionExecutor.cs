@@ -6,9 +6,8 @@ namespace Lithforge.Item.Interaction
 {
     /// <summary>
     ///     Pure Tier 2 slot mutation executor. Implements the authoritative logic for
-    ///     inventory slot clicks, shared by both client prediction and server re-execution.
-    ///     SHARED LOGIC — any change to click rules here MUST be reflected in
-    ///     SlotInteractionController (Tier 3). See CLAUDE.md Known Code Duplication table.
+    ///     inventory slot clicks. Used by both client prediction (via SlotInteractionController)
+    ///     and server re-execution (via ServerInventoryProcessor).
     /// </summary>
     public static class SlotActionExecutor
     {
@@ -31,19 +30,22 @@ namespace Lithforge.Item.Interaction
         public const byte ClickOutputTake = 5;
 
         /// <summary>
-        ///     Executes a slot click on the given inventory and cursor.
+        ///     Executes a slot click on the given item storage and cursor.
         ///     Returns which slots changed and whether the cursor changed.
         ///     For click types 0-2, 4: performs anti-dupe conservation check.
         ///     For click type 5 (crafting output): trusted pass-through, no re-execution.
         ///     Click type 3 (paint-drag) is handled per-slot by ExecutePaintSlot.
+        ///     Pass hotbarSize=0 for containers without hotbar/main zones (disables shift-click
+        ///     and number-key swap).
         /// </summary>
         public static SlotActionResult Execute(
-            Inventory inventory,
+            IItemStorage storage,
             ref ItemStack cursor,
             int slotIndex,
             byte clickType,
             byte button,
-            ItemRegistry itemRegistry)
+            ItemRegistry itemRegistry,
+            int hotbarSize = Inventory.HotbarSize)
         {
             if (clickType == ClickOutputTake)
             {
@@ -52,39 +54,39 @@ namespace Lithforge.Item.Interaction
 
             if (clickType == ClickPaintDrag)
             {
-                return ExecutePaintSlot(inventory, ref cursor, slotIndex, itemRegistry);
+                return ExecutePaintSlot(storage, ref cursor, slotIndex, itemRegistry);
             }
 
-            if (slotIndex < 0 || slotIndex >= Inventory.SlotCount)
+            if (slotIndex < 0 || slotIndex >= storage.SlotCount)
             {
                 return SlotActionResult.Fail(SlotActionOutcome.InvalidSlot);
             }
 
             // Anti-dupe: count total items before execution
-            int totalBefore = CountTotalItems(inventory, ref cursor);
+            int totalBefore = CountTotalItems(storage, ref cursor);
 
             SlotActionResult result = new() { Outcome = SlotActionOutcome.Success };
 
             switch (clickType)
             {
                 case ClickLeft:
-                    ExecuteLeftClick(inventory, ref cursor, slotIndex, itemRegistry, ref result);
+                    ExecuteLeftClick(storage, ref cursor, slotIndex, itemRegistry, ref result);
                     break;
                 case ClickRight:
-                    ExecuteRightClick(inventory, ref cursor, slotIndex, itemRegistry, ref result);
+                    ExecuteRightClick(storage, ref cursor, slotIndex, itemRegistry, ref result);
                     break;
                 case ClickShiftLeft:
-                    ExecuteShiftClick(inventory, slotIndex, itemRegistry, ref result);
+                    ExecuteShiftClick(storage, slotIndex, itemRegistry, hotbarSize, ref result);
                     break;
                 case ClickNumberKey:
-                    ExecuteNumberKeySwap(inventory, slotIndex, button, ref result);
+                    ExecuteNumberKeySwap(storage, slotIndex, button, hotbarSize, ref result);
                     break;
                 default:
                     return SlotActionResult.Fail(SlotActionOutcome.InvalidAction);
             }
 
             // Anti-dupe: verify total items are conserved
-            int totalAfter = CountTotalItems(inventory, ref cursor);
+            int totalAfter = CountTotalItems(storage, ref cursor);
 
             if (totalAfter != totalBefore)
             {
@@ -98,17 +100,17 @@ namespace Lithforge.Item.Interaction
 
         /// <summary>Executes a single paint-drag slot placement. Places 1 item from cursor into slot.</summary>
         public static SlotActionResult ExecutePaintSlot(
-            Inventory inventory,
+            IItemStorage storage,
             ref ItemStack cursor,
             int slotIndex,
             ItemRegistry itemRegistry)
         {
-            if (cursor.IsEmpty || slotIndex < 0 || slotIndex >= Inventory.SlotCount)
+            if (cursor.IsEmpty || slotIndex < 0 || slotIndex >= storage.SlotCount)
             {
                 return SlotActionResult.NoOp();
             }
 
-            ItemStack slotItem = inventory.GetSlot(slotIndex);
+            ItemStack slotItem = storage.GetSlot(slotIndex);
             int maxStack = GetMaxStack(slotItem.IsEmpty ? cursor : slotItem, itemRegistry);
 
             bool canPlace = false;
@@ -127,7 +129,7 @@ namespace Lithforge.Item.Interaction
                 return SlotActionResult.NoOp();
             }
 
-            int totalBefore = CountTotalItems(inventory, ref cursor);
+            int totalBefore = CountTotalItems(storage, ref cursor);
 
             if (slotItem.IsEmpty)
             {
@@ -135,20 +137,20 @@ namespace Lithforge.Item.Interaction
                 {
                     Components = cursor.Components,
                 };
-                inventory.SetSlot(slotIndex, placed);
+                storage.SetSlot(slotIndex, placed);
             }
             else
             {
                 ItemStack updated = slotItem;
                 updated.Count += 1;
-                inventory.SetSlot(slotIndex, updated);
+                storage.SetSlot(slotIndex, updated);
             }
 
             ItemStack newCursor = cursor;
             newCursor.Count -= 1;
             cursor = newCursor.IsEmpty ? ItemStack.Empty : newCursor;
 
-            int totalAfter = CountTotalItems(inventory, ref cursor);
+            int totalAfter = CountTotalItems(storage, ref cursor);
 
             if (totalAfter != totalBefore)
             {
@@ -162,13 +164,13 @@ namespace Lithforge.Item.Interaction
 
         /// <summary>Left-click: pick up, place, merge, or swap items between cursor and slot.</summary>
         private static void ExecuteLeftClick(
-            Inventory inventory,
+            IItemStorage storage,
             ref ItemStack cursor,
             int slotIndex,
             ItemRegistry itemRegistry,
             ref SlotActionResult result)
         {
-            ItemStack slotItem = inventory.GetSlot(slotIndex);
+            ItemStack slotItem = storage.GetSlot(slotIndex);
             int slotMaxStack = GetMaxStack(slotItem.IsEmpty ? cursor : slotItem, itemRegistry);
 
             if (cursor.IsEmpty && slotItem.IsEmpty)
@@ -180,14 +182,14 @@ namespace Lithforge.Item.Interaction
             {
                 // Pick up entire stack
                 cursor = slotItem;
-                inventory.SetSlot(slotIndex, ItemStack.Empty);
+                storage.SetSlot(slotIndex, ItemStack.Empty);
                 result.CursorChanged = true;
                 result.AddChangedSlot(slotIndex);
             }
             else if (slotItem.IsEmpty)
             {
                 // Place entire held stack
-                inventory.SetSlot(slotIndex, cursor);
+                storage.SetSlot(slotIndex, cursor);
                 cursor = ItemStack.Empty;
                 result.CursorChanged = true;
                 result.AddChangedSlot(slotIndex);
@@ -200,7 +202,7 @@ namespace Lithforge.Item.Interaction
                 if (space <= 0)
                 {
                     // Slot full, swap
-                    inventory.SetSlot(slotIndex, cursor);
+                    storage.SetSlot(slotIndex, cursor);
                     cursor = slotItem;
                     result.CursorChanged = true;
                     result.AddChangedSlot(slotIndex);
@@ -210,7 +212,7 @@ namespace Lithforge.Item.Interaction
                     int toMove = Math.Min(cursor.Count, space);
                     ItemStack newSlot = slotItem;
                     newSlot.Count += toMove;
-                    inventory.SetSlot(slotIndex, newSlot);
+                    storage.SetSlot(slotIndex, newSlot);
 
                     ItemStack newCursor = cursor;
                     newCursor.Count -= toMove;
@@ -222,7 +224,7 @@ namespace Lithforge.Item.Interaction
             else
             {
                 // Swap different items
-                inventory.SetSlot(slotIndex, cursor);
+                storage.SetSlot(slotIndex, cursor);
                 cursor = slotItem;
                 result.CursorChanged = true;
                 result.AddChangedSlot(slotIndex);
@@ -231,13 +233,13 @@ namespace Lithforge.Item.Interaction
 
         /// <summary>Right-click: pick up half, place 1, or no-op for different items.</summary>
         private static void ExecuteRightClick(
-            Inventory inventory,
+            IItemStorage storage,
             ref ItemStack cursor,
             int slotIndex,
             ItemRegistry itemRegistry,
             ref SlotActionResult result)
         {
-            ItemStack slotItem = inventory.GetSlot(slotIndex);
+            ItemStack slotItem = storage.GetSlot(slotIndex);
             int slotMaxStack = GetMaxStack(slotItem.IsEmpty ? cursor : slotItem, itemRegistry);
 
             if (cursor.IsEmpty && slotItem.IsEmpty)
@@ -257,7 +259,7 @@ namespace Lithforge.Item.Interaction
 
                 ItemStack remaining = slotItem;
                 remaining.Count -= half;
-                inventory.SetSlot(slotIndex, remaining.IsEmpty ? ItemStack.Empty : remaining);
+                storage.SetSlot(slotIndex, remaining.IsEmpty ? ItemStack.Empty : remaining);
                 result.CursorChanged = true;
                 result.AddChangedSlot(slotIndex);
             }
@@ -268,7 +270,7 @@ namespace Lithforge.Item.Interaction
                 {
                     Components = cursor.Components,
                 };
-                inventory.SetSlot(slotIndex, placed);
+                storage.SetSlot(slotIndex, placed);
 
                 ItemStack newCursor = cursor;
                 newCursor.Count -= 1;
@@ -281,7 +283,7 @@ namespace Lithforge.Item.Interaction
                 // Place 1 on same item
                 ItemStack newSlot = slotItem;
                 newSlot.Count += 1;
-                inventory.SetSlot(slotIndex, newSlot);
+                storage.SetSlot(slotIndex, newSlot);
 
                 ItemStack newCursor = cursor;
                 newCursor.Count -= 1;
@@ -295,12 +297,13 @@ namespace Lithforge.Item.Interaction
 
         /// <summary>Shift+left-click: quick transfer from slot to opposite inventory section.</summary>
         private static void ExecuteShiftClick(
-            Inventory inventory,
+            IItemStorage storage,
             int slotIndex,
             ItemRegistry itemRegistry,
+            int hotbarSize,
             ref SlotActionResult result)
         {
-            ItemStack slotItem = inventory.GetSlot(slotIndex);
+            ItemStack slotItem = storage.GetSlot(slotIndex);
 
             if (slotItem.IsEmpty)
             {
@@ -309,19 +312,19 @@ namespace Lithforge.Item.Interaction
 
             int maxStack = GetMaxStack(slotItem, itemRegistry);
 
-            // Determine target range: if source is hotbar (0-8), target is main (9-35); otherwise hotbar
+            // Determine target range: if source is hotbar (0..hotbarSize-1), target is main; otherwise hotbar
             int targetStart;
             int targetEnd;
 
-            if (slotIndex < Inventory.HotbarSize)
+            if (slotIndex < hotbarSize)
             {
-                targetStart = Inventory.HotbarSize;
-                targetEnd = Inventory.SlotCount;
+                targetStart = hotbarSize;
+                targetEnd = storage.SlotCount;
             }
             else
             {
                 targetStart = 0;
-                targetEnd = Inventory.HotbarSize;
+                targetEnd = hotbarSize;
             }
 
             int remaining = slotItem.Count;
@@ -329,7 +332,7 @@ namespace Lithforge.Item.Interaction
             // First pass: fill existing stacks of same item in target range
             for (int i = targetStart; i < targetEnd && remaining > 0; i++)
             {
-                ItemStack target = inventory.GetSlot(i);
+                ItemStack target = storage.GetSlot(i);
 
                 if (target.IsEmpty || !ItemStack.CanStack(target, slotItem))
                 {
@@ -346,7 +349,7 @@ namespace Lithforge.Item.Interaction
                 int toMove = Math.Min(remaining, space);
                 ItemStack updated = target;
                 updated.Count += toMove;
-                inventory.SetSlot(i, updated);
+                storage.SetSlot(i, updated);
                 remaining -= toMove;
                 result.AddChangedSlot(i);
             }
@@ -354,7 +357,7 @@ namespace Lithforge.Item.Interaction
             // Second pass: fill empty slots in target range
             for (int i = targetStart; i < targetEnd && remaining > 0; i++)
             {
-                if (!inventory.GetSlot(i).IsEmpty)
+                if (!storage.GetSlot(i).IsEmpty)
                 {
                     continue;
                 }
@@ -364,7 +367,7 @@ namespace Lithforge.Item.Interaction
                 {
                     Components = slotItem.Components,
                 };
-                inventory.SetSlot(i, newSlot);
+                storage.SetSlot(i, newSlot);
                 remaining -= toMove;
                 result.AddChangedSlot(i);
             }
@@ -372,13 +375,13 @@ namespace Lithforge.Item.Interaction
             // Update source slot
             if (remaining == 0)
             {
-                inventory.SetSlot(slotIndex, ItemStack.Empty);
+                storage.SetSlot(slotIndex, ItemStack.Empty);
             }
             else
             {
                 ItemStack updated = slotItem;
                 updated.Count = remaining;
-                inventory.SetSlot(slotIndex, updated);
+                storage.SetSlot(slotIndex, updated);
             }
 
             result.AddChangedSlot(slotIndex);
@@ -386,12 +389,13 @@ namespace Lithforge.Item.Interaction
 
         /// <summary>Number key swap: swaps hovered slot with the specified hotbar slot.</summary>
         private static void ExecuteNumberKeySwap(
-            Inventory inventory,
+            IItemStorage storage,
             int slotIndex,
             byte hotbarSlot,
+            int hotbarSize,
             ref SlotActionResult result)
         {
-            if (hotbarSlot >= Inventory.HotbarSize)
+            if (hotbarSlot >= hotbarSize)
             {
                 return;
             }
@@ -402,11 +406,11 @@ namespace Lithforge.Item.Interaction
                 return;
             }
 
-            ItemStack hotbarItem = inventory.GetSlot(hotbarSlot);
-            ItemStack hoveredItem = inventory.GetSlot(slotIndex);
+            ItemStack hotbarItem = storage.GetSlot(hotbarSlot);
+            ItemStack hoveredItem = storage.GetSlot(slotIndex);
 
-            inventory.SetSlot(hotbarSlot, hoveredItem);
-            inventory.SetSlot(slotIndex, hotbarItem);
+            storage.SetSlot(hotbarSlot, hoveredItem);
+            storage.SetSlot(slotIndex, hotbarItem);
             result.AddChangedSlot(hotbarSlot);
             result.AddChangedSlot(slotIndex);
         }
@@ -424,16 +428,16 @@ namespace Lithforge.Item.Interaction
         }
 
         /// <summary>
-        ///     Counts total items across all inventory slots plus the cursor.
+        ///     Counts total items across all storage slots plus the cursor.
         ///     Used for anti-dupe conservation checks.
         /// </summary>
-        private static int CountTotalItems(Inventory inventory, ref ItemStack cursor)
+        private static int CountTotalItems(IItemStorage storage, ref ItemStack cursor)
         {
             int total = 0;
 
-            for (int i = 0; i < Inventory.SlotCount; i++)
+            for (int i = 0; i < storage.SlotCount; i++)
             {
-                ItemStack slot = inventory.GetSlot(i);
+                ItemStack slot = storage.GetSlot(i);
 
                 if (!slot.IsEmpty)
                 {

@@ -66,7 +66,7 @@ namespace Lithforge.Network.Tests
                 float distance = math.max(math.abs(diff.x), math.abs(diff.z));
 
                 // Allow same-distance entries (bias reordering), but overall trend should be increasing
-                if (i > 0 && i < 10)
+                if (i is > 0 and < 10)
                 {
                     // The first few entries should be at distance 0 or 1 from center
                     Assert.LessOrEqual(distance, 2f,

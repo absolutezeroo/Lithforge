@@ -864,135 +864,11 @@ namespace Lithforge.Network.Server
                 return;
             }
 
-            // Execute the click against the container storage
-            ItemStack slotStack = storage.GetSlot(cmd.SlotIndex);
-
-            // Simple left/right click logic on container slots
-            if (cmd.ClickType == SlotActionExecutor.ClickLeft)
-            {
-                ExecuteContainerLeftClick(storage, cmd.SlotIndex, ref cursor, slotStack);
-            }
-            else if (cmd.ClickType == SlotActionExecutor.ClickRight)
-            {
-                ExecuteContainerRightClick(storage, cmd.SlotIndex, ref cursor, slotStack);
-            }
+            // Delegate to SlotActionExecutor with hotbarSize=0 (no shift-click/number-key in containers)
+            SlotActionExecutor.Execute(
+                storage, ref cursor, cmd.SlotIndex, cmd.ClickType, cmd.Button, _itemRegistry, 0);
 
             inventory.IncrementStateId();
-        }
-
-        /// <summary>Executes a left-click on a container slot (pick up, place, merge, swap).</summary>
-        private void ExecuteContainerLeftClick(
-            IItemStorage storage,
-            int slotIndex,
-            ref ItemStack cursor,
-            ItemStack slotStack)
-        {
-            if (cursor.IsEmpty)
-            {
-                // Pick up entire stack
-                if (!slotStack.IsEmpty)
-                {
-                    cursor = slotStack;
-                    storage.SetSlot(slotIndex, ItemStack.Empty);
-                }
-            }
-            else if (slotStack.IsEmpty)
-            {
-                // Place entire cursor
-                storage.SetSlot(slotIndex, cursor);
-                cursor = ItemStack.Empty;
-            }
-            else if (ItemStack.CanStack(cursor, slotStack))
-            {
-                // Merge
-                ItemEntry def = _itemRegistry.Get(cursor.ItemId);
-                int maxStack = def?.MaxStackSize ?? 64;
-                int space = maxStack - slotStack.Count;
-
-                if (space > 0)
-                {
-                    int toMove = cursor.Count < space ? cursor.Count : space;
-                    ItemStack updated = slotStack;
-                    updated.Count += toMove;
-                    storage.SetSlot(slotIndex, updated);
-
-                    if (cursor.Count - toMove <= 0)
-                    {
-                        cursor = ItemStack.Empty;
-                    }
-                    else
-                    {
-                        ItemStack remaining = cursor;
-                        remaining.Count -= toMove;
-                        cursor = remaining;
-                    }
-                }
-                else
-                {
-                    // Full stack, swap
-                    storage.SetSlot(slotIndex, cursor);
-                    cursor = slotStack;
-                }
-            }
-            else
-            {
-                // Swap different items
-                storage.SetSlot(slotIndex, cursor);
-                cursor = slotStack;
-            }
-        }
-
-        /// <summary>Executes a right-click on a container slot (pick up half, place one).</summary>
-        private void ExecuteContainerRightClick(
-            IItemStorage storage,
-            int slotIndex,
-            ref ItemStack cursor,
-            ItemStack slotStack)
-        {
-            if (cursor.IsEmpty)
-            {
-                // Pick up half
-                if (!slotStack.IsEmpty)
-                {
-                    int half = (slotStack.Count + 1) / 2;
-                    cursor = new ItemStack(slotStack.ItemId, half, slotStack.Durability);
-
-                    int remaining = slotStack.Count - half;
-
-                    if (remaining <= 0)
-                    {
-                        storage.SetSlot(slotIndex, ItemStack.Empty);
-                    }
-                    else
-                    {
-                        ItemStack leftover = slotStack;
-                        leftover.Count = remaining;
-                        storage.SetSlot(slotIndex, leftover);
-                    }
-                }
-            }
-            else
-            {
-                // Place one item
-                if (slotStack.IsEmpty)
-                {
-                    storage.SetSlot(slotIndex, new ItemStack(cursor.ItemId, 1, cursor.Durability));
-                    DecrementCursor(ref cursor);
-                }
-                else if (ItemStack.CanStack(cursor, slotStack))
-                {
-                    ItemEntry def = _itemRegistry.Get(cursor.ItemId);
-                    int maxStack = def?.MaxStackSize ?? 64;
-
-                    if (slotStack.Count < maxStack)
-                    {
-                        ItemStack updated = slotStack;
-                        updated.Count += 1;
-                        storage.SetSlot(slotIndex, updated);
-                        DecrementCursor(ref cursor);
-                    }
-                }
-            }
         }
 
         /// <summary>Processes a single crafting action (non-shift).</summary>
@@ -1186,21 +1062,6 @@ namespace Lithforge.Network.Server
             if (peer.InterestState?.InventoryRemote is not null)
             {
                 peer.InterestState.InventoryRemote.SyncAll(inventory, cursor);
-            }
-        }
-
-        /// <summary>Decrements cursor count by 1, clearing it if empty.</summary>
-        private static void DecrementCursor(ref ItemStack cursor)
-        {
-            if (cursor.Count <= 1)
-            {
-                cursor = ItemStack.Empty;
-            }
-            else
-            {
-                ItemStack updated = cursor;
-                updated.Count -= 1;
-                cursor = updated;
             }
         }
 

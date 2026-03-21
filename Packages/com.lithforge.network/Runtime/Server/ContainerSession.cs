@@ -40,22 +40,5 @@ namespace Lithforge.Network.Server
 
         /// <summary>Last smelt progress value sent to this client (furnace only). 0-65535.</summary>
         public ushort LastSentSmeltProgress;
-
-        /// <summary>
-        ///     Returns a packed long key for entity lookup.
-        ///     Combines chunk coord hash and flat index for O(1) reverse lookup.
-        /// </summary>
-        public long EntityKey
-        {
-            get { return PackEntityKey(ChunkCoord, FlatIndex); }
-        }
-
-        /// <summary>Packs a chunk coordinate and flat index into a single long key.</summary>
-        public static long PackEntityKey(int3 chunkCoord, int flatIndex)
-        {
-            // Use chunk coord hash in upper 32 bits, flat index in lower 32 bits
-            int chunkHash = chunkCoord.x * 73856093 ^ chunkCoord.y * 19349663 ^ chunkCoord.z * 83492791;
-            return ((long)chunkHash << 32) | (uint)flatIndex;
-        }
     }
 }

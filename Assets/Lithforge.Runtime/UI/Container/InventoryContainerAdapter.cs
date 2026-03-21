@@ -11,6 +11,12 @@ namespace Lithforge.Runtime.UI.Container
         /// <summary>The backing player inventory being adapted.</summary>
         private readonly Inventory _inventory;
 
+        /// <summary>The backing player inventory. Exposed for delegation to SlotActionExecutor.</summary>
+        public Inventory Inventory
+        {
+            get { return _inventory; }
+        }
+
         /// <summary>Creates an adapter wrapping a slice of the inventory from startSlot for slotCount slots.</summary>
         public InventoryContainerAdapter(Inventory inventory, int startSlot, int slotCount)
         {

@@ -3,26 +3,19 @@ using Lithforge.Item;
 namespace Lithforge.Runtime.UI.Container
 {
     /// <summary>
-    /// Abstraction over any container of item slots (inventory, crafting grid, output).
-    /// Screen-agnostic — allows the interaction controller to operate on any container type.
+    ///     Abstraction over any container of item slots (inventory, crafting grid, output).
+    ///     Screen-agnostic — allows the interaction controller to operate on any container type.
+    ///     Extends <see cref="IItemStorage" /> so containers can be passed directly to
+    ///     <see cref="Lithforge.Item.Interaction.SlotActionExecutor" /> for mutation.
     /// </summary>
-    public interface ISlotContainer
+    public interface ISlotContainer : IItemStorage
     {
-        /// <summary>Total number of slots in this container.</summary>
-        public int SlotCount { get; }
-
         /// <summary>True if items cannot be placed into this container (e.g. craft output).</summary>
         public bool IsReadOnly { get; }
 
-        /// <summary>Gets the item stack at the given slot index.</summary>
-        public ItemStack GetSlot(int index);
-
-        /// <summary>Sets the item stack at the given slot index.</summary>
-        public void SetSlot(int index, ItemStack stack);
-
         /// <summary>
-        /// Called after a slot is modified. Implementations can trigger side effects
-        /// like rechecking crafting recipes.
+        ///     Called after a slot is modified. Implementations can trigger side effects
+        ///     like rechecking crafting recipes.
         /// </summary>
         public void OnSlotChanged(int index);
     }
