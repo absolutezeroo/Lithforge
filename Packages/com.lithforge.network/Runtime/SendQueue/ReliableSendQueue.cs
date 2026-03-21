@@ -23,6 +23,12 @@ namespace Lithforge.Network.SendQueue
         /// </summary>
         private readonly List<PendingSend> _pending = new();
 
+        /// <summary>Per-connection count of pending sends for cap enforcement.</summary>
+        private readonly Dictionary<ConnectionId, int> _perConnectionCount = new();
+
+        /// <summary>Maximum pending sends per connection before new sends are dropped.</summary>
+        private const int MaxPendingPerConnection = 128;
+
         /// <summary>
         /// Creates a new ReliableSendQueue with the given logger.
         /// </summary>
@@ -44,6 +50,16 @@ namespace Lithforge.Network.SendQueue
         /// </summary>
         public void Enqueue(ConnectionId connectionId, int pipelineId, byte[] data, int offset, int length)
         {
+            _perConnectionCount.TryGetValue(connectionId, out int current);
+
+            if (current >= MaxPendingPerConnection)
+            {
+                _logger.LogWarning(
+                    $"Dropping send to connection {connectionId}: " +
+                    $"per-connection cap ({MaxPendingPerConnection}) reached.");
+                return;
+            }
+
             byte[] copy = new byte[length];
             System.Array.Copy(data, offset, copy, 0, length);
 
@@ -57,6 +73,8 @@ namespace Lithforge.Network.SendQueue
                 RetryCount = 0,
                 NextRetryTime = 0f,
             });
+
+            _perConnectionCount[connectionId] = current + 1;
         }
 
         /// <summary>
@@ -85,6 +103,7 @@ namespace Lithforge.Network.SendQueue
 
                 if (success)
                 {
+                    DecrementConnectionCount(entry.ConnectionId);
                     _pending.RemoveAt(i);
                     continue;
                 }
@@ -96,6 +115,7 @@ namespace Lithforge.Network.SendQueue
                     _logger.LogWarning(
                         $"Dropping message after {NetworkConstants.MaxSendRetries} retries " +
                         $"to connection {entry.ConnectionId}");
+                    DecrementConnectionCount(entry.ConnectionId);
                     _pending.RemoveAt(i);
                     dropped++;
                     continue;
@@ -123,6 +143,8 @@ namespace Lithforge.Network.SendQueue
                     _pending.RemoveAt(i);
                 }
             }
+
+            _perConnectionCount.Remove(connectionId);
         }
 
         /// <summary>
@@ -131,6 +153,23 @@ namespace Lithforge.Network.SendQueue
         public void Clear()
         {
             _pending.Clear();
+            _perConnectionCount.Clear();
+        }
+
+        /// <summary>Decrements the per-connection pending count, removing the entry at zero.</summary>
+        private void DecrementConnectionCount(ConnectionId connectionId)
+        {
+            if (_perConnectionCount.TryGetValue(connectionId, out int count))
+            {
+                if (count <= 1)
+                {
+                    _perConnectionCount.Remove(connectionId);
+                }
+                else
+                {
+                    _perConnectionCount[connectionId] = count - 1;
+                }
+            }
         }
 
         private struct PendingSend

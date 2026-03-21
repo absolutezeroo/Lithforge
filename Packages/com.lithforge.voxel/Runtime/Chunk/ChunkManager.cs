@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -56,10 +57,10 @@ namespace Lithforge.Voxel.Chunk
 
         /// <summary>
         ///     Primary dictionary of all loaded chunks, keyed by chunk coordinate.
-        ///     Copy-on-write: the main thread replaces the entire reference on mutation;
-        ///     the server background thread reads a consistent snapshot via volatile read.
+        ///     ConcurrentDictionary: the main thread performs all mutations (single-writer);
+        ///     the server background thread reads via lock-free TryGetValue.
         /// </summary>
-        private volatile Dictionary<int3, ManagedChunk> _chunks = new();
+        private readonly ConcurrentDictionary<int3, ManagedChunk> _chunks = new();
 
         /// <summary>ChunkPool for NativeArray checkout and return.</summary>
         private readonly ChunkPool _pool;
@@ -143,29 +144,16 @@ namespace Lithforge.Voxel.Chunk
             _stateIndex = new ChunkStateIndex();
         }
 
-        /// <summary>Adds a chunk via copy-on-write. Main thread only.</summary>
+        /// <summary>Adds a chunk. Main thread only.</summary>
         private void AddChunk(int3 coord, ManagedChunk chunk)
         {
-            Dictionary<int3, ManagedChunk> copy = new(_chunks);
-            copy[coord] = chunk;
-            _chunks = copy;
+            _chunks[coord] = chunk;
         }
 
-        /// <summary>Removes a chunk via copy-on-write. Main thread only.</summary>
+        /// <summary>Removes a chunk. Main thread only.</summary>
         private bool RemoveChunk(int3 coord, out ManagedChunk removed)
         {
-            Dictionary<int3, ManagedChunk> snapshot = _chunks;
-
-            if (!snapshot.TryGetValue(coord, out removed))
-            {
-                return false;
-            }
-
-            Dictionary<int3, ManagedChunk> copy = new(snapshot);
-            copy.Remove(coord);
-            _chunks = copy;
-
-            return true;
+            return _chunks.TryRemove(coord, out removed);
         }
 
         /// <summary>Total number of currently loaded chunks.</summary>

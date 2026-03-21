@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 using Unity.Mathematics;
@@ -119,7 +120,7 @@ namespace Lithforge.Voxel.Chunk
         internal void UpdateLoadingQueue(
             ReadOnlySpan<int3> playerChunkCoords,
             float3 cameraForward,
-            Dictionary<int3, ManagedChunk> chunks)
+            ConcurrentDictionary<int3, ManagedChunk> chunks)
         {
             if (playerChunkCoords.Length == 0)
             {
@@ -247,7 +248,7 @@ namespace Lithforge.Voxel.Chunk
         internal void UpdateLoadingQueue(
             int3 cameraChunkCoord,
             float3 cameraForward,
-            Dictionary<int3, ManagedChunk> chunks)
+            ConcurrentDictionary<int3, ManagedChunk> chunks)
         {
             Span<int3> single = stackalloc int3[1];
             single[0] = cameraChunkCoord;
@@ -264,7 +265,7 @@ namespace Lithforge.Voxel.Chunk
             ReadOnlySpan<int3> playerChunkCoords,
             double currentRealtime,
             double gracePeriodSeconds,
-            Dictionary<int3, ManagedChunk> chunks)
+            ConcurrentDictionary<int3, ManagedChunk> chunks)
         {
             foreach (KeyValuePair<int3, ManagedChunk> kvp in chunks)
             {
@@ -303,7 +304,7 @@ namespace Lithforge.Voxel.Chunk
         internal void FillCoordsToGenerate(
             List<int3> result,
             int maxCount,
-            Dictionary<int3, ManagedChunk> chunks)
+            ConcurrentDictionary<int3, ManagedChunk> chunks)
         {
             result.Clear();
 
@@ -338,7 +339,7 @@ namespace Lithforge.Voxel.Chunk
         internal void CollectUnloadCandidates(
             ReadOnlySpan<int3> playerChunkCoords,
             double currentRealtime,
-            Dictionary<int3, ManagedChunk> chunks,
+            ConcurrentDictionary<int3, ManagedChunk> chunks,
             List<int3> sortedCandidates)
         {
             sortedCandidates.Clear();

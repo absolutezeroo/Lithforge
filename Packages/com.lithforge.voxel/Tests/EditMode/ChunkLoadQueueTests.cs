@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 using Lithforge.Voxel.Block;
@@ -50,7 +51,7 @@ namespace Lithforge.Voxel.Tests
         public void UpdateLoadingQueue_GeneratesCorrectCountForRD1()
         {
             ChunkLoadQueue queue = new(1, -1, 3, -2, 4);
-            Dictionary<int3, ManagedChunk> chunks = new();
+            ConcurrentDictionary<int3, ManagedChunk> chunks = new();
 
             queue.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1), chunks);
 
@@ -63,7 +64,7 @@ namespace Lithforge.Voxel.Tests
         public void UpdateLoadingQueue_NoDuplicates()
         {
             ChunkLoadQueue queue = new(2, -1, 3, -2, 4);
-            Dictionary<int3, ManagedChunk> chunks = new();
+            ConcurrentDictionary<int3, ManagedChunk> chunks = new();
 
             queue.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1), chunks);
 
@@ -86,7 +87,7 @@ namespace Lithforge.Voxel.Tests
         public void UpdateLoadingQueue_SortsByForwardWeightedDistance()
         {
             ChunkLoadQueue queue = new(3, 0, 0, -1, 1);
-            Dictionary<int3, ManagedChunk> chunks = new();
+            ConcurrentDictionary<int3, ManagedChunk> chunks = new();
 
             queue.UpdateLoadingQueue(int3.zero, new float3(0, 0, 1), chunks);
 
@@ -107,7 +108,7 @@ namespace Lithforge.Voxel.Tests
         public void UpdateLoadingQueue_SkipsAlreadyLoadedChunks()
         {
             ChunkLoadQueue queue = new(1, 0, 0, -1, 1);
-            Dictionary<int3, ManagedChunk> chunks = new();
+            ConcurrentDictionary<int3, ManagedChunk> chunks = new();
 
             // Pre-load the origin chunk
             ManagedChunk existing = CreateChunk(int3.zero);
@@ -130,7 +131,7 @@ namespace Lithforge.Voxel.Tests
         public void UpdateLoadingQueue_MultiPlayer_UnionOfRegions()
         {
             ChunkLoadQueue queue = new(1, 0, 0, -1, 1);
-            Dictionary<int3, ManagedChunk> chunks = new();
+            ConcurrentDictionary<int3, ManagedChunk> chunks = new();
 
             Span<int3> players = stackalloc int3[2];
             players[0] = int3.zero;
@@ -148,7 +149,7 @@ namespace Lithforge.Voxel.Tests
         public void AdjustRefCounts_ZeroRefArmsGracePeriod()
         {
             ChunkLoadQueue queue = new(1, -1, 1, -2, 2);
-            Dictionary<int3, ManagedChunk> chunks = new();
+            ConcurrentDictionary<int3, ManagedChunk> chunks = new();
 
             ManagedChunk chunk = CreateChunk(int3.zero);
             chunk.RefCount = 1;

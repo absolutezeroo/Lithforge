@@ -137,11 +137,23 @@ namespace Lithforge.Network.Bridge
                     }
                     else
                     {
-                        int sleepMs = (int)(nextTickTime - now);
+                        long remainingMs = nextTickTime - now;
 
-                        if (sleepMs > 0)
+                        if (remainingMs > 2)
                         {
-                            Thread.Sleep(sleepMs);
+                            // Sleep for the bulk of the wait, leaving 2ms margin
+                            // for spin-wait to handle precisely.
+                            Thread.Sleep((int)(remainingMs - 2));
+                        }
+
+                        // Spin-wait for the final milliseconds to achieve precise timing.
+                        // SpinWait uses Thread.SpinWait internally, escalating to
+                        // Thread.Yield / Thread.Sleep(0) after several iterations.
+                        SpinWait spinner = new();
+
+                        while (stopwatch.ElapsedMilliseconds < nextTickTime)
+                        {
+                            spinner.SpinOnce();
                         }
                     }
                 }
