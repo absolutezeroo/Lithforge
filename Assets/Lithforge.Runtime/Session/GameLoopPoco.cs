@@ -360,11 +360,6 @@ namespace Lithforge.Runtime.Session
                     _config.PlayerPhysicsBody.CurrentPosition,
                     alpha);
 
-                if (_config.WorldSimulation is ClientWorldSimulation clientSim)
-                {
-                    interpPos += clientSim.PositionError;
-                }
-
                 _config.PlayerTransform.position =
                     new Vector3(interpPos.x, interpPos.y, interpPos.z);
             }

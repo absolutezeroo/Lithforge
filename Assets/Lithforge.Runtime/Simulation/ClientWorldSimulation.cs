@@ -13,33 +13,25 @@ using ILogger = Lithforge.Core.Logging.ILogger;
 namespace Lithforge.Runtime.Simulation
 {
     /// <summary>
-    ///     Client-mode implementation of <see cref="IWorldSimulation" />. Adds client-side
-    ///     prediction with server reconciliation (Gambetta pattern) on top of the standard
-    ///     tick loop. Each tick: captures input, runs local physics prediction, stores the
-    ///     predicted state in a ring buffer, sends input to the server, and ticks other systems.
-    ///     On receiving a <see cref="PlayerStateMessage" /> from the server, compares the
-    ///     authoritative position against the stored prediction and either ignores (noise),
-    ///     smooths (small error), reconciles (replay), or teleports (large error).
+    ///     Client-mode implementation of <see cref="IWorldSimulation" />. Uses client-authoritative
+    ///     movement: each tick captures input, runs local physics, and sends the resulting position
+    ///     to the server for validation. The server either accepts the position (echoed back in
+    ///     <see cref="PlayerStateMessage" />) or issues a <see cref="ServerTeleportMessage" />
+    ///     correction. No prediction buffers, no replay-based reconciliation.
     /// </summary>
     public sealed class ClientWorldSimulation : IWorldSimulation
     {
-        /// <summary>Position error below this threshold is treated as floating-point noise and ignored.</summary>
-        private const float ErrorThresholdIgnore = 0.5f;
-
-        /// <summary>Position error below this threshold triggers visual smoothing instead of full reconciliation.</summary>
-        private const float ErrorThresholdSmooth = 1.0f;
-
-        /// <summary>Position error above this threshold triggers an immediate hard teleport.</summary>
-        private const float ErrorThresholdTeleport = 4.0f;
-
-        /// <summary>Per-tick multiplicative decay factor for the visual position error offset.</summary>
-        private const float PositionErrorDecay = 0.9f;
+        /// <summary>
+        ///     Distance threshold below which server position ACKs are ignored (floating-point noise).
+        /// </summary>
+        private const float AckIgnoreThreshold = 0.5f;
 
         /// <summary>
-        ///     Input buffer storing per-tick InputSnapshots for replay during reconciliation.
-        ///     Parallel to _predictionBuffer — indexed by the same tick values.
+        ///     Distance threshold above which the client snaps to the server's reported position.
+        ///     This handles cases where the server accepted a slightly different position due to
+        ///     timing differences, without triggering a full teleport.
         /// </summary>
-        private readonly CommandRingBuffer<InputSnapshot> _inputBuffer;
+        private const float DriftSnapThreshold = 2.0f;
 
         /// <summary>Accumulates per-frame input into discrete per-tick snapshots.</summary>
         private readonly InputSnapshotBuilder _inputSnapshotBuilder;
@@ -47,22 +39,18 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Network player ID assigned to this client by the server.</summary>
         private readonly ushort _localPlayerId;
 
-        /// <summary>Logger for reconciliation diagnostics.</summary>
+        /// <summary>Logger for movement diagnostics.</summary>
         private readonly ILogger _logger;
 
-        /// <summary>Network client for sending input messages to the server.</summary>
+        /// <summary>Network client for sending input and teleport confirm messages to the server.</summary>
         private readonly INetworkClient _networkClient;
 
-        /// <summary>Manages the local player's physics body for client-side prediction.</summary>
+        /// <summary>Manages the local player's physics body for client-side movement.</summary>
         private readonly PlayerPhysicsManager _playerPhysicsManager;
-
-        /// <summary>Prediction buffer storing per-tick MoveCommands with predicted positions.</summary>
-        private readonly CommandRingBuffer<MoveCommand> _predictionBuffer;
 
         /// <summary>
         ///     When true, the server is in the same process (SP/Host via DirectTransport).
-        ///     Physics always runs on the client (separate body). TickRegistry is gated to
-        ///     avoid double-ticking world systems already driven by the server.
+        ///     TickRegistry is gated to avoid double-ticking world systems already driven by the server.
         /// </summary>
         private readonly bool _serverIsLocal;
 
@@ -78,7 +66,7 @@ namespace Lithforge.Runtime.Simulation
         /// </summary>
         private Action<PlayerStateMessage> _onRemotePlayerState;
 
-        /// <summary>Creates a new client-mode world simulation with prediction and reconciliation support.</summary>
+        /// <summary>Creates a new client-mode world simulation with client-authoritative movement.</summary>
         public ClientWorldSimulation(
             TickRegistry tickRegistry,
             PlayerPhysicsManager playerPhysicsManager,
@@ -97,62 +85,39 @@ namespace Lithforge.Runtime.Simulation
             _localPlayerId = localPlayerId;
             _serverIsLocal = serverIsLocal;
             CurrentTick = initialServerTick;
-            _predictionBuffer = new CommandRingBuffer<MoveCommand>();
-            _inputBuffer = new CommandRingBuffer<InputSnapshot>();
-            PositionError = float3.zero;
-        }
-
-        /// <summary>
-        ///     Visual smoothing offset that decays over time. Applied in GameLoop.LateUpdate
-        ///     after position interpolation. Produced by small-error reconciliation.
-        /// </summary>
-        public float3 PositionError { get; private set; }
-
-        /// <summary>
-        ///     Exposes the prediction buffer for testing and debugging.
-        /// </summary>
-        public CommandRingBuffer<MoveCommand> PredictionBuffer
-        {
-            get { return _predictionBuffer; }
         }
 
         /// <summary>Current client-side tick number, initialized from the server's tick on connection.</summary>
         public uint CurrentTick { get; private set; }
 
         /// <summary>
-        ///     Advances one tick: captures input, runs local physics prediction,
-        ///     stores predicted state, sends input to server, and ticks other systems.
+        ///     Advances one tick: captures input, runs local physics, sends the resulting
+        ///     position to the server, and ticks other systems.
         /// </summary>
         public void Tick(float tickDt)
         {
             // 1. Consume input
             InputSnapshot snapshot = _inputSnapshotBuilder.ConsumeTick();
 
-            // 2. Apply prediction: run physics locally (always — server and client own separate bodies).
-            if (_playerPhysicsManager != null)
+            // 2. Run physics locally (zero-latency movement for the player).
+            if (_playerPhysicsManager is not null)
             {
                 _playerPhysicsManager.TickPlayer(_localPlayerId, tickDt, in snapshot);
 
-                // 3. Record predicted state
+                // 3. Read resulting position and send to server for validation
                 PlayerPhysicsState state = _playerPhysicsManager.GetState(_localPlayerId);
-                MoveCommand move = new()
-                {
-                    Tick = CurrentTick,
-                    SequenceId = _moveSequenceId,
-                    PlayerId = _localPlayerId,
-                    Position = state.Position,
-                    LookDir = new float2(snapshot.Yaw, snapshot.Pitch),
-                    Flags = SnapshotToFlags(in snapshot),
-                };
-                _predictionBuffer.Add(CurrentTick, move);
-                _inputBuffer.Add(CurrentTick, snapshot);
 
-                // 4. Send input to server (only when connection is fully established)
                 if (_networkClient.IsPlaying)
                 {
                     MoveInputMessage msg = new()
                     {
-                        SequenceId = _moveSequenceId, Yaw = snapshot.Yaw, Pitch = snapshot.Pitch, Flags = move.Flags,
+                        SequenceId = _moveSequenceId,
+                        Yaw = snapshot.Yaw,
+                        Pitch = snapshot.Pitch,
+                        Flags = SnapshotToFlags(in snapshot),
+                        PositionX = state.Position.x,
+                        PositionY = state.Position.y,
+                        PositionZ = state.Position.z,
                     };
                     _networkClient.Send(msg, PipelineId.UnreliableSequenced);
                 }
@@ -160,10 +125,7 @@ namespace Lithforge.Runtime.Simulation
                 _moveSequenceId++;
             }
 
-            // 5. Decay position error (visual smoothing)
-            PositionError *= PositionErrorDecay;
-
-            // 6. Tick all registered systems.
+            // 4. Tick all registered systems.
             // In SP/Host (_serverIsLocal) the server already ran TickRegistry.TickAll via
             // ServerSimulation.TickWorldSystems — running it again would double-tick every ITickable.
             if (!_serverIsLocal)
@@ -186,8 +148,9 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>
-        ///     Called when a PlayerStateMessage is received from the server.
-        ///     Registers as a handler on the client's MessageDispatcher.
+        ///     Called when a PlayerStateMessage is received from the server. For the local
+        ///     player, this serves as a position ACK — if the server's position differs
+        ///     significantly from ours, we snap to correct accumulated drift.
         /// </summary>
         public void OnPlayerStateReceived(ConnectionId connId, byte[] data, int offset, int length)
         {
@@ -202,130 +165,45 @@ namespace Lithforge.Runtime.Simulation
             }
 
             float3 serverPos = new(msg.PositionX, msg.PositionY, msg.PositionZ);
-            ushort ackedSeqId = msg.LastProcessedSeqId;
+            PlayerPhysicsState localState = _playerPhysicsManager.GetState(_localPlayerId);
+            float error = math.distance(serverPos, localState.Position);
 
-            // Find the predicted position at the acknowledged sequence ID
-            uint ackedTick = 0;
-            float3 predictedPos = float3.zero;
-            bool foundPrediction = false;
-
-            uint searchStart = CurrentTick > 256 ? CurrentTick - 256 : 1;
-
-            for (uint t = searchStart; t < CurrentTick; t++)
+            if (error < AckIgnoreThreshold)
             {
-                if (_predictionBuffer.TryGet(t, out MoveCommand predicted) &&
-                    predicted.SequenceId == ackedSeqId)
-                {
-                    predictedPos = predicted.Position;
-                    ackedTick = t;
-                    foundPrediction = true;
-
-                    break;
-                }
-            }
-
-            if (!foundPrediction)
-            {
-                // Too old — buffer has wrapped, nothing to reconcile
+                // Normal operation — server accepted our position
                 return;
             }
 
-            float error = math.distance(serverPos, predictedPos);
-
-            if (error > ErrorThresholdIgnore)
+            if (error > DriftSnapThreshold)
             {
-                _logger?.LogInfo($"[RECON] error={error:F4} serverPos=({serverPos.x:F2},{serverPos.y:F2},{serverPos.z:F2}) predictedPos=({predictedPos.x:F2},{predictedPos.y:F2},{predictedPos.z:F2}) ackedSeq={ackedSeqId} ackedTick={ackedTick}");
-            }
+                // Significant drift — snap to server position
+                _logger?.LogInfo(
+                    $"[MOVE] drift snap: error={error:F4} server=({serverPos.x:F2},{serverPos.y:F2},{serverPos.z:F2})");
 
-            if (error < ErrorThresholdIgnore)
-            {
-                // Floating point noise — discard acknowledged entries (inclusive)
-                _predictionBuffer.DiscardBefore(ackedTick + 1);
-                _inputBuffer.DiscardBefore(ackedTick + 1);
-
-                return;
-            }
-
-            if (error < ErrorThresholdSmooth)
-            {
-                // Small error: full reconciliation with visual smoothing.
-                // Capture the visual offset BEFORE snapping so the player
-                // doesn't see a discrete jump. The offset decays via
-                // PositionErrorDecay in Tick().
-                float3 currentPos = _playerPhysicsManager.GetState(_localPlayerId).Position;
-                FullReconciliation(msg, ackedTick);
-                float3 correctedPos = _playerPhysicsManager.GetState(_localPlayerId).Position;
-                PositionError += currentPos - correctedPos;
-
-                return;
-            }
-
-            if (error > ErrorThresholdTeleport)
-            {
-                // Hard teleport: something is fundamentally wrong
                 PlayerPhysicsBody body = _playerPhysicsManager.GetBody(_localPlayerId);
-
-                if (body != null)
-                {
-                    body.Teleport(serverPos);
-                }
-
-                PositionError = float3.zero;
-                _predictionBuffer.DiscardBefore(CurrentTick);
-                _inputBuffer.DiscardBefore(CurrentTick);
-
-                return;
+                body?.Teleport(serverPos);
             }
-
-            // Full reconciliation: snap to server state, replay unacked inputs
-            FullReconciliation(msg, ackedTick);
         }
 
         /// <summary>
-        ///     Performs full Gambetta reconciliation: snaps to server state, then replays
-        ///     all unacknowledged inputs from (ackedTick+1) through (currentTick-1).
+        ///     Called when a ServerTeleportMessage is received from the server. Immediately
+        ///     teleports the local player to the corrected position and sends a confirmation
+        ///     back so the server resumes accepting movement.
         /// </summary>
-        private void FullReconciliation(PlayerStateMessage serverMsg, uint ackedTick)
+        public void OnServerTeleportReceived(ConnectionId connId, byte[] data, int offset, int length)
         {
+            ServerTeleportMessage msg = ServerTeleportMessage.Deserialize(data, offset, length);
+            float3 teleportPos = new(msg.PositionX, msg.PositionY, msg.PositionZ);
+
+            _logger?.LogInfo(
+                $"[MOVE] server teleport: id={msg.TeleportId} pos=({teleportPos.x:F2},{teleportPos.y:F2},{teleportPos.z:F2})");
+
             PlayerPhysicsBody body = _playerPhysicsManager.GetBody(_localPlayerId);
+            body?.Teleport(teleportPos);
 
-            if (body == null)
-            {
-                return;
-            }
-
-            // 1. Snap to server state
-            float3 serverPos = new(serverMsg.PositionX, serverMsg.PositionY, serverMsg.PositionZ);
-            float3 serverVel = new(serverMsg.VelocityX, serverMsg.VelocityY, serverMsg.VelocityZ);
-
-            body.SetPosition(serverPos);
-            body.SetVelocity(serverVel);
-            body.SetFlags(serverMsg.Flags);
-
-            PositionError = float3.zero;
-
-            // 2. Replay all unacked inputs from (ackedTick+1) to (currentTick-1)
-            for (uint t = ackedTick + 1; t < CurrentTick; t++)
-            {
-                if (_inputBuffer.TryGet(t, out InputSnapshot snapshot))
-                {
-                    _playerPhysicsManager.TickPlayer(
-                        _localPlayerId, FixedTickRate.TickDeltaTime, in snapshot);
-
-                    // Update prediction buffer with corrected position
-                    PlayerPhysicsState corrected = _playerPhysicsManager.GetState(_localPlayerId);
-
-                    if (_predictionBuffer.TryGet(t, out MoveCommand oldCmd))
-                    {
-                        oldCmd.Position = corrected.Position;
-
-                        _predictionBuffer.Add(t, oldCmd);
-                    }
-                }
-            }
-
-            _predictionBuffer.DiscardBefore(ackedTick + 1);
-            _inputBuffer.DiscardBefore(ackedTick + 1);
+            // Acknowledge the teleport so the server resumes accepting our movement
+            TeleportConfirmMessage confirm = new() { TeleportId = msg.TeleportId };
+            _networkClient.Send(confirm, PipelineId.ReliableSequenced);
         }
 
         /// <summary>

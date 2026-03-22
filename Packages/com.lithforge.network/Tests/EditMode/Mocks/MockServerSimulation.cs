@@ -32,9 +32,19 @@ namespace Lithforge.Network.Tests.Mocks
             AddedPlayers.Remove(playerId.Value);
         }
 
-        /// <summary>Returns the default state (no actual physics simulation).</summary>
-        public PlayerPhysicsState ApplyMoveInput(NetworkEntityId playerId, float yaw, float pitch, byte flags, float tickDt)
+        /// <summary>Validates and accepts a move (always accepts in mock, no teleport).</summary>
+        public PlayerPhysicsState ValidateAndAcceptMove(
+            NetworkEntityId playerId,
+            float3 claimedPosition,
+            float yaw,
+            float pitch,
+            byte flags,
+            ref PlayerValidationState validationState,
+            out bool needsTeleport)
         {
+            needsTeleport = false;
+            validationState.LastAcceptedPosition = claimedPosition;
+
             return DefaultState;
         }
 

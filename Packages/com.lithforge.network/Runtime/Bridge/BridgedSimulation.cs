@@ -9,8 +9,8 @@ namespace Lithforge.Network.Bridge
 {
     /// <summary>
     ///     <see cref="IServerSimulation" /> and <see cref="IPostInputHook" /> implementation
-    ///     consumed by <see cref="ServerGameLoop" /> on the server thread. ApplyMoveInput is
-    ///     dispatched directly to the real simulation on the server thread — no queue, no
+    ///     consumed by <see cref="ServerGameLoop" /> on the server thread. ValidateAndAcceptMove
+    ///     is dispatched directly to the real simulation on the server thread — no queue, no
     ///     semaphore. AddPlayer and RemovePlayer use the bridge round-trip because they are
     ///     infrequent lifecycle events that must synchronize with main-thread spawn systems.
     ///     TickWorldSystems continues to use the bridge because it touches Unity job handles
@@ -22,12 +22,12 @@ namespace Lithforge.Network.Bridge
         private readonly ServerThreadBridge _bridge;
 
         /// <summary>
-        ///     Direct reference to the real server simulation. ApplyMoveInput is called on
-        ///     this directly from the server thread, bypassing the bridge semaphore entirely.
+        ///     Direct reference to the real server simulation. ValidateAndAcceptMove is called
+        ///     on this directly from the server thread, bypassing the bridge semaphore entirely.
         /// </summary>
         private readonly IServerSimulation _directSimulation;
 
-        /// <summary>Cached physics results keyed by player ID value, updated by ApplyMoveInput.</summary>
+        /// <summary>Cached physics results keyed by player ID value, updated by ValidateAndAcceptMove.</summary>
         private readonly Dictionary<ushort, PlayerPhysicsState> _resultCache = new();
 
         /// <summary>Creates a bridged simulation with direct physics dispatch.</summary>
@@ -85,19 +85,21 @@ namespace Lithforge.Network.Bridge
         }
 
         /// <summary>
-        ///     Calls the real simulation directly on the server thread. No queue, no semaphore.
-        ///     Updates the result cache immediately so <see cref="GetPlayerState" /> returns
-        ///     current data.
+        ///     Validates and accepts a client-submitted position directly on the server thread.
+        ///     No queue, no semaphore. Updates the result cache immediately.
         /// </summary>
-        public PlayerPhysicsState ApplyMoveInput(
+        public PlayerPhysicsState ValidateAndAcceptMove(
             NetworkEntityId playerId,
+            float3 claimedPosition,
             float yaw,
             float pitch,
             byte flags,
-            float tickDt)
+            ref PlayerValidationState validationState,
+            out bool needsTeleport)
         {
-            PlayerPhysicsState state = _directSimulation.ApplyMoveInput(
-                playerId, yaw, pitch, flags, tickDt);
+            PlayerPhysicsState state = _directSimulation.ValidateAndAcceptMove(
+                playerId, claimedPosition, yaw, pitch, flags,
+                ref validationState, out needsTeleport);
 
             _resultCache[playerId.Value] = state;
 
@@ -105,7 +107,7 @@ namespace Lithforge.Network.Bridge
         }
 
         /// <summary>
-        ///     No-op. ApplyMoveInput now runs synchronously on the server thread,
+        ///     No-op. ValidateAndAcceptMove now runs synchronously on the server thread,
         ///     so no batch signaling or semaphore wait is needed.
         /// </summary>
         public void AfterProcessPlayerInputs()
@@ -126,7 +128,7 @@ namespace Lithforge.Network.Bridge
 
         /// <summary>
         ///     Returns the cached physics state for the given player from the most recent
-        ///     <see cref="ApplyMoveInput" /> call.
+        ///     <see cref="ValidateAndAcceptMove" /> call.
         /// </summary>
         public PlayerPhysicsState GetPlayerState(NetworkEntityId playerId)
         {

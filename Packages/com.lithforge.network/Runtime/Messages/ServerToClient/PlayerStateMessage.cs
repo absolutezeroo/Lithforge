@@ -3,9 +3,10 @@ using Lithforge.Network.Message;
 namespace Lithforge.Network.Messages
 {
     /// <summary>
-    ///     Server→Client authoritative player state. Sent every tick on unreliable sequenced pipeline.
-    ///     Contains the server's authoritative position/velocity plus the last acknowledged
-    ///     MoveInput sequence ID, enabling client-side prediction reconciliation.
+    ///     Server→Client player state. Sent every tick on unreliable sequenced pipeline.
+    ///     For the owning client, serves as a position ACK — confirming the server accepted
+    ///     the client-reported position (or echoing a slightly different validated position).
+    ///     For observers, provides remote player position updates for interpolation.
     ///     Wire format: [PlayerId:2][ServerTick:4][LastProcessedSeqId:2][Position:12]
     ///     [Velocity:12][Yaw:4][Pitch:4][Flags:1] = 41 bytes.
     /// </summary>
@@ -26,9 +27,7 @@ namespace Lithforge.Network.Messages
         /// </summary>
         public uint ServerTick;
 
-        /// <summary>
-        /// Sequence ID of the last MoveInput the server processed for this player.
-        /// </summary>
+        /// <summary>Sequence ID of the last MoveInput the server processed for this player.</summary>
         public ushort LastProcessedSeqId;
 
         /// <summary>

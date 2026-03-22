@@ -140,6 +140,13 @@ namespace Lithforge.Network.Server
         internal PaintDragState PaintDrag;
 
         /// <summary>
+        ///     Per-player movement validation state for the client-authoritative model.
+        ///     Tracks violation level, last accepted position, and teleport handshake.
+        ///     Embedded by value — no heap allocation.
+        /// </summary>
+        public PlayerValidationState ValidationState;
+
+        /// <summary>
         /// Creates a new PlayerInterestState with the given view radius and default values.
         /// </summary>
         public PlayerInterestState(int viewRadius)

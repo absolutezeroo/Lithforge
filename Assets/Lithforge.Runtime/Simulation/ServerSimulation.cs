@@ -4,6 +4,8 @@ using Lithforge.Network;
 using Lithforge.Network.Server;
 using Lithforge.Runtime.Content.Settings;
 using Lithforge.Runtime.Tick;
+using Lithforge.Voxel.Block;
+using Lithforge.Voxel.Chunk;
 using Lithforge.Voxel.Command;
 
 using Unity.Mathematics;
@@ -13,8 +15,9 @@ namespace Lithforge.Runtime.Simulation
     /// <summary>
     ///     Tier 3 implementation of <see cref="IServerSimulation" />. Bridges the network
     ///     package's <see cref="ServerGameLoop" /> to the runtime's <see cref="PlayerPhysicsManager" />
-    ///     and <see cref="TickRegistry" />. Reconstructs <see cref="InputSnapshot" /> from
-    ///     wire-format input flags for authoritative physics simulation.
+    ///     and <see cref="TickRegistry" />. Validates client-submitted positions via
+    ///     <see cref="PlayerMovementValidator" /> and accepts valid positions by teleporting
+    ///     the server-side physics body.
     /// </summary>
     public sealed class ServerSimulation : IServerSimulation
     {
@@ -33,12 +36,17 @@ namespace Lithforge.Runtime.Simulation
         /// <summary>Callback returning the current time-of-day value for state broadcasts.</summary>
         private readonly Func<float> _timeOfDayProvider;
 
+        /// <summary>Validates client-submitted positions against collision geometry and movement rules.</summary>
+        private readonly PlayerMovementValidator _validator;
+
         /// <summary>Creates a new server simulation with the given runtime dependencies.</summary>
         public ServerSimulation(
             PlayerPhysicsManager playerPhysicsManager,
             TickRegistry tickRegistry,
             PhysicsSettings physicsSettings,
             ServerBlockProcessor blockProcessor,
+            IChunkDataReader chunkDataReader,
+            NativeStateRegistry nativeStateRegistry,
             Func<float> timeOfDayProvider = null)
         {
             _playerPhysicsManager = playerPhysicsManager;
@@ -46,6 +54,7 @@ namespace Lithforge.Runtime.Simulation
             _physicsSettings = physicsSettings;
             _blockProcessor = blockProcessor;
             _timeOfDayProvider = timeOfDayProvider ?? (() => 0f);
+            _validator = new PlayerMovementValidator(chunkDataReader, nativeStateRegistry);
         }
 
         /// <summary>Creates a physics body for a new player and returns their initial state.</summary>
@@ -55,6 +64,7 @@ namespace Lithforge.Runtime.Simulation
                 playerId, spawnPosition, _physicsSettings);
             body.SpawnReady = true;
             _blockProcessor?.AddPlayer(playerId);
+
             return body.GetState();
         }
 
@@ -65,28 +75,32 @@ namespace Lithforge.Runtime.Simulation
             _playerPhysicsManager.RemovePlayer(playerId);
         }
 
-        /// <summary>Reconstructs an InputSnapshot from wire-format flags and ticks the player's physics.</summary>
-        public PlayerPhysicsState ApplyMoveInput(
-            NetworkEntityId playerId, float yaw, float pitch, byte flags, float tickDt)
+        /// <summary>
+        ///     Validates the client-submitted position and, if valid, teleports the server-side
+        ///     physics body to match. If invalid, returns the last accepted position and signals
+        ///     that a teleport correction is needed.
+        /// </summary>
+        public PlayerPhysicsState ValidateAndAcceptMove(
+            NetworkEntityId playerId,
+            float3 claimedPosition,
+            float yaw,
+            float pitch,
+            byte flags,
+            ref PlayerValidationState validationState,
+            out bool needsTeleport)
         {
-            // Reconstruct InputSnapshot from wire-format flags.
-            // Bits 0-5 are held input, bits 6-7 are edge-triggered toggles.
-            InputSnapshot snapshot = new()
-            {
-                Yaw = yaw,
-                Pitch = pitch,
-                MoveForward = (flags & InputFlags.MoveForward) != 0,
-                MoveBack = (flags & InputFlags.MoveBack) != 0,
-                MoveLeft = (flags & InputFlags.MoveLeft) != 0,
-                MoveRight = (flags & InputFlags.MoveRight) != 0,
-                Sprint = (flags & InputFlags.Sprint) != 0,
-                JumpPressed = (flags & InputFlags.Jump) != 0,
-                JumpHeld = (flags & InputFlags.Jump) != 0,
-                FlyTogglePressed = (flags & InputFlags.FlyToggle) != 0,
-                NoclipTogglePressed = (flags & InputFlags.NoclipToggle) != 0,
-            };
+            float3 acceptedPos = _validator.Validate(
+                claimedPosition, flags, ref validationState, out needsTeleport);
 
-            _playerPhysicsManager.TickPlayer(playerId, tickDt, in snapshot);
+            PlayerPhysicsBody body = _playerPhysicsManager.GetBody(playerId);
+
+            if (body is not null)
+            {
+                body.SetPosition(acceptedPos);
+                body.SetVelocity(new float3(0f, 0f, 0f));
+                body.SetFlags(flags);
+            }
+
             return _playerPhysicsManager.GetState(playerId);
         }
 
@@ -109,9 +123,10 @@ namespace Lithforge.Runtime.Simulation
         }
 
         /// <summary>
-        ///     Accepts a client-authoritative position. Teleports the server-side physics body
-        ///     to match the client's state so that chunk interest tracking, block command reach
-        ///     checks, and PlayerStateMessage broadcasts all use the correct position.
+        ///     Accepts a client-authoritative position without validation. Teleports the
+        ///     server-side physics body to match the client's state so that chunk interest
+        ///     tracking and block command reach checks use the correct position.
+        ///     Used for the local peer in SP/Host mode.
         /// </summary>
         public void AcceptAuthoritativeState(NetworkEntityId playerId, PlayerPhysicsState state)
         {

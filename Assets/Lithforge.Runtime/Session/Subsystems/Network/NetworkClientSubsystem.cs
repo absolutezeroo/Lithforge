@@ -216,9 +216,13 @@ namespace Lithforge.Runtime.Session.Subsystems
                     serverIsLocal,
                     context.App.Logger);
 
-                // Register player state handler for reconciliation
+                // Register player state handler for position ACKs and drift correction
                 _client.Dispatcher.RegisterHandler(
                     MessageType.PlayerState, clientSim.OnPlayerStateReceived);
+
+                // Register teleport handler for server-initiated position corrections
+                _client.Dispatcher.RegisterHandler(
+                    MessageType.ServerTeleport, clientSim.OnServerTeleportReceived);
 
                 // Register as the world simulation
                 context.Register<IWorldSimulation>(clientSim);

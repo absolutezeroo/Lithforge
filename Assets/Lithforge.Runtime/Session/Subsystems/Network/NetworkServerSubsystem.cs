@@ -162,6 +162,7 @@ namespace Lithforge.Runtime.Session.Subsystems
             ServerSimulation serverSim = new(
                 physicsManager, tickRegistry, physics,
                 blockProcessor,
+                chunkDataReader, context.Content.NativeStateRegistry,
                 () => 0f); // TimeOfDay wired in PostInitialize
 
             ServerChunkProvider chunkProvider = new(chunkManager, context.Content.NativeStateRegistry);

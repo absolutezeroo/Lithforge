@@ -67,6 +67,9 @@ namespace Lithforge.Network.Message
         /// <summary>Client notifies the server that a container window was closed.</summary>
         ContainerCloseCmd = 30,
 
+        /// <summary>Client confirms receipt of a ServerTeleport, resuming movement acceptance.</summary>
+        TeleportConfirm = 31,
+
         // Server-to-Client state updates
 
         /// <summary>Server sends authoritative player position and physics state.</summary>
@@ -113,5 +116,8 @@ namespace Lithforge.Network.Message
 
         /// <summary>Server sends furnace burn/smelt progress to a client.</summary>
         ContainerProgress = 55,
+
+        /// <summary>Server forces a player teleport and awaits confirmation before accepting movement.</summary>
+        ServerTeleport = 56,
     }
 }

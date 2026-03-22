@@ -152,7 +152,7 @@ namespace Lithforge.Network.Bridge
 
         /// <summary>
         ///     Non-blocking check for physics lifecycle requests (AddPlayer, RemovePlayer).
-        ///     ApplyMoveInput is handled directly on the server thread by
+        ///     ValidateAndAcceptMove is handled directly on the server thread by
         ///     <see cref="BridgedSimulation" /> and never flows through this queue.
         /// </summary>
         private void ServicePhysicsRequests()

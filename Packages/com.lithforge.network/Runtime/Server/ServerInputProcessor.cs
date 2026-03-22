@@ -14,18 +14,17 @@ using Unity.Mathematics;
 namespace Lithforge.Network.Server
 {
     /// <summary>
-    ///     Processes player inputs and block commands each tick, and handles the 5
+    ///     Processes player inputs and block commands each tick, and handles the
     ///     input-related network message types (MoveInput, PlaceBlockCmd, BreakBlockCmd,
-    ///     StartDiggingCmd, SlotClickCmd). Internal helper owned by <see cref="ServerGameLoop" />.
+    ///     StartDiggingCmd, SlotClickCmd, TeleportConfirm). For remote clients, validates
+    ///     client-submitted positions via <see cref="IServerSimulation.ValidateAndAcceptMove" />
+    ///     and issues <see cref="ServerTeleportMessage" /> corrections when violations exceed
+    ///     the VL threshold. Internal helper owned by <see cref="ServerGameLoop" />.
     /// </summary>
     internal sealed class ServerInputProcessor
     {
-        /// <summary>
-        ///     Number of ticks the server delays input consumption to absorb
-        ///     transport jitter. Only affects remote clients — the local peer
-        ///     uses the authoritative position path and bypasses input processing.
-        /// </summary>
-        private const uint InputBufferTicks = 2;
+        /// <summary>Number of ticks before a pending teleport confirmation times out.</summary>
+        private const uint TeleportTimeoutTicks = 20;
 
         /// <summary>Block command processor for validating and executing block changes.</summary>
         private readonly IServerBlockProcessor _blockProcessor;
@@ -36,13 +35,13 @@ namespace Lithforge.Network.Server
         /// <summary>Delegate returning the current server tick number.</summary>
         private readonly Func<uint> _getCurrentTick;
 
-        /// <summary>The network server interface for sending ACK messages.</summary>
+        /// <summary>The network server interface for sending ACK and teleport messages.</summary>
         private readonly INetworkServer _server;
 
         /// <summary>Concrete NetworkServer for peer lookup and touch tracking.</summary>
         private readonly NetworkServer _serverImpl;
 
-        /// <summary>Bridge to gameplay simulation for applying movement.</summary>
+        /// <summary>Bridge to gameplay simulation for validating and accepting movement.</summary>
         private readonly IServerSimulation _simulation;
 
         /// <summary>Server-side inventory processor for slot click commands (null until set).</summary>
@@ -71,7 +70,7 @@ namespace Lithforge.Network.Server
             _inventoryProcessor = processor;
         }
 
-        /// <summary>Registers the 5 input-related message handlers on the dispatcher.</summary>
+        /// <summary>Registers the input-related message handlers on the dispatcher.</summary>
         internal void RegisterMessageHandlers(MessageDispatcher dispatcher)
         {
             dispatcher.RegisterHandler(MessageType.MoveInput, OnMoveInput);
@@ -82,12 +81,13 @@ namespace Lithforge.Network.Server
             dispatcher.RegisterHandler(MessageType.CraftActionCmd, OnCraftActionCmd);
             dispatcher.RegisterHandler(MessageType.ContainerOpenCmd, OnContainerOpenCmd);
             dispatcher.RegisterHandler(MessageType.ContainerCloseCmd, OnContainerCloseCmd);
+            dispatcher.RegisterHandler(MessageType.TeleportConfirm, OnTeleportConfirm);
         }
 
         /// <summary>
-        ///     Processes all playing peers' inputs for one tick: drains move buffers,
-        ///     applies authoritative movement, updates chunk coordinates, and processes
-        ///     block commands. Called once per tick from the facade.
+        ///     Processes all playing peers' inputs for one tick: validates client-submitted
+        ///     positions (or accepts local-peer state directly), updates chunk coordinates,
+        ///     and processes block commands. Called once per tick from the facade.
         /// </summary>
         internal void ProcessTick(List<PeerInfo> playingPeers, float tickDt)
         {
@@ -104,48 +104,25 @@ namespace Lithforge.Network.Server
                 ushort playerId = peer.AssignedPlayerId;
                 uint currentTick = _getCurrentTick();
 
-                // Process movement: try to get buffered input for this tick
-                float yaw;
-                float pitch;
-                byte flags;
-                ushort seqId;
-
-                uint consumeTick = currentTick - InputBufferTicks;
-
-                if (interest.MoveBuffer.TryGet(consumeTick, out MoveCommand moveCmd))
-                {
-                    yaw = moveCmd.LookDir.x;
-                    pitch = moveCmd.LookDir.y;
-                    flags = moveCmd.Flags;
-                    seqId = moveCmd.SequenceId;
-                    interest.LastKnownInputFlags = flags;
-                    interest.LastKnownLookDir = moveCmd.LookDir;
-                    interest.LastProcessedSequenceId = seqId;
-                }
-                else
-                {
-                    // Input repeat: use last known input (player continues moving)
-                    yaw = interest.LastKnownLookDir.x;
-                    pitch = interest.LastKnownLookDir.y;
-                    flags = interest.LastKnownInputFlags;
-                    seqId = interest.LastProcessedSequenceId;
-                }
-
                 PlayerPhysicsState authState;
 
                 // For the local peer (SP/Host), accept the client's authoritative position
-                // directly instead of re-simulating. The host IS the server — re-simulating
-                // from inputs that arrive 1-2 ticks late via the bridge creates divergence.
-                // This follows Minecraft's pattern: client computes physics, server validates.
+                // directly without validation. The host IS the server — no cheating concern.
                 if (peer.IsLocal && _bridge?.GetLocalPlayerState() is { } localSnapshot)
                 {
                     authState = localSnapshot.State;
                     _simulation.AcceptAuthoritativeState(playerId, authState);
+
+                    // Still drain the move buffer to keep sequence IDs in sync
+                    if (interest.MoveBuffer.TryGet(currentTick, out MoveCommand localCmd))
+                    {
+                        interest.LastProcessedSequenceId = localCmd.SequenceId;
+                    }
                 }
                 else
                 {
-                    authState = _simulation.ApplyMoveInput(
-                        playerId, yaw, pitch, flags, tickDt);
+                    // Remote client: validate the client-submitted position
+                    authState = ProcessRemoteMovement(peer, interest, currentTick);
                 }
 
                 // Update current chunk from authoritative position
@@ -157,6 +134,84 @@ namespace Lithforge.Network.Server
                 // Process block commands (movement first so reach check uses updated position)
                 ProcessBlockCommands(peer, interest, authState, tickDt);
             }
+        }
+
+        /// <summary>
+        ///     Validates and processes movement for a remote client. If the client is
+        ///     awaiting a teleport confirmation, all movement is ignored. Otherwise the
+        ///     claimed position is validated and either accepted or triggers a teleport.
+        /// </summary>
+        private PlayerPhysicsState ProcessRemoteMovement(
+            PeerInfo peer,
+            PlayerInterestState interest,
+            uint currentTick)
+        {
+            // Check if we are awaiting teleport confirmation
+            if (interest.ValidationState.AwaitingTeleportConfirm)
+            {
+                // Check timeout
+                uint elapsed = currentTick - interest.ValidationState.TeleportSentTick;
+
+                if (elapsed > TeleportTimeoutTicks)
+                {
+                    // Resend the teleport
+                    SendTeleport(peer, interest, interest.ValidationState.LastAcceptedPosition, currentTick);
+                }
+
+                // Ignore all movement while awaiting confirmation — return last accepted state
+                return _simulation.GetPlayerState(peer.AssignedPlayerId);
+            }
+
+            // Try to read the latest move command from the buffer
+            if (!interest.MoveBuffer.TryGet(currentTick, out MoveCommand moveCmd))
+            {
+                // No packet this tick — use last known state (stationary)
+                return _simulation.GetPlayerState(peer.AssignedPlayerId);
+            }
+
+            interest.LastKnownInputFlags = moveCmd.Flags;
+            interest.LastKnownLookDir = moveCmd.LookDir;
+            interest.LastProcessedSequenceId = moveCmd.SequenceId;
+
+            float3 claimedPosition = moveCmd.Position;
+
+            PlayerPhysicsState authState = _simulation.ValidateAndAcceptMove(
+                peer.AssignedPlayerId,
+                claimedPosition,
+                moveCmd.LookDir.x,
+                moveCmd.LookDir.y,
+                moveCmd.Flags,
+                ref interest.ValidationState,
+                out bool needsTeleport);
+
+            if (needsTeleport)
+            {
+                SendTeleport(peer, interest, interest.ValidationState.LastAcceptedPosition, currentTick);
+            }
+
+            return authState;
+        }
+
+        /// <summary>Sends a ServerTeleportMessage to the peer and sets the awaiting state.</summary>
+        private void SendTeleport(
+            PeerInfo peer,
+            PlayerInterestState interest,
+            float3 position,
+            uint currentTick)
+        {
+            interest.ValidationState.PendingTeleportId++;
+            interest.ValidationState.AwaitingTeleportConfirm = true;
+            interest.ValidationState.TeleportSentTick = currentTick;
+
+            ServerTeleportMessage msg = new()
+            {
+                TeleportId = interest.ValidationState.PendingTeleportId,
+                PositionX = position.x,
+                PositionY = position.y,
+                PositionZ = position.z,
+            };
+
+            _server.SendTo(peer.ConnectionId, msg, PipelineId.ReliableSequenced);
         }
 
         /// <summary>
@@ -233,7 +288,7 @@ namespace Lithforge.Network.Server
             interest.PendingPlaceCommands.Clear();
         }
 
-        /// <summary>Handles MoveInput messages, buffering the command for the owning peer's tick processing.</summary>
+        /// <summary>Handles MoveInput messages, buffering the command with client-reported position.</summary>
         private void OnMoveInput(ConnectionId connId, byte[] data, int offset, int length)
         {
             _serverImpl.TouchPeer(connId);
@@ -252,12 +307,33 @@ namespace Lithforge.Network.Server
                 Tick = currentTick,
                 SequenceId = msg.SequenceId,
                 PlayerId = peer.AssignedPlayerId,
-                Position = float3.zero, // Server computes position authoritatively
+                Position = new float3(msg.PositionX, msg.PositionY, msg.PositionZ),
                 LookDir = new float2(msg.Yaw, msg.Pitch),
                 Flags = msg.Flags,
             };
 
             peer.InterestState.MoveBuffer.Add(currentTick, cmd);
+        }
+
+        /// <summary>Handles TeleportConfirm messages, clearing the awaiting state if IDs match.</summary>
+        private void OnTeleportConfirm(ConnectionId connId, byte[] data, int offset, int length)
+        {
+            _serverImpl.TouchPeer(connId);
+            PeerInfo peer = _serverImpl.GetPeer(connId);
+
+            if (peer?.InterestState is null ||
+                peer.StateMachine.Current != ConnectionState.Playing)
+            {
+                return;
+            }
+
+            TeleportConfirmMessage msg = TeleportConfirmMessage.Deserialize(data, offset, length);
+
+            if (peer.InterestState.ValidationState.AwaitingTeleportConfirm &&
+                peer.InterestState.ValidationState.PendingTeleportId == msg.TeleportId)
+            {
+                PlayerMovementValidator.OnTeleportConfirmed(ref peer.InterestState.ValidationState);
+            }
         }
 
         /// <summary>Handles PlaceBlockCmd messages, queuing the command for Phase 2 block processing.</summary>
