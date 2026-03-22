@@ -30,5 +30,8 @@ namespace Lithforge.Network.Server
 
         /// <summary>Number of ticks remaining in the post-teleport grace period (checks suppressed).</summary>
         public uint GraceTicks;
+
+        /// <summary>Whether flight mode is currently active for this player (toggled by FlyToggle input).</summary>
+        public bool IsFlightModeActive;
     }
 }

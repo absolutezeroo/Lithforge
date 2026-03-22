@@ -105,7 +105,7 @@ namespace Lithforge.Network.Server
             }
 
             // 2. Noclip check: verify the claimed AABB does not intersect solid blocks
-            if (!anyViolation && IsInsideSolidBlock(claimedPosition))
+            if (IsInsideSolidBlock(claimedPosition))
             {
                 state.ViolationLevel += VlPerNoclipViolation;
                 anyViolation = true;
@@ -123,11 +123,18 @@ namespace Lithforge.Network.Server
                 state.AirborneTicks++;
             }
 
+            // Track flight mode as a toggle: FlyToggle bit is an edge flag, not held state.
+            // Each tick it appears, it flips the mode. This prevents a cheat client from
+            // holding the bit every tick to permanently suppress the flight check.
+            if ((flags & InputFlags.FlyToggle) != 0)
+            {
+                state.IsFlightModeActive = !state.IsFlightModeActive;
+            }
+
             bool jumping = (flags & InputFlags.Jump) != 0;
-            bool flyToggle = (flags & InputFlags.FlyToggle) != 0;
             bool movingUp = claimedPosition.y > state.LastAcceptedPosition.y + 0.01f;
 
-            if (!groundBelow && !jumping && !flyToggle && movingUp
+            if (!groundBelow && !jumping && !state.IsFlightModeActive && movingUp
                 && state.AirborneTicks > FlightGraceTicks)
             {
                 state.ViolationLevel += VlPerFlightViolation;
@@ -148,9 +155,14 @@ namespace Lithforge.Network.Server
                 return state.LastAcceptedPosition;
             }
 
-            state.LastAcceptedPosition = claimedPosition;
+            // Only advance baseline on clean ticks — a cheated position must never
+            // become the new reference for subsequent speed checks.
+            if (!anyViolation)
+            {
+                state.LastAcceptedPosition = claimedPosition;
+            }
 
-            return claimedPosition;
+            return anyViolation ? state.LastAcceptedPosition : claimedPosition;
         }
 
         /// <summary>

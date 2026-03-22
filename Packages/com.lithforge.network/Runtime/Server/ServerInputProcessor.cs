@@ -199,7 +199,14 @@ namespace Lithforge.Network.Server
             float3 position,
             uint currentTick)
         {
-            interest.ValidationState.PendingTeleportId++;
+            // Only increment teleport ID on a fresh teleport, not on a timeout resend.
+            // This prevents ID mismatch where a late confirm echoes the old ID but
+            // the server already incremented, creating an infinite teleport loop.
+            if (!interest.ValidationState.AwaitingTeleportConfirm)
+            {
+                interest.ValidationState.PendingTeleportId++;
+            }
+
             interest.ValidationState.AwaitingTeleportConfirm = true;
             interest.ValidationState.TeleportSentTick = currentTick;
 
@@ -381,7 +388,10 @@ namespace Lithforge.Network.Server
 
             BreakBlockCommand cmd = new()
             {
-                Tick = currentTick, SequenceId = msg.SequenceId, PlayerId = peer.AssignedPlayerId, Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                Tick = currentTick,
+                SequenceId = msg.SequenceId,
+                PlayerId = peer.AssignedPlayerId,
+                Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
             };
 
             peer.InterestState.PendingBreakCommands.Add(cmd);
@@ -404,7 +414,10 @@ namespace Lithforge.Network.Server
 
             StartDiggingCommand cmd = new()
             {
-                Tick = currentTick, SequenceId = msg.SequenceId, PlayerId = peer.AssignedPlayerId, Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
+                Tick = currentTick,
+                SequenceId = msg.SequenceId,
+                PlayerId = peer.AssignedPlayerId,
+                Position = new int3(msg.PositionX, msg.PositionY, msg.PositionZ),
             };
 
             peer.InterestState.PendingStartDiggingCommands.Add(cmd);
