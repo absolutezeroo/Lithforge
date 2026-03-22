@@ -39,12 +39,18 @@ namespace Lithforge.Runtime.Simulation
             };
         }
 
-        /// <summary>Serializes the chunk at the given coordinate for network transmission, returning null if unavailable.</summary>
+        /// <summary>
+        ///     Serializes the chunk at the given coordinate for network transmission,
+        ///     returning null if unavailable. Called from the server thread — must not
+        ///     access NativeArrays that may be written by in-flight Burst jobs scheduled
+        ///     on the main thread. Returns null for chunks with any job in flight; the
+        ///     streaming system will retry next tick.
+        /// </summary>
         public byte[] SerializeChunk(int3 coord)
         {
             ManagedChunk chunk = _chunkManager.GetChunk(coord);
 
-            if (chunk == null || chunk.State < ChunkState.Generated)
+            if (chunk is null || chunk.State < ChunkState.Generated)
             {
                 return null;
             }
@@ -54,11 +60,14 @@ namespace Lithforge.Runtime.Simulation
                 return null;
             }
 
-            // Complete any in-flight light job before reading LightData to avoid
-            // the job safety system rejecting the read.
-            if (chunk.LightJobInFlight)
+            // Guard: do not read NativeArrays while a Burst job may be writing to them.
+            // LightUpdateJob / LightRemovalJob write to LightData on worker threads.
+            // ActiveJobHandle.Complete() cannot be called from the server thread
+            // (Unity job safety handles are per-thread). Instead, skip the chunk
+            // and let the streaming system retry next tick.
+            if (chunk.LightJobInFlight || chunk.State is ChunkState.Meshing or ChunkState.RelightPending)
             {
-                chunk.ActiveJobHandle.Complete();
+                return null;
             }
 
             return ChunkNetSerializer.SerializeFullChunk(chunk.Data, chunk.LightData);
