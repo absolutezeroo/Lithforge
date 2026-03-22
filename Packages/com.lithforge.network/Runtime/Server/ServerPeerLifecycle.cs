@@ -183,13 +183,20 @@ namespace Lithforge.Network.Server
             ushort playerId = peer.AssignedPlayerId;
             uint currentTick = _getCurrentTick();
 
-            // Create interest state
+            // Create interest state with validation baseline at spawn position.
+            // Without this, LastAcceptedPosition defaults to (0,0,0) and the first
+            // MoveInput from the client trips the speed check (huge distance from origin).
             peer.InterestState = new PlayerInterestState(ServerGameLoop.DefaultViewRadius)
             {
                 CurrentChunk = new int3(
                     (int)math.floor(spawnPosition.x / ChunkConstants.Size),
                     (int)math.floor(spawnPosition.y / ChunkConstants.Size),
                     (int)math.floor(spawnPosition.z / ChunkConstants.Size)),
+                ValidationState = new PlayerValidationState
+                {
+                    LastAcceptedPosition = spawnPosition,
+                    GraceTicks = 5,
+                },
             };
 
             // Create physics body on the server

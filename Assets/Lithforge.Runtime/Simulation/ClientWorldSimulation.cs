@@ -21,18 +21,6 @@ namespace Lithforge.Runtime.Simulation
     /// </summary>
     public sealed class ClientWorldSimulation : IWorldSimulation
     {
-        /// <summary>
-        ///     Distance threshold below which server position ACKs are ignored (floating-point noise).
-        /// </summary>
-        private const float AckIgnoreThreshold = 0.5f;
-
-        /// <summary>
-        ///     Distance threshold above which the client snaps to the server's reported position.
-        ///     This handles cases where the server accepted a slightly different position due to
-        ///     timing differences, without triggering a full teleport.
-        /// </summary>
-        private const float DriftSnapThreshold = 2.0f;
-
         /// <summary>Accumulates per-frame input into discrete per-tick snapshots.</summary>
         private readonly InputSnapshotBuilder _inputSnapshotBuilder;
 
@@ -149,8 +137,11 @@ namespace Lithforge.Runtime.Simulation
 
         /// <summary>
         ///     Called when a PlayerStateMessage is received from the server. For the local
-        ///     player, this serves as a position ACK — if the server's position differs
-        ///     significantly from ours, we snap to correct accumulated drift.
+        ///     player this is an informational ACK only — position corrections are handled
+        ///     exclusively by <see cref="OnServerTeleportReceived" />. Comparing the echoed
+        ///     position against our current position would always show latency-induced drift
+        ///     (the echo is from several ticks ago while we have moved since), so we do not
+        ///     snap here. Remote player states are routed to the interpolation manager.
         /// </summary>
         public void OnPlayerStateReceived(ConnectionId connId, byte[] data, int offset, int length)
         {
@@ -160,28 +151,6 @@ namespace Lithforge.Runtime.Simulation
             {
                 // Remote player state — route to remote player manager
                 _onRemotePlayerState?.Invoke(msg);
-
-                return;
-            }
-
-            float3 serverPos = new(msg.PositionX, msg.PositionY, msg.PositionZ);
-            PlayerPhysicsState localState = _playerPhysicsManager.GetState(_localPlayerId);
-            float error = math.distance(serverPos, localState.Position);
-
-            if (error < AckIgnoreThreshold)
-            {
-                // Normal operation — server accepted our position
-                return;
-            }
-
-            if (error > DriftSnapThreshold)
-            {
-                // Significant drift — snap to server position
-                _logger?.LogInfo(
-                    $"[MOVE] drift snap: error={error:F4} server=({serverPos.x:F2},{serverPos.y:F2},{serverPos.z:F2})");
-
-                PlayerPhysicsBody body = _playerPhysicsManager.GetBody(_localPlayerId);
-                body?.Teleport(serverPos);
             }
         }
 
